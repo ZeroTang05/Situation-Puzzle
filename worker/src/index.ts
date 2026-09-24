@@ -6,6 +6,8 @@ interface Env {
   ADMIN_TOKEN: string;
   BILIBILI_APP_ID: string;
   BILIBILI_APP_SECRET: string;
+  XHS_APP_ID: string;
+  XHS_APP_SECRET: string;
   ALLOWED_ORIGIN: string;
   JEV_CONFIDENCE_THRESHOLD: string;
 }
@@ -35,6 +37,7 @@ function ensureSeeded(env: Env): Promise<void> {
   return seedPromise;
 }
 type User = { id: string; status: 'active' | 'banned'; first_seen_at: string; last_seen_at: string };
+type SessionUser = User & { is_identified: number };
 
 const json = (value: unknown, status = 200, origin = '*') => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' } });
 const id = () => crypto.randomUUID();
@@ -69,6 +72,8 @@ export default {
       if (request.method === 'GET' && url.pathname === '/api/soups') return publicSoups(env, origin);
       if (request.method === 'POST' && url.pathname === '/api/auth/anonymous') return anonymousAuth(request, env, origin);
       if (request.method === 'POST' && url.pathname === '/api/auth/bilibili') return bilibiliAuth(request, env, origin);
+      if (request.method === 'POST' && url.pathname === '/api/auth/xiaohongshu') return xiaohongshuAuth(request, env, origin);
+      if (request.method === 'GET' && url.pathname === '/api/me/progress') return myProgress(request, env, origin);
       if (request.method === 'POST' && url.pathname === '/api/soups') return createSoup(request, env, origin);
       if (request.method === 'GET' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'soups' && parts[3] === 'answer') return revealAnswer(parts[2], env, origin);
       if (request.method === 'POST' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'soups' && parts[3] === 'judge') return judgeSoup(parts[2], request, env, origin);
@@ -83,7 +88,7 @@ export default {
 };
 
 async function publicSoups(env: Env, origin: string) {
-  const { results } = await env.DB.prepare('SELECT id, title, story, hints, author_name, created_at, published_at FROM soups WHERE status = ? ORDER BY published_at DESC LIMIT 50').bind('published').all<SoupRow>();
+  const { results } = await env.DB.prepare('SELECT id, title, story, hints, author_name, created_at, published_at FROM soups WHERE status = ? ORDER BY published_at DESC').bind('published').all<SoupRow>();
   return json({ soups: parseHints(results) }, 200, origin);
 }
 
@@ -105,10 +110,9 @@ async function createSoup(request: Request, env: Env, origin: string) {
   return json({ soup: { ...soup, answer: undefined, creator_token: undefined }, creator_token: soup.creator_token, message: '已提交审核，通过后会出现在公开题库。' }, 201, origin);
 }
 
-/** 无感兜底身份：首次启动由客户端保存随机设备标识，后续不出现注册或登录界面。 */
-async function anonymousAuth(request: Request, env: Env, origin: string) {
-  const { device_id } = await request.json() as { device_id?: string }; if (!device_id || device_id.length > 128) return json({ error: '设备标识无效' }, 400, origin);
-  return issueIdentity(env, 'anonymous', device_id, origin);
+/** 直接访问网页的玩家共用访客 ID；个人答题记录只归属经平台验证的用户。 */
+async function anonymousAuth(_request: Request, env: Env, origin: string) {
+  return issueIdentity(env, 'anonymous', 'shared-web', origin);
 }
 
 /** B 站小程序将 bl.login() 获得的一次性 code 交给 Worker；AppSecret 永远不会进入客户端。 */
@@ -120,16 +124,70 @@ async function bilibiliAuth(request: Request, env: Env, origin: string) {
   return issueIdentity(env, 'bilibili', data.openId, origin);
 }
 
+/** 小红书小程序 code 只能在服务端换 open_id，密钥和 session_key 都不下发。 */
+async function xiaohongshuAuth(request: Request, env: Env, origin: string) {
+  const { code } = await request.json() as { code?: string };
+  if (!code) return json({ error: '缺少小红书登录凭证' }, 400, origin);
+  if (!env.XHS_APP_ID || !env.XHS_APP_SECRET) throw new Error('缺少小红书小程序配置');
+  const tokenQuery = new URLSearchParams({ app_id: env.XHS_APP_ID, app_secret: env.XHS_APP_SECRET });
+  const tokenResponse = await fetch(`https://miniapp.xiaohongshu.com/api/rmp/token?${tokenQuery}`);
+  if (!tokenResponse.ok) throw new Error(`小红书应用凭证获取失败：${tokenResponse.status}`);
+  const tokenData = await tokenResponse.json() as { success?: boolean; code?: number; data?: { access_token?: string } };
+  const accessToken = tokenData.data?.access_token;
+  if (tokenData.success !== true || !accessToken) throw new Error(`小红书应用凭证获取失败：${tokenData.code ?? '未知错误'}`);
+  const sessionQuery = new URLSearchParams({ appid: env.XHS_APP_ID, access_token: accessToken, code });
+  const sessionResponse = await fetch(`https://miniapp.xiaohongshu.com/api/rmp/session?${sessionQuery}`);
+  if (!sessionResponse.ok) throw new Error(`小红书登录校验失败：${sessionResponse.status}`);
+  const sessionData = await sessionResponse.json() as { success?: boolean; code?: number; data?: { open_id?: string } };
+  const openId = sessionData.data?.open_id;
+  if (sessionData.success !== true || !openId) return json({ error: `小红书登录校验失败：${sessionData.code ?? '未知错误'}` }, 401, origin);
+  return issueIdentity(env, 'xiaohongshu', openId, origin);
+}
+
 async function issueIdentity(env: Env, platform: 'anonymous' | 'bilibili' | 'xiaohongshu', platformOpenId: string, origin: string) {
-  const now = new Date().toISOString(); const existing = await env.DB.prepare('SELECT user_id FROM user_identities WHERE platform=? AND platform_open_id=?').bind(platform, platformOpenId).first<{ user_id: string }>(); const userId = existing?.user_id ?? id();
-  if (!existing) await env.DB.batch([env.DB.prepare('INSERT INTO users (id,first_seen_at,last_seen_at) VALUES (?,?,?)').bind(userId, now, now), env.DB.prepare('INSERT INTO user_identities (id,user_id,platform,platform_open_id,created_at) VALUES (?,?,?,?,?)').bind(id(), userId, platform, platformOpenId, now)]);
+  const now = new Date().toISOString();
+  let identity = await env.DB.prepare('SELECT user_id FROM user_identities WHERE platform=? AND platform_open_id=?').bind(platform, platformOpenId).first<{ user_id: string }>();
+  if (!identity) {
+    const candidateId = platform === 'anonymous' ? 'web-shared' : id();
+    await env.DB.batch([
+      env.DB.prepare('INSERT OR IGNORE INTO users (id,first_seen_at,last_seen_at) VALUES (?,?,?)').bind(candidateId, now, now),
+      env.DB.prepare('INSERT OR IGNORE INTO user_identities (id,user_id,platform,platform_open_id,created_at) VALUES (?,?,?,?,?)').bind(id(), candidateId, platform, platformOpenId, now),
+    ]);
+    identity = await env.DB.prepare('SELECT user_id FROM user_identities WHERE platform=? AND platform_open_id=?').bind(platform, platformOpenId).first<{ user_id: string }>();
+  }
+  if (!identity) throw new Error('用户身份保存失败');
+  const userId = identity.user_id;
   await env.DB.prepare('UPDATE users SET last_seen_at=? WHERE id=?').bind(now, userId).run(); const token = id(); await env.DB.prepare('INSERT INTO user_sessions (token,user_id,created_at,last_seen_at) VALUES (?,?,?,?)').bind(token, userId, now, now).run();
   return json({ token, user_id: userId, platform }, 200, origin);
 }
 
 async function currentUser(request: Request, env: Env) {
   const token = request.headers.get('Authorization')?.replace(/^Bearer\s+/, ''); if (!token) return null;
-  const result = await env.DB.prepare('SELECT users.* FROM user_sessions JOIN users ON users.id=user_sessions.user_id WHERE user_sessions.token=?').bind(token).first<User>(); if (result) await env.DB.prepare('UPDATE user_sessions SET last_seen_at=? WHERE token=?').bind(new Date().toISOString(), token).run(); return result;
+  const result = await env.DB.prepare("SELECT users.*, EXISTS(SELECT 1 FROM user_identities i WHERE i.user_id=users.id AND i.platform IN ('bilibili','xiaohongshu')) AS is_identified FROM user_sessions JOIN users ON users.id=user_sessions.user_id WHERE user_sessions.token=?").bind(token).first<SessionUser>(); if (result) await env.DB.prepare('UPDATE user_sessions SET last_seen_at=? WHERE token=?').bind(new Date().toISOString(), token).run(); return result;
+}
+
+/** 仅返回当前用户自己的已玩题目；总题量与公开题库使用相同的 published 范围。 */
+async function myProgress(request: Request, env: Env, origin: string) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ error: '身份无效' }, 401, origin);
+  const total = await env.DB.prepare("SELECT COUNT(*) AS count FROM soups WHERE status='published'").first<{ count: number }>();
+  if (!user.is_identified) return json({ personal: false, total: total?.count ?? 0, attempted: 0, solved: 0, soups: [] }, 200, origin);
+  const { results } = await env.DB.prepare("SELECT p.soup_id, s.title, p.question_count, p.last_outcome, p.solved_at, p.last_played_at FROM soup_progress p JOIN soups s ON s.id=p.soup_id WHERE p.user_id=? AND s.status='published' ORDER BY p.last_played_at DESC").bind(user.id).all<{ soup_id: string; title: string; question_count: number; last_outcome: string | null; solved_at: string | null; last_played_at: string }>();
+  return json({ personal: true, total: total?.count ?? 0, attempted: results.length, solved: results.filter((item) => item.solved_at).length, soups: results }, 200, origin);
+}
+
+/** 一次有效提问才计数；无法确定也算玩家尝试，Jev 请求失败不计数。 */
+async function recordQuestion(env: Env, user: SessionUser | null, soupId: string) {
+  if (!user?.is_identified) return;
+  const now = new Date().toISOString();
+  await env.DB.prepare('INSERT INTO soup_progress (user_id,soup_id,first_played_at,last_played_at,question_count) VALUES (?,?,?,?,1) ON CONFLICT(user_id,soup_id) DO UPDATE SET last_played_at=excluded.last_played_at,question_count=soup_progress.question_count+1').bind(user.id, soupId, now, now).run();
+}
+
+/** 只有 Jev 判为“破解成功”才记完成；之后再试题不会抹掉已完成状态。 */
+async function recordSolution(env: Env, user: SessionUser | null, soupId: string, outcome: string) {
+  if (!user?.is_identified) return;
+  const now = new Date().toISOString(); const solvedAt = outcome === '破解成功' ? now : null;
+  await env.DB.prepare('INSERT INTO soup_progress (user_id,soup_id,first_played_at,last_played_at,last_outcome,solved_at) VALUES (?,?,?,?,?,?) ON CONFLICT(user_id,soup_id) DO UPDATE SET last_played_at=excluded.last_played_at,last_outcome=excluded.last_outcome,solved_at=COALESCE(soup_progress.solved_at,excluded.solved_at)').bind(user.id, soupId, now, now, outcome, solvedAt).run();
 }
 
 async function judgeSoup(soupId: string, request: Request, env: Env, origin: string) {
@@ -145,6 +203,7 @@ async function judgeSoup(soupId: string, request: Request, env: Env, origin: str
   if (!gatewayResponse.ok) throw new Error(`Jev 请求失败：${gatewayResponse.status}`);
   const result = await gatewayResponse.json() as { answers: { verdict: { choice: '是' | '否' | '无关'; probabilities?: Record<string, number> } } };
   const verdict = result.answers.verdict; const confidence = verdict.probabilities?.[verdict.choice] ?? 0; const threshold = Number(env.JEV_CONFIDENCE_THRESHOLD);
+  await recordQuestion(env, await currentUser(request, env), soupId);
   return json({ verdict: confidence >= threshold ? verdict.choice : '无法确定', confidence, threshold }, 200, origin);
 }
 
@@ -161,7 +220,9 @@ async function solveSoup(soupId: string, request: Request, env: Env, origin: str
   if (!gatewayResponse.ok) throw new Error(`Jev 结局判断失败：${gatewayResponse.status}`);
   const result = await gatewayResponse.json() as { answers: { outcome: { choice: '破解成功' | '接近真相' | '还没猜对'; probabilities?: Record<string, number> } } };
   const outcome = result.answers.outcome; const confidence = outcome.probabilities?.[outcome.choice] ?? 0; const threshold = Number(env.JEV_CONFIDENCE_THRESHOLD);
-  return json({ outcome: confidence >= threshold ? outcome.choice : '无法确定', confidence, threshold }, 200, origin);
+  const finalOutcome = confidence >= threshold ? outcome.choice : '无法确定';
+  await recordSolution(env, await currentUser(request, env), soupId, finalOutcome);
+  return json({ outcome: finalOutcome, confidence, threshold }, 200, origin);
 }
 
 async function admin(request: Request, parts: string[], env: Env, origin: string) {

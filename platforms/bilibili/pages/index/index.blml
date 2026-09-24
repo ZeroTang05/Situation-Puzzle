@@ -1,0 +1,2 @@
+<web-view bl:if="{{src}}" src="{{src}}"></web-view>
+<view bl:else>{{error || '正在进入海龟汤…'}}</view>

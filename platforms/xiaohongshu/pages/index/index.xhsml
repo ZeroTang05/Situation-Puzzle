@@ -1,0 +1,2 @@
+<web-view xhs:if="{{src}}" src="{{src}}"></web-view>
+<view xhs:else>{{error || '正在进入海龟汤…'}}</view>
