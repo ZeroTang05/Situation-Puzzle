@@ -36,10 +36,13 @@ button[disabled] { opacity:.48; }
 .hint-nav { display:flex; gap:8rpx; }
 .hint-nav button { height:38rpx; padding:0 12rpx; line-height:36rpx; }
 .action-row { display:flex; flex-shrink:0; gap:8rpx; padding:10rpx 0; }
-.action-row button { flex:1; height:54rpx; padding:0 6rpx; border-color:transparent; line-height:52rpx; font-weight:700; }
-.action-row button:first-child { background:#e6c07d; color:#261b0c; }
-.action-row button:nth-child(2) { background:#a9c8ec; color:#10243d; }
-.action-row button:last-child { background:#ff9b78; color:#33150c; }
+.action-row button { flex:1; height:54rpx; padding:0 6rpx; line-height:52rpx; font-weight:700; }
+/* 三颗操作键统一透明底，文字和描边用各自主题色：金=提示、蓝=公布、橙=还原。 */
+.action-row button:first-child { border-color:rgba(230,192,125,.45); background:transparent; color:#e6c07d; }
+.action-row button:nth-child(2) { border-color:rgba(169,200,236,.45); background:transparent; color:#a9c8ec; }
+.action-row button:last-child { border-color:rgba(255,155,120,.45); background:transparent; color:#ff9b78; }
+/* 提示给完后按钮进入 disabled，取消全局降透明度，避免看起来像蒙了一层。 */
+.action-row button[disabled] { opacity:1; }
 .primary { border-color:#7dd8c6; background:#7dd8c6; color:#06231d; font-weight:600; }
 .composer { display:flex; flex-shrink:0; gap:8rpx; margin-bottom:10rpx; padding:6rpx; border:1rpx solid rgba(150,186,216,.16); border-radius:10rpx; background:#0e1e33; }
 .composer input { flex:1; min-width:0; height:52rpx; padding:0 12rpx; color:#e9eff5; font-size:24rpx; }
