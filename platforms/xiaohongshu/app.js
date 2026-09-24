@@ -1,2 +1,2 @@
-// 上架前将 webUrl 改为已在小红书小程序后台配置的 HTTPS 业务域名。
-App({ globalData: { webUrl: '' } });
+// 小组件只保存公开 API 地址；小红书与 Jev 密钥始终留在 Worker。
+App({ globalData: { apiBaseUrl: 'https://situation-puzzle-api.xiaobaozi.cn' } });

@@ -1,2 +1,100 @@
-<web-view xhs:if="{{src}}" src="{{src}}"></web-view>
-<view xhs:else>{{error || '正在进入海龟汤…'}}</view>
+<view class="shell">
+  <view class="topbar">
+    <view class="brand">Jev <text>{{language === 'zh' ? '海龟汤' : 'Puzzles'}}</text></view>
+    <view class="top-actions">
+      <button class="top-button" bindtap="switchLanguage">{{language === 'zh' ? 'EN' : '中'}}</button>
+      <button class="top-button" bindtap="nextSoup">{{t.next}}</button>
+      <button class="top-button" open-type="share" data-share-type="normal">{{t.share}}</button>
+    </view>
+  </view>
+
+  <view xhs:if="{{notice}}" class="notice" bindtap="dismissNotice">{{notice}} <text>×</text></view>
+  <view xhs:if="{{loading}}" class="loading">{{t.loading}}</view>
+  <view xhs:if="{{!loading && !soup}}" class="loading">
+    <view>{{t.noSoups}}</view><button bindtap="retry">{{t.retry}}</button>
+  </view>
+
+  <view xhs:if="{{view === 'play' && soup}}" class="play">
+    <view class="hero">
+      <view class="eyebrow">{{t.tagline}}</view>
+      <view class="hero-title">{{soup.title}}</view>
+      <scroll-view scroll-y="{{true}}" class="story"><text>{{soup.story}}</text></scroll-view>
+      <view class="turtle">🐢</view>
+    </view>
+
+    <view xhs:if="{{solveOpen}}" class="panel-head">
+      <text>{{t.solve}}</text><button bindtap="closeSolve">{{t.exitSolve}}</button>
+    </view>
+    <scroll-view scroll-y="{{true}}" scroll-into-view="{{solveOpen ? 'solve-end' : 'chat-end'}}" class="chat">
+      <view xhs:if="{{!solveOpen && messages.length === 0}}" class="host"><text class="avatar">🐢</text><text>{{t.hostIntro}}</text></view>
+      <view xhs:if="{{solveOpen && solveMessages.length === 0}}" class="host">{{t.solvePlaceholder}}</view>
+      <block xhs:if="{{!solveOpen}}">
+        <view xhs:for="{{messages}}" xhs:key="index" class="message {{item.role}}">
+          <view xhs:if="{{item.role === 'jev'}}" class="message-head">🐢 Jev <text xhs:if="{{item.verdict}}" class="badge">{{item.verdict}}</text><text xhs:if="{{item.verdict}}" class="confidence">{{t.confidence}} {{item.confidence}}%</text></view>
+          <view xhs:if="{{item.text}}">{{item.text}}</view><view xhs:if="{{item.detail}}">{{item.detail}}</view>
+        </view>
+        <view xhs:if="{{answer}}" class="answer"><view>{{t.answer}}</view><text>{{answer}}</text></view>
+        <view id="chat-end"></view>
+      </block>
+      <block xhs:else>
+        <view xhs:for="{{solveMessages}}" xhs:key="index" class="message {{item.role}}">
+          <view xhs:if="{{item.role === 'jev'}}" class="message-head">🐢 Jev <text xhs:if="{{item.verdict}}" class="badge">{{item.verdict}}</text><text xhs:if="{{item.verdict}}" class="confidence">{{t.confidence}} {{item.confidence}}%</text></view>
+          <view xhs:if="{{item.text}}">{{item.text}}</view><view xhs:if="{{item.detail}}">{{item.detail}}</view>
+          <view xhs:if="{{item.answer}}" class="answer"><view>{{t.answer}}</view><text>{{item.answer}}</text></view>
+        </view>
+        <view id="solve-end"></view>
+      </block>
+      <view xhs:if="{{busy}}" class="thinking">{{t.judging}}</view>
+    </scroll-view>
+
+    <view xhs:if="{{!solveOpen && hintCount > 0}}" class="hint-card">
+      <view><text>{{t.hint}} {{hintIndex + 1}}/{{soup.hints.length}}</text><view class="hint-nav"><button bindtap="previousHint" disabled="{{hintIndex === 0}}">←</button><button bindtap="nextHint" disabled="{{hintIndex >= hintCount - 1}}">→</button></view></view>
+      <text>{{soup.hints[hintIndex]}}</text>
+    </view>
+    <view xhs:if="{{!solveOpen}}" class="action-row">
+      <button bindtap="revealHint" disabled="{{hintCount >= soup.hints.length}}">{{t.hint}} {{hintCount > 0 ? hintCount : ''}}</button>
+      <button bindtap="revealAnswer">{{t.reveal}}</button>
+      <button class="primary" bindtap="openSolve">{{t.solve}}</button>
+    </view>
+    <view class="composer">
+      <input value="{{question}}" bindinput="questionInput" maxlength="{{solveOpen ? 1500 : 500}}" placeholder="{{solveOpen ? t.solvePlaceholder : t.askPlaceholder}}" confirm-type="send" bindconfirm="send" />
+      <button class="primary" bindtap="send" disabled="{{busy || !token}}">{{t.send}}</button>
+    </view>
+  </view>
+
+  <scroll-view xhs:if="{{view === 'library'}}" scroll-y="{{true}}" class="page-list">
+    <view class="section-title">{{t.library}} <text>{{soups.length}}</text></view>
+    <view xhs:for="{{soups}}" xhs:key="id" class="soup-row" data-id="{{item.id}}" bindtap="chooseSoup">
+      <view class="row-title">{{item.title}} <text xhs:if="{{item.state}}" class="status">{{item.state === 'solved' ? t.completed : t.played}}</text></view>
+      <view class="row-story">{{item.story}}</view>
+    </view>
+  </scroll-view>
+
+  <scroll-view xhs:if="{{view === 'progress'}}" scroll-y="{{true}}" class="page-list">
+    <view class="section-title">{{t.records}}</view>
+    <view class="stats"><view><text>{{progress ? progress.solved : '—'}}</text>{{t.completed}}</view><view><text>{{progress ? progress.attempted : '—'}}</text>{{t.attempted}}</view><view><text>{{progress ? progress.total : '—'}}</text>{{t.total}}</view></view>
+    <view xhs:if="{{progress && progress.soups.length === 0}}" class="empty">{{t.progressEmpty}}</view>
+    <view xhs:for="{{progress ? progress.soups : []}}" xhs:key="soup_id" class="soup-row" data-id="{{item.soup_id}}" bindtap="chooseSoup">
+      <view class="row-title">{{item.title}} <text class="status">{{item.solved_at ? t.completed : t.played}}</text></view>
+      <view class="row-story">{{t.questions}} {{item.question_count}} {{t.times}}</view>
+    </view>
+  </scroll-view>
+
+  <scroll-view xhs:if="{{view === 'create'}}" scroll-y="{{true}}" class="page-list creator">
+    <view class="section-title">{{t.create}}</view><view class="create-intro">{{t.createIntro}}</view>
+    <view class="field"><text>{{t.title}}</text><input value="{{form.title}}" maxlength="30" data-field="title" bindinput="formInput" /></view>
+    <view class="field"><text>{{t.story}}</text><textarea value="{{form.story}}" maxlength="500" data-field="story" bindinput="formInput" /></view>
+    <view class="field"><text>{{t.answerField}}</text><textarea value="{{form.answer}}" maxlength="1500" data-field="answer" bindinput="formInput" /></view>
+    <view class="field"><text>{{t.hint1}}</text><input value="{{form.hint1}}" maxlength="100" data-field="hint1" bindinput="formInput" /></view>
+    <view class="field"><text>{{t.hint2}}</text><input value="{{form.hint2}}" maxlength="100" data-field="hint2" bindinput="formInput" /></view>
+    <view class="field"><text>{{t.hint3}}</text><input value="{{form.hint3}}" maxlength="100" data-field="hint3" bindinput="formInput" /></view>
+    <button class="submit primary" bindtap="submitSoup" disabled="{{busy || !token}}">{{busy ? t.reviewing : t.submitReview}}</button>
+  </scroll-view>
+
+  <view class="tabs">
+    <view class="tab {{view === 'library' ? 'active' : ''}}" data-view="library" bindtap="changeView">{{t.library}}</view>
+    <view class="tab {{view === 'play' ? 'active' : ''}}" data-view="play" bindtap="changeView">{{t.play}}</view>
+    <view class="tab {{view === 'progress' ? 'active' : ''}}" data-view="progress" bindtap="changeView">{{t.records}}</view>
+    <view class="tab {{view === 'create' ? 'active' : ''}}" data-view="create" bindtap="changeView">{{t.create}}</view>
+  </view>
+</view>

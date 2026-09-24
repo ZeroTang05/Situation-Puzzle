@@ -44,9 +44,9 @@ pnpm --dir worker dev
 
 网页首次访问时会在本地浏览器生成随机标识，答题记录也只保存在该浏览器的本地存储。刷新页面可继续查看记录；换浏览器、换设备或清除浏览器数据后，记录不会同步。网页访客不向后端创建用户或会话，也可以直接投稿；这类投稿的 `author_user_id` 为空。平台用户仍由后端识别，答题记录保存在 D1，可在同一平台身份下继续使用。
 
-`platforms/bilibili` 和 `platforms/xiaohongshu` 是基础小程序壳。分别在 `app.js` 填写已发布网页的 HTTPS 地址，并在平台后台登记业务域名。壳调用 `bl.login()` 或 `xhs.login()` 得到一次性 `code`，经 WebView 地址传给网页；网页调用 Worker 的 `/api/auth/bilibili` 或 `/api/auth/xiaohongshu`。Worker 向对应平台换取 OpenID，建立或复用内部用户 ID，返回会话令牌。平台密钥与 `session_key` 留在服务端。刷新页面时，当前 WebView 会话继续使用原令牌；重新打开小程序会重新领取 `code`。
+`platforms/bilibili` 是基础小程序壳。它调用 `bl.login()` 得到一次性 `code`，再经 WebView 地址传给网页。`platforms/xiaohongshu` 是原生小组件，页面由 XHSML、CSS 和 JS 实现，直接调用 Worker 接口。打开小组件时，`xhs.login()` 的一次性 `code` 直接交给 Worker 的 `/api/auth/xiaohongshu`，换取本项目的用户令牌。Worker 向小红书换取 OpenID，建立或复用内部用户 ID。平台密钥与 `session_key` 留在服务端。
 
-小红书开发者工具导入 `platforms/xiaohongshu` 目录。该目录的 `project.config.json` 只保存通用项目设置；导入时在开发者工具中选择自己小程序的真实 AppID，工具会写入项目配置。不要将其他小程序的 AppID 填入仓库。
+小红书开发者工具导入 `platforms/xiaohongshu` 目录，项目类型选择小组件。`app.js` 中的 `apiBaseUrl` 指向已部署的 Worker；还需在小红书后台把该 HTTPS 地址登记为 request 合法域名。`project.config.json` 由开发者工具维护，其中的 AppID 必须与 Worker 的 `XHS_APP_ID` 对应。小组件不加载网页，管理员后台仍使用原有网页 `/admin`。
 
 小程序的 OpenID 只在本小程序内唯一。两个平台的同一位玩家会得到两个内部用户 ID，目前不提供账号合并。B 站个人类型小程序暂不支持 WebView；需要具备相应主体资质并配置业务域名。平台真机登录需要各自的小程序账号和密钥联调。
 

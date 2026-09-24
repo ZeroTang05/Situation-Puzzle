@@ -1,0 +1,14 @@
+{
+  "description": "Jev 海龟汤小红书小程序项目配置",
+  "compileType": "miniwidget",
+  "miniprogramRoot": ".",
+  "projectname": "Jev 海龟汤",
+  "setting": {
+    "minified": true,
+    "urlCheck": true,
+    "es6": true,
+    "useNewCompiler": true
+  },
+  "libVersion": "3.152.1",
+  "appid": "6ab4dc7bb0598000019f0658"
+}
