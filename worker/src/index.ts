@@ -228,7 +228,7 @@ async function solveSoup(soupId: string, request: Request, env: Env, origin: str
 /**
  * HTTP Basic 校验：浏览器接到 401 + WWW-Authenticate 会弹出原生的顶部登录框，
  * 用户输入后会展示在 Authorization: Basic base64(user:password) 头里。
- * 用户名随便填，密码必须等于 ADMIN_TOKEN；不匹配继续返 401。
+ * 用户名为 admin，密码为 ADMIN_TOKEN；不匹配继续返 401。
  */
 function requireAdminBasic(request: Request, env: Env, origin: string): Response | null {
   const auth = request.headers.get('Authorization');
@@ -246,8 +246,9 @@ function requireAdminBasic(request: Request, env: Env, origin: string): Response
     const decoded = atob(auth.slice(6));
     const colon = decoded.indexOf(':');
     if (colon < 0) throw new Error('格式错误');
+    const username = decoded.slice(0, colon);
     const password = decoded.slice(colon + 1);
-    if (password !== env.ADMIN_TOKEN) {
+    if (username !== 'admin' || password !== env.ADMIN_TOKEN) {
       return new Response(JSON.stringify({ error: '管理员密码错误' }), { status: 401, headers });
     }
   } catch {

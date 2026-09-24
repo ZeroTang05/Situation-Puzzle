@@ -18,7 +18,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 situation-puzzle/
 ├─ app/                    前端（Next.js App Router）
 │  ├─ page.tsx             单页游戏主体：开局（题目卡+对话+底部输入）、题库、出题、还原真相临时面板、公布答案二次确认弹窗
-│  ├─ admin/page.tsx       审核后台：输入 ADMIN_TOKEN 发布/驳回/删除投稿
+│  ├─ admin/page.tsx       审核后台：浏览器原生账号密码验证后发布/驳回/删除投稿
 │  ├─ api/judge、api/solve  仅本地开发用的判题路由（服务端读密钥，浏览器拿不到）
 │  └─ globals.css          全部样式（设计变量在 :root，深色海洋风、小圆角）
 ├─ data/library.json       初始题库唯一数据源（12 题 × 3 条提示）；worker 启动整体覆盖库内 seed- 行，前端离线兜底同源
@@ -28,6 +28,7 @@ situation-puzzle/
 │  ├─ wrangler.jsonc       D1 绑定、ALLOWED_ORIGIN、JEV_CONFIDENCE_THRESHOLD 等配置
 │  └─ .dev.vars            本地密钥（AI Gateway、ADMIN_TOKEN），不入库
 ├─ .env.local              前端密钥与 NEXT_PUBLIC_API_URL，不入库
+├─ proxy.ts                /admin 路由入口的 HTTP Basic 验证
 └─ .env.example、worker/.dev.vars.example  空模板，入库
 ```
 

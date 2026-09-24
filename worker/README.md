@@ -30,9 +30,9 @@ pnpm --dir worker dev
 
 ## 管理后台
 
-前端设置 `NEXT_PUBLIC_API_URL` 后访问 `/admin`。输入 `ADMIN_TOKEN` 即可查看待审核题目、发布、驳回或删除。
+前端服务端设置 `NEXT_PUBLIC_API_URL` 和 `ADMIN_TOKEN`，其中 `ADMIN_TOKEN` 必须与 Worker 的同名密钥一致。访问 `/admin` 时，浏览器会先弹出原生账号密码框：用户名填 `admin`，密码填 `ADMIN_TOKEN` 的值。验证通过后页面自动载入待审核题目。审核请求由同源 Next.js 接口转发给 Worker，浏览器页面不会拿到管理员密钥。
 
-正式运营时，建议把 `/admin` 放在 Cloudflare Access 后面，令牌只作为第二层服务端校验。
+后台必须通过 HTTPS 访问，避免浏览器原生认证凭据在传输中泄露。密码修改后，需要同步更新前端服务端和 Worker 的 `ADMIN_TOKEN`。
 
 ## 无感用户身份
 
