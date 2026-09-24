@@ -43,10 +43,10 @@ situation-puzzle/
 
 ## 关键约定
 
-- **CORS**：`worker/src/index.ts` 的 `corsOrigin()` 放行 `ALLOWED_ORIGIN` 加回环/内网地址（本地各种主机名和端口），其余来源返回 ALLOWED_ORIGIN 让浏览器拒绝。改来源逻辑先看这里。
+- **CORS**：`worker/src/index.ts` 的 `corsOrigin()` 放行 `ALLOWED_ORIGIN` 列表（wrangler.jsonc 里逗号分隔的字符串；Worker 环境变量只认纯文本，不能写数组）加回环/内网地址（本地各种主机名和端口），其余来源返回列表第一个让浏览器拒绝。改来源逻辑先看这里。
 - **汤底保密**：公开题库接口绝不返回 `answer`；判题在服务端对照数据库完成；玩家点「公布答案」确认后，前端才调 `GET /api/soups/:id/answer` 单独取汤底。离线模式的前端内置题是例外（汤底在 bundle 里）。
-- **hints**：三条不同角度提示，DB 以 JSON 文本存储；worker 读出经 `parseHints()` 解析。前端用对话区顶部的悬浮卡单条展示，提示按钮依次解锁，左右箭头在已解锁的提示间切换、给完禁用。
-- **判题阈值**：`JEV_CONFIDENCE_THRESHOLD`（0.4），置信度低于它统一返回「无法确定」。
+- **hints**：三条不同角度提示，DB 以 JSON 文本存储；worker 读出经 `parseHints()` 解析。前端用固定在对话区与操作行之间的提示卡单条展示，提示按钮依次解锁，左右箭头在已解锁的提示间切换、给完禁用。
+- **判题阈值**：`JEV_CONFIDENCE_THRESHOLD`（wrangler.jsonc 配置，当前 0.5），置信度低于它统一返回「无法确定」。
 - **还原真相**：点击后用临时面板盖住对话区（汤面和输入框保持可见），复用底部发送框但路由到 solve 接口；还原对话在独立线程 `solveThread`，退出即回到主对话。
 - **题库合并**：前端把线上题库按标题去重，同名保留线上版本（汤底不进浏览器）。
 

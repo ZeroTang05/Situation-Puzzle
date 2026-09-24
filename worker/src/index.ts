@@ -57,20 +57,21 @@ const json = (value: unknown, status = 200, origin = '*') => new Response(JSON.s
 const id = () => crypto.randomUUID();
 
 /**
- * 计算本次请求应回写的 CORS 来源：与 ALLOWED_ORIGIN 完全一致时原样返回；
+ * 计算本次请求应回写的 CORS 来源：Origin 命中 ALLOWED_ORIGIN 列表（逗号分隔，支持多个前端域名）时原样返回；
  * 本地开发时前端可能用 localhost、127.0.0.1 或局域网 IP 打开（端口也会变），这些来源一并放行。
- * 其余来源返回 ALLOWED_ORIGIN，浏览器会因不匹配而拒绝读取响应。
+ * 其余来源返回列表第一个，浏览器会因不匹配而拒绝读取响应。
  */
 function corsOrigin(request: Request, env: Env): string {
+  const allowed = env.ALLOWED_ORIGIN.split(',').map((item) => item.trim()).filter(Boolean);
   const origin = request.headers.get('Origin');
-  if (origin === env.ALLOWED_ORIGIN) return origin;
+  if (origin && allowed.includes(origin)) return origin;
   try {
     const { hostname } = new URL(origin ?? '');
     const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
     const isPrivateNetwork = hostname.startsWith('192.168.') || hostname.startsWith('10.') || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
     if ((isLocalHost || isPrivateNetwork) && origin) return origin;
   } catch { /* Origin 不是合法 URL 时按未匹配处理 */ }
-  return env.ALLOWED_ORIGIN;
+  return allowed[0] ?? '';
 }
 
 /** Worker API：公开题库、UGC 投稿、Jev 判题与后台审核都在一个边缘服务中完成。 */
