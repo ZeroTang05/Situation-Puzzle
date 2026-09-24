@@ -143,6 +143,9 @@ nav button.active { color:var(--accent); font-weight:600; box-shadow:inset 0 2px
 .admin { width:min(100% - 40px,900px); margin:0 auto; padding:56px 0; color:var(--ink); }
 .admin h1 { margin:0 0 6px; font-size:26px; }
 .admin > p { color:var(--muted); }
+.admin-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:22px 0; }
+.admin-tabs button { min-height:36px; padding:7px 12px; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--muted); cursor:pointer; }
+.admin-tabs button.active { border-color:var(--accent); color:var(--accent); }
 .admin article footer button { border:0; border-radius:5px; padding:10px 14px; background:var(--accent); color:var(--accent-ink); font-weight:600; }
 .admin-message { padding:9px 12px; border:1px solid rgba(125,216,198,.3); border-radius:5px; background:rgba(125,216,198,.07); color:#c9e8df; }
 .admin article { margin:12px 0; padding:18px 20px; border:1px solid var(--line); border-radius:8px; background:var(--panel); }

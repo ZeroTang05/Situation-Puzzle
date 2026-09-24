@@ -13,7 +13,7 @@ interface Env {
 }
 
 type SoupStatus = 'pending' | 'published' | 'rejected' | 'deleted';
-type Soup = { id: string; title: string; story: string; answer: string; hints: string[]; author_name: string; status: SoupStatus; created_at: string; published_at: string | null; moderation_note: string | null; creator_token: string };
+type Soup = { id: string; title: string; story: string; answer: string; hints: string[]; author_name: string; status: SoupStatus; created_at: string; published_at: string | null; reviewed_at: string | null; moderation_note: string | null; creator_token: string };
 /** 数据库里 hints 以 JSON 文本存储，读出后需要解析成数组 */
 type SoupRow = Omit<Soup, 'hints'> & { hints: string };
 const parseHints = (rows: SoupRow[]) => rows.map(({ hints, ...rest }) => ({ ...rest, hints: JSON.parse(hints) as string[] }));
@@ -104,10 +104,13 @@ async function createSoup(request: Request, env: Env, origin: string) {
   for (const key of ['title', 'story', 'answer'] as const) if (!input[key]?.trim()) return json({ error: `${key} 不能为空` }, 400, origin);
   const hints = (input.hints ?? []).map((hint) => hint.trim().slice(0, 100)).filter(Boolean);
   if (!hints[0]) return json({ error: '至少填写一条提示' }, 400, origin);
-  const user = await currentUser(request, env); if (!user) return json({ error: '请先建立匿名身份' }, 401, origin); if (user.status === 'banned') return json({ error: '该账户已被限制投稿' }, 403, origin);
-  const soup: Soup = { id: id(), title: input.title!.trim().slice(0, 30), story: input.story!.trim().slice(0, 500), answer: input.answer!.trim().slice(0, 1500), hints, author_name: input.author_name?.trim().slice(0, 20) || '匿名玩家', status: 'pending', created_at: new Date().toISOString(), published_at: null, moderation_note: null, creator_token: id() };
-  await env.DB.prepare('INSERT INTO soups (id,title,story,answer,hints,author_name,status,created_at,creator_token,author_user_id) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(soup.id, soup.title, soup.story, soup.answer, JSON.stringify(soup.hints), soup.author_name, soup.status, soup.created_at, soup.creator_token, user.id).run();
-  return json({ soup: { ...soup, answer: undefined, creator_token: undefined }, creator_token: soup.creator_token, message: '已提交审核，通过后会出现在公开题库。' }, 201, origin);
+  const user = await currentUser(request, env);
+  if (request.headers.has('Authorization') && !user) return json({ error: '身份无效' }, 401, origin);
+  if (user?.status === 'banned') return json({ error: '该账户已被限制投稿' }, 403, origin);
+  const now = new Date().toISOString();
+  const soup: Soup = { id: id(), title: input.title!.trim().slice(0, 30), story: input.story!.trim().slice(0, 500), answer: input.answer!.trim().slice(0, 1500), hints, author_name: input.author_name?.trim().slice(0, 20) || '匿名玩家', status: 'published', created_at: now, published_at: now, reviewed_at: null, moderation_note: null, creator_token: id() };
+  await env.DB.prepare('INSERT INTO soups (id,title,story,answer,hints,author_name,status,created_at,published_at,creator_token,author_user_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)').bind(soup.id, soup.title, soup.story, soup.answer, JSON.stringify(soup.hints), soup.author_name, soup.status, soup.created_at, soup.published_at, soup.creator_token, user?.id ?? null).run();
+  return json({ soup: { ...soup, answer: undefined, creator_token: undefined }, creator_token: soup.creator_token, message: '题目已公开，可以分享给朋友。' }, 201, origin);
 }
 
 /** 直接访问网页的玩家共用访客 ID；个人答题记录只归属经平台验证的用户。 */
@@ -262,14 +265,19 @@ async function admin(request: Request, parts: string[], env: Env, origin: string
   const authFailure = requireAdminBasic(request, env, origin);
   if (authFailure) return authFailure;
   if (request.method === 'GET' && parts.length === 3 && parts[2] === 'soups') {
-    const status = new URL(request.url).searchParams.get('status') || 'pending';
-    const { results } = await env.DB.prepare('SELECT * FROM soups WHERE status = ? ORDER BY created_at ASC LIMIT 100').bind(status).all<SoupRow>(); return json({ soups: parseHints(results) }, 200, origin);
+    const view = new URL(request.url).searchParams.get('status') || 'unreviewed';
+    if (!['unreviewed', 'published', 'rejected', 'deleted'].includes(view)) return json({ error: '无效审核列表' }, 400, origin);
+    const statement = view === 'unreviewed'
+      ? env.DB.prepare("SELECT * FROM soups WHERE status='published' AND reviewed_at IS NULL AND creator_token <> 'seed' ORDER BY created_at ASC LIMIT 100")
+      : env.DB.prepare("SELECT * FROM soups WHERE status=? AND creator_token <> 'seed' ORDER BY created_at DESC LIMIT 100").bind(view);
+    const { results } = await statement.all<SoupRow>();
+    return json({ soups: parseHints(results) }, 200, origin);
   }
   if ((request.method === 'PATCH' || request.method === 'DELETE') && parts.length === 4 && parts[2] === 'soups') {
     const soupId = parts[3]; const body = request.method === 'PATCH' ? await request.json() as { status?: SoupStatus; note?: string } : { status: 'deleted' as SoupStatus };
     if (!['published', 'rejected', 'deleted'].includes(body.status ?? '')) return json({ error: '无效审核状态' }, 400, origin);
     const now = new Date().toISOString();
-    await env.DB.batch([env.DB.prepare('UPDATE soups SET status=?, published_at=CASE WHEN ?="published" THEN ? ELSE published_at END, moderation_note=? WHERE id=?').bind(body.status, body.status, now, body.note ?? null, soupId), env.DB.prepare('INSERT INTO moderation_logs (id,soup_id,action,note,created_at) VALUES (?,?,?,?,?)').bind(id(), soupId, body.status, body.note ?? null, now)]);
+    await env.DB.batch([env.DB.prepare('UPDATE soups SET status=?, reviewed_at=?, moderation_note=? WHERE id=?').bind(body.status, now, body.note ?? null, soupId), env.DB.prepare('INSERT INTO moderation_logs (id,soup_id,action,note,created_at) VALUES (?,?,?,?,?)').bind(id(), soupId, body.status, body.note ?? null, now)]);
     return json({ ok: true }, 200, origin);
   }
   return json({ error: '后台路由不存在' }, 404, origin);

@@ -3,6 +3,7 @@
 import { FormEvent, Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import library from '../data/library.json';
 import { apiBaseUrl } from '../lib/api-url';
+import { loadBrowserProgress, recordBrowserQuestion, recordBrowserSolution, type BrowserProgress } from '../lib/browser-progress';
 
 type Verdict = '是' | '否' | '无关' | '无法确定';
 type Outcome = '破解成功' | '接近真相' | '还没猜对' | '无法确定';
@@ -36,13 +37,26 @@ export default function Home() {
   const [notice, setNotice] = useState('');
   const [userToken, setUserToken] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(!PUBLIC_API);
-  const [progress, setProgress] = useState<Progress | null>(null);
+  const [platformProgress, setPlatformProgress] = useState<Progress | null>(null);
+  const [browserProgress, setBrowserProgress] = useState<BrowserProgress | null>(null);
+  const [progressSource, setProgressSource] = useState<'browser' | 'platform'>('browser');
   const [solveOpen, setSolveOpen] = useState(false);
   const [solveThread, setSolveThread] = useState<SolveEntry[]>([]);
   const chatRef = useRef<HTMLDivElement>(null);
   const solveRef = useRef<HTMLDivElement>(null);
   const identityStarted = useRef(false);
   const soup = useMemo(() => soups.find((item) => item.id === currentId) ?? soups[0], [soups, currentId]);
+  const progress = useMemo<Progress | null>(() => {
+    if (progressSource === 'platform') return platformProgress;
+    if (!browserProgress) return null;
+    const entries = soups.flatMap((item) => {
+      const record = browserProgress[item.id];
+      return record ? [{ soup_id: item.id, title: item.title, ...record }] : [];
+    }).sort((a, b) => b.last_played_at.localeCompare(a.last_played_at));
+    return { personal: true, total: soups.length, attempted: entries.length, solved: entries.filter((entry) => entry.solved_at).length, soups: entries };
+  }, [progressSource, platformProgress, browserProgress, soups]);
+
+  useEffect(() => { setBrowserProgress(loadBrowserProgress()); }, []);
 
   useEffect(() => { chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight }); }, [messages, loading, showAnswer]);
   useEffect(() => { solveRef.current?.scrollTo({ top: solveRef.current.scrollHeight }); }, [solveThread, loading]);
@@ -79,13 +93,14 @@ export default function Home() {
     const platform = url.searchParams.get('platform');
     const code = url.searchParams.get('login_code');
     if (platform || code) { url.searchParams.delete('platform'); url.searchParams.delete('login_code'); window.history.replaceState(null, '', url); }
-    const endpoint = platform === 'bilibili' || platform === 'xiaohongshu' ? platform : 'anonymous';
-    if (platform && endpoint === 'anonymous') { setNotice('平台身份类型无效，请重新打开小程序。'); return; }
-    if (endpoint !== 'anonymous' && !code) { setNotice('平台身份初始化失败，请重新打开小程序。'); return; }
+    const endpoint = platform === 'bilibili' || platform === 'xiaohongshu' ? platform : null;
+    if (platform && !endpoint) { setNotice('平台身份类型无效，请重新打开小程序。'); return; }
+    if (endpoint && !code) { setNotice('平台身份初始化失败，请重新打开小程序。'); return; }
     const stored = !platform && !code ? window.sessionStorage.getItem(PLATFORM_SESSION_KEY) : null;
     if (stored) {
       const session = JSON.parse(stored) as { platform: string; token: string };
       if (session.platform === 'bilibili' || session.platform === 'xiaohongshu') {
+        setProgressSource('platform');
         setUserToken(session.token);
         void refreshProgress(session.token).then(() => setAuthReady(true)).catch((error) => {
           console.error(error);
@@ -93,24 +108,28 @@ export default function Home() {
           setNotice('平台身份已失效，请重新打开小程序。');
         });
       }
-    } else {
-      fetch(`${PUBLIC_API}/api/auth/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(endpoint === 'anonymous' ? {} : { code }) }).then(async (response) => {
+    } else if (endpoint) {
+      setProgressSource('platform');
+      fetch(`${PUBLIC_API}/api/auth/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) }).then(async (response) => {
         if (!response.ok) throw new Error(`身份初始化失败：${response.status}`);
         const data = await response.json() as { token: string };
-        if (endpoint !== 'anonymous') window.sessionStorage.setItem(PLATFORM_SESSION_KEY, JSON.stringify({ platform: endpoint, token: data.token }));
+        window.sessionStorage.setItem(PLATFORM_SESSION_KEY, JSON.stringify({ platform: endpoint, token: data.token }));
         setUserToken(data.token);
         setAuthReady(true);
         await refreshProgress(data.token);
       }).catch((error) => { console.error(error); setNotice('身份初始化失败，请刷新页面重试。'); });
+    } else {
+      // 网页访客只使用本机记录，不向后端申请匿名会话。
+      setAuthReady(true);
     }
   }, []);
 
-  /** 数据库按当前会话返回个人进度；网页共享访客只返回公开题目总数。 */
+  /** 平台用户仍从数据库读取自己的答题记录。 */
   async function refreshProgress(token: string) {
     if (!PUBLIC_API) return;
     const response = await fetch(`${PUBLIC_API}/api/me/progress`, { headers: { Authorization: `Bearer ${token}` } });
     if (!response.ok) throw new Error(`答题记录加载失败：${response.status}`);
-    setProgress(await response.json() as Progress);
+    setPlatformProgress(await response.json() as Progress);
   }
 
   function choose(next: Soup) { setCurrentId(next.id); setMessages([]); setShowAnswer(false); setRevealedAnswer(null); setRevealedHints(0); setHintView(0); setSolveThread([]); setSolveOpen(false); setView('play'); }
@@ -129,7 +148,8 @@ export default function Home() {
       if (!response.ok) throw new Error(`Jev 判断请求失败：${response.status}`);
       const data = await response.json() as { verdict: Verdict; confidence: number };
       setMessages((items) => [...items, { role: 'jev', text: data.verdict === '无法确定' ? '这题我拿不准，换个问法试试。' : '', verdict: data.verdict, confidence: data.confidence }]);
-      if (PUBLIC_API && soup.remote && userToken) void refreshProgress(userToken).catch(console.error);
+      if (progressSource === 'browser') setBrowserProgress(recordBrowserQuestion(soup.id));
+      else if (PUBLIC_API && soup.remote && userToken) void refreshProgress(userToken).catch(console.error);
     } catch (error) {
       // 判断失败必须立刻结束本轮，loading 卡住会堵死后续提问
       console.error(error);
@@ -169,7 +189,8 @@ export default function Home() {
       if (!response.ok) throw new Error(`真相还原判断失败：${response.status}`);
       const data = await response.json() as { outcome: Outcome; confidence: number; answer?: string };
       setSolveThread((items) => [...items, { role: 'jev', outcome: data.outcome, confidence: data.confidence, answer: data.answer }]);
-      if (PUBLIC_API && soup.remote && userToken) void refreshProgress(userToken).catch(console.error);
+      if (progressSource === 'browser') setBrowserProgress(recordBrowserSolution(soup.id, data.outcome));
+      else if (PUBLIC_API && soup.remote && userToken) void refreshProgress(userToken).catch(console.error);
     } catch (error) {
       console.error(error);
       setSolveThread((items) => [...items, { role: 'jev', text: '判断失败，稍后再试。' }]);
@@ -183,8 +204,8 @@ export default function Home() {
     const created: Soup = { id: crypto.randomUUID(), title: String(form.get('title')), story: String(form.get('story')), answer: String(form.get('answer')), hints };
     try {
       if (PUBLIC_API) {
-        if (!userToken) throw new Error('身份正在初始化，请稍后再试');
-        const response = await fetch(`${PUBLIC_API}/api/soups`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userToken}` }, body: JSON.stringify(created) });
+        if (progressSource === 'platform' && !userToken) throw new Error('身份正在初始化，请稍后再试');
+        const response = await fetch(`${PUBLIC_API}/api/soups`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(userToken ? { Authorization: `Bearer ${userToken}` } : {}) }, body: JSON.stringify(created) });
         if (!response.ok) throw new Error(`投稿保存失败：${response.status}`);
         const data = await response.json() as { soup: Soup; creator_token: string; message: string };
         created.id = data.soup.id;
@@ -209,8 +230,8 @@ export default function Home() {
       <form className="ask" onSubmit={ask}><input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder={solveOpen ? '写下你还原的真相…' : '问问 Jev…'} maxLength={solveOpen ? 1500 : 500} required /><button disabled={loading || (!!PUBLIC_API && !!soup.remote && !authReady)}>发送</button></form></section>}
     {confirmingAnswer && <div className="modal" role="dialog" aria-modal="true" onClick={() => setConfirmingAnswer(false)}><div className="modal-card" onClick={(event) => event.stopPropagation()}><p>看到汤底这局就没悬念了，确定公布吗？</p><div className="modal-actions"><button onClick={() => setConfirmingAnswer(false)}>取消</button><button className="confirm" onClick={revealAnswer}>公布答案</button></div></div></div>}
     {view === 'library' && <section className="library"><h1>题库</h1><p>选一题，和朋友一起慢慢推理。</p>{soups.map((item) => { const record = progress?.personal ? progress.soups.find((entry) => entry.soup_id === item.id) : null; return <button className="soup-row" onClick={() => choose(item)} key={item.id}><span>{item.title}{record && <em className={record.solved_at ? 'soup-state solved' : 'soup-state'}>{record.solved_at ? '已解出' : '已玩'}</em>}</span><small>{item.story}</small></button>; })}</section>}
-    {view === 'progress' && <section className="progress-page"><h1>我的答题记录</h1>{!PUBLIC_API ? <p className="progress-empty">连接正式题库后，这里会显示答题统计。</p> : !progress ? <p className="progress-empty">正在读取答题记录…</p> : <><div className="progress-numbers"><div><strong>{progress.solved}</strong><span>已解出</span></div><div><strong>{progress.attempted}</strong><span>已尝试</span></div><div><strong>{progress.total}</strong><span>公开题目</span></div></div>{progress.personal && <><p className="progress-caption">解出一道题，以 Jev 判定“破解成功”为准。</p><div className="progress-list">{progress.soups.length === 0 ? <p className="progress-empty">还没有答题记录，去题库挑一碗汤吧。</p> : progress.soups.map((entry) => <button key={entry.soup_id} className="soup-row" onClick={() => { const item = soups.find((candidate) => candidate.id === entry.soup_id); if (item) choose(item); }}><span>{entry.title}<em className={entry.solved_at ? 'soup-state solved' : 'soup-state'}>{entry.solved_at ? '已解出' : '已玩'}</em></span><small>提问 {entry.question_count} 次{entry.last_outcome ? ` · 最近判定：${entry.last_outcome}` : ''}</small></button>)}</div></>}</>}</section>}
+    {view === 'progress' && <section className="progress-page"><h1>我的答题记录</h1>{!progress ? <p className="progress-empty">正在读取答题记录…</p> : <><div className="progress-numbers"><div><strong>{progress.solved}</strong><span>已解出</span></div><div><strong>{progress.attempted}</strong><span>已尝试</span></div><div><strong>{progress.total}</strong><span>公开题目</span></div></div><p className="progress-caption">解出一道题，以 Jev 判定“破解成功”为准。</p><div className="progress-list">{progress.soups.length === 0 ? <p className="progress-empty">还没有答题记录，去题库挑一碗汤吧。</p> : progress.soups.map((entry) => <button key={entry.soup_id} className="soup-row" onClick={() => { const item = soups.find((candidate) => candidate.id === entry.soup_id); if (item) choose(item); }}><span>{entry.title}<em className={entry.solved_at ? 'soup-state solved' : 'soup-state'}>{entry.solved_at ? '已解出' : '已玩'}</em></span><small>提问 {entry.question_count} 次{entry.last_outcome ? ` · 最近判定：${entry.last_outcome}` : ''}</small></button>)}</div></>}</section>}
     {view === 'create' && <section className="creator"><h1>出一道海龟汤</h1><p>把汤面、汤底和提示写好，创建后就能分享。</p><form onSubmit={createSoup}><label>题目名称<input name="title" required maxLength={30} placeholder="例如：消失的钥匙" /></label><label>汤面<textarea name="story" required maxLength={500} placeholder="玩家最先看到的故事" /></label><label>汤底<textarea name="answer" required maxLength={1500} placeholder="完整真相，只给 Jev 和公布答案时看" /></label><label>提示一<input name="hint1" required maxLength={100} placeholder="给卡住的玩家一点方向" /></label><label>提示二（选填）<input name="hint2" maxLength={100} placeholder="换个角度再给一条" /></label><label>提示三（选填）<input name="hint3" maxLength={100} placeholder="最后一条提示" /></label><button>创建并开始</button></form></section>}
-    <nav><button className={view === 'library' ? 'active' : ''} onClick={() => setView('library')}>题库</button><button className={view === 'play' ? 'active' : ''} onClick={() => setView('play')}>开局</button><button className={view === 'progress' ? 'active' : ''} onClick={() => { setView('progress'); if (userToken) void refreshProgress(userToken).catch(console.error); }}>记录</button><button className={view === 'create' ? 'active' : ''} onClick={() => setView('create')}>出题</button></nav>
+    <nav><button className={view === 'library' ? 'active' : ''} onClick={() => setView('library')}>题库</button><button className={view === 'play' ? 'active' : ''} onClick={() => setView('play')}>开局</button><button className={view === 'progress' ? 'active' : ''} onClick={() => { setView('progress'); if (progressSource === 'platform' && userToken) void refreshProgress(userToken).catch(console.error); }}>记录</button><button className={view === 'create' ? 'active' : ''} onClick={() => setView('create')}>出题</button></nav>
   </main>;
 }
