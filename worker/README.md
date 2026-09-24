@@ -11,7 +11,7 @@
 
 Jev 调用集中在 `../lib/jev.ts`：投稿审核、提问判断、还原真相共用模型连接和结果校验。请求或结果出错时最多额外重试 2 次；三次均失败就向调用处返回错误。正式 Worker 和网页本地接口也调用这个模块。
 
-`GET /api/soups?lang=en` 返回 30 道内置题的英文版和英文投稿；`lang=zh` 返回中文版和中文投稿。详情、汤底、提问、真相还原及答题记录接口也接受 `lang`。内置题中英文共用 ID；玩家投稿保存提交语言，不会自动翻译。执行 `0004_soup_language.sql` 后才能部署此版本的 Worker。
+`GET /api/soups?lang=en` 返回 30 道内置题的英文版和英文投稿；`lang=zh` 返回中文版和中文投稿。详情、汤底、提问、真相还原及答题记录接口也接受 `lang`。内置题中英文共用 ID；玩家投稿保存提交语言，不会自动翻译。表结构（含 `language` 列）统一在 `migrations/0001_initial.sql`，首次部署执行 `pnpm --dir worker db:migrate:remote` 即可。
 
 分享链接使用 `?soup=题目ID`。网页通过 `GET /api/soups/:id` 读取对应的公开题目；该接口不返回汤底或创建者令牌。
 
@@ -22,7 +22,7 @@ Jev 调用集中在 `../lib/jev.ts`：投稿审核、提问判断、还原真相
 3. 复制 `.dev.vars.example` 为 `.dev.vars`，填入 Vercel AI Gateway 密钥和管理员令牌。
 4. 回到项目根目录执行 `pnpm install`，再执行 `pnpm --dir worker db:migrate:remote`。
 5. 分别执行 `pnpm --dir worker exec wrangler secret put AI_GATEWAY_API_KEY`、`ADMIN_TOKEN`，并为要发布的平台设置 `BILIBILI_APP_ID`、`BILIBILI_APP_SECRET` 或 `XHS_APP_ID`、`XHS_APP_SECRET`，按提示输入值。
-6. 将 `ALLOWED_ORIGIN` 修改为前端正式网址，并运行 `pnpm --dir worker run deploy`。
+6. 将 `ALLOWED_ORIGIN` 修改为前端正式网址（多个域名用逗号分隔，如 `https://puzzle.xiaobaozi.cn,https://www.bilibili.com`；Worker 环境变量只认纯文本，不能写数组），并运行 `pnpm --dir worker run deploy`。
 
 ## 本地开发
 
@@ -48,6 +48,6 @@ pnpm --dir worker dev
 
 小程序的 OpenID 只在本小程序内唯一。两个平台的同一位玩家会得到两个内部用户 ID，目前不提供账号合并。B 站个人类型小程序暂不支持 WebView；需要具备相应主体资质并配置业务域名。平台真机登录需要各自的小程序账号和密钥联调。
 
-`0002_soup_progress.sql` 增加答题记录表。有效提问标为「已玩」，真相还原被 Jev 判为「破解成功」且置信度至少 0.4 时标为「已解出」。记录页的总数只统计已公开题目，管理员删除或下架的题目不会计入当前统计。
+`soup_progress` 表记录答题进度：有效提问标为「已玩」，真相还原被 Jev 判为「破解成功」（置信度达到 `JEV_CONFIDENCE_THRESHOLD`）时标为「已解出」。记录页的总数只统计已公开题目，管理员删除或下架的题目不会计入当前统计。
 
-`0003_publish_before_review.sql` 增加人工复核时间，保留历史待审核投稿的隐藏状态。管理员可在「历史待审」列表逐篇处理。新投稿先由 Jev 审核，通过后才公开；管理员随后仍可复核或下架。生产数据库尚未执行此迁移；上线时先运行数据库迁移，再部署 Worker 和前端。
+新投稿先由 Jev 审核，通过后才公开；管理员随后仍可复核或下架。「历史待审」列表用于逐篇处理迁移前的待审核投稿（该逻辑与全部表结构已并入 `0001_initial.sql`，线上数据库已应用）。
