@@ -7,6 +7,7 @@ import { apiBaseUrl } from '../lib/api-url';
 import { loadBrowserProgress, recordBrowserQuestion, recordBrowserSolution, type BrowserProgress } from '../lib/browser-progress';
 import { copy, displayOutcome } from '../lib/i18n';
 import type { Language } from '../lib/jev';
+import { fetchToyUserProfile, isInToyHost } from '../lib/toy-auth';
 
 type Verdict = '是' | '否' | '无关' | '无法确定' | 'Yes' | 'No' | 'Irrelevant' | 'Uncertain';
 type Outcome = '破解成功' | '接近真相' | '还没猜对' | '无法确定' | 'Solved' | 'Close' | 'Not yet' | 'Uncertain';
@@ -159,6 +160,25 @@ export default function Home() {
         setAuthReady(true);
         await refreshProgress(data.token);
       }).catch((error) => { console.error(error); setNotice(copy[initialLanguage].platformFailed); });
+    } else if (isInToyHost()) {
+      // B 站 Toy 宿主：平台已确保访客登录，静默用 toyOpenId 换会话，进度跟随 B 站账号；首次会弹平台授权框。
+      setProgressSource('platform');
+      fetchToyUserProfile().then((profile) =>
+        fetch(`${PUBLIC_API}/api/auth/toy`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ open_id: profile.toyOpenId }) }).then(async (response) => {
+          if (!response.ok) throw new Error(`Toy 身份初始化失败：${response.status}`);
+          const data = await response.json() as { token: string };
+          window.sessionStorage.setItem(PLATFORM_SESSION_KEY, JSON.stringify({ platform: 'bilibili', token: data.token }));
+          setUserToken(data.token);
+          setAuthReady(true);
+          await refreshProgress(data.token);
+        })
+      ).catch((error) => {
+        console.error(error);
+        // 授权被拒或桥接异常：降级为本机记录，玩家仍可正常游玩。
+        setProgressSource('browser');
+        setAuthReady(true);
+        setNotice(copy[initialLanguage].toyProfileFailed);
+      });
     } else {
       // 网页访客只使用本机记录，不向后端申请匿名会话。
       setAuthReady(true);

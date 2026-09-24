@@ -1,1 +1,63 @@
-/* 页面由 web-view 内的网页渲染。 */
+/* 半屏小组件布局：汤面限高，聊天滚动，输入区和导航保持可见。 */
+.shell { box-sizing: border-box; display: flex; flex-direction: column; height: 100vh; min-height: 520rpx; padding: 18rpx 22rpx 0; color: #272320; background: #faf7f1; }
+.topbar { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; height: 62rpx; }
+.brand { font-size: 32rpx; font-weight: 800; color: #263e35; }
+.brand text { font-size: 25rpx; font-weight: 600; }
+.top-actions { display: flex; gap: 8rpx; }
+button { box-sizing: border-box; padding: 0 18rpx; border: 0; border-radius: 16rpx; background: #eee8db; color: #263e35; font-size: 23rpx; line-height: 60rpx; }
+button::after { border: 0; }
+button[disabled] { opacity: .46; }
+.top-button { height: 52rpx; padding: 0 14rpx; border-radius: 14rpx; font-size: 21rpx; line-height: 52rpx; }
+.notice { flex-shrink: 0; margin: 8rpx 0; padding: 12rpx 16rpx; border-radius: 12rpx; background: #ffead4; color: #755036; font-size: 22rpx; }
+.notice text { float: right; }
+.loading { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 18rpx; color: #776d60; }
+.play { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.hero { position: relative; flex-shrink: 0; max-height: 30vh; min-height: 120rpx; margin: 8rpx 0 12rpx; padding: 22rpx; border-radius: 24rpx; overflow: hidden; background: #dfece4; }
+.eyebrow { position: relative; z-index: 1; font-size: 20rpx; color: #597164; }
+.hero-title { position: relative; z-index: 1; margin: 6rpx 0 10rpx; font-size: 33rpx; font-weight: 700; }
+.story { position: relative; z-index: 1; max-height: calc(30vh - 112rpx); color: #334b3f; font-size: 25rpx; line-height: 1.6; }
+.turtle { position: absolute; right: 20rpx; bottom: -24rpx; opacity: .16; font-size: 130rpx; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; padding: 4rpx 2rpx 12rpx; font-weight: 700; }
+.panel-head button { height: 44rpx; line-height: 44rpx; font-size: 20rpx; }
+.chat { flex: 1; min-height: 100rpx; padding: 4rpx 0; }
+.host { display: flex; align-items: center; gap: 14rpx; margin-top: 20rpx; color: #756d62; font-size: 24rpx; line-height: 1.5; }
+.avatar { font-size: 38rpx; }
+.message { width: fit-content; max-width: 86%; box-sizing: border-box; margin: 10rpx 0; padding: 15rpx 18rpx; border-radius: 18rpx; background: #fff; font-size: 24rpx; line-height: 1.55; overflow-wrap: anywhere; }
+.message.user { margin-left: auto; background: #e6efe8; }
+.message-head { display: flex; align-items: center; gap: 10rpx; margin-bottom: 3rpx; color: #2f5b43; font-weight: 700; }
+.badge { padding: 1rpx 10rpx; border-radius: 9rpx; background: #dbeee2; }
+.confidence { font-size: 19rpx; font-weight: 400; color: #8b887f; }
+.answer { margin: 10rpx 0; padding: 18rpx; border-radius: 18rpx; background: #fff1d9; font-size: 24rpx; line-height: 1.55; }
+.answer view { margin-bottom: 7rpx; font-weight: 700; }
+.thinking { padding: 12rpx; color: #738477; font-size: 22rpx; }
+.hint-card { flex-shrink: 0; padding: 14rpx 16rpx; border-radius: 14rpx; background: #fff1d9; font-size: 22rpx; line-height: 1.5; }
+.hint-card > view { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4rpx; font-weight: 700; }
+.hint-nav { display: flex; gap: 6rpx; }
+.hint-nav button { height: 36rpx; line-height: 36rpx; padding: 0 10rpx; }
+.action-row { display: flex; flex-shrink: 0; gap: 9rpx; padding: 10rpx 0; }
+.action-row button { flex: 1; height: 54rpx; line-height: 54rpx; }
+.primary { background: #315d47; color: #fff; }
+.composer { display: flex; flex-shrink: 0; gap: 9rpx; padding-bottom: 10rpx; }
+.composer input { flex: 1; min-width: 0; height: 58rpx; padding: 0 16rpx; border-radius: 15rpx; background: #fff; font-size: 23rpx; }
+.composer button { flex-shrink: 0; height: 58rpx; line-height: 58rpx; }
+.page-list { flex: 1; min-height: 0; padding-top: 16rpx; }
+.section-title { margin: 4rpx 0 14rpx; font-size: 34rpx; font-weight: 700; }
+.section-title text { color: #8a9187; font-size: 22rpx; font-weight: 400; }
+.soup-row { margin-bottom: 10rpx; padding: 18rpx; border-radius: 18rpx; background: #fff; }
+.row-title { display: flex; align-items: center; gap: 10rpx; font-size: 25rpx; font-weight: 700; }
+.status { padding: 3rpx 8rpx; border-radius: 8rpx; background: #e8f2ea; color: #406a50; font-size: 18rpx; font-weight: 400; }
+.row-story { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin-top: 8rpx; color: #817b71; font-size: 21rpx; line-height: 1.45; }
+.stats { display: flex; gap: 10rpx; margin-bottom: 16rpx; }
+.stats view { flex: 1; display: flex; flex-direction: column; padding: 14rpx; border-radius: 16rpx; background: #e6efe8; color: #55715e; font-size: 20rpx; }
+.stats text { color: #2d5d43; font-size: 36rpx; font-weight: 700; }
+.empty { padding: 35rpx 8rpx; color: #8a8175; font-size: 23rpx; text-align: center; }
+.create-intro { margin-bottom: 16rpx; color: #776f64; font-size: 22rpx; }
+.field { margin-bottom: 14rpx; }
+.field text { display: block; margin-bottom: 6rpx; font-size: 22rpx; font-weight: 600; }
+.field input, .field textarea { box-sizing: border-box; width: 100%; padding: 12rpx 15rpx; border-radius: 13rpx; background: #fff; font-size: 23rpx; }
+.field input { height: 62rpx; }
+.field textarea { min-height: 120rpx; }
+.submit { width: 100%; margin: 8rpx 0 24rpx; }
+.tabs { display: flex; flex-shrink: 0; height: 66rpx; border-top: 1rpx solid #eae4d8; background: #faf7f1; }
+.tab { flex: 1; display: flex; align-items: center; justify-content: center; color: #8b8479; font-size: 23rpx; }
+.tab.active { color: #315d47; font-weight: 700; }

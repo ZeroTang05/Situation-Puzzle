@@ -88,6 +88,7 @@ export default {
       if (request.method === 'GET' && parts.length === 3 && parts[0] === 'api' && parts[1] === 'soups') return publicSoup(parts[2], request, env, origin);
       if (request.method === 'POST' && url.pathname === '/api/auth/bilibili') return bilibiliAuth(request, env, origin);
       if (request.method === 'POST' && url.pathname === '/api/auth/xiaohongshu') return xiaohongshuAuth(request, env, origin);
+      if (request.method === 'POST' && url.pathname === '/api/auth/toy') return toyAuth(request, env, origin);
       if (request.method === 'GET' && url.pathname === '/api/me/progress') return myProgress(request, env, origin);
       if (request.method === 'POST' && url.pathname === '/api/soups') return createSoup(request, env, origin);
       if (request.method === 'GET' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'soups' && parts[3] === 'answer') return revealAnswer(parts[2], request, env, origin);
@@ -153,6 +154,14 @@ async function bilibiliAuth(request: Request, env: Env, origin: string) {
   const response = await fetch(`https://miniapp.bilibili.com/api/sns/jscode2session?${query}`); if (!response.ok) throw new Error(`B 站登录校验失败：${response.status}`);
   const data = await response.json() as { openId?: string; errcode?: number }; if (!data.openId) return json({ error: `B 站登录校验失败：${data.errcode ?? '未知错误'}` }, 401, origin);
   return issueIdentity(env, 'bilibili', data.openId, origin);
+}
+
+/** B 站 Toy 宿主页注入的 SDK 提供 toy.getUserProfile()，返回平台为每位访客在本玩具下分配的稳定 toyOpenId。 */
+async function toyAuth(request: Request, env: Env, origin: string) {
+  const { open_id } = await request.json() as { open_id?: string };
+  if (!open_id || typeof open_id !== 'string' || open_id.length > 128) return json({ error: '缺少 Toy 身份标识' }, 400, origin);
+  // toyOpenId 与小程序 openId 属于两套编号体系，加 toy: 前缀避免在同一 platform 列下串号。
+  return issueIdentity(env, 'bilibili', `toy:${open_id}`, origin);
 }
 
 /** 小红书小程序 code 只能在服务端换 open_id，密钥和 session_key 都不下发。 */

@@ -46,6 +46,8 @@ pnpm --dir worker dev
 
 `platforms/bilibili` 和 `platforms/xiaohongshu` 是基础小程序壳。分别在 `app.js` 填写已发布网页的 HTTPS 地址，并在平台后台登记业务域名。壳调用 `bl.login()` 或 `xhs.login()` 得到一次性 `code`，经 WebView 地址传给网页；网页调用 Worker 的 `/api/auth/bilibili` 或 `/api/auth/xiaohongshu`。Worker 向对应平台换取 OpenID，建立或复用内部用户 ID，返回会话令牌。平台密钥与 `session_key` 留在服务端。刷新页面时，当前 WebView 会话继续使用原令牌；重新打开小程序会重新领取 `code`。
 
+小红书开发者工具导入 `platforms/xiaohongshu` 目录。该目录的 `project.config.json` 只保存通用项目设置；导入时在开发者工具中选择自己小程序的真实 AppID，工具会写入项目配置。不要将其他小程序的 AppID 填入仓库。
+
 小程序的 OpenID 只在本小程序内唯一。两个平台的同一位玩家会得到两个内部用户 ID，目前不提供账号合并。B 站个人类型小程序暂不支持 WebView；需要具备相应主体资质并配置业务域名。平台真机登录需要各自的小程序账号和密钥联调。
 
 `soup_progress` 表记录答题进度：有效提问标为「已玩」，真相还原被 Jev 判为「破解成功」（置信度达到 `JEV_CONFIDENCE_THRESHOLD`）时标为「已解出」。记录页的总数只统计已公开题目，管理员删除或下架的题目不会计入当前统计。
