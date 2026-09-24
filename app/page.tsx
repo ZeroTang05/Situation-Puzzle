@@ -80,7 +80,7 @@ export default function Home() {
       if (!response.ok) throw new Error(`分享题目读取失败：${response.status}`);
       const data = await response.json() as { soup: Soup };
       const shared = { ...data.soup, remote: true };
-      setSoups((items) => [shared, ...items.filter((item) => item.id !== shared.id)]);
+      setSoups((items) => [...items.filter((item) => item.id !== shared.id), shared]);
       setCurrentId(shared.id);
     }).catch((error) => { console.error(error); setNotice('分享的题目不存在或已下架。'); });
   }, []);
@@ -229,11 +229,11 @@ export default function Home() {
         setNotice(data.message);
         if (data.status === 'rejected') return;
         const published = { ...data.soup, answer: created.answer, remote: true, creatorToken: data.creator_token };
-        setSoups((items) => [published, ...items]);
+        setSoups((items) => [...items.filter((item) => item.id !== published.id), published]);
         choose(published);
         return;
       }
-      setSoups((items) => [created, ...items]); choose(created); setNotice('本地题目已创建，连接后端后才能公开。');
+      setSoups((items) => [...items, created]); choose(created); setNotice('本地题目已创建，连接后端后才能公开。');
     } catch (error) {
       console.error(error);
       setNotice('审核暂时失败，题目没有公开，请稍后再试。');

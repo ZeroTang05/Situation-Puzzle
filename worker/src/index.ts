@@ -90,7 +90,7 @@ export default {
 };
 
 async function publicSoups(env: Env, origin: string) {
-  const { results } = await env.DB.prepare('SELECT id, title, story, hints, author_name, created_at, published_at FROM soups WHERE status = ? ORDER BY published_at DESC').bind('published').all<SoupRow>();
+  const { results } = await env.DB.prepare("SELECT id, title, story, hints, author_name, created_at, published_at FROM soups WHERE status = ? ORDER BY CASE WHEN creator_token = 'seed' THEN 0 ELSE 1 END, published_at ASC, id ASC").bind('published').all<SoupRow>();
   return json({ soups: parseHints(results) }, 200, origin);
 }
 
