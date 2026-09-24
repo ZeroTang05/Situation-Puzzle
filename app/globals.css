@@ -8,6 +8,7 @@
 }
 * { box-sizing:border-box; }
 body { margin:0; color:var(--ink); font-family:"PingFang SC","Microsoft YaHei",sans-serif; background:radial-gradient(circle at 70% 0,#17476e 0,transparent 32rem),#010b18; }
+body:has(.admin) { background:var(--bg); }
 button,input,textarea { font:inherit; } button { cursor:pointer; }
 
 .app-shell { width:min(100%,560px); min-height:100dvh; margin:auto; padding:0 20px calc(62px + env(safe-area-inset-bottom)); background:linear-gradient(180deg,rgba(8,49,79,.94),#010b18 31%,#03152b); }
