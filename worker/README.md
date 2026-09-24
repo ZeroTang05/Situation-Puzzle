@@ -22,7 +22,7 @@ Jev 调用集中在 `../lib/jev.ts`：投稿审核、提问判断、还原真相
 3. 复制 `.dev.vars.example` 为 `.dev.vars`，填入 Vercel AI Gateway 密钥和管理员令牌。
 4. 回到项目根目录执行 `pnpm install`，再执行 `pnpm --dir worker db:migrate:remote`。
 5. 分别执行 `pnpm --dir worker exec wrangler secret put AI_GATEWAY_API_KEY`、`ADMIN_TOKEN`，并为要发布的平台设置 `BILIBILI_APP_ID`、`BILIBILI_APP_SECRET` 或 `XHS_APP_ID`、`XHS_APP_SECRET`，按提示输入值。
-6. 将 `ALLOWED_ORIGIN` 修改为前端正式网址，并运行 `pnpm --dir worker deploy`。
+6. 将 `ALLOWED_ORIGIN` 修改为前端正式网址，并运行 `pnpm --dir worker run deploy`。
 
 ## 本地开发
 

@@ -85,7 +85,6 @@ export default {
       if (request.method === 'GET' && url.pathname === '/health') return json({ ok: true }, 200, origin);
       if (request.method === 'GET' && url.pathname === '/api/soups') return publicSoups(request, env, origin);
       if (request.method === 'GET' && parts.length === 3 && parts[0] === 'api' && parts[1] === 'soups') return publicSoup(parts[2], request, env, origin);
-      if (request.method === 'POST' && url.pathname === '/api/auth/anonymous') return anonymousAuth(request, env, origin);
       if (request.method === 'POST' && url.pathname === '/api/auth/bilibili') return bilibiliAuth(request, env, origin);
       if (request.method === 'POST' && url.pathname === '/api/auth/xiaohongshu') return xiaohongshuAuth(request, env, origin);
       if (request.method === 'GET' && url.pathname === '/api/me/progress') return myProgress(request, env, origin);
@@ -146,11 +145,6 @@ async function createSoup(request: Request, env: Env, origin: string) {
   return json({ status: 'published', soup: { ...soup, answer: undefined, creator_token: undefined }, creator_token: soup.creator_token, message: language === 'en' ? 'Approved. Your puzzle is live and ready to share.' : '审核通过，题目已公开，可以分享给朋友。' }, 201, origin);
 }
 
-/** 直接访问网页的玩家共用访客 ID；个人答题记录只归属经平台验证的用户。 */
-async function anonymousAuth(_request: Request, env: Env, origin: string) {
-  return issueIdentity(env, 'anonymous', 'shared-web', origin);
-}
-
 /** B 站小程序将 bl.login() 获得的一次性 code 交给 Worker；AppSecret 永远不会进入客户端。 */
 async function bilibiliAuth(request: Request, env: Env, origin: string) {
   const { code } = await request.json() as { code?: string }; if (!code) return json({ error: '缺少 B 站登录凭证' }, 400, origin);
@@ -180,11 +174,11 @@ async function xiaohongshuAuth(request: Request, env: Env, origin: string) {
   return issueIdentity(env, 'xiaohongshu', openId, origin);
 }
 
-async function issueIdentity(env: Env, platform: 'anonymous' | 'bilibili' | 'xiaohongshu', platformOpenId: string, origin: string) {
+async function issueIdentity(env: Env, platform: 'bilibili' | 'xiaohongshu', platformOpenId: string, origin: string) {
   const now = new Date().toISOString();
   let identity = await env.DB.prepare('SELECT user_id FROM user_identities WHERE platform=? AND platform_open_id=?').bind(platform, platformOpenId).first<{ user_id: string }>();
   if (!identity) {
-    const candidateId = platform === 'anonymous' ? 'web-shared' : id();
+    const candidateId = id();
     await env.DB.batch([
       env.DB.prepare('INSERT OR IGNORE INTO users (id,first_seen_at,last_seen_at) VALUES (?,?,?)').bind(candidateId, now, now),
       env.DB.prepare('INSERT OR IGNORE INTO user_identities (id,user_id,platform,platform_open_id,created_at) VALUES (?,?,?,?,?)').bind(id(), candidateId, platform, platformOpenId, now),
