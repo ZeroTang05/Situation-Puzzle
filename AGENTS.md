@@ -46,7 +46,6 @@ situation-puzzle/
 - **hints**：三条不同角度提示，DB 以 JSON 文本存储；worker 读出经 `parseHints()` 解析。前端用对话区顶部的悬浮卡单条展示，提示按钮依次解锁，左右箭头在已解锁的提示间切换、给完禁用。
 - **判题阈值**：`JEV_CONFIDENCE_THRESHOLD`（0.4），置信度低于它统一返回「无法确定」。
 - **还原真相**：点击后用临时面板盖住对话区（汤面和输入框保持可见），复用底部发送框但路由到 solve 接口；还原对话在独立线程 `solveThread`，退出即回到主对话。
-- **AI Gateway**：Vercel 账号必须绑信用卡，否则判题 403（`customer_verification_required`）。
 - **题库合并**：前端把线上题库按标题去重，同名保留线上版本（汤底不进浏览器）。
 
 ## 验证
@@ -54,7 +53,3 @@ situation-puzzle/
 - 类型：`pnpm --recursive exec tsc --noEmit`
 - 后端：`curl http://localhost:8787/health`、`curl http://localhost:8787/api/soups`
 - 前端：浏览器实测（问一句、给提示、公布答案、切题）
-
-## Git
-
-首次提交前 `git init`（主分支 main）。`.gitignore` 已就绪：密钥（`.env*.local`、`.dev.vars`）、wrangler 本地状态、构建产物不入库。
