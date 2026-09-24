@@ -1,0 +1,47 @@
+name: 🐛 Bug 报告
+description: 报告一个具体的功能失效或体验问题
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 一步步写下如何触发这个问题。
+      placeholder: |
+        1. 打开 http://localhost:3000
+        2. 点击「出题」
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+      description: 应该发生什么。
+      placeholder: 应该弹出确认弹窗。
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+      description: 实际发生了什么。
+      placeholder: 没有任何反应，控制台显示 ...
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 环境
+      description: 浏览器 + 系统 / 设备。
+      placeholder: Chrome 130 / macOS 15 / iPhone 16 Safari
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: 控制台 / 网络日志（可选）
+      description: 粘贴关键报错或截图。
+    validations:
+      required: false

@@ -1,0 +1,24 @@
+# 依赖
+node_modules/
+
+# Next.js 构建产物与类型缓存
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# 环境变量与密钥（.env.example、.dev.vars.example 是空模板，保留提交）
+.env
+.env*.local
+.dev.vars
+
+# Cloudflare Wrangler 本地状态（本地 D1 数据库、缓存）
+.wrangler/
+
+# 日志
+*.log
+pnpm-debug.log*
+
+# 操作系统
+.DS_Store
+Thumbs.db

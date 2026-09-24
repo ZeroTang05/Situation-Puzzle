@@ -1,0 +1,181 @@
+import library from '../../data/library.json';
+
+interface Env {
+  DB: D1Database;
+  AI_GATEWAY_API_KEY: string;
+  ADMIN_TOKEN: string;
+  BILIBILI_APP_ID: string;
+  BILIBILI_APP_SECRET: string;
+  ALLOWED_ORIGIN: string;
+  JEV_CONFIDENCE_THRESHOLD: string;
+}
+
+type SoupStatus = 'pending' | 'published' | 'rejected' | 'deleted';
+type Soup = { id: string; title: string; story: string; answer: string; hints: string[]; author_name: string; status: SoupStatus; created_at: string; published_at: string | null; moderation_note: string | null; creator_token: string };
+/** 数据库里 hints 以 JSON 文本存储，读出后需要解析成数组 */
+type SoupRow = Omit<Soup, 'hints'> & { hints: string };
+const parseHints = (rows: SoupRow[]) => rows.map(({ hints, ...rest }) => ({ ...rest, hints: JSON.parse(hints) as string[] }));
+
+/** 初始题库（data/library.json）：worker 每个实例启动后首次请求时整体覆盖 seed- 开头的行 */
+type SeedSoup = { id: string; title: string; story: string; answer: string; hints: string[] };
+const seedLibrary = library as SeedSoup[];
+let seedPromise: Promise<void> | null = null;
+function ensureSeeded(env: Env): Promise<void> {
+  if (!seedPromise) {
+    seedPromise = (async () => {
+      const now = new Date().toISOString();
+      const statements = [env.DB.prepare("DELETE FROM soups WHERE id LIKE 'seed-%' OR creator_token = 'seed'")];
+      for (const soup of seedLibrary) {
+        statements.push(env.DB.prepare('INSERT INTO soups (id,title,story,answer,hints,author_name,status,created_at,published_at,creator_token) VALUES (?,?,?,?,?,?,?,?,?,?)')
+          .bind(soup.id, soup.title, soup.story, soup.answer, JSON.stringify(soup.hints), 'Jev 题库', 'published', now, now, 'seed'));
+      }
+      await env.DB.batch(statements);
+    })().catch((error) => { seedPromise = null; throw error; });
+  }
+  return seedPromise;
+}
+type User = { id: string; status: 'active' | 'banned'; first_seen_at: string; last_seen_at: string };
+
+const json = (value: unknown, status = 200, origin = '*') => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' } });
+const id = () => crypto.randomUUID();
+
+/**
+ * 计算本次请求应回写的 CORS 来源：与 ALLOWED_ORIGIN 完全一致时原样返回；
+ * 本地开发时前端可能用 localhost、127.0.0.1 或局域网 IP 打开（端口也会变），这些来源一并放行。
+ * 其余来源返回 ALLOWED_ORIGIN，浏览器会因不匹配而拒绝读取响应。
+ */
+function corsOrigin(request: Request, env: Env): string {
+  const origin = request.headers.get('Origin');
+  if (origin === env.ALLOWED_ORIGIN) return origin;
+  try {
+    const { hostname } = new URL(origin ?? '');
+    const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+    const isPrivateNetwork = hostname.startsWith('192.168.') || hostname.startsWith('10.') || /^172\.(1[6-9]|2\d|3[01])\./.test(hostname);
+    if ((isLocalHost || isPrivateNetwork) && origin) return origin;
+  } catch { /* Origin 不是合法 URL 时按未匹配处理 */ }
+  return env.ALLOWED_ORIGIN;
+}
+
+/** Worker API：公开题库、UGC 投稿、Jev 判题与后台审核都在一个边缘服务中完成。 */
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const origin = corsOrigin(request, env);
+    if (request.method === 'OPTIONS') return new Response(null, { headers: { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type,Authorization' } });
+    await ensureSeeded(env);
+    const url = new URL(request.url);
+    const parts = url.pathname.split('/').filter(Boolean);
+    try {
+      if (request.method === 'GET' && url.pathname === '/health') return json({ ok: true }, 200, origin);
+      if (request.method === 'GET' && url.pathname === '/api/soups') return publicSoups(env, origin);
+      if (request.method === 'POST' && url.pathname === '/api/auth/anonymous') return anonymousAuth(request, env, origin);
+      if (request.method === 'POST' && url.pathname === '/api/auth/bilibili') return bilibiliAuth(request, env, origin);
+      if (request.method === 'POST' && url.pathname === '/api/soups') return createSoup(request, env, origin);
+      if (request.method === 'GET' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'soups' && parts[3] === 'answer') return revealAnswer(parts[2], env, origin);
+      if (request.method === 'POST' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'soups' && parts[3] === 'judge') return judgeSoup(parts[2], request, env, origin);
+      if (request.method === 'POST' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'soups' && parts[3] === 'solve') return solveSoup(parts[2], request, env, origin);
+      if (parts[0] === 'api' && parts[1] === 'admin') return admin(request, parts, env, origin);
+      return json({ error: '路由不存在' }, 404, origin);
+    } catch (error) {
+      console.error(error);
+      return json({ error: error instanceof Error ? error.message : '服务器错误' }, 500, origin);
+    }
+  },
+};
+
+async function publicSoups(env: Env, origin: string) {
+  const { results } = await env.DB.prepare('SELECT id, title, story, hints, author_name, created_at, published_at FROM soups WHERE status = ? ORDER BY published_at DESC LIMIT 50').bind('published').all<SoupRow>();
+  return json({ soups: parseHints(results) }, 200, origin);
+}
+
+/** 公布答案：玩家明确选择看汤底时才单独下发，题库列表接口永远不包含 answer。 */
+async function revealAnswer(soupId: string, env: Env, origin: string) {
+  const soup = await env.DB.prepare('SELECT answer FROM soups WHERE id = ? AND status = ?').bind(soupId, 'published').first<{ answer: string }>();
+  if (!soup) return json({ error: '题目不存在或尚未公开' }, 404, origin);
+  return json({ answer: soup.answer }, 200, origin);
+}
+
+async function createSoup(request: Request, env: Env, origin: string) {
+  const input = await request.json() as Partial<Pick<Soup, 'title' | 'story' | 'answer' | 'author_name'>> & { hints?: string[] };
+  for (const key of ['title', 'story', 'answer'] as const) if (!input[key]?.trim()) return json({ error: `${key} 不能为空` }, 400, origin);
+  const hints = (input.hints ?? []).map((hint) => hint.trim().slice(0, 100)).filter(Boolean);
+  if (!hints[0]) return json({ error: '至少填写一条提示' }, 400, origin);
+  const user = await currentUser(request, env); if (!user) return json({ error: '请先建立匿名身份' }, 401, origin); if (user.status === 'banned') return json({ error: '该账户已被限制投稿' }, 403, origin);
+  const soup: Soup = { id: id(), title: input.title!.trim().slice(0, 30), story: input.story!.trim().slice(0, 500), answer: input.answer!.trim().slice(0, 1500), hints, author_name: input.author_name?.trim().slice(0, 20) || '匿名玩家', status: 'pending', created_at: new Date().toISOString(), published_at: null, moderation_note: null, creator_token: id() };
+  await env.DB.prepare('INSERT INTO soups (id,title,story,answer,hints,author_name,status,created_at,creator_token,author_user_id) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(soup.id, soup.title, soup.story, soup.answer, JSON.stringify(soup.hints), soup.author_name, soup.status, soup.created_at, soup.creator_token, user.id).run();
+  return json({ soup: { ...soup, answer: undefined, creator_token: undefined }, creator_token: soup.creator_token, message: '已提交审核，通过后会出现在公开题库。' }, 201, origin);
+}
+
+/** 无感兜底身份：首次启动由客户端保存随机设备标识，后续不出现注册或登录界面。 */
+async function anonymousAuth(request: Request, env: Env, origin: string) {
+  const { device_id } = await request.json() as { device_id?: string }; if (!device_id || device_id.length > 128) return json({ error: '设备标识无效' }, 400, origin);
+  return issueIdentity(env, 'anonymous', device_id, origin);
+}
+
+/** B 站小程序将 bl.login() 获得的一次性 code 交给 Worker；AppSecret 永远不会进入客户端。 */
+async function bilibiliAuth(request: Request, env: Env, origin: string) {
+  const { code } = await request.json() as { code?: string }; if (!code) return json({ error: '缺少 B 站登录凭证' }, 400, origin);
+  const query = new URLSearchParams({ appid: env.BILIBILI_APP_ID, secret: env.BILIBILI_APP_SECRET, js_code: code, grant_type: 'authorization_code' });
+  const response = await fetch(`https://miniapp.bilibili.com/api/sns/jscode2session?${query}`); if (!response.ok) throw new Error(`B 站登录校验失败：${response.status}`);
+  const data = await response.json() as { openId?: string; errcode?: number }; if (!data.openId) return json({ error: `B 站登录校验失败：${data.errcode ?? '未知错误'}` }, 401, origin);
+  return issueIdentity(env, 'bilibili', data.openId, origin);
+}
+
+async function issueIdentity(env: Env, platform: 'anonymous' | 'bilibili' | 'xiaohongshu', platformOpenId: string, origin: string) {
+  const now = new Date().toISOString(); const existing = await env.DB.prepare('SELECT user_id FROM user_identities WHERE platform=? AND platform_open_id=?').bind(platform, platformOpenId).first<{ user_id: string }>(); const userId = existing?.user_id ?? id();
+  if (!existing) await env.DB.batch([env.DB.prepare('INSERT INTO users (id,first_seen_at,last_seen_at) VALUES (?,?,?)').bind(userId, now, now), env.DB.prepare('INSERT INTO user_identities (id,user_id,platform,platform_open_id,created_at) VALUES (?,?,?,?,?)').bind(id(), userId, platform, platformOpenId, now)]);
+  await env.DB.prepare('UPDATE users SET last_seen_at=? WHERE id=?').bind(now, userId).run(); const token = id(); await env.DB.prepare('INSERT INTO user_sessions (token,user_id,created_at,last_seen_at) VALUES (?,?,?,?)').bind(token, userId, now, now).run();
+  return json({ token, user_id: userId, platform }, 200, origin);
+}
+
+async function currentUser(request: Request, env: Env) {
+  const token = request.headers.get('Authorization')?.replace(/^Bearer\s+/, ''); if (!token) return null;
+  const result = await env.DB.prepare('SELECT users.* FROM user_sessions JOIN users ON users.id=user_sessions.user_id WHERE user_sessions.token=?').bind(token).first<User>(); if (result) await env.DB.prepare('UPDATE user_sessions SET last_seen_at=? WHERE token=?').bind(new Date().toISOString(), token).run(); return result;
+}
+
+async function judgeSoup(soupId: string, request: Request, env: Env, origin: string) {
+  const input = await request.json() as { question?: string };
+  if (!input.question?.trim()) return json({ error: '问题不能为空' }, 400, origin);
+  const soup = await env.DB.prepare('SELECT * FROM soups WHERE id = ?').bind(soupId).first<Soup>();
+  if (!soup) return json({ error: '题目不存在或尚未公开' }, 404, origin);
+  if (soup.status !== 'published' && request.headers.get('X-Creator-Token') !== soup.creator_token) return json({ error: '题目尚未公开' }, 403, origin);
+  const gatewayResponse = await fetch('https://ai-gateway.vercel.sh/v4/ai/evaluation-model', {
+    method: 'POST', headers: { 'Authorization': `Bearer ${env.AI_GATEWAY_API_KEY}`, 'Content-Type': 'application/json', 'ai-model-id': 'typesafe-ai/jev', 'ai-evaluation-model-specification-version': '4', 'ai-gateway-protocol-version': '0.0.1', 'ai-gateway-auth-method': 'api-key' },
+    body: JSON.stringify({ state: { 汤面: soup.story, 真相: soup.answer, 玩家提问: input.question.trim().slice(0, 500) }, questions: { verdict: { type: 'choice', instructions: '根据真相判断玩家提问，只能选择是、否、无关。', criteria: { 是: '提问的事实或合理推论被真相支持。', 否: '提问的事实或合理推论被真相否定。', 无关: '提问和真相没有实质关系。' } } } }),
+  });
+  if (!gatewayResponse.ok) throw new Error(`Jev 请求失败：${gatewayResponse.status}`);
+  const result = await gatewayResponse.json() as { answers: { verdict: { choice: '是' | '否' | '无关'; probabilities?: Record<string, number> } } };
+  const verdict = result.answers.verdict; const confidence = verdict.probabilities?.[verdict.choice] ?? 0; const threshold = Number(env.JEV_CONFIDENCE_THRESHOLD);
+  return json({ verdict: confidence >= threshold ? verdict.choice : '无法确定', confidence, threshold }, 200, origin);
+}
+
+/** 结局判断：玩家写出完整推理，Jev 对照汤底判断核心因果是否已被还原。 */
+async function solveSoup(soupId: string, request: Request, env: Env, origin: string) {
+  const input = await request.json() as { solution?: string };
+  if (!input.solution?.trim()) return json({ error: '请先写出你的推理' }, 400, origin);
+  const soup = await env.DB.prepare('SELECT * FROM soups WHERE id = ? AND status = ?').bind(soupId, 'published').first<Soup>();
+  if (!soup) return json({ error: '题目不存在或尚未公开' }, 404, origin);
+  const gatewayResponse = await fetch('https://ai-gateway.vercel.sh/v4/ai/evaluation-model', {
+    method: 'POST', headers: { 'Authorization': `Bearer ${env.AI_GATEWAY_API_KEY}`, 'Content-Type': 'application/json', 'ai-model-id': 'typesafe-ai/jev', 'ai-evaluation-model-specification-version': '4', 'ai-gateway-protocol-version': '0.0.1', 'ai-gateway-auth-method': 'api-key' },
+    body: JSON.stringify({ state: { 汤面: soup.story, 汤底: soup.answer, 玩家还原: input.solution.trim().slice(0, 1500) }, questions: { outcome: { type: 'choice', instructions: '判断玩家是否还原了汤底的核心事件、关键原因和因果链。仅根据汤底判断，不要求逐字一致。', criteria: { 破解成功: '玩家覆盖了汤底的核心事件、关键原因与因果关系。', 接近真相: '玩家抓住了主要方向，但遗漏一个关键原因或因果环节。', 还没猜对: '玩家的解释与汤底核心事实不一致。' } } } }),
+  });
+  if (!gatewayResponse.ok) throw new Error(`Jev 结局判断失败：${gatewayResponse.status}`);
+  const result = await gatewayResponse.json() as { answers: { outcome: { choice: '破解成功' | '接近真相' | '还没猜对'; probabilities?: Record<string, number> } } };
+  const outcome = result.answers.outcome; const confidence = outcome.probabilities?.[outcome.choice] ?? 0; const threshold = Number(env.JEV_CONFIDENCE_THRESHOLD);
+  return json({ outcome: confidence >= threshold ? outcome.choice : '无法确定', confidence, threshold }, 200, origin);
+}
+
+async function admin(request: Request, parts: string[], env: Env, origin: string) {
+  if (request.headers.get('Authorization') !== `Bearer ${env.ADMIN_TOKEN}`) return json({ error: '未授权' }, 401, origin);
+  if (request.method === 'GET' && parts.length === 3 && parts[2] === 'soups') {
+    const status = new URL(request.url).searchParams.get('status') || 'pending';
+    const { results } = await env.DB.prepare('SELECT * FROM soups WHERE status = ? ORDER BY created_at ASC LIMIT 100').bind(status).all<SoupRow>(); return json({ soups: parseHints(results) }, 200, origin);
+  }
+  if ((request.method === 'PATCH' || request.method === 'DELETE') && parts.length === 4 && parts[2] === 'soups') {
+    const soupId = parts[3]; const body = request.method === 'PATCH' ? await request.json() as { status?: SoupStatus; note?: string } : { status: 'deleted' as SoupStatus };
+    if (!['published', 'rejected', 'deleted'].includes(body.status ?? '')) return json({ error: '无效审核状态' }, 400, origin);
+    const now = new Date().toISOString();
+    await env.DB.batch([env.DB.prepare('UPDATE soups SET status=?, published_at=CASE WHEN ?="published" THEN ? ELSE published_at END, moderation_note=? WHERE id=?').bind(body.status, body.status, now, body.note ?? null, soupId), env.DB.prepare('INSERT INTO moderation_logs (id,soup_id,action,note,created_at) VALUES (?,?,?,?,?)').bind(id(), soupId, body.status, body.note ?? null, now)]);
+    return json({ ok: true }, 200, origin);
+  }
+  return json({ error: '后台路由不存在' }, 404, origin);
+}

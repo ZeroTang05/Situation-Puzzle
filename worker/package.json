@@ -1,0 +1,8 @@
+{
+  "name": "jev-turtle-soup-worker",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.33.0",
+  "scripts": { "dev": "wrangler dev", "deploy": "wrangler deploy", "db:migrate:local": "wrangler d1 migrations apply jev-turtle-soup --local", "db:migrate:remote": "wrangler d1 migrations apply jev-turtle-soup --remote", "types": "wrangler types" },
+  "devDependencies": { "@cloudflare/workers-types": "^5.20260923.1", "typescript": "^5.0.0", "wrangler": "^4.137.0" }
+}
