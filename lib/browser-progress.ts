@@ -1,7 +1,7 @@
 /** 普通网页访客的答题记录只存在当前浏览器，不在后端创建用户或会话。 */
 export type BrowserProgressEntry = {
   question_count: number;
-  last_outcome: '破解成功' | '接近真相' | '还没猜对' | '无法确定' | null;
+  last_outcome: '破解成功' | '接近真相' | '还没猜对' | '无法确定' | 'Solved' | 'Close' | 'Not yet' | 'Uncertain' | null;
   solved_at: string | null;
   last_played_at: string;
 };
@@ -49,7 +49,7 @@ export function recordBrowserSolution(soupId: string, outcome: BrowserProgressEn
   progress[soupId] = {
     question_count: previous?.question_count ?? 0,
     last_outcome: outcome,
-    solved_at: previous?.solved_at ?? (outcome === '破解成功' ? now : null),
+    solved_at: previous?.solved_at ?? (outcome === '破解成功' || outcome === 'Solved' ? now : null),
     last_played_at: now,
   };
   localStorage.setItem(progressKey(), JSON.stringify(progress));

@@ -6,10 +6,11 @@ const requestSchema = z.object({
   story: z.string().min(1).max(4000),
   answer: z.string().min(1).max(4000),
   question: z.string().min(1).max(500),
+  language: z.enum(['zh', 'en']).default('zh'),
 });
 
 export async function POST(request: Request) {
   const input = requestSchema.parse(await request.json());
-  const result = await judgeQuestionWithJev(process.env.AI_GATEWAY_API_KEY ?? '', input.story, input.answer, input.question);
+  const result = await judgeQuestionWithJev(process.env.AI_GATEWAY_API_KEY ?? '', input.story, input.answer, input.question, undefined, input.language);
   return Response.json(result);
 }

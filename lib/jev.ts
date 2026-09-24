@@ -3,6 +3,7 @@ const GATEWAY_URL = 'https://ai-gateway.vercel.sh/v4/ai/evaluation-model';
 const MODEL_ID = 'typesafe-ai/jev';
 const MAX_RETRIES = 2;
 export const JEV_CONFIDENCE_THRESHOLD = 0.4;
+export type Language = 'zh' | 'en';
 
 type ChoiceQuestion<T extends string> = {
   type: 'choice';
@@ -53,7 +54,18 @@ async function requestChoice<T extends string>(apiKey: string, state: Record<str
 type SoupContent = { title: string; story: string; answer: string; hints: string[] };
 
 /** 投稿时检查色情、政治内容；只有 Jev 明确给出“通过”才公开。 */
-export async function reviewSoupWithJev(apiKey: string, soup: SoupContent): Promise<boolean> {
+export async function reviewSoupWithJev(apiKey: string, soup: SoupContent, language: Language = 'zh'): Promise<boolean> {
+  if (language === 'en') {
+    const result = await choose(apiKey, { title: soup.title, story: soup.story, answer: soup.answer, hints: soup.hints }, 'review', {
+      type: 'choice',
+      instructions: 'Review this entire situation puzzle for sexual or political content. Consider every field. Ordinary suspense, death, crime and police investigations are allowed.',
+      criteria: {
+        Approved: 'Contains no sexual content or political figures, events, advocacy or policy disputes.',
+        Rejected: 'Contains sexual descriptions or acts, or political figures, events, advocacy or policy disputes.',
+      },
+    });
+    return result.choice === 'Approved';
+  }
   const result = await choose(apiKey, { 标题: soup.title, 汤面: soup.story, 汤底: soup.answer, 提示: soup.hints }, 'review', {
     type: 'choice',
     instructions: '审核整道海龟汤是否适合公开。只检查色情或政治内容；标题、汤面、汤底和提示任一处涉及这两类内容，就选不通过。普通的悬疑、死亡、犯罪和警察办案不因此被判为政治内容。',
@@ -66,7 +78,19 @@ export async function reviewSoupWithJev(apiKey: string, soup: SoupContent): Prom
 }
 
 /** 玩家提问的三选一判断；低于阈值时统一返回“无法确定”。 */
-export async function judgeQuestionWithJev(apiKey: string, story: string, answer: string, question: string, threshold = JEV_CONFIDENCE_THRESHOLD) {
+export async function judgeQuestionWithJev(apiKey: string, story: string, answer: string, question: string, threshold = JEV_CONFIDENCE_THRESHOLD, language: Language = 'zh') {
+  if (language === 'en') {
+    const result = await choose(apiKey, { story, answer, playerQuestion: question }, 'verdict', {
+      type: 'choice',
+      instructions: 'Judge the player question against the answer. Choose only Yes, No or Irrelevant.',
+      criteria: {
+        Yes: 'The answer supports the claim or a reasonable inference in the question.',
+        No: 'The answer contradicts the claim or a reasonable inference in the question.',
+        Irrelevant: 'The question has no material connection to the answer.',
+      },
+    });
+    return { verdict: result.confidence >= threshold ? result.choice : 'Uncertain', confidence: result.confidence, threshold };
+  }
   const result = await choose(apiKey, { 汤面: story, 真相: answer, 玩家提问: question }, 'verdict', {
     type: 'choice',
     instructions: '根据真相判断玩家提问，只能选择是、否、无关。',
@@ -80,7 +104,19 @@ export async function judgeQuestionWithJev(apiKey: string, story: string, answer
 }
 
 /** 玩家还原真相的三选一判断；低于阈值时统一返回“无法确定”。 */
-export async function solveWithJev(apiKey: string, story: string, answer: string, solution: string, threshold = JEV_CONFIDENCE_THRESHOLD) {
+export async function solveWithJev(apiKey: string, story: string, answer: string, solution: string, threshold = JEV_CONFIDENCE_THRESHOLD, language: Language = 'zh') {
+  if (language === 'en') {
+    const result = await choose(apiKey, { story, answer, playerSolution: solution }, 'outcome', {
+      type: 'choice',
+      instructions: "Compare the player's reconstruction with the answer. Focus on the core event, key reasons and causal chain. Exact wording is not required.",
+      criteria: {
+        Solved: 'The player covers the core event, key reasons and causal connections.',
+        Close: 'The player has the main idea but misses a key reason or causal step.',
+        'Not yet': 'The explanation conflicts with the central facts of the answer.',
+      },
+    });
+    return { outcome: result.confidence >= threshold ? result.choice : 'Uncertain', confidence: result.confidence, threshold };
+  }
   const result = await choose(apiKey, { 汤面: story, 汤底: answer, 玩家还原: solution }, 'outcome', {
     type: 'choice',
     instructions: '判断玩家是否还原了汤底的核心事件、关键原因和因果链。仅根据汤底判断，不要求逐字一致。',

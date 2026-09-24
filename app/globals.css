@@ -15,10 +15,14 @@ button,input,textarea { font:inherit; } button { cursor:pointer; }
 @media (min-width:561px) { .app-shell { border-left:1px solid var(--line); border-right:1px solid var(--line); } }
 
 header { height:52px; display:flex; align-items:center; justify-content:space-between; }
-.brand { border:0; background:none; color:var(--ink); font-family:Georgia,serif; font-size:22px; font-weight:bold; }
+.brand { border:0; background:none; color:var(--ink); font-family:Georgia,serif; font-size:22px; font-weight:bold; white-space:nowrap; }
 .brand span { font-family:"PingFang SC",sans-serif; font-size:17px; font-weight:600; }
-.header-actions { display:flex; align-items:center; gap:8px; }
+.header-actions { display:flex; align-items:center; gap:5px; }
+.language-switch { min-height:30px; padding:3px 7px; border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--ink); font-size:12px; font-weight:700; }
+.language-switch:hover { border-color:var(--accent); }
 .share,.next { min-height:30px; padding:3px 8px; border:1px solid var(--line); border-radius:6px; background:transparent; color:var(--accent); font-size:13px; transition:border-color .15s; }
+.share,.next { white-space:nowrap; }
+@media (max-width:390px) { .brand span { font-size:14px; } .share,.next { padding-inline:5px; font-size:11px; } }
 .share:hover,.next:hover { border-color:rgba(125,216,198,.45); }
 
 .notice { position:fixed; left:50%; top:60px; z-index:6; transform:translateX(-50%); width:min(calc(100% - 40px),520px); display:flex; justify-content:space-between; gap:12px; padding:9px 12px; border:1px solid rgba(125,216,198,.35); border-radius:6px; background:#0c2436; color:#c9e8df; font-size:14px; box-shadow:0 8px 24px rgba(0,0,0,.45); }
@@ -57,6 +61,10 @@ header { height:52px; display:flex; align-items:center; justify-content:space-be
 .verdict.否 { color:#8fe0d0; border-color:rgba(125,216,198,.45); background:rgba(125,216,198,.08); }
 .verdict.无关 { color:#a9c8ec; border-color:rgba(169,200,236,.4); background:rgba(169,200,236,.08); }
 .verdict.无法确定 { color:#cabdef; border-color:rgba(202,189,239,.4); background:rgba(202,189,239,.08); }
+.verdict.Yes { color:#ffb391; border-color:rgba(255,155,120,.45); background:rgba(255,155,120,.08); }
+.verdict.No { color:#8fe0d0; border-color:rgba(125,216,198,.45); background:rgba(125,216,198,.08); }
+.verdict.Irrelevant { color:#a9c8ec; border-color:rgba(169,200,236,.4); background:rgba(169,200,236,.08); }
+.verdict.Uncertain { color:#cabdef; border-color:rgba(202,189,239,.4); background:rgba(202,189,239,.08); }
 
 .answer { padding:14px 16px; border:1px solid rgba(230,192,125,.35); border-radius:6px; background:rgba(230,192,125,.06); color:#f0dcb0; line-height:1.7; }
 .answer b { color:var(--gold); }
@@ -110,6 +118,10 @@ header { height:52px; display:flex; align-items:center; justify-content:space-be
 .outcome.接近真相 { color:#ecc784; border-color:rgba(236,199,132,.35); background:rgba(236,199,132,.06); }
 .outcome.还没猜对 { color:#e0a9a0; border-color:rgba(224,169,160,.35); background:rgba(224,169,160,.05); }
 .outcome.无法确定 { color:#cabdef; border-color:rgba(202,189,239,.35); background:rgba(202,189,239,.05); }
+.outcome.Solved { color:#8ce0c4; border-color:rgba(140,224,196,.35); background:rgba(140,224,196,.06); }
+.outcome.Close { color:#ecc784; border-color:rgba(236,199,132,.35); background:rgba(236,199,132,.06); }
+.outcome.Not-yet { color:#e0a9a0; border-color:rgba(224,169,160,.35); background:rgba(224,169,160,.05); }
+.outcome.Uncertain { color:#cabdef; border-color:rgba(202,189,239,.35); background:rgba(202,189,239,.05); }
 
 .library,.creator { padding-top:28px; }
 .library h1,.creator h1 { margin:0 0 6px; font-size:26px; }
@@ -141,6 +153,7 @@ nav button { border:0; background:transparent; color:var(--muted); font-size:14p
 nav button.active { color:var(--accent); font-weight:600; box-shadow:inset 0 2px 0 var(--accent); }
 
 .admin { width:min(100% - 40px,900px); margin:0 auto; padding:56px 0; color:var(--ink); }
+.admin > header { height:auto; gap:12px; }
 .admin h1 { margin:0 0 6px; font-size:26px; }
 .admin > p { color:var(--muted); }
 .admin-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:22px 0; }

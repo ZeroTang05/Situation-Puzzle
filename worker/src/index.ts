@@ -1,5 +1,6 @@
 import library from '../../data/library.json';
-import { judgeQuestionWithJev, reviewSoupWithJev, solveWithJev } from '../../lib/jev';
+import englishLibrary from '../../data/library.en.json';
+import { judgeQuestionWithJev, reviewSoupWithJev, solveWithJev, type Language } from '../../lib/jev';
 
 interface Env {
   DB: D1Database;
@@ -14,7 +15,7 @@ interface Env {
 }
 
 type SoupStatus = 'pending' | 'published' | 'rejected' | 'deleted';
-type Soup = { id: string; title: string; story: string; answer: string; hints: string[]; author_name: string; status: SoupStatus; created_at: string; published_at: string | null; reviewed_at: string | null; moderation_note: string | null; creator_token: string };
+type Soup = { id: string; title: string; story: string; answer: string; hints: string[]; language: Language; author_name: string; status: SoupStatus; created_at: string; published_at: string | null; reviewed_at: string | null; moderation_note: string | null; creator_token: string };
 /** 数据库里 hints 以 JSON 文本存储，读出后需要解析成数组 */
 type SoupRow = Omit<Soup, 'hints'> & { hints: string };
 const parseHints = (rows: SoupRow[]) => rows.map(({ hints, ...rest }) => ({ ...rest, hints: JSON.parse(hints) as string[] }));
@@ -22,6 +23,18 @@ const parseHints = (rows: SoupRow[]) => rows.map(({ hints, ...rest }) => ({ ...r
 /** 初始题库（data/library.json）：worker 每个实例启动后首次请求时整体覆盖 seed- 开头的行 */
 type SeedSoup = { id: string; title: string; story: string; answer: string; hints: string[] };
 const seedLibrary = library as SeedSoup[];
+const seedOrder = new Map(seedLibrary.map((soup, index) => [soup.id, index]));
+const englishSeeds = new Map((englishLibrary as SeedSoup[]).map((soup) => [soup.id, soup]));
+const requestLanguage = (request: Request): Language => new URL(request.url).searchParams.get('lang') === 'en' ? 'en' : 'zh';
+/** 内置题按请求语言返回相同 ID 的翻译；玩家投稿只展示原文语言。 */
+function localizedSoup(soup: Soup, language: Language): Soup {
+  const translation = language === 'en' ? englishSeeds.get(soup.id) : undefined;
+  return translation ? { ...soup, title: translation.title, story: translation.story, answer: translation.answer, hints: translation.hints, language } : soup;
+}
+/** 公开接口仅返回可玩的汤面，不下发汤底和创建者令牌。 */
+function publicSoupShape(soup: Soup) {
+  return { id: soup.id, title: soup.title, story: soup.story, hints: soup.hints, language: soup.language, author_name: soup.author_name, created_at: soup.created_at, published_at: soup.published_at };
+}
 let seedPromise: Promise<void> | null = null;
 function ensureSeeded(env: Env): Promise<void> {
   if (!seedPromise) {
@@ -70,14 +83,14 @@ export default {
     const parts = url.pathname.split('/').filter(Boolean);
     try {
       if (request.method === 'GET' && url.pathname === '/health') return json({ ok: true }, 200, origin);
-      if (request.method === 'GET' && url.pathname === '/api/soups') return publicSoups(env, origin);
-      if (request.method === 'GET' && parts.length === 3 && parts[0] === 'api' && parts[1] === 'soups') return publicSoup(parts[2], env, origin);
+      if (request.method === 'GET' && url.pathname === '/api/soups') return publicSoups(request, env, origin);
+      if (request.method === 'GET' && parts.length === 3 && parts[0] === 'api' && parts[1] === 'soups') return publicSoup(parts[2], request, env, origin);
       if (request.method === 'POST' && url.pathname === '/api/auth/anonymous') return anonymousAuth(request, env, origin);
       if (request.method === 'POST' && url.pathname === '/api/auth/bilibili') return bilibiliAuth(request, env, origin);
       if (request.method === 'POST' && url.pathname === '/api/auth/xiaohongshu') return xiaohongshuAuth(request, env, origin);
       if (request.method === 'GET' && url.pathname === '/api/me/progress') return myProgress(request, env, origin);
       if (request.method === 'POST' && url.pathname === '/api/soups') return createSoup(request, env, origin);
-      if (request.method === 'GET' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'soups' && parts[3] === 'answer') return revealAnswer(parts[2], env, origin);
+      if (request.method === 'GET' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'soups' && parts[3] === 'answer') return revealAnswer(parts[2], request, env, origin);
       if (request.method === 'POST' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'soups' && parts[3] === 'judge') return judgeSoup(parts[2], request, env, origin);
       if (request.method === 'POST' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'soups' && parts[3] === 'solve') return solveSoup(parts[2], request, env, origin);
       if (parts[0] === 'api' && parts[1] === 'admin') return admin(request, parts, env, origin);
@@ -89,27 +102,33 @@ export default {
   },
 };
 
-async function publicSoups(env: Env, origin: string) {
-  const { results } = await env.DB.prepare("SELECT id, title, story, hints, author_name, created_at, published_at FROM soups WHERE status = ? ORDER BY CASE WHEN creator_token = 'seed' THEN 0 ELSE 1 END, published_at ASC, id ASC").bind('published').all<SoupRow>();
-  return json({ soups: parseHints(results) }, 200, origin);
+async function publicSoups(request: Request, env: Env, origin: string) {
+  const language = requestLanguage(request);
+  const { results } = await env.DB.prepare("SELECT id, title, story, hints, language, author_name, created_at, published_at, creator_token FROM soups WHERE status = ? AND (creator_token = 'seed' OR language = ?) ORDER BY CASE WHEN creator_token = 'seed' THEN 0 ELSE 1 END, published_at ASC, id ASC").bind('published', language).all<SoupRow>();
+  const ordered = parseHints(results).sort((a, b) => a.creator_token === 'seed' && b.creator_token === 'seed' ? (seedOrder.get(a.id) ?? 0) - (seedOrder.get(b.id) ?? 0) : 0);
+  return json({ soups: ordered.map((soup) => publicSoupShape(localizedSoup(soup, language))) }, 200, origin);
 }
 
 /** 分享链接按稳定题目 ID 读取公开汤面，绝不返回汤底或创建者令牌。 */
-async function publicSoup(soupId: string, env: Env, origin: string) {
-  const row = await env.DB.prepare('SELECT id, title, story, hints, author_name, created_at, published_at FROM soups WHERE id = ? AND status = ?').bind(soupId, 'published').first<SoupRow>();
+async function publicSoup(soupId: string, request: Request, env: Env, origin: string) {
+  const language = requestLanguage(request);
+  const row = await env.DB.prepare("SELECT id, title, story, answer, hints, language, author_name, created_at, published_at, creator_token FROM soups WHERE id = ? AND status = ? AND (creator_token = 'seed' OR language = ?)").bind(soupId, 'published', language).first<SoupRow>();
   if (!row) return json({ error: '题目不存在或已下架' }, 404, origin);
-  return json({ soup: parseHints([row])[0] }, 200, origin);
+  return json({ soup: publicSoupShape(localizedSoup(parseHints([row])[0], language)) }, 200, origin);
 }
 
 /** 公布答案：玩家明确选择看汤底时才单独下发，题库列表接口永远不包含 answer。 */
-async function revealAnswer(soupId: string, env: Env, origin: string) {
-  const soup = await env.DB.prepare('SELECT answer FROM soups WHERE id = ? AND status = ?').bind(soupId, 'published').first<{ answer: string }>();
+async function revealAnswer(soupId: string, request: Request, env: Env, origin: string) {
+  const language = requestLanguage(request);
+  const soup = await env.DB.prepare("SELECT id, answer, language, creator_token FROM soups WHERE id = ? AND status = ? AND (creator_token = 'seed' OR language = ?)").bind(soupId, 'published', language).first<Soup>();
   if (!soup) return json({ error: '题目不存在或尚未公开' }, 404, origin);
-  return json({ answer: soup.answer }, 200, origin);
+  return json({ answer: language === 'en' ? englishSeeds.get(soup.id)?.answer ?? soup.answer : soup.answer }, 200, origin);
 }
 
 async function createSoup(request: Request, env: Env, origin: string) {
-  const input = await request.json() as Partial<Pick<Soup, 'title' | 'story' | 'answer' | 'author_name'>> & { hints?: string[] };
+  const input = await request.json() as Partial<Pick<Soup, 'title' | 'story' | 'answer' | 'author_name' | 'language'>> & { hints?: string[] };
+  if (input.language && input.language !== 'zh' && input.language !== 'en') return json({ error: '无效题目语言' }, 400, origin);
+  const language = input.language ?? 'zh';
   for (const key of ['title', 'story', 'answer'] as const) if (!input[key]?.trim()) return json({ error: `${key} 不能为空` }, 400, origin);
   const hints = (input.hints ?? []).map((hint) => hint.trim().slice(0, 100)).filter(Boolean);
   if (!hints[0]) return json({ error: '至少填写一条提示' }, 400, origin);
@@ -119,12 +138,12 @@ async function createSoup(request: Request, env: Env, origin: string) {
   const title = input.title!.trim().slice(0, 30);
   const story = input.story!.trim().slice(0, 500);
   const answer = input.answer!.trim().slice(0, 1500);
-  const approved = await reviewSoupWithJev(env.AI_GATEWAY_API_KEY, { title, story, answer, hints });
+  const approved = await reviewSoupWithJev(env.AI_GATEWAY_API_KEY, { title, story, answer, hints }, language);
   const now = new Date().toISOString();
-  const soup: Soup = { id: id(), title, story, answer, hints, author_name: input.author_name?.trim().slice(0, 20) || '匿名玩家', status: approved ? 'published' : 'rejected', created_at: now, published_at: approved ? now : null, reviewed_at: approved ? null : now, moderation_note: approved ? null : 'Jev 审核未通过：色情或政治内容', creator_token: id() };
-  await env.DB.prepare('INSERT INTO soups (id,title,story,answer,hints,author_name,status,created_at,published_at,reviewed_at,moderation_note,creator_token,author_user_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(soup.id, soup.title, soup.story, soup.answer, JSON.stringify(soup.hints), soup.author_name, soup.status, soup.created_at, soup.published_at, soup.reviewed_at, soup.moderation_note, soup.creator_token, user?.id ?? null).run();
-  if (!approved) return json({ status: 'rejected', message: '审核未通过：题目涉及色情或政治内容，未公开。' }, 200, origin);
-  return json({ status: 'published', soup: { ...soup, answer: undefined, creator_token: undefined }, creator_token: soup.creator_token, message: '审核通过，题目已公开，可以分享给朋友。' }, 201, origin);
+  const soup: Soup = { id: id(), title, story, answer, hints, language, author_name: input.author_name?.trim().slice(0, 20) || (language === 'en' ? 'Anonymous player' : '匿名玩家'), status: approved ? 'published' : 'rejected', created_at: now, published_at: approved ? now : null, reviewed_at: approved ? null : now, moderation_note: approved ? null : 'Jev 审核未通过：色情或政治内容', creator_token: id() };
+  await env.DB.prepare('INSERT INTO soups (id,title,story,answer,hints,language,author_name,status,created_at,published_at,reviewed_at,moderation_note,creator_token,author_user_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(soup.id, soup.title, soup.story, soup.answer, JSON.stringify(soup.hints), soup.language, soup.author_name, soup.status, soup.created_at, soup.published_at, soup.reviewed_at, soup.moderation_note, soup.creator_token, user?.id ?? null).run();
+  if (!approved) return json({ status: 'rejected', message: language === 'en' ? 'Review failed: this puzzle contains sexual or political content and was not published.' : '审核未通过：题目涉及色情或政治内容，未公开。' }, 200, origin);
+  return json({ status: 'published', soup: { ...soup, answer: undefined, creator_token: undefined }, creator_token: soup.creator_token, message: language === 'en' ? 'Approved. Your puzzle is live and ready to share.' : '审核通过，题目已公开，可以分享给朋友。' }, 201, origin);
 }
 
 /** 直接访问网页的玩家共用访客 ID；个人答题记录只归属经平台验证的用户。 */
@@ -185,12 +204,14 @@ async function currentUser(request: Request, env: Env) {
 
 /** 仅返回当前用户自己的已玩题目；总题量与公开题库使用相同的 published 范围。 */
 async function myProgress(request: Request, env: Env, origin: string) {
+  const language = requestLanguage(request);
   const user = await currentUser(request, env);
   if (!user) return json({ error: '身份无效' }, 401, origin);
-  const total = await env.DB.prepare("SELECT COUNT(*) AS count FROM soups WHERE status='published'").first<{ count: number }>();
+  const total = await env.DB.prepare("SELECT COUNT(*) AS count FROM soups WHERE status='published' AND (creator_token='seed' OR language=?)").bind(language).first<{ count: number }>();
   if (!user.is_identified) return json({ personal: false, total: total?.count ?? 0, attempted: 0, solved: 0, soups: [] }, 200, origin);
-  const { results } = await env.DB.prepare("SELECT p.soup_id, s.title, p.question_count, p.last_outcome, p.solved_at, p.last_played_at FROM soup_progress p JOIN soups s ON s.id=p.soup_id WHERE p.user_id=? AND s.status='published' ORDER BY p.last_played_at DESC").bind(user.id).all<{ soup_id: string; title: string; question_count: number; last_outcome: string | null; solved_at: string | null; last_played_at: string }>();
-  return json({ personal: true, total: total?.count ?? 0, attempted: results.length, solved: results.filter((item) => item.solved_at).length, soups: results }, 200, origin);
+  const { results } = await env.DB.prepare("SELECT p.soup_id, s.title, p.question_count, p.last_outcome, p.solved_at, p.last_played_at FROM soup_progress p JOIN soups s ON s.id=p.soup_id WHERE p.user_id=? AND s.status='published' AND (s.creator_token='seed' OR s.language=?) ORDER BY p.last_played_at DESC").bind(user.id, language).all<{ soup_id: string; title: string; question_count: number; last_outcome: string | null; solved_at: string | null; last_played_at: string }>();
+  const localized = language === 'en' ? results.map((item) => ({ ...item, title: englishSeeds.get(item.soup_id)?.title ?? item.title })) : results;
+  return json({ personal: true, total: total?.count ?? 0, attempted: localized.length, solved: localized.filter((item) => item.solved_at).length, soups: localized }, 200, origin);
 }
 
 /** 一次有效提问才计数；无法确定也算玩家尝试，Jev 请求失败不计数。 */
@@ -203,17 +224,19 @@ async function recordQuestion(env: Env, user: SessionUser | null, soupId: string
 /** 只有 Jev 判为“破解成功”才记完成；之后再试题不会抹掉已完成状态。 */
 async function recordSolution(env: Env, user: SessionUser | null, soupId: string, outcome: string) {
   if (!user?.is_identified) return;
-  const now = new Date().toISOString(); const solvedAt = outcome === '破解成功' ? now : null;
+  const now = new Date().toISOString(); const solvedAt = outcome === '破解成功' || outcome === 'Solved' ? now : null;
   await env.DB.prepare('INSERT INTO soup_progress (user_id,soup_id,first_played_at,last_played_at,last_outcome,solved_at) VALUES (?,?,?,?,?,?) ON CONFLICT(user_id,soup_id) DO UPDATE SET last_played_at=excluded.last_played_at,last_outcome=excluded.last_outcome,solved_at=COALESCE(soup_progress.solved_at,excluded.solved_at)').bind(user.id, soupId, now, now, outcome, solvedAt).run();
 }
 
 async function judgeSoup(soupId: string, request: Request, env: Env, origin: string) {
   const input = await request.json() as { question?: string };
   if (!input.question?.trim()) return json({ error: '问题不能为空' }, 400, origin);
-  const soup = await env.DB.prepare('SELECT * FROM soups WHERE id = ?').bind(soupId).first<Soup>();
+  const row = await env.DB.prepare('SELECT * FROM soups WHERE id = ?').bind(soupId).first<SoupRow>();
+  const language = row?.creator_token === 'seed' ? requestLanguage(request) : row?.language ?? 'zh';
+  const soup = row ? localizedSoup(parseHints([row])[0], language) : null;
   if (!soup) return json({ error: '题目不存在或尚未公开' }, 404, origin);
   if (soup.status !== 'published' && request.headers.get('X-Creator-Token') !== soup.creator_token) return json({ error: '题目尚未公开' }, 403, origin);
-  const result = await judgeQuestionWithJev(env.AI_GATEWAY_API_KEY, soup.story, soup.answer, input.question.trim().slice(0, 500), Number(env.JEV_CONFIDENCE_THRESHOLD));
+  const result = await judgeQuestionWithJev(env.AI_GATEWAY_API_KEY, soup.story, soup.answer, input.question.trim().slice(0, 500), Number(env.JEV_CONFIDENCE_THRESHOLD), language);
   await recordQuestion(env, await currentUser(request, env), soupId);
   return json(result, 200, origin);
 }
@@ -222,12 +245,14 @@ async function judgeSoup(soupId: string, request: Request, env: Env, origin: str
 async function solveSoup(soupId: string, request: Request, env: Env, origin: string) {
   const input = await request.json() as { solution?: string };
   if (!input.solution?.trim()) return json({ error: '请先写出你的推理' }, 400, origin);
-  const soup = await env.DB.prepare('SELECT * FROM soups WHERE id = ? AND status = ?').bind(soupId, 'published').first<Soup>();
+  const row = await env.DB.prepare('SELECT * FROM soups WHERE id = ? AND status = ?').bind(soupId, 'published').first<SoupRow>();
+  const language = row?.creator_token === 'seed' ? requestLanguage(request) : row?.language ?? 'zh';
+  const soup = row ? localizedSoup(parseHints([row])[0], language) : null;
   if (!soup) return json({ error: '题目不存在或尚未公开' }, 404, origin);
-  const result = await solveWithJev(env.AI_GATEWAY_API_KEY, soup.story, soup.answer, input.solution.trim().slice(0, 1500), Number(env.JEV_CONFIDENCE_THRESHOLD));
+  const result = await solveWithJev(env.AI_GATEWAY_API_KEY, soup.story, soup.answer, input.solution.trim().slice(0, 1500), Number(env.JEV_CONFIDENCE_THRESHOLD), language);
   await recordSolution(env, await currentUser(request, env), soupId, result.outcome);
   // 破解成功后才在这次回复中下发汤底，供还原真相对话直接展示。
-  return json({ ...result, ...(result.outcome === '破解成功' ? { answer: soup.answer } : {}) }, 200, origin);
+  return json({ ...result, ...(result.outcome === '破解成功' || result.outcome === 'Solved' ? { answer: soup.answer } : {}) }, 200, origin);
 }
 
 /**
