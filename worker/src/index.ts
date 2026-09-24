@@ -222,7 +222,8 @@ async function solveSoup(soupId: string, request: Request, env: Env, origin: str
   const outcome = result.answers.outcome; const confidence = outcome.probabilities?.[outcome.choice] ?? 0; const threshold = Number(env.JEV_CONFIDENCE_THRESHOLD);
   const finalOutcome = confidence >= threshold ? outcome.choice : '无法确定';
   await recordSolution(env, await currentUser(request, env), soupId, finalOutcome);
-  return json({ outcome: finalOutcome, confidence, threshold }, 200, origin);
+  // 破解成功后才在这次回复中下发汤底，供还原真相对话直接展示。
+  return json({ outcome: finalOutcome, confidence, threshold, ...(finalOutcome === '破解成功' ? { answer: soup.answer } : {}) }, 200, origin);
 }
 
 /**
