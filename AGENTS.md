@@ -45,6 +45,14 @@ jev-turtle-soup/
 └─ README.md、CONTRIBUTING.md、CODE_OF_CONDUCT.md、LICENSE(GPL-3.0)
 ```
 
+## 常用命令
+
+```
+pnpm build:toy situation-puzzle            # 构建 B站 Toy 静态包，ZIP 输出到 toy-dist/
+pnpm --dir worker dev                      # 本地起 worker（8787，本地模拟 D1）
+pnpm --dir worker exec wrangler deploy     # 部署后端到 Cloudflare
+```
+
 ## 本地开发
 
 两个终端并行：`pnpm dev`（前端 3000）+ `pnpm --dir worker dev`（worker 8787，本地 D1 由 wrangler 模拟，无需安装数据库）。`.env.local` 的 `NEXT_PUBLIC_API_URL` 指向 `http://localhost:8787`；留空则是纯前端离线模式（用 `data/library.json` + `app/api` 本地判题）。
@@ -54,7 +62,7 @@ jev-turtle-soup/
 
 ## 部署
 
-- 后端：`pnpm --dir worker run deploy`（密钥用 `wrangler secret put` 设置；远端库迁移 `pnpm --dir worker run db:migrate:remote`）。首次部署清单见 worker/README.md。
+- 后端：`pnpm --dir worker exec wrangler deploy`（密钥用 `wrangler secret put` 设置；远端库迁移 `pnpm --dir worker run db:migrate:remote`）。首次部署清单见 worker/README.md。
 - 前端：Vercel，环境变量 `NEXT_PUBLIC_API_URL=https://situation-puzzle-api.xiaobaozi.cn`。改环境变量后需要 Redeploy 才生效（编译期内联）。
 - 线上 D1 与本地模拟 D1 完全独立，迁移分别执行。
 

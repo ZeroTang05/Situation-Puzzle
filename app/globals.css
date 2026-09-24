@@ -86,10 +86,12 @@ button,input,textarea { font:inherit; } button { cursor:pointer; }
 .ask button:disabled { opacity:.55; }
 .actions { flex:0 0 auto; display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin-top:5px; }
 .actions button { min-height:27px; padding:3px 5px; border:1px solid transparent; border-radius:4px; font-size:11px; font-weight:700; }
-.actions button:first-child { background:#e6c07d; color:#261b0c; }
-.actions button:nth-child(2) { background:#a9c8ec; color:#10243d; }
-.actions button:last-child { background:#ff9b78; color:#33150c; }
-.actions button:disabled { opacity:.55; cursor:default; }
+/* 三颗操作键统一透明底，文字和描边用各自主题色：金=提示、蓝=公布、橙=还原。 */
+.actions button:first-child { border-color:rgba(230,192,125,.45); background:transparent; color:#e6c07d; }
+.actions button:nth-child(2) { border-color:rgba(169,200,236,.45); background:transparent; color:#a9c8ec; }
+.actions button:last-child { border-color:rgba(255,155,120,.45); background:transparent; color:#ff9b78; }
+/* 提示给完后按钮进入 disabled，保持全色（与小红书端一致），仅去掉手型光标。 */
+.actions button:disabled { opacity:1; cursor:default; }
 
 /* 公布答案的二次确认弹窗：深色面板 + 半透明遮罩，点遮罩或按 Esc 取消 */
 .modal { position:fixed; inset:0; z-index:5; display:flex; align-items:center; justify-content:center; padding:24px; background:rgba(2,9,17,.72); }
