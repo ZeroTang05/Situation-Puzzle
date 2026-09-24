@@ -28,14 +28,14 @@ header { height:52px; display:flex; align-items:center; justify-content:space-be
 .play { display:flex; flex-direction:column; height:calc(100dvh - 106px - env(safe-area-inset-bottom)); }
 
 /* 题目卡：保留月亮与气泡的装饰背景，右下角海龟水印 */
-.hero { position:relative; flex:0 1 auto; min-height:0; max-height:30dvh; overflow-y:auto; overscroll-behavior:contain; padding:12px 18px 11px; border-bottom:1px solid var(--line); background:radial-gradient(circle at 85% 14%,#ffe7a3 0 7%,transparent 7.3%),radial-gradient(ellipse at 85% 18%,#497fa8 0,transparent 30%),linear-gradient(150deg,#0d426d,#052747); }
-.hero::-webkit-scrollbar { width:4px; }
-.hero::-webkit-scrollbar-thumb { background:rgba(220,232,242,.35); border-radius:2px; }
+.hero { position:relative; display:flex; flex:0 1 auto; flex-direction:column; min-height:0; max-height:30dvh; overflow:hidden; padding:12px 18px 11px; border-bottom:1px solid var(--line); background:radial-gradient(circle at 85% 14%,#ffe7a3 0 7%,transparent 7.3%),radial-gradient(ellipse at 85% 18%,#497fa8 0,transparent 30%),linear-gradient(150deg,#0d426d,#052747); }
 .hero > * { position:relative; z-index:1; }
-.hero:after { content:"🐢"; position:absolute; right:18px; bottom:-10px; font-size:48px; opacity:.38; transform:rotate(-9deg); }
+.hero:after { content:"🐢"; position:absolute; right:18px; bottom:-10px; z-index:0; pointer-events:none; font-size:48px; opacity:.38; transform:rotate(-9deg); }
 .hero p { margin:0 0 4px; color:var(--accent); font-size:12px; letter-spacing:1px; }
 .hero h1 { margin:0 0 6px; font-size:20px; line-height:1.3; font-weight:700; }
-.story { max-width:400px; line-height:1.55; color:#dce8f2; font-size:14px; }
+.story { flex:0 1 auto; min-height:0; max-width:400px; overflow-y:auto; overscroll-behavior:contain; line-height:1.55; color:#dce8f2; font-size:14px; }
+.story::-webkit-scrollbar { width:4px; }
+.story::-webkit-scrollbar-thumb { background:rgba(220,232,242,.35); border-radius:2px; }
 
 /* 对话区：吃掉题目卡和输入框之间的全部剩余高度，内容超出时内部滚动 */
 .chat { display:flex; flex-direction:column; gap:10px; flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:12px 0 8px; }

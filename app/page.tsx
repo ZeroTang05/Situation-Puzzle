@@ -19,9 +19,6 @@ const SOUPS: Soup[] = library.map((soup) => ({ ...soup }));
 const PUBLIC_API = apiBaseUrl(process.env.NEXT_PUBLIC_API_URL);
 const PLATFORM_SESSION_KEY = 'jev-platform-session';
 
-function encodeSoup(soup: Soup) { return btoa(unescape(encodeURIComponent(JSON.stringify(soup)))); }
-function decodeSoup(value: string): Soup | null { try { return JSON.parse(decodeURIComponent(escape(atob(value)))) as Soup; } catch { return null; } }
-
 export default function Home() {
   const [soups, setSoups] = useState(SOUPS);
   const [currentId, setCurrentId] = useState(SOUPS[0].id);
@@ -42,6 +39,7 @@ export default function Home() {
   const [progressSource, setProgressSource] = useState<'browser' | 'platform'>('browser');
   const [solveOpen, setSolveOpen] = useState(false);
   const [solveThread, setSolveThread] = useState<SolveEntry[]>([]);
+  const [creating, setCreating] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
   const solveRef = useRef<HTMLDivElement>(null);
   const identityStarted = useRef(false);
@@ -69,10 +67,22 @@ export default function Home() {
   }, [confirmingAnswer]);
 
   useEffect(() => {
-    const shared = new URLSearchParams(window.location.search).get('soup');
-    if (!shared) return;
-    const imported = decodeSoup(shared);
-    if (imported) { setSoups((items) => [imported, ...items.filter((item) => item.id !== imported.id)]); setCurrentId(imported.id); setNotice('已打开朋友分享的海龟汤'); }
+    const soupId = new URLSearchParams(window.location.search).get('soup');
+    if (!soupId) return;
+    if (!PUBLIC_API) {
+      const found = SOUPS.find((item) => item.id === soupId);
+      if (found) choose(found);
+      else setNotice('这道题尚未保存到题库，无法通过链接打开。');
+      return;
+    }
+    // 分享链接只带题目 ID；公开汤面由后端读取，汤底不会进入地址栏。
+    fetch(`${PUBLIC_API}/api/soups/${encodeURIComponent(soupId)}`).then(async (response) => {
+      if (!response.ok) throw new Error(`分享题目读取失败：${response.status}`);
+      const data = await response.json() as { soup: Soup };
+      const shared = { ...data.soup, remote: true };
+      setSoups((items) => [shared, ...items.filter((item) => item.id !== shared.id)]);
+      setCurrentId(shared.id);
+    }).catch((error) => { console.error(error); setNotice('分享的题目不存在或已下架。'); });
   }, []);
 
   useEffect(() => {
@@ -159,8 +169,13 @@ export default function Home() {
     }
   }
   function share() {
-    const url = `${window.location.origin}${window.location.pathname}?soup=${encodeURIComponent(encodeSoup(soup))}`;
-    navigator.clipboard.writeText(url).then(() => setNotice('分享链接已复制，发给朋友即可开局。'));
+    if (!PUBLIC_API && !SOUPS.some((item) => item.id === soup.id)) {
+      setNotice('这道题只保存在当前页面，连接后端保存后才能分享。');
+      return;
+    }
+    const url = new URL(window.location.pathname, window.location.origin);
+    url.searchParams.set('soup', soup.id);
+    navigator.clipboard.writeText(url.toString()).then(() => setNotice('分享链接已复制，发给朋友即可开局。'));
   }
   /** 公布答案：线上题目的汤底不进浏览器，确认后才向 worker 单独取一次 */
   async function revealAnswer() {
@@ -199,24 +214,31 @@ export default function Home() {
     }
   }
   async function createSoup(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); const form = new FormData(event.currentTarget);
+    event.preventDefault();
+    if (creating) return;
+    setCreating(true);
+    const form = new FormData(event.currentTarget);
     const hints = ['hint1', 'hint2', 'hint3'].map((name) => String(form.get(name) ?? '').trim()).filter(Boolean);
     const created: Soup = { id: crypto.randomUUID(), title: String(form.get('title')), story: String(form.get('story')), answer: String(form.get('answer')), hints };
     try {
       if (PUBLIC_API) {
         if (progressSource === 'platform' && !userToken) throw new Error('身份正在初始化，请稍后再试');
         const response = await fetch(`${PUBLIC_API}/api/soups`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(userToken ? { Authorization: `Bearer ${userToken}` } : {}) }, body: JSON.stringify(created) });
-        if (!response.ok) throw new Error(`投稿保存失败：${response.status}`);
-        const data = await response.json() as { soup: Soup; creator_token: string; message: string };
-        created.id = data.soup.id;
-        created.remote = true;
-        created.creatorToken = data.creator_token;
+        if (!response.ok) throw new Error(`投稿审核失败：${response.status}`);
+        const data = await response.json() as { status: 'rejected'; message: string } | { status: 'published'; soup: Soup; creator_token: string; message: string };
         setNotice(data.message);
+        if (data.status === 'rejected') return;
+        const published = { ...data.soup, answer: created.answer, remote: true, creatorToken: data.creator_token };
+        setSoups((items) => [published, ...items]);
+        choose(published);
+        return;
       }
-      setSoups((items) => [created, ...items]); choose(created); if (!PUBLIC_API) setNotice('新海龟汤已创建，可以直接分享。');
+      setSoups((items) => [created, ...items]); choose(created); setNotice('本地题目已创建，连接后端后才能公开。');
     } catch (error) {
       console.error(error);
-      setNotice('创建失败，稍后再试。');
+      setNotice('审核暂时失败，题目没有公开，请稍后再试。');
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -230,8 +252,8 @@ export default function Home() {
       <form className="ask" onSubmit={ask}><input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder={solveOpen ? '写下你还原的真相…' : '问问 Jev…'} maxLength={solveOpen ? 1500 : 500} required /><button disabled={loading || (!!PUBLIC_API && !!soup.remote && !authReady)}>发送</button></form></section>}
     {confirmingAnswer && <div className="modal" role="dialog" aria-modal="true" onClick={() => setConfirmingAnswer(false)}><div className="modal-card" onClick={(event) => event.stopPropagation()}><p>看到汤底这局就没悬念了，确定公布吗？</p><div className="modal-actions"><button onClick={() => setConfirmingAnswer(false)}>取消</button><button className="confirm" onClick={revealAnswer}>公布答案</button></div></div></div>}
     {view === 'library' && <section className="library"><h1>题库</h1><p>选一题，和朋友一起慢慢推理。</p>{soups.map((item) => { const record = progress?.personal ? progress.soups.find((entry) => entry.soup_id === item.id) : null; return <button className="soup-row" onClick={() => choose(item)} key={item.id}><span>{item.title}{record && <em className={record.solved_at ? 'soup-state solved' : 'soup-state'}>{record.solved_at ? '已解出' : '已玩'}</em>}</span><small>{item.story}</small></button>; })}</section>}
-    {view === 'progress' && <section className="progress-page"><h1>我的答题记录</h1>{!progress ? <p className="progress-empty">正在读取答题记录…</p> : <><div className="progress-numbers"><div><strong>{progress.solved}</strong><span>已解出</span></div><div><strong>{progress.attempted}</strong><span>已尝试</span></div><div><strong>{progress.total}</strong><span>公开题目</span></div></div><p className="progress-caption">解出一道题，以 Jev 判定“破解成功”为准。</p><div className="progress-list">{progress.soups.length === 0 ? <p className="progress-empty">还没有答题记录，去题库挑一碗汤吧。</p> : progress.soups.map((entry) => <button key={entry.soup_id} className="soup-row" onClick={() => { const item = soups.find((candidate) => candidate.id === entry.soup_id); if (item) choose(item); }}><span>{entry.title}<em className={entry.solved_at ? 'soup-state solved' : 'soup-state'}>{entry.solved_at ? '已解出' : '已玩'}</em></span><small>提问 {entry.question_count} 次{entry.last_outcome ? ` · 最近判定：${entry.last_outcome}` : ''}</small></button>)}</div></>}</section>}
-    {view === 'create' && <section className="creator"><h1>出一道海龟汤</h1><p>把汤面、汤底和提示写好，创建后就能分享。</p><form onSubmit={createSoup}><label>题目名称<input name="title" required maxLength={30} placeholder="例如：消失的钥匙" /></label><label>汤面<textarea name="story" required maxLength={500} placeholder="玩家最先看到的故事" /></label><label>汤底<textarea name="answer" required maxLength={1500} placeholder="完整真相，只给 Jev 和公布答案时看" /></label><label>提示一<input name="hint1" required maxLength={100} placeholder="给卡住的玩家一点方向" /></label><label>提示二（选填）<input name="hint2" maxLength={100} placeholder="换个角度再给一条" /></label><label>提示三（选填）<input name="hint3" maxLength={100} placeholder="最后一条提示" /></label><button>创建并开始</button></form></section>}
+    {view === 'progress' && <section className="progress-page"><h1>我的答题记录</h1>{!progress ? <p className="progress-empty">正在读取答题记录…</p> : <><div className="progress-numbers"><div><strong>{progress.solved}</strong><span>已解出</span></div><div><strong>{progress.attempted}</strong><span>已尝试</span></div><div><strong>{progress.total}</strong><span>公开题目</span></div></div><div className="progress-list">{progress.soups.length === 0 ? <p className="progress-empty">还没有答题记录，去题库挑一碗汤吧。</p> : progress.soups.map((entry) => <button key={entry.soup_id} className="soup-row" onClick={() => { const item = soups.find((candidate) => candidate.id === entry.soup_id); if (item) choose(item); }}><span>{entry.title}<em className={entry.solved_at ? 'soup-state solved' : 'soup-state'}>{entry.solved_at ? '已解出' : '已玩'}</em></span><small>提问 {entry.question_count} 次{entry.last_outcome ? ` · 最近判定：${entry.last_outcome}` : ''}</small></button>)}</div></>}</section>}
+    {view === 'create' && <section className="creator"><h1>出一道海龟汤</h1><p>{PUBLIC_API ? '提交后先审核，通过即可分享。' : '本地创建的题目仅在当前页面可用。'}</p><form onSubmit={createSoup}><label>题目名称<input name="title" required maxLength={30} placeholder="例如：消失的钥匙" /></label><label>汤面<textarea name="story" required maxLength={500} placeholder="玩家最先看到的故事" /></label><label>汤底<textarea name="answer" required maxLength={1500} placeholder="完整真相" /></label><label>提示一<input name="hint1" required maxLength={100} placeholder="给卡住的玩家一点方向" /></label><label>提示二（选填）<input name="hint2" maxLength={100} placeholder="换个角度再给一条" /></label><label>提示三（选填）<input name="hint3" maxLength={100} placeholder="最后一条提示" /></label><button disabled={creating}>{creating ? '审核中…' : PUBLIC_API ? '提交审核' : '本地创建'}</button></form></section>}
     <nav><button className={view === 'library' ? 'active' : ''} onClick={() => setView('library')}>题库</button><button className={view === 'play' ? 'active' : ''} onClick={() => setView('play')}>开局</button><button className={view === 'progress' ? 'active' : ''} onClick={() => { setView('progress'); if (progressSource === 'platform' && userToken) void refreshProgress(userToken).catch(console.error); }}>记录</button><button className={view === 'create' ? 'active' : ''} onClick={() => setView('create')}>出题</button></nav>
   </main>;
 }

@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useState } from 'react';
 
 type ModerationSoup = { id: string; title: string; story: string; answer: string; hints: string[]; author_name: string; created_at: string; reviewed_at: string | null };
-type ModerationView = 'unreviewed' | 'published' | 'rejected' | 'deleted';
+type ModerationView = 'unreviewed' | 'pending' | 'published' | 'rejected' | 'deleted';
 const views: { id: ModerationView; label: string }[] = [
   { id: 'unreviewed', label: '待复核' },
+  { id: 'pending', label: '历史待审' },
   { id: 'published', label: '公开题目' },
   { id: 'rejected', label: '已驳回' },
   { id: 'deleted', label: '已删除' },
@@ -55,7 +56,7 @@ export default function AdminPage() {
   return (
     <main className="admin">
       <h1>Jev 海龟汤 · 审核后台</h1>
-      <p>玩家投稿立即公开；在这里复核内容并处理违规题目。</p>
+      <p>Jev 初审通过的投稿会公开；在这里复核内容并处理违规题目。</p>
       <div className="admin-tabs">{views.map((item) => <button key={item.id} className={view === item.id ? 'active' : ''} onClick={() => { setView(item.id); setBusy(true); setMessage(''); }}>{item.label}</button>)}</div>
       {busy && <p>正在读取题目…</p>}
       {message && <p className="admin-message">{message}</p>}
@@ -66,8 +67,8 @@ export default function AdminPage() {
             <h2>汤面</h2><p>{soup.story}</p>
             <h2>汤底（仅管理员可见）</h2><p>{soup.answer}</p>
             <h2>提示</h2>{soup.hints.map((hint, index) => <p key={index}>{index + 1}. {hint}</p>)}
-            {(view === 'unreviewed' || view === 'published') && <footer>
-              {!soup.reviewed_at && <button onClick={() => moderate(soup, 'published')}>通过复核</button>}
+            {(view === 'unreviewed' || view === 'pending' || view === 'published') && <footer>
+              {(view === 'pending' || !soup.reviewed_at) && <button onClick={() => moderate(soup, 'published')}>{view === 'pending' ? '审核并发布' : '通过复核'}</button>}
               <button className="reject" onClick={() => moderate(soup, 'rejected')}>下架</button>
               <button className="delete" onClick={() => moderate(soup, 'deleted')}>删除</button>
             </footer>}
