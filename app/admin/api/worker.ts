@@ -1,9 +1,10 @@
 import { adminChallenge, isAdminAuthorized } from '../../../lib/admin-auth';
+import { apiBaseUrl } from '../../../lib/api-url';
 
 /** 同源转发审核请求，管理员密码只由 Next.js 服务端发送给 Worker。 */
 export async function adminWorkerRequest(request: Request, path: string): Promise<Response> {
   if (!isAdminAuthorized(request)) return adminChallenge();
-  const base = process.env.NEXT_PUBLIC_API_URL;
+  const base = apiBaseUrl(process.env.NEXT_PUBLIC_API_URL);
   const secret = process.env.ADMIN_TOKEN;
   if (!base || !secret) throw new Error('管理员后台缺少 Worker 地址或 ADMIN_TOKEN');
   const source = new URL(request.url);

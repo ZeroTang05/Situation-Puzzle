@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import library from '../data/library.json';
+import { apiBaseUrl } from '../lib/api-url';
 
 type Verdict = '是' | '否' | '无关' | '无法确定';
 type Outcome = '破解成功' | '接近真相' | '还没猜对' | '无法确定';
@@ -14,7 +15,7 @@ type Progress = { personal: boolean; total: number; attempted: number; solved: n
 
 // 内置题库与 worker 种子共用 data/library.json；离线模式（未配置 NEXT_PUBLIC_API_URL）完全靠它运行
 const SOUPS: Soup[] = library.map((soup) => ({ ...soup }));
-const PUBLIC_API = process.env.NEXT_PUBLIC_API_URL;
+const PUBLIC_API = apiBaseUrl(process.env.NEXT_PUBLIC_API_URL);
 const PLATFORM_SESSION_KEY = 'jev-platform-session';
 
 function encodeSoup(soup: Soup) { return btoa(unescape(encodeURIComponent(JSON.stringify(soup)))); }
