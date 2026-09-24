@@ -15,6 +15,10 @@ next-env.d.ts
 # Cloudflare Wrangler 本地状态（本地 D1 数据库、缓存）
 .wrangler/
 
+# B站 Toy 静态包构建（裁剪副本工作目录 + 打包产物）
+.toy-workspace/
+toy-dist/
+
 # 日志
 *.log
 pnpm-debug.log*

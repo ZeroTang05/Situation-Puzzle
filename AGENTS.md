@@ -29,6 +29,7 @@ situation-puzzle/
 │  └─ .dev.vars            本地密钥（AI Gateway、ADMIN_TOKEN），不入库
 ├─ .env.local              前端密钥与 NEXT_PUBLIC_API_URL，不入库
 ├─ proxy.ts                /admin 路由入口的 HTTP Basic 验证
+├─ scripts/build-toy.mjs   B站 Toy 静态包构建：裁剪副本构建（无 admin/api/proxy、题库无汤底），校验后打 ZIP 到 toy-dist/
 └─ .env.example、worker/.dev.vars.example  空模板，入库
 ```
 
@@ -38,6 +39,7 @@ situation-puzzle/
 
 - 换题库：编辑 `data/library.json` 保存即重播种（dev 下 wrangler 监听文件自动重载）；种子行按 `creator_token='seed'` 或 `seed-` 前缀识别清理，id 命名风格不限。
 - `NEXT_PUBLIC_` 变量在编译期内联进前端代码：改 `.env.local` 后若页面行为没变，重启 `pnpm dev`（Turbopack 偶尔端着旧编译）。
+- 发布 B站 Toy：`pnpm build:toy <slug>`（slug 与 Toy 上传页的自定义路径一致；`--preview` 起本地 4173 子路径预览）。脚本在 `.toy-workspace/` 组装裁剪副本（去掉 `app/api`、`app/admin`、`proxy.ts`，题库剥掉汤底，`node_modules` 用 junction 链回主目录）后构建，源码树零改动，也不与 `pnpm dev` 抢 `.next` 缓存；产物保留在 `out/`、ZIP 在 `toy-dist/`。前端配置了 `NEXT_PUBLIC_API_URL` 时判题一律走 worker（含内置种子题），汤底不进浏览器。
 
 ## 关键约定
 

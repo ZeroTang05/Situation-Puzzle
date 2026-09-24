@@ -10,14 +10,15 @@ import type { Language } from '../lib/jev';
 
 type Verdict = '是' | '否' | '无关' | '无法确定' | 'Yes' | 'No' | 'Irrelevant' | 'Uncertain';
 type Outcome = '破解成功' | '接近真相' | '还没猜对' | '无法确定' | 'Solved' | 'Close' | 'Not yet' | 'Uncertain';
-type Soup = { id: string; title: string; story: string; answer?: string; hints: string[]; language?: Language; author_name?: string; remote?: boolean; creatorToken?: string };
+type Soup = { id: string; title: string; story: string; answer?: string; hints: string[]; language?: Language; author_name?: string; creatorToken?: string };
 type Message = { role: 'user' | 'jev'; text: string; verdict?: Verdict; confidence?: number };
 /** 还原真相模式的临时对话：玩家提交 + Jev 的结局判定（判断失败时只有 text） */
 type SolveEntry = { role: 'user' | 'jev'; text?: string; outcome?: Outcome; confidence?: number; answer?: string };
 type ProgressItem = { soup_id: string; title: string; question_count: number; last_outcome: Outcome | null; solved_at: string | null; last_played_at: string };
 type Progress = { personal: boolean; total: number; attempted: number; solved: number; soups: ProgressItem[] };
 
-// 内置题库与 worker 种子共用 data/library.json；离线模式（未配置 NEXT_PUBLIC_API_URL）完全靠它运行
+// 内置题库与 worker 种子共用 data/library.json：配置了 NEXT_PUBLIC_API_URL 时判题/取汤底一律走 worker，
+// 浏览器里不需要汤底（B站 Toy 的静态包也据此构建）；离线模式（未配置）才靠本地数据和 /api/judge 运行
 const SOUPS: Soup[] = library.map((soup) => ({ ...soup }));
 const ENGLISH_SOUPS: Soup[] = englishLibrary.map((soup) => ({ ...soup, language: 'en' }));
 const PUBLIC_API = apiBaseUrl(process.env.NEXT_PUBLIC_API_URL);
@@ -89,7 +90,7 @@ export default function Home() {
     fetch(`${PUBLIC_API}/api/soups?lang=${language}`).then(async (response) => {
       if (!response.ok) throw new Error('公开题库加载失败');
       const data = await response.json() as { soups: Soup[] };
-      if (active) setSoups(data.soups.map((item) => ({ ...item, remote: true })));
+      if (active) setSoups(data.soups.map((item) => ({ ...item })));
     }).catch((error) => { console.error(error); if (active) setNotice(copy[language].feedFailed); });
     return () => { active = false; };
   }, [language]);
@@ -118,7 +119,7 @@ export default function Home() {
     fetch(`${PUBLIC_API}/api/soups/${encodeURIComponent(soupId)}?lang=${initialLanguage}`).then(async (response) => {
       if (!response.ok) throw new Error(`分享题目读取失败：${response.status}`);
       const data = await response.json() as { soup: Soup };
-      const shared = { ...data.soup, remote: true };
+      const shared = { ...data.soup };
       setSoups((items) => [...items.filter((item) => item.id !== shared.id), shared]);
       setCurrentId(shared.id);
     }).catch((error) => { console.error(error); setNotice(copy[initialLanguage].sharedMissing); });
@@ -181,18 +182,18 @@ export default function Home() {
     event.preventDefault();
     const text = question.trim();
     if (!text || loading) return;
-    if (PUBLIC_API && soup.remote && !authReady) { setNotice(t.authWait); return; }
+    if (PUBLIC_API && !authReady) { setNotice(t.authWait); return; }
     if (solveOpen) { await submitSolveAttempt(text); return; }
     setQuestion(''); setLoading(true); setMessages((items) => [...items, { role: 'user', text }]);
     try {
-      const endpoint = PUBLIC_API && soup.remote ? `${PUBLIC_API}/api/soups/${soup.id}/judge?lang=${language}` : '/api/judge';
-      const payload = PUBLIC_API && soup.remote ? { question: text } : { story: soup.story, answer: soup.answer, question: text, language };
+      const endpoint = PUBLIC_API ? `${PUBLIC_API}/api/soups/${soup.id}/judge?lang=${language}` : '/api/judge';
+      const payload = PUBLIC_API ? { question: text } : { story: soup.story, answer: soup.answer, question: text, language };
       const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(userToken ? { Authorization: `Bearer ${userToken}` } : {}), ...(soup.creatorToken ? { 'X-Creator-Token': soup.creatorToken } : {}) }, body: JSON.stringify(payload) });
       if (!response.ok) throw new Error(`Jev 判断请求失败：${response.status}`);
       const data = await response.json() as { verdict: Verdict; confidence: number };
       setMessages((items) => [...items, { role: 'jev', text: data.verdict === '无法确定' || data.verdict === 'Uncertain' ? t.unsureReply : '', verdict: data.verdict, confidence: data.confidence }]);
       if (progressSource === 'browser') setBrowserProgress(recordBrowserQuestion(soup.id));
-      else if (PUBLIC_API && soup.remote && userToken) void refreshProgress(userToken).catch(console.error);
+      else if (PUBLIC_API && userToken) void refreshProgress(userToken).catch(console.error);
     } catch (error) {
       // 判断失败必须立刻结束本轮，loading 卡住会堵死后续提问
       console.error(error);
@@ -232,14 +233,14 @@ export default function Home() {
   async function submitSolveAttempt(text: string) {
     setQuestion(''); setLoading(true); setSolveThread((items) => [...items, { role: 'user', text }]);
     try {
-      const endpoint = PUBLIC_API && soup.remote ? `${PUBLIC_API}/api/soups/${soup.id}/solve?lang=${language}` : '/api/solve';
-      const payload = PUBLIC_API && soup.remote ? { solution: text } : { story: soup.story, answer: soup.answer, solution: text, language };
+      const endpoint = PUBLIC_API ? `${PUBLIC_API}/api/soups/${soup.id}/solve?lang=${language}` : '/api/solve';
+      const payload = PUBLIC_API ? { solution: text } : { story: soup.story, answer: soup.answer, solution: text, language };
       const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(userToken ? { Authorization: `Bearer ${userToken}` } : {}) }, body: JSON.stringify(payload) });
       if (!response.ok) throw new Error(`真相还原判断失败：${response.status}`);
       const data = await response.json() as { outcome: Outcome; confidence: number; answer?: string };
       setSolveThread((items) => [...items, { role: 'jev', outcome: data.outcome, confidence: data.confidence, answer: data.answer }]);
       if (progressSource === 'browser') setBrowserProgress(recordBrowserSolution(soup.id, data.outcome));
-      else if (PUBLIC_API && soup.remote && userToken) void refreshProgress(userToken).catch(console.error);
+      else if (PUBLIC_API && userToken) void refreshProgress(userToken).catch(console.error);
     } catch (error) {
       console.error(error);
       setSolveThread((items) => [...items, { role: 'jev', text: t.questionFailed }]);
@@ -262,7 +263,7 @@ export default function Home() {
         const data = await response.json() as { status: 'rejected'; message: string } | { status: 'published'; soup: Soup; creator_token: string; message: string };
         setNotice(data.message);
         if (data.status === 'rejected') return;
-        const published = { ...data.soup, answer: created.answer, remote: true, creatorToken: data.creator_token };
+        const published = { ...data.soup, answer: created.answer, creatorToken: data.creator_token };
         setSoups((items) => [...items.filter((item) => item.id !== published.id), published]);
         choose(published);
         return;
@@ -285,7 +286,7 @@ export default function Home() {
       {solveOpen ? <div className="solve-panel"><div className="solve-top"><b>{t.solve}</b><button onClick={() => setSolveOpen(false)}>{t.exitSolve}</button></div><div className="solve-thread" ref={solveRef}>{solveThread.length === 0 && <p className="solve-intro">{t.solveIntro}</p>}{solveThread.map((entry, index) => entry.role === 'user' ? <div key={index} className="bubble user">{entry.text}</div> : entry.outcome ? <Fragment key={index}><div className={`outcome ${entry.outcome.replace(' ', '-')}`}><b>{displayOutcome(entry.outcome, language)}</b><span>{t.confidence} {Math.round((entry.confidence ?? 0) * 100)}%</span>{(entry.outcome === '破解成功' || entry.outcome === 'Solved') && <p>{t.solvedDetail}</p>}{(entry.outcome === '接近真相' || entry.outcome === 'Close') && <p>{t.closeDetail}</p>}{(entry.outcome === '还没猜对' || entry.outcome === 'Not yet') && <p>{t.notYetDetail}</p>}{(entry.outcome === '无法确定' || entry.outcome === 'Uncertain') && <p>{t.uncertainDetail}</p>}</div>{(entry.outcome === '破解成功' || entry.outcome === 'Solved') && entry.answer && <div className="answer"><b>{t.answer}</b><p>{entry.answer}</p></div>}</Fragment> : <div key={index} className="solve-failed">{entry.text}</div>)}{loading && <em className="solve-judging">{t.checking}</em>}</div></div> : <div className="chat" ref={chatRef} aria-live="polite">{messages.length === 0 && <div className="host-intro"><span className="avatar">🐢</span><p>{t.hostIntro}</p></div>}{messages.map((message, index) => message.role === 'user' ? <div key={index} className="bubble user">{message.text}</div> : <div key={index} className="jev-reply"><span className="avatar">🐢</span><div className="reply-body"><div className="reply-head"><b>Jev</b>{message.verdict && <span className={`verdict ${message.verdict}`}>{message.verdict}</span>}{message.verdict && <small>{t.confidence} {Math.round((message.confidence ?? 0) * 100)}%</small>}</div>{message.text ? <p>{message.text}</p> : null}</div></div>)}{loading && <div className="jev-reply"><span className="avatar">🐢</span><em>{t.judging}</em></div>}{showAnswer && <div className="answer"><b>{t.answer}</b><p>{soup.answer ?? revealedAnswer}</p></div>}</div>}
       {!solveOpen && revealedHints > 0 && <div className="hint-float"><div className="hint-float-head"><b>{t.hint} {hintView + 1}/{soup.hints.length}</b><div className="hint-arrows"><button type="button" aria-label={language === 'en' ? 'Previous hint' : '上一条提示'} disabled={hintView === 0} onClick={() => setHintView(hintView - 1)}>←</button><button type="button" aria-label={language === 'en' ? 'Next hint' : '下一条提示'} disabled={hintView >= revealedHints - 1} onClick={() => setHintView(hintView + 1)}>→</button></div></div><p>{soup.hints[hintView]}</p></div>}
       {!solveOpen && <div className="actions"><button disabled={revealedHints >= soup.hints.length} onClick={() => { setHintView(revealedHints); setRevealedHints((count) => count + 1); }}>{revealedHints === 0 ? t.hint : `${t.hint} ${Math.min(revealedHints, soup.hints.length)}/${soup.hints.length}`}</button><button onClick={() => setConfirmingAnswer(true)}>{t.reveal}</button><button onClick={() => setSolveOpen(true)}>{t.solve}</button></div>}
-      <form className="ask" onSubmit={ask}><input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder={solveOpen ? t.solvePlaceholder : t.askPlaceholder} maxLength={solveOpen ? 1500 : 500} required /><button disabled={loading || (!!PUBLIC_API && !!soup.remote && !authReady)}>{t.send}</button></form></section>}
+      <form className="ask" onSubmit={ask}><input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder={solveOpen ? t.solvePlaceholder : t.askPlaceholder} maxLength={solveOpen ? 1500 : 500} required /><button disabled={loading || (!!PUBLIC_API && !authReady)}>{t.send}</button></form></section>}
     {confirmingAnswer && <div className="modal" role="dialog" aria-modal="true" onClick={() => setConfirmingAnswer(false)}><div className="modal-card" onClick={(event) => event.stopPropagation()}><p>{t.revealConfirm}</p><div className="modal-actions"><button onClick={() => setConfirmingAnswer(false)}>{t.cancel}</button><button className="confirm" onClick={revealAnswer}>{t.reveal}</button></div></div></div>}
     {view === 'library' && <section className="library"><h1>{t.library}</h1><p>{t.libraryIntro}</p>{soups.map((item) => { const record = progress?.personal ? progress.soups.find((entry) => entry.soup_id === item.id) : null; return <button className="soup-row" onClick={() => choose(item)} key={item.id}><span>{item.title}{record && <em className={record.solved_at ? 'soup-state solved' : 'soup-state'}>{record.solved_at ? t.completed : t.played}</em>}</span><small>{item.story}</small></button>; })}</section>}
     {view === 'progress' && <section className="progress-page"><h1>{t.progress}</h1>{!progress ? <p className="progress-empty">{t.progressLoading}</p> : <><div className="progress-numbers"><div><strong>{progress.solved}</strong><span>{t.completed}</span></div><div><strong>{progress.attempted}</strong><span>{t.attempted}</span></div><div><strong>{progress.total}</strong><span>{t.total}</span></div></div><div className="progress-list">{progress.soups.length === 0 ? <p className="progress-empty">{t.progressEmpty}</p> : progress.soups.map((entry) => <button key={entry.soup_id} className="soup-row" onClick={() => { const item = soups.find((candidate) => candidate.id === entry.soup_id); if (item) choose(item); }}><span>{soups.find((item) => item.id === entry.soup_id)?.title ?? entry.title}<em className={entry.solved_at ? 'soup-state solved' : 'soup-state'}>{entry.solved_at ? t.completed : t.played}</em></span><small>{t.questions} {entry.question_count} {t.times}{entry.last_outcome ? ` · ${t.recent}: ${displayOutcome(entry.last_outcome, language)}` : ''}</small></button>)}</div></>}</section>}
