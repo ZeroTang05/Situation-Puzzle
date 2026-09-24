@@ -11,7 +11,7 @@
 
 ## 首次部署
 
-1. 在 Cloudflare 创建 D1 数据库：`pnpm exec wrangler d1 create jev-turtle-soup`。
+1. 在 Cloudflare 创建 D1 数据库：`pnpm exec wrangler d1 create Situation-Puzzle`。
 2. 将命令输出的 `database_id` 写进 `wrangler.jsonc`。
 3. 复制 `.dev.vars.example` 为 `.dev.vars`，填入 Vercel AI Gateway 密钥和管理员令牌。
 4. 回到项目根目录执行 `pnpm install`，再执行 `pnpm --dir worker db:migrate:remote`。

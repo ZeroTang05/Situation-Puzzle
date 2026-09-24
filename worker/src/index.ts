@@ -39,7 +39,7 @@ function ensureSeeded(env: Env): Promise<void> {
 type User = { id: string; status: 'active' | 'banned'; first_seen_at: string; last_seen_at: string };
 type SessionUser = User & { is_identified: number };
 
-const json = (value: unknown, status = 200, origin = '*') => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' } });
+const json = (value: unknown, status = 200, origin = '*') => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin', ...(origin !== '*' && { 'Access-Control-Allow-Credentials': 'true' }) } });
 const id = () => crypto.randomUUID();
 
 /**
@@ -63,7 +63,7 @@ function corsOrigin(request: Request, env: Env): string {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const origin = corsOrigin(request, env);
-    if (request.method === 'OPTIONS') return new Response(null, { headers: { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type,Authorization' } });
+    if (request.method === 'OPTIONS') return new Response(null, { headers: { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type,Authorization', ...(origin !== '*' && { 'Access-Control-Allow-Credentials': 'true' }) } });
     await ensureSeeded(env);
     const url = new URL(request.url);
     const parts = url.pathname.split('/').filter(Boolean);
@@ -225,8 +225,40 @@ async function solveSoup(soupId: string, request: Request, env: Env, origin: str
   return json({ outcome: finalOutcome, confidence, threshold }, 200, origin);
 }
 
+/**
+ * HTTP Basic 校验：浏览器接到 401 + WWW-Authenticate 会弹出原生的顶部登录框，
+ * 用户输入后会展示在 Authorization: Basic base64(user:password) 头里。
+ * 用户名随便填，密码必须等于 ADMIN_TOKEN；不匹配继续返 401。
+ */
+function requireAdminBasic(request: Request, env: Env, origin: string): Response | null {
+  const auth = request.headers.get('Authorization');
+  const headers = {
+    'Content-Type': 'application/json; charset=UTF-8',
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Credentials': 'true',
+    'Vary': 'Origin',
+    'WWW-Authenticate': 'Basic realm="Jev 海龟汤 · 审核后台", charset="UTF-8"',
+  };
+  if (!auth?.startsWith('Basic ')) {
+    return new Response(JSON.stringify({ error: '需要管理员登录' }), { status: 401, headers });
+  }
+  try {
+    const decoded = atob(auth.slice(6));
+    const colon = decoded.indexOf(':');
+    if (colon < 0) throw new Error('格式错误');
+    const password = decoded.slice(colon + 1);
+    if (password !== env.ADMIN_TOKEN) {
+      return new Response(JSON.stringify({ error: '管理员密码错误' }), { status: 401, headers });
+    }
+  } catch {
+    return new Response(JSON.stringify({ error: '管理员认证格式错误' }), { status: 401, headers });
+  }
+  return null;
+}
+
 async function admin(request: Request, parts: string[], env: Env, origin: string) {
-  if (request.headers.get('Authorization') !== `Bearer ${env.ADMIN_TOKEN}`) return json({ error: '未授权' }, 401, origin);
+  const authFailure = requireAdminBasic(request, env, origin);
+  if (authFailure) return authFailure;
   if (request.method === 'GET' && parts.length === 3 && parts[2] === 'soups') {
     const status = new URL(request.url).searchParams.get('status') || 'pending';
     const { results } = await env.DB.prepare('SELECT * FROM soups WHERE status = ? ORDER BY created_at ASC LIMIT 100').bind(status).all<SoupRow>(); return json({ soups: parseHints(results) }, 200, origin);

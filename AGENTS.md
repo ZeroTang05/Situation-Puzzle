@@ -15,7 +15,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## 目录结构
 
 ```
-jev-turtle-soup/
+situation-puzzle/
 ├─ app/                    前端（Next.js App Router）
 │  ├─ page.tsx             单页游戏主体：开局（题目卡+对话+底部输入）、题库、出题、还原真相临时面板、公布答案二次确认弹窗
 │  ├─ admin/page.tsx       审核后台：输入 ADMIN_TOKEN 发布/驳回/删除投稿

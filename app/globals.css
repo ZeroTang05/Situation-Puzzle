@@ -141,6 +141,9 @@ nav button.active { color:var(--accent); font-weight:600; box-shadow:inset 0 2px
 .admin h1 { margin:0 0 6px; font-size:26px; }
 .admin > p { color:var(--muted); }
 .admin form { display:flex; gap:8px; margin:24px 0; }
+.admin-hint { font-size:13px; color:var(--muted); margin:6px 0 18px; }
+.admin > button { margin:6px 0 14px; padding:10px 14px; border:0; border-radius:5px; background:var(--accent); color:var(--accent-ink); font-weight:600; }
+.admin > button:disabled { opacity:.5; cursor:not-allowed; }
 .admin input { flex:1; padding:11px 12px; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); }
 .admin input:focus { outline:none; border-color:rgba(125,216,198,.5); }
 .admin form button,.admin article footer button { border:0; border-radius:5px; padding:10px 14px; background:var(--accent); color:var(--accent-ink); font-weight:600; }
