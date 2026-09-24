@@ -7,6 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "build:toy": "node scripts/build-toy.mjs",
+    "sync:xiaohongshu": "node scripts/sync-xiaohongshu.mjs",
     "start": "next start",
     "lint": "eslint ."
   },

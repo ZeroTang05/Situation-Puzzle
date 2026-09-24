@@ -58,7 +58,7 @@
     </view>
     <view class="composer">
       <input value="{{question}}" bindinput="questionInput" maxlength="{{solveOpen ? 1500 : 500}}" placeholder="{{solveOpen ? t.solvePlaceholder : t.askPlaceholder}}" confirm-type="send" bindconfirm="send" />
-      <button class="primary" bindtap="send" disabled="{{busy || !token}}">{{t.send}}</button>
+      <button class="primary" bindtap="send" disabled="{{busy}}">{{t.send}}</button>
     </view>
   </view>
 
@@ -88,7 +88,7 @@
     <view class="field"><text>{{t.hint1}}</text><input value="{{form.hint1}}" maxlength="100" data-field="hint1" bindinput="formInput" /></view>
     <view class="field"><text>{{t.hint2}}</text><input value="{{form.hint2}}" maxlength="100" data-field="hint2" bindinput="formInput" /></view>
     <view class="field"><text>{{t.hint3}}</text><input value="{{form.hint3}}" maxlength="100" data-field="hint3" bindinput="formInput" /></view>
-    <button class="submit primary" bindtap="submitSoup" disabled="{{busy || !token}}">{{busy ? t.reviewing : t.submitReview}}</button>
+    <button class="submit primary" bindtap="submitSoup" disabled="{{busy}}">{{busy ? t.reviewing : t.submitReview}}</button>
   </scroll-view>
 
   <view class="tabs">

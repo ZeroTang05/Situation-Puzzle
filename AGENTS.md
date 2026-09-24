@@ -26,17 +26,15 @@ jev-turtle-soup/
 │  ├─ jev.ts               Jev 判题核心：模型请求、失败重试（最多额外 2 次）、选项与置信度校验；审核/提问/还原共用
 │  ├─ i18n.ts              中英双语文案
 │  ├─ browser-progress.ts  网页访客的本地答题进度（localStorage）
-│  ├─ toy-auth.ts          B站 Toy 宿主探测与 toy.getUserProfile 访客身份获取
 │  ├─ admin-auth.ts        admin 请求鉴权
 │  └─ api-url.ts           worker 地址解析
 ├─ data/                   题库数据（唯一数据源）
 │  ├─ library.json         中文题库（约 30 题 × 3 条提示）
 │  ├─ library.en.json      英文题库（与中文共用题目 ID）
 │  └─ library-sources.md   题源与改写说明
-├─ platforms/              B站 / 小红书小程序壳工程
 ├─ worker/                 后端（Cloudflare Worker + D1），部署细节见 worker/README.md
-│  ├─ src/index.ts         全部后端逻辑：CORS、文件播种、公开题库、匿名/B站身份、判题/结局、投稿审核、答题记录
-│  ├─ migrations/0001_initial.sql  唯一表结构迁移（soups/users/user_identities/user_sessions/moderation_logs/soup_progress，soups 带 language 列）
+│  ├─ src/index.ts         全部后端逻辑：CORS、文件播种、公开题库、判题/结局、投稿审核
+│  ├─ migrations/0001_initial.sql  唯一表结构迁移（soups/moderation_logs，soups 带 language 列）
 │  ├─ wrangler.jsonc       D1 绑定、ALLOWED_ORIGIN、JEV_CONFIDENCE_THRESHOLD 等配置
 │  └─ .dev.vars            本地密钥（AI Gateway、ADMIN_TOKEN 等），不入库
 ├─ scripts/build-toy.mjs   B站 Toy 静态包构建：裁剪副本构建（无 admin/api/proxy、题库无汤底），校验后打 ZIP 到 toy-dist/
@@ -69,7 +67,7 @@ jev-turtle-soup/
 - **投稿审核**：玩家投稿先经 Jev「通过 / 不通过」二元审核（检查色情和政治内容），通过即 `published` 进公开题库，失败保存 `rejected` 并提示原因，可重试；管理员后台仍可复核、下架、删除，操作记录进 `moderation_logs`。
 - **判题阈值**：`JEV_CONFIDENCE_THRESHOLD`（wrangler.jsonc 配置，当前 0.5），置信度低于它统一返回「无法确定」。
 - **还原真相**：点击后用临时面板盖住对话区（汤面和输入框保持可见），复用底部发送框但路由到 solve 接口；还原对话在独立线程 `solveThread`，退出即回到主对话。
-- **身份与进度**：网页访客不建后端用户，答题进度存 localStorage（`lib/browser-progress.ts`）；B站 Toy 页面由平台注入的 toy-host.js 提供 `toy.getUserProfile()`（首次弹授权框），拿 `toyOpenId` 走 `POST /api/auth/toy` 建号，进度写 D1 `soup_progress`；小程序用户用平台 `open_id` 建 users。Toy 的 toyOpenId 与小程序 openId 是两套编号，worker 以 `toy:` 前缀存在同一 `platform='bilibili'` 下（无官方服务端校验接口，凭证由客户端上报）；平台/渠道账号之间不自动合并。
+- **身份与进度**：不做用户体系，服务端不存任何个人身份数据。所有访客（网页 / B站 Toy / 小程序 WebView）答题进度一律存浏览器 localStorage（`lib/browser-progress.ts`），换设备或清缓存后不同步；投稿匿名，创建者凭响应下发的 `creator_token` 编辑自己的题目。
 - **双语**：`?lang=zh|en` 贯穿题库列表、详情、判题、汤底、进度接口；内置题中英共用 ID（`data/library.en.json`），玩家投稿按提交语言保存，不自动翻译。
 - **分享**：链接用 `?soup=题目ID`，前端调 `GET /api/soups/:id` 读公开汤面（不带汤底）。
 - **admin**：访问 `/admin` 先过 `proxy.ts` 的浏览器原生账号密码验证（admin / ADMIN_TOKEN），审核请求由 `app/admin/api/*` 在 Next.js 服务端转发给 Worker，浏览器页面拿不到管理密钥。

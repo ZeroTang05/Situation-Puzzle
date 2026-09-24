@@ -1,4 +1,4 @@
-/** 普通网页访客的答题记录只存在当前浏览器，不在后端创建用户或会话。 */
+/** 所有网页访客使用同一套页面逻辑；答题记录只存在各自浏览器。 */
 export type BrowserProgressEntry = {
   question_count: number;
   last_outcome: '破解成功' | '接近真相' | '还没猜对' | '无法确定' | 'Solved' | 'Close' | 'Not yet' | 'Uncertain' | null;
@@ -8,21 +8,10 @@ export type BrowserProgressEntry = {
 
 export type BrowserProgress = Record<string, BrowserProgressEntry>;
 
-const BROWSER_ID_KEY = 'jev-browser-id';
-const PROGRESS_KEY_PREFIX = 'jev-browser-progress-';
-
-/** 首次访问时建立本机标识；同一浏览器再次打开时沿用它。 */
-function progressKey(): string {
-  let browserId = localStorage.getItem(BROWSER_ID_KEY);
-  if (!browserId) {
-    browserId = crypto.randomUUID();
-    localStorage.setItem(BROWSER_ID_KEY, browserId);
-  }
-  return `${PROGRESS_KEY_PREFIX}${browserId}`;
-}
+const PROGRESS_KEY = 'jev-browser-progress';
 
 export function loadBrowserProgress(): BrowserProgress {
-  const saved = localStorage.getItem(progressKey());
+  const saved = localStorage.getItem(PROGRESS_KEY);
   return saved ? JSON.parse(saved) as BrowserProgress : {};
 }
 
@@ -37,7 +26,7 @@ export function recordBrowserQuestion(soupId: string): BrowserProgress {
     solved_at: previous?.solved_at ?? null,
     last_played_at: now,
   };
-  localStorage.setItem(progressKey(), JSON.stringify(progress));
+  localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
   return progress;
 }
 
@@ -52,6 +41,6 @@ export function recordBrowserSolution(soupId: string, outcome: BrowserProgressEn
     solved_at: previous?.solved_at ?? (outcome === '破解成功' || outcome === 'Solved' ? now : null),
     last_played_at: now,
   };
-  localStorage.setItem(progressKey(), JSON.stringify(progress));
+  localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
   return progress;
 }

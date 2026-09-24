@@ -28,3 +28,5 @@ pnpm-debug.log*
 Thumbs.db
 
 .vercel
+
+docs/video-assets
