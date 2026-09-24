@@ -119,7 +119,13 @@ export default function Home() {
   }
 
   function choose(next: Soup) { setCurrentId(next.id); setMessages([]); setShowAnswer(false); setRevealedAnswer(null); setRevealedHints(0); setHintView(0); setSolveThread([]); setSolveOpen(false); setView('play'); }
-  function nextSoup() { const index = soups.findIndex((item) => item.id === currentId); choose(soups[(index + 1) % soups.length]); }
+  /** 换一题：优先在没玩过的题里随机抽；都玩过就退回在其余题里随机。 */
+  function nextSoup() {
+    const others = soups.filter((item) => item.id !== currentId);
+    const unplayed = others.filter((item) => !browserProgress?.[item.id]);
+    const pool = unplayed.length > 0 ? unplayed : others;
+    if (pool.length > 0) choose(pool[Math.floor(Math.random() * pool.length)]);
+  }
   async function ask(event: FormEvent) {
     event.preventDefault();
     const text = question.trim();
