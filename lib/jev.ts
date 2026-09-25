@@ -1,6 +1,7 @@
 /** Jev 的统一入口：集中处理模型连接、选择题结果和置信度。 */
-const GATEWAY_URL = 'https://ai-gateway.vercel.sh/v4/ai/evaluation-model';
-const MODEL_ID = 'typesafe-ai/jev';
+// OpenCode Zen 的 SystemOne 接口：Jev 是「判题模型」，传 state 和带选项的问题，返回选项+概率
+const SYSTEMONE_URL = 'https://opencode.ai/zen/v1/systemone';
+const MODEL_ID = 'jev-1.13-free';
 const MAX_RETRIES = 2;
 export const JEV_CONFIDENCE_THRESHOLD = 0.4;
 export type Language = 'zh' | 'en';
@@ -30,17 +31,13 @@ async function choose<T extends string>(apiKey: string, state: Record<string, un
 
 /** 单次模型请求：核对返回选项，确保后续业务只接收有效结果。 */
 async function requestChoice<T extends string>(apiKey: string, state: Record<string, unknown>, questionName: string, question: ChoiceQuestion<T>): Promise<JevChoice<T>> {
-  const response = await fetch(GATEWAY_URL, {
+  const response = await fetch(SYSTEMONE_URL, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
-      'ai-model-id': MODEL_ID,
-      'ai-evaluation-model-specification-version': '4',
-      'ai-gateway-protocol-version': '0.0.1',
-      'ai-gateway-auth-method': 'api-key',
     },
-    body: JSON.stringify({ state, questions: { [questionName]: question } }),
+    body: JSON.stringify({ model: MODEL_ID, state, questions: { [questionName]: question } }),
   });
   if (!response.ok) throw new Error(`Jev 请求失败：${response.status}`);
   const result = await response.json() as { answers?: Record<string, { choice?: string; probabilities?: Record<string, number> }> };

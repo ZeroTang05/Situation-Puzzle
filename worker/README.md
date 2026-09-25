@@ -20,9 +20,9 @@ Jev 调用集中在 `../lib/jev.ts`：投稿审核、提问判断、还原真相
 
 1. 在 Cloudflare 创建 D1 数据库：`pnpm exec wrangler d1 create Situation-Puzzle`。
 2. 将命令输出的 `database_id` 写进 `wrangler.jsonc`。
-3. 复制 `.dev.vars.example` 为 `.dev.vars`，填入 Vercel AI Gateway 密钥和管理员令牌。
+3. 复制 `.dev.vars.example` 为 `.dev.vars`，填入 OpenCode Zen 密钥（opencode.ai 注册后获取）和管理员令牌。
 4. 回到项目根目录执行 `pnpm install`，再执行 `pnpm --dir worker db:migrate:remote`。
-5. 分别执行 `pnpm --dir worker exec wrangler secret put AI_GATEWAY_API_KEY`、`ADMIN_TOKEN`，按提示输入值。
+5. 分别执行 `pnpm --dir worker exec wrangler secret put OPENCODE_API_KEY`、`ADMIN_TOKEN`，按提示输入值。
 6. 将 `ALLOWED_ORIGIN` 修改为前端正式网址（多个域名用逗号分隔，如 `https://puzzle.xiaobaozi.cn,https://www.bilibili.com`；Worker 环境变量只认纯文本，不能写数组），并运行 `pnpm --dir worker run deploy`。
 
 ## 本地开发
@@ -47,7 +47,7 @@ pnpm --dir worker run db:migrate:local
 
 ## 管理后台
 
-前端服务端设置 `NEXT_PUBLIC_API_URL`、`ADMIN_TOKEN` 和 `AI_GATEWAY_API_KEY`，其中 `ADMIN_TOKEN` 必须与 Worker 的同名密钥一致；`AI_GATEWAY_API_KEY` 供本地题目的 Jev 判断使用。访问 `/admin` 时，浏览器会先弹出原生账号密码框：用户名填 `admin`，密码填 `ADMIN_TOKEN` 的值。验证通过后可查看待复核、公开、已驳回和已删除的投稿。审核请求由同源 Next.js 接口转发给 Worker，浏览器页面不会拿到管理员密钥。
+前端服务端设置 `NEXT_PUBLIC_API_URL`、`ADMIN_TOKEN` 和 `OPENCODE_API_KEY`，其中 `ADMIN_TOKEN` 必须与 Worker 的同名密钥一致；`OPENCODE_API_KEY` 供本地题目的 Jev 判断使用。访问 `/admin` 时，浏览器会先弹出原生账号密码框：用户名填 `admin`，密码填 `ADMIN_TOKEN` 的值。验证通过后可查看待复核、公开、已驳回和已删除的投稿。审核请求由同源 Next.js 接口转发给 Worker，浏览器页面不会拿到管理员密钥。
 
 后台必须通过 HTTPS 访问，避免浏览器原生认证凭据在传输中泄露。密码修改后，需要同步更新前端服务端和 Worker 的 `ADMIN_TOKEN`。
 

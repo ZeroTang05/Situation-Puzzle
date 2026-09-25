@@ -7,7 +7,7 @@ English | [中文](./README.md)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](./LICENSE)
 [![Built with Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)](https://nextjs.org)
 [![Powered by Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com)
-[![AI: Vercel AI Gateway](https://img.shields.io/badge/AI-Vercel%20AI%20Gateway-000?logo=vercel)](https://vercel.com/docs/ai-gateway)
+[![AI: OpenCode Zen](https://img.shields.io/badge/AI-OpenCode%20Zen-000)](https://opencode.ai/zen)
 
 **👉 Play it live: <https://puzzle.xiaobaozi.cn>**
 
@@ -79,7 +79,7 @@ Before release, add `situation-puzzle-api.xiaobaozi.cn` to the platform's allowe
 ## Acknowledgments
 
 - Classic situation puzzles come from public community sources (Minute Mysteries, Jed Hartman's situation puzzle archive, Braingle, Puzzling Stack Exchange, and others); sources and rewrite notes are documented in [`data/library-sources.md`](./data/library-sources.md).
-- Judging is powered by [Vercel AI Gateway](https://vercel.com/docs/ai-gateway), using the `typesafe-ai/jev` evaluation model.
+- Judging is powered by [OpenCode Zen](https://opencode.ai/zen), using the `jev-1.13-free` model.
 
 ---
 

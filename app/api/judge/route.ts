@@ -11,6 +11,6 @@ const requestSchema = z.object({
 
 export async function POST(request: Request) {
   const input = requestSchema.parse(await request.json());
-  const result = await judgeQuestionWithJev(process.env.AI_GATEWAY_API_KEY ?? '', input.story, input.answer, input.question, undefined, input.language);
+  const result = await judgeQuestionWithJev(process.env.OPENCODE_API_KEY ?? '', input.story, input.answer, input.question, undefined, input.language);
   return Response.json(result);
 }

@@ -7,7 +7,7 @@
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](./LICENSE)
 [![Built with Next.js](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs)](https://nextjs.org)
 [![Powered by Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com)
-[![AI: Vercel AI Gateway](https://img.shields.io/badge/AI-Vercel%20AI%20Gateway-000?logo=vercel)](https://vercel.com/docs/ai-gateway)
+[![AI: OpenCode Zen](https://img.shields.io/badge/AI-OpenCode%20Zen-000)](https://opencode.ai/zen)
 
 **👉 在线畅玩：<https://puzzle.xiaobaozi.cn>**
 
@@ -80,7 +80,7 @@ Jev 海龟汤把这个过程搬到了手机网页上：
 ## 致谢
 
 - 经典情境谜题来自社区公开资料（Minute Mysteries、Jed Hartman 情境谜题档案、Braingle、Puzzling Stack Exchange 等），题源与本项目改写说明见 [`data/library-sources.md`](./data/library-sources.md)。
-- 判题服务由 [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) 提供，使用 `typesafe-ai/jev` evaluation model。
+- 判题服务由 [OpenCode Zen](https://opencode.ai/zen) 提供，使用 `jev-1.13-free` 模型。
 
 ---
 

@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Jev 海龟汤 — 项目导览
 
-移动优先的海龟汤（情境猜谜）网页：玩家提问，AI「Jev」回答 是/否/无关，并判断是否还原汤底。前端 Next.js（Turbopack）部署在 Vercel（https://puzzle.xiaobaozi.cn），后端 Cloudflare Worker + D1（https://situation-puzzle-api.xiaobaozi.cn），AI 判题走 Vercel AI Gateway（模型 `typesafe-ai/jev` 的 evaluation 接口）。本文档面向开发与维护，用户视角的宣传页在 `README.md`。
+移动优先的海龟汤（情境猜谜）网页：玩家提问，AI「Jev」回答 是/否/无关，并判断是否还原汤底。前端 Next.js（Turbopack）部署在 Vercel（https://puzzle.xiaobaozi.cn），后端 Cloudflare Worker + D1（https://situation-puzzle-api.xiaobaozi.cn），AI 判题走 OpenCode Zen 的 SystemOne 接口（模型 `jev-1.13-free`）。本文档面向开发与维护，用户视角的宣传页在 `README.md`。
 
 ## 目录结构
 
@@ -36,7 +36,7 @@ jev-turtle-soup/
 │  ├─ src/index.ts         全部后端逻辑：CORS、公开题库、判题/结局、投稿审核
 │  ├─ migrations/0001_initial.sql  唯一表结构迁移（soups/moderation_logs/stats），末尾含内置题种子块（pnpm sync:seed 生成）
 │  ├─ wrangler.jsonc       D1 绑定、ALLOWED_ORIGIN、JEV_CONFIDENCE_THRESHOLD 等配置
-│  └─ .dev.vars            本地密钥（AI Gateway、ADMIN_TOKEN 等），不入库
+│  └─ .dev.vars            本地密钥（OPENCODE_API_KEY、ADMIN_TOKEN 等），不入库
 ├─ scripts/build-toy.mjs   B站 Toy 静态包构建：裁剪副本构建（无 admin/api/proxy、题库无汤底），校验后打 ZIP 到 toy-dist/
 ├─ proxy.ts                /admin 路由入口的 HTTP Basic 验证（用户名 admin，密码为 ADMIN_TOKEN）
 ├─ docs/                   截图与外宣素材
@@ -88,7 +88,7 @@ pnpm --dir worker exec wrangler deploy     # 部署后端到 Cloudflare
 - **Worker 环境变量只认字符串**：wrangler.jsonc 里写数组会被序列化成拼接文本（2026-09-24 上线首日 `ALLOWED_ORIGIN` 写数组导致 CORS 报 "contains multiple values"）。多值一律用逗号分隔字符串，`corsOrigin()` 已按列表解析。
 - **NEXT_PUBLIC_ 变量编译期内联**：改 `.env.local` 后页面行为没变，重启 `pnpm dev`（Turbopack 偶尔端着旧编译）；Vercel 上同理要 Redeploy。
 - **换 database_id 后本地库变空库**：本地模拟 D1 按 database_id 存放，wrangler.jsonc 换成真实 ID 后本地是全新空库，要重跑 `pnpm --dir worker run db:migrate:local`。
-- **AI Gateway 需绑信用卡**：未绑卡返回 403 `customer_verification_required`（密钥本身有效）。判题批量失败先 curl 网关确认，别急着查代码。
+- **判题走 OpenCode Zen**：`lib/jev.ts` 请求 `https://opencode.ai/zen/v1/systemone`，密钥为 `OPENCODE_API_KEY`（opencode.ai 获取）。判题批量失败先 curl 该接口确认，别急着查代码。
 - **React StrictMode 开发期 effect 双触发**：所有合并/追加逻辑必须幂等（题库合并曾因此翻倍）。
 - **迁移文件**：表结构统一在 `0001_initial.sql`，不追加补丁式迁移；改表直接改这份并按需重建本地库。
 

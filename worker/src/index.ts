@@ -4,7 +4,7 @@ import { judgeQuestionWithJev, reviewSoupWithJev, solveWithJev, type Language } 
 
 interface Env {
   DB: D1Database;
-  AI_GATEWAY_API_KEY: string;
+  OPENCODE_API_KEY: string;
   ADMIN_TOKEN: string;
   ALLOWED_ORIGIN: string;
   JEV_CONFIDENCE_THRESHOLD: string;
@@ -119,7 +119,7 @@ async function createSoup(request: Request, env: Env, origin: string) {
   const title = input.title!.trim().slice(0, 30);
   const story = input.story!.trim().slice(0, 500);
   const answer = input.answer!.trim().slice(0, 1500);
-  const approved = await reviewSoupWithJev(env.AI_GATEWAY_API_KEY, { title, story, answer, hints }, language);
+  const approved = await reviewSoupWithJev(env.OPENCODE_API_KEY, { title, story, answer, hints }, language);
   const now = new Date().toISOString();
   const soup: Soup = { id: id(), title, story, answer, hints, language, author_name: input.author_name?.trim().slice(0, 20) || (language === 'en' ? 'Anonymous player' : '匿名玩家'), status: approved ? 'published' : 'rejected', created_at: now, published_at: approved ? now : null, reviewed_at: approved ? null : now, moderation_note: approved ? null : 'Jev 审核未通过：色情或政治内容', creator_token: id() };
   // 审核通过与计数 +1 放在同一个 batch 里原子生效，避免计数与题目行脱节。
@@ -138,7 +138,7 @@ async function judgeSoup(soupId: string, request: Request, env: Env, origin: str
   const soup = row ? localizedSoup(parseHints([row])[0], language) : null;
   if (!soup) return json({ error: '题目不存在或尚未公开' }, 404, origin);
   if (soup.status !== 'published' && request.headers.get('X-Creator-Token') !== soup.creator_token) return json({ error: '题目尚未公开' }, 403, origin);
-  const result = await judgeQuestionWithJev(env.AI_GATEWAY_API_KEY, soup.story, soup.answer, input.question.trim().slice(0, 500), Number(env.JEV_CONFIDENCE_THRESHOLD), language);
+  const result = await judgeQuestionWithJev(env.OPENCODE_API_KEY, soup.story, soup.answer, input.question.trim().slice(0, 500), Number(env.JEV_CONFIDENCE_THRESHOLD), language);
   return json(result, 200, origin);
 }
 
@@ -150,7 +150,7 @@ async function solveSoup(soupId: string, request: Request, env: Env, origin: str
   const language = row?.creator_token === 'seed' ? requestLanguage(request) : row?.language ?? 'zh';
   const soup = row ? localizedSoup(parseHints([row])[0], language) : null;
   if (!soup) return json({ error: '题目不存在或尚未公开' }, 404, origin);
-  const result = await solveWithJev(env.AI_GATEWAY_API_KEY, soup.story, soup.answer, input.solution.trim().slice(0, 1500), Number(env.JEV_CONFIDENCE_THRESHOLD), language);
+  const result = await solveWithJev(env.OPENCODE_API_KEY, soup.story, soup.answer, input.solution.trim().slice(0, 1500), Number(env.JEV_CONFIDENCE_THRESHOLD), language);
   // 破解成功后才在这次回复中下发汤底，供还原真相对话直接展示。
   return json({ ...result, ...(result.outcome === '破解成功' || result.outcome === 'Solved' ? { answer: soup.answer } : {}) }, 200, origin);
 }
