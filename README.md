@@ -27,7 +27,7 @@ Jev 海龟汤把这个过程搬到了手机网页上：
 
 整个体验针对手机网页做了优化，打开链接即可玩，无需登录。
 
-![Jev 海龟汤主界面](docs/screenshot-play.png)
+<p align="center"><img src="docs/screenshot-play.png" alt="Jev 海龟汤主界面" /></p>
 
 ---
 
@@ -44,7 +44,6 @@ Jev 海龟汤把这个过程搬到了手机网页上：
 | 🛡 **管理员后台** | 复核、下架或删除投稿，操作有日志可查。 |
 | 🔗 **安心分享** | 分享链接只在地址栏放题目 ID，汤底永远不随链接外泄。 |
 | 📱 **移动优先** | 单页网页适配手机触屏，可直接分享链接。 |
-| 📕 **小红书小组件** | 原生轻量版复用同一份题库、文案和公开接口，记录保存在小组件本地。 |
 | 🌗 **海洋夜色风** | 深色基底、圆角面板，长时间盯着屏幕也不刺眼。 |
 
 ---
@@ -66,14 +65,6 @@ Jev 海龟汤把这个过程搬到了手机网页上：
 > ```
 >
 > 然后打开 <http://localhost:3000>，用内置题库直接开玩。
-
-## 小红书小组件
-
-在项目根目录执行 `pnpm sync:xiaohongshu`，然后用小红书开发工具导入 [`platforms/xiaohongshu`](./platforms/xiaohongshu)。项目类型为小组件，基础库设为 3.152.1 或更高。
-
-小组件是一页原生界面，包含游玩、题库、记录和出题。题库数据来自 `data/library.json`、`data/library.en.json`，界面文案来自 `lib/i18n.ts`；修改这些源文件后重新运行同步命令。小组件调用同一个 Cloudflare Worker 的公开接口，不请求小红书身份，也不保存用户账号。答题记录保存在小红书容器的本地存储中，与网页浏览器的本地记录分别保存。
-
-发布前在小红书平台配置 `situation-puzzle-api.xiaobaozi.cn` 为合法请求域名，并确认 [`platforms/xiaohongshu/app.js`](./platforms/xiaohongshu/app.js) 中的 API 地址与已部署的 Worker 一致。
 
 ---
 

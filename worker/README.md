@@ -23,7 +23,7 @@ Jev 调用集中在 `../lib/jev.ts`：投稿审核、提问判断、还原真相
 3. 复制 `.dev.vars.example` 为 `.dev.vars`，填入 OpenCode Zen 密钥（opencode.ai 注册后获取）和管理员令牌。
 4. 回到项目根目录执行 `pnpm install`，再执行 `pnpm --dir worker db:migrate:remote`。
 5. 分别执行 `pnpm --dir worker exec wrangler secret put OPENCODE_API_KEY`、`ADMIN_TOKEN`，按提示输入值。
-6. 将 `ALLOWED_ORIGIN` 修改为前端正式网址（多个域名用逗号分隔，如 `https://puzzle.xiaobaozi.cn,https://www.bilibili.com`；Worker 环境变量只认纯文本，不能写数组），并运行 `pnpm --dir worker run deploy`。
+6. 将 `ALLOWED_ORIGIN` 修改为前端正式网址（多个域名用逗号分隔，如 `https://puzzle.xiaobaozi.cn,https://www.bilibili.com`），并运行 `pnpm --dir worker run deploy`。
 
 ## 本地开发
 

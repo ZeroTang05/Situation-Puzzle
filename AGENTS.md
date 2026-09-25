@@ -65,11 +65,11 @@ pnpm --dir worker exec wrangler deploy     # 部署后端到 Cloudflare
 - 后端：`pnpm --dir worker exec wrangler deploy`（密钥用 `wrangler secret put` 设置；远端库迁移 `pnpm --dir worker run db:migrate:remote`）。首次部署清单见 worker/README.md。
 - 前端：Vercel，环境变量 `NEXT_PUBLIC_API_URL=https://situation-puzzle-api.xiaobaozi.cn`。改环境变量后需要 Redeploy 才生效（编译期内联）。
 - 线上 D1 与本地模拟 D1 完全独立，迁移分别执行。
-- **省额度**：D1 按「扫描行数」计费。内置题在迁移时一次性种入，worker 运行期对种子行零写入（已删除旧的冷启动重复播种逻辑）；汤数量读 stats 计数表不扫 soups 表。
+- **省额度**：D1 按「扫描行数」计费。内置题在迁移时一次性种入，worker 运行期对种子行零写入；汤数量读 stats 计数表不扫 soups 表。
 
 ## 关键约定
 
-- **CORS**：`worker/src/index.ts` 的 `corsOrigin()` 放行 `ALLOWED_ORIGIN` 列表（wrangler.jsonc 里逗号分隔的字符串；Worker 环境变量只认纯文本，不能写数组）加回环/内网地址（本地各种主机名和端口），其余来源返回列表第一个让浏览器拒绝。改来源逻辑先看这里。
+- **CORS**：`worker/src/index.ts` 的 `corsOrigin()` 放行 `ALLOWED_ORIGIN` 列表（wrangler.jsonc 里逗号分隔的字符串）加回环/内网地址（本地各种主机名和端口），其余来源返回列表第一个让浏览器拒绝。改来源逻辑先看这里。
 - **汤底保密**：公开题库接口绝不返回 `answer`；判题在服务端对照数据库完成；玩家点「公布答案」确认后，前端才调 `GET /api/soups/:id/answer` 单独取汤底。离线模式的前端内置题是例外（汤底在 bundle 里）。
 - **hints**：三条不同角度提示，DB 以 JSON 文本存储；worker 读出经 `parseHints()` 解析。前端用固定在对话区与操作行之间的提示卡单条展示，提示按钮依次解锁，左右箭头在已解锁的提示间切换、给完禁用。
 - **判题模块**：`lib/jev.ts` 集中模型请求、重试与结果校验；投稿审核、提问判断、还原真相三处共用，Worker 与本地网页接口判断规则一致。
@@ -85,11 +85,11 @@ pnpm --dir worker exec wrangler deploy     # 部署后端到 Cloudflare
 
 ## 踩坑点
 
-- **Worker 环境变量只认字符串**：wrangler.jsonc 里写数组会被序列化成拼接文本（2026-09-24 上线首日 `ALLOWED_ORIGIN` 写数组导致 CORS 报 "contains multiple values"）。多值一律用逗号分隔字符串，`corsOrigin()` 已按列表解析。
+- **Worker 环境变量只认字符串**：wrangler.jsonc 里写数组会被序列化成拼接文本。多值一律用逗号分隔字符串，`corsOrigin()` 按列表解析。
 - **NEXT_PUBLIC_ 变量编译期内联**：改 `.env.local` 后页面行为没变，重启 `pnpm dev`（Turbopack 偶尔端着旧编译）；Vercel 上同理要 Redeploy。
 - **换 database_id 后本地库变空库**：本地模拟 D1 按 database_id 存放，wrangler.jsonc 换成真实 ID 后本地是全新空库，要重跑 `pnpm --dir worker run db:migrate:local`。
 - **判题走 OpenCode Zen**：`lib/jev.ts` 请求 `https://opencode.ai/zen/v1/systemone`，密钥为 `OPENCODE_API_KEY`（opencode.ai 获取）。判题批量失败先 curl 该接口确认，别急着查代码。
-- **React StrictMode 开发期 effect 双触发**：所有合并/追加逻辑必须幂等（题库合并曾因此翻倍）。
+- **React StrictMode 开发期 effect 双触发**：所有合并/追加逻辑必须幂等。
 - **迁移文件**：表结构统一在 `0001_initial.sql`，不追加补丁式迁移；改表直接改这份并按需重建本地库。
 
 ## 验证

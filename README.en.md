@@ -25,9 +25,9 @@ Jev Turtle Soup puts that experience on a mobile web page:
 - Think you've got it? Hit **Reveal the Truth**, write down your theory, and Jev will judge it **Solved / Almost there / Not yet**;
 - Completely lost? **Publish the Answer** and read the full story.
 
-The main experience is a mobile-first website. A lightweight native Xiaohongshu widget uses the same puzzle library, copy, and public API.
+The main experience is a mobile-first website.
 
-![Jev Turtle Soup main screen](docs/screenshot-play.png)
+<p align="center"><img src="docs/screenshot-play.png" alt="Jev Turtle Soup main screen" /></p>
 
 ---
 
@@ -43,7 +43,7 @@ The main experience is a mobile-first website. A lightweight native Xiaohongshu 
 | ✍️ **Player submissions** | Write your own puzzle, answer and hints in the **Create** tab; Jev reviews it before it enters the public library, with a reason if it doesn't. |
 | 🛡 **Moderation dashboard** | Review, unpublish or delete submissions, with every action logged. |
 | 🔗 **Share with confidence** | A share link carries only the puzzle ID — the answer never travels with the link. |
-| 📱 **Mobile-first** | The website is tuned for touch; a one-page native Xiaohongshu widget is also included. |
+| 📱 **Mobile-first** | The website is tuned for touch. |
 | 🌗 **Ocean-night theme** | Dark base, rounded panels — easy on the eyes during long sessions. |
 
 ---
@@ -65,14 +65,6 @@ Classics, rewrites and originals live side by side, each with three hints. Sourc
 > ```
 >
 > Then open <http://localhost:3000> and play straight from the built-in library.
-
-## Xiaohongshu widget
-
-Run `pnpm sync:xiaohongshu` at the repository root, then import [`platforms/xiaohongshu`](./platforms/xiaohongshu) into the Xiaohongshu developer tool as a widget. Use base library version 3.152.1 or newer.
-
-The widget has native Play, Library, Progress, and Create views. The sync command copies puzzle data from `data/library*.json` and interface text from `lib/i18n.ts`. Run it again after changing those source files. The widget calls the same public Cloudflare Worker API without platform sign-in. Its progress is stored locally inside Xiaohongshu and does not sync with browser progress.
-
-Before release, add `situation-puzzle-api.xiaobaozi.cn` to the platform's allowed request domains and check the Worker URL in [`platforms/xiaohongshu/app.js`](./platforms/xiaohongshu/app.js).
 
 ---
 
