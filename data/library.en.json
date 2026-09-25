@@ -1,212 +1,332 @@
 [
   {
-    "id": "seed-photo",
-    "title": "The Person in the Photograph",
-    "story": "The kidnapper sent me a photo of my daughter. Outside the window behind her stood someone with his back to the camera. I recognized myself. I kept looking at my phone, neither turning around nor leaving. Fifteen minutes later, the police brought my daughter to me. Why?",
-    "answer": "The kidnapper held my daughter in a house facing the street and made me wait below with the ransom so he could watch me from her room. His hurried photo caught me outside the window. I recognized a patch on the back of my coat and the ransom bag at my feet. The angle of the gate and awning showed that the window was in the building behind me. I kept my head down so the watcher would not realize I knew, and sent the photo and my location to police already in contact with me. They approached from the rear and rescued her.",
-    "hints": ["The photo was taken moments ago; both people in it are real.", "Think about how close the person outside the window is to the girl inside.", "The kidnapper chose the ransom spot so he could watch me from the room where she was held."]
-  },
-  {
-    "id": "seed-letter",
-    "title": "The Letter I Wanted Returned",
-    "story": "My husband read every word of my letter and checked the recipient's name before posting it for me. He knew nobody lived at that address anymore. So did I. From then on, I waited every day for the letter to be returned. Two weeks later, my sister arrived with the police. Why?",
-    "answer": "My husband had locked me in our home, taken my phone, and told others we had moved away. He forbade contact with my sister. I asked to send an ordinary letter to a former teacher at an old address. The message contained no secret. On the envelope, however, I wrote my sister's address as the return address. My husband did not recognize it. When delivery failed, the postal service returned the letter to my sister. She recognized my handwriting, realized I was trying to reach her despite months of silence, and came with the police. I was waiting for the address on the other side of the envelope to do its work.",
-    "hints": ["The husband really did read the letter; its text contained no code.", "An envelope can carry both a destination and a return address.", "Undeliverable mail was sent to my sister's home."]
-  },
-  {
-    "id": "original-second-applause",
-    "title": "The Second Applause",
-    "story": "My phone rang during a magic show. The magician said, 'Take it—perhaps it's more exciting than me.' Everyone laughed. Ten minutes later, the speakers played the exact same remark, along with my ringtone. The audience thought it was a joke. I called the police. They found a dead man backstage. Why?",
-    "answer": "I was the theater accountant and had received death threats, so police were waiting nearby. The owner summoned me backstage with an account book; afraid, I sent a guard in my coat to check first. After my phone first rang, the magician climbed into an opaque box and appeared to continue speaking from inside. He was actually conspiring with the owner to kill me backstage; a recording covered his absence. They mistook the guard for me. The owner played the wrong recording, one made earlier that evening, so it repeated even my unexpected ringtone. Realizing the voice was prerecorded and the guard had not returned, I alerted police. Evidence backstage established who had killed him.",
-    "hints": ["My phone did not ring the second time; the sound came from the speakers.", "For part of the act, the audience could hear the magician but could not see him.", "A recording concealed someone's absence; I was the intended backstage visitor."]
-  },
-  {
-    "id": "original-wall-height",
-    "title": "The Child Who Grew Behind the Wall",
-    "story": "My brother was four feet tall when he disappeared. Twenty years later, while demolishing my uncle's old house, I found my brother's name on a wall hidden by a cabinet. The last height mark beside it was over five feet seven. I stopped work, locked the gate, and called the police. Why?",
-    "answer": "After our parents died, our uncle took the inheritance meant for us. When my brother found the bank records, our uncle imprisoned him in a windowless storeroom, claimed he had run away, and sent me to boarding school. He sealed its hallway door and brought food through another entrance in the yard. My brother scratched his name, dates, and height on the wall as he grew; the last mark was dated when he was eighteen. He later died there. Our uncle sealed the remaining entrance and planned to demolish the house. I recognized my brother's peculiar way of writing his name, stopped demolition, and preserved the scene. Police opened the room and found him.",
-    "hints": ["The marks were dated long after the disappearance.", "He vanished from public view but never left the house.", "Our uncle controlled the inheritance, and the wall concealed a room large enough to live in."]
-  },
-  {
-    "id": "original-wrong-obituary",
-    "title": "A Year Too Late in the Obituary",
-    "story": "A year after my mother vanished, her kidnapper sent a video of her holding that day's newspaper. I almost believed she was alive—until I saw an obituary for the man sitting beside me. Why?",
-    "answer": "The video had been recorded a year earlier. My mother was killed soon after the kidnapping, but the kidnapper wanted more ransom. He changed the date on an old newspaper's front page to make the video look current, leaving the other pages untouched. Its obituary named my uncle, who had been missing at sea and wrongly presumed dead. He was later rescued and was now sitting beside me. He recognized the old, corrected obituary. We found the original paper and exposed the altered date. The video proved the alleged proof of life was false; police established my mother's time of death after arresting the kidnapper.",
-    "hints": ["The man beside me was alive, and his obituary really had appeared.", "The front-page date was not the only part of the paper worth checking.", "Someone prepared a supposedly current proof-of-life video a year early."]
-  },
-  {
-    "id": "original-empty-seat",
-    "title": "A Seat for Father",
-    "story": "My sister left an empty seat for our late father at her wedding. The groom saw the photograph on it, went pale, and asked, 'Wasn't his surname Chen?' My sister laughed and shook her head. I stood up and blocked the exit. The groom had always said he had never met our father. Why?",
-    "answer": "Our father was a police officer who investigated a gang cheating elderly people out of their savings. He used the undercover surname Chen and was killed during the case. His real surname was Lin, and the alias was never publicized. The groom had worked for the gang and knew our father by that false name, but concealed his past. The wedding portrait showed Father with the beard he wore undercover, unlike the older uniformed photos my sister had shown him. Recognizing him, the groom blurted out the secret surname. I contacted investigators from the case and stopped him leaving. Further evidence established his involvement in the fraud and destruction of evidence.",
-    "hints": ["The portrait was correct, and my sister was not testing the groom.", "Our father used a different surname while working.", "The groom knew an identity our father used during a secret investigation."]
-  },
-  {
-    "id": "original-returned-uniform",
-    "title": "The Clean School Uniform",
-    "story": "Three days after my daughter disappeared, a dry cleaner called to say her school uniform was ready. They said it was perfectly clean. At the shop I saw a newly sewn button on the cuff and felt a flicker of hope. The person who brought it in was later arrested. Why?",
-    "answer": "My kidnapped daughter spilled milk tea on her uniform and told her captors only her usual cleaner knew how to wash it because of her detergent allergy. They wanted to photograph her in ordinary clothes for a ransom demand, so they agreed. She claimed a cuff button was loose and sewed her name label beneath it. She knew that shop checked name labels on school uniforms and kept parents' contact details. The staff found the label and called me. The button had not been sewn on when she vanished: she had left a deliberate clue after the abduction. Police used the shop's records and cameras to identify an accomplice at collection time and rescue her. The button alone was a clue, not proof she was safe.",
-    "hints": ["The cleaning did not reassure me; the new stitching mattered.", "My daughter knew how the shop identified uniforms and contacted parents.", "She turned an ordinary laundry errand into a message home."]
-  },
-  {
-    "id": "original-night-rehearsal",
-    "title": "A Rehearsed Cry for Help",
-    "story": "Every night at ten, the woman downstairs shouted, 'Stay back! Help!' Then came a loud crash. She said she was rehearsing, and I had seen the script. One night she shouted only 'Stay back!' I immediately called the police. That night she truly needed help. Why?",
-    "answer": "She and her husband belonged to an amateur theater group. She rehearsed the same scene nightly while he made the stage crash sound. I had checked the arrangement. Later, the husband learned she planned to leave with evidence that he had stolen money. He attacked her at the usual rehearsal time, hoping neighbors would dismiss her cries as lines. That afternoon she had lent me the script and props and said she was traveling that evening; there would be no rehearsal. When I heard her familiar cry cut short at ten, I knew someone was in the apartment despite the cancellation. Police arrived while he was restraining her and saved her. The important clue was the canceled rehearsal, not merely the shortened line.",
-    "hints": ["The earlier rehearsals and the script were genuine.", "That day I learned something new about her plans for the evening.", "Someone tried to hide a real attack behind words the neighbors had heard before."]
-  },
-  {
-    "id": "original-late-postcard",
-    "title": "The Late Postcard",
-    "story": "After my sister died, I kept receiving monthly travel postcards in her handwriting. Her husband called them gifts she had arranged before her death. On the sixth card she wrote, 'At last I saw the red bridge.' I took all six cards to the police. The bridge exists, and the handwriting was hers. Why?",
-    "answer": "Her husband had confined her in a room far away and forced her to write six postcards for a mailing service to send one per month, making her family think she was traveling alone. She hid a line from a story we invented as children: in that story, 'At last I saw the red bridge' was a captive child's signal for help. A real bridge existed too, so the phrase looked innocent. Her husband later killed her. After the first card arrived, he claimed the scheduled mailings were keepsakes and allowed them to continue. Only when the sixth completed the childhood signal did I understand. Police traced the mailing service, learned he delivered all six at once on her supposed departure date, and found the place where she had been held. She had never visited those destinations.",
-    "hints": ["Her handwriting tells us who wrote the cards, not the circumstances.", "That sentence appeared in a story the sisters invented together.", "The postcards disguised captivity, but she hid a plea inside them."]
-  },
-  {
-    "id": "original-dead-mans-key",
-    "title": "The Dead Man's Spare Key",
-    "story": "At my father's funeral, I placed his key in the coffin. A month later a pipe burst in his old house. My uncle said he had used his own spare key to get in and turn off the water. I called the police in front of him. The lock was intact and no money was missing. Why?",
-    "answer": "Father had secretly changed the locks after being threatened. He told me there were exactly two new keys: one he carried and one he mailed to me. He later died in what was made to look like an accident, and the key he carried disappeared. At the funeral I publicly put his old, now useless key in the coffin. My uncle assumed nobody would trace the new key. A month later he used the one taken from Father's body to search the house for loan documents. He found a leak and boasted that his long-held spare key had let him in. An old spare could not open the new lock, and I still had the other new key. Police investigated his debt dispute and the missing key alongside other evidence of the killing.",
-    "hints": ["Father had recently changed the lock; only two new keys existed.", "The coffin held a real key he once used, but it no longer opened the door.", "An old spare key should not have worked in the new lock."]
-  },
-  {
     "id": "seed-classic-albatross",
     "title": "Albatross Soup",
     "story": "A man tastes albatross soup at a restaurant and repeatedly asks the chef what meat it contains. After hearing the answer, he pays and leaves. That night he takes his own life. The soup is not poisoned and the chef has told the truth. Why?",
     "answer": "Years before, the man and his wife were shipwrecked. She died on a deserted island. A companion fed the starving man some meat, claiming it was albatross. On tasting genuine albatross soup after his rescue, he realized the island meat had tasted entirely different. He questioned his companion and learned he had eaten his wife's body. Unable to bear the truth, he died by suicide.",
-    "hints": ["The meal reminded him of a struggle to survive.", "He had previously eaten something he was told was albatross.", "His companion concealed the food's connection to his wife."]
+    "hints": [
+      "He and his wife were once stranded on an island, where she died.",
+      "A fellow survivor served him meat described as seabird.",
+      "After his rescue, that survivor admitted the meat had come from his wife."
+    ]
   },
   {
     "id": "seed-classic-short-match",
     "title": "Half a Match",
     "story": "A man is found dead from a fall in the desert. He is naked and holds half an unburned match. Clothes and luggage lie nearby, but there is no wreckage of a plane. Why?",
     "answer": "He and his companions were losing altitude in a hot-air balloon. They threw out their luggage and then their clothes, but kept falling. They drew matches to decide who would jump and lighten the balloon. The man drew the shortened match and kept their agreement. He fell to his death.",
-    "hints": ["He arrived from above.", "The clothes and luggage were thrown away for the same reason.", "The match was used to draw lots."]
+    "hints": [
+      "He was in a descending hot-air balloon with other passengers.",
+      "They discarded luggage and clothing to reduce the load.",
+      "Unequal matches were used to draw lots for who must leave the basket."
+    ]
   },
   {
     "id": "seed-classic-lighthouse",
     "title": "After the Light Went Out",
     "story": "A man turns off a light before bed. The next morning he sees wreckage in the distance and knows that many strangers died because of him. He never left his home that night. Why?",
     "answer": "He was a lighthouse keeper and had switched off the light guiding ships at night. Without that landmark, a vessel struck a nearby reef and many people died. The wreckage at sea showed him the consequences of turning it off.",
-    "hints": ["His home was also his workplace.", "People far away needed to see that light.", "It guided those approaching the coast."]
+    "hints": [
+      "His job involved guiding ships at night.",
+      "Dangerous rocks lay in the nearby waters.",
+      "The ship lost its navigational beacon when the light went out and struck the rocks."
+    ]
   },
   {
     "id": "seed-classic-music-stopped",
     "title": "When the Music Stopped",
     "story": "The music stopped suddenly. A woman took one step and fell to her death. Nobody touched her or asked her to die. Why?",
     "answer": "She was walking a high wire blindfolded, without a safety net. She and the band had agreed that the music would stop only when she reached the end platform. The band stopped early by mistake. Believing she had reached solid ground, she stepped off the wire into empty air.",
-    "hints": ["She could not see exactly where she was.", "The music was meant to give her a signal.", "She took the silence to mean she had reached a safe place to step."]
+    "hints": [
+      "She was performing high above the ground while blindfolded.",
+      "She and the musicians used silence to signal arrival at the platform.",
+      "She was on a tightrope without a safety net; the musicians stopped too early."
+    ]
   },
   {
     "id": "seed-classic-iced-drinks",
     "title": "The Slow Drinker",
     "story": "Two people drink iced tea poured from the same pot. One quickly finishes several glasses; the other slowly drinks just one. The slow drinker dies from poison, while the fast drinker survives. Why?",
     "answer": "The poison was in the ice cubes. The fast drinker finished before much ice melted and left the cubes behind. In the slow drinker's glass, the ice gradually melted into the tea and released a lethal dose. Timing, not the tea in the pot, made the difference.",
-    "hints": ["Their drinking habits matter.", "Not everything in each glass was liquid.", "The longer the drink stood, the more of one substance entered the tea."]
+    "hints": [
+      "The tea in the pot was safe; poison was in something added to the cups.",
+      "The fast drinker left most of the ice behind before it melted.",
+      "The slow drinker's melting ice released poison into the tea."
+    ]
   },
   {
     "id": "seed-classic-rewound-tape",
     "title": "The Rewound Farewell",
     "story": "A man lies dead beside a gun and a cassette recorder. An officer presses Play once and hears his farewell followed by a gunshot. After listening, the officer investigates who arranged the scene. Why?",
     "answer": "The recorder could only be rewound manually. A murderer forced the man to record a farewell, killed him, then rewound the tape so whoever arrived would hear a supposed suicide note. Since the recording included the fatal gunshot yet began at the farewell when the officer pressed Play, someone must have handled the machine after the death.",
-    "hints": ["The position of the tape matters.", "The recorder has no automatic rewind.", "After recording, someone had to rewind it before the farewell could play first."]
-  },
-  {
-    "id": "seed-original-painted-flash",
-    "title": "The Flash in the Painting",
-    "story": "An art dealer says the white patch on a painting is a reflection in its glass. The collector moves the lamp and asks him to remove the glass. The patch does not move. She cancels the sale, although the brushwork looks convincing. Why?",
-    "answer": "The forger had copied the work from an old photograph taken through glass. A camera flash had left a white reflection over part of the scene. Mistaking it for part of the original painting, the forger copied even its outline onto the canvas. The collector had seen the photograph. Moving the light and removing the glass proved that the patch was painted on, exposing the fake.",
-    "hints": ["A genuine reflection changes when the lighting changes.", "The white patch remains on the canvas after the glass is removed.", "The source photograph contained something absent from the real painting."]
-  },
-  {
-    "id": "seed-original-silent-rescue",
-    "title": "Stop Calling My Name",
-    "story": "A girl trapped under rubble hears her father call her name again and again. She strikes a pipe desperately, wishing he would be quiet. At last he stops calling. She knows her chances of rescue have improved. Why?",
-    "answer": "After an earthquake, the girl was trapped in a narrow gap with an injured throat. She could not shout loudly enough, but could tap a metal pipe. Her father's repeated calls and the voices around him drowned out that faint signal. Rescuers asked everyone to be quiet and told her to repeat the taps in a pattern. Once her father fell silent, they heard her and located her. She wanted silence so her answer could reach them.",
-    "hints": ["She was trying to answer him all along.", "There were both loud and faint sounds at the scene.", "Her signal could only be heard clearly in silence."]
-  },
-  {
-    "id": "seed-original-wrong-bus-stop",
-    "title": "The Wrong Stop",
-    "story": "A boy who takes the same bus every day suddenly gives the wrong address, saying he lives beside the police station. He calls the man next to him Dad. The man smiles and corrects him. The driver smiles too, but drives straight to the police station. Why?",
-    "answer": "The driver knew the boy's usual stop and had seen his real father collect him. The man beside him was an abductor who had forced the boy to call him Dad and warned him not to speak out. Afraid to shout for help, the boy deliberately told the familiar driver he lived next to the police station. The driver recognized the false father and the deliberate destination. He contacted dispatch to alert police, then claimed a detour and drove to the station. The boy was rescued.",
-    "hints": ["The boy was forced to call the man Dad.", "The driver knew where the boy normally got off.", "The wrong address was also where the boy wanted to go."]
-  },
-  {
-    "id": "seed-original-extra-lunch",
-    "title": "One Lunch Too Many",
-    "story": "After a mine accident, the owner says everyone is out. The woman who delivered lunch looks at the list and insists someone is still below. She cannot name him, but lays twelve meal tickets on the table. Rescuers find a twelfth person. Why?",
-    "answer": "Each day she handed one lunch to each miner in exchange for one ticket. That day she collected twelve tickets face to face. The owner's official list named only eleven workers, all rescued. The twelfth was an unregistered temporary worker whom the owner had hired secretly. To conceal the illegal arrangement, he claimed everybody was accounted for. The woman checked that no one had taken an extra meal for somebody else and insisted the missing worker be found. Rescuers continued searching and saved him.",
-    "hints": ["The official list and the number of people she saw did not match.", "Each worker received one meal, with no one collecting for another.", "The owner's list omitted an unregistered worker."]
-  },
-  {
-    "id": "seed-original-last-library-card",
-    "title": "The Same Book for Twenty Years",
-    "story": "Every month a father borrows the same fairy-tale book and never reads its pages. When the library plans to discard it, he becomes furious for the first time. The librarian opens the back cover and gives him the book. A new copy would be easy to buy. Why?",
-    "answer": "His daughter had borrowed that particular copy before she died and written her name in a shaky hand on its old paper borrowing card inside the back cover. He borrowed it only to see her handwriting. The library still kept the old card. When the book was withdrawn, he feared that the card and her only complete signature would be thrown away. Once the librarian understood, she followed the library's procedure for giving away discarded books and let him keep the copy with its card.",
-    "hints": ["He cared about something unique to that particular copy.", "An old borrowing card remained inside its back cover.", "A young reader who could no longer return had left her handwriting there."]
-  },
-  {
-    "id": "seed-original-debt-book",
-    "title": "Everyone Came with Flowers",
-    "story": "After my father died, I found a ledger listing dozens of names with amounts of money. I invited everyone named to settle it. Nobody brought an IOU. They all brought flowers, and some bowed to me. Why?",
-    "answer": "The ledger recorded people Father had secretly supported through school and how much he gave each of them. Because he had lived modestly, I assumed these were debts he still owed and called the names to explain I could not repay them immediately. They learned their anonymous benefactor had died and came with flowers to mourn him. Father had never asked for repayment. I had mistaken a record of his generosity for a record of debt.",
-    "hints": ["The ledger did not say which direction the money went.", "Each person had received help while studying.", "They brought flowers to say goodbye to a benefactor."]
-  },
-  {
-    "id": "seed-original-missing-room",
-    "title": "The Wall That Would Not Measure Up",
-    "story": "A woman living alone hears a chair being dragged behind her wall. The landlord says the neighboring room has been sealed for ten years. She does not break the wall; she borrows a measuring tape. The next day police bring the landlord out from behind her wardrobe. Why?",
-    "answer": "The landlord had divided a former suite to make a narrow hidden room with a bed and chair. He left a concealed door behind the tenant's wardrobe and another entrance from the far end of the corridor, using it to spy on her. Looking at the spacing of the outside windows, she noticed a section of space missing between her interior walls. She measured inside and outside and found a difference large enough for a room. She told the police about the measurements and the sounds. They opened the hidden door and found the landlord inside.",
-    "hints": ["The sounds were real; there was space beyond the wall.", "The building's outside dimensions did not match the usable space inside.", "The wardrobe concealed a door, and the landlord had another way in."]
-  },
-  {
-    "id": "seed-original-false-subtitles",
-    "title": "A Smile in the Subtitles",
-    "story": "In a documentary, a smiling girl answers a question. The subtitles read, 'I want to stay here forever.' Everyone applauds at the premiere. I ask them to call the police. I understand her language. Why?",
-    "answer": "The film showed a closed workshop claiming to help girls find employment. With a supervisor watching off-camera, the girl hid her fear behind a smile and said in her home dialect, 'They lock the doors. I cannot go home.' The workshop managers supplied the crew with the opposite translation, which became the subtitle. Coming from the same area, I understood her real words. Police checked the location shown in the film and found her and other workers held against their will.",
-    "hints": ["Her expression and her words conveyed different things.", "Most viewers depended on the subtitles.", "Someone deliberately mistranslated her for the filmmakers."]
+    "hints": [
+      "This recorder could not rewind automatically.",
+      "The fatal shot was recorded; afterward the victim could no longer operate the machine.",
+      "Someone forced him to record a farewell and handled the tape after killing him."
+    ]
   },
   {
     "id": "seed-classic-one-way-ticket",
     "title": "A Ticket with No Return",
     "story": "News of a tourist falling into the sea makes a ticket agent put down his breakfast. He does not know the dead woman, yet calls the police and says someone knew before departure that she would never return. Why?",
     "answer": "He remembered the woman's husband buying a round-trip ticket for himself but only a one-way ticket for her, even while saying they would travel home together. After hearing that she had fallen into the sea, the agent gave police the purchase records as a clue that the husband had planned her death.",
-    "hints": ["The agent knew what had been arranged before departure.", "The two travelers' tickets were different.", "The husband spoke of returning together but reserved a return only for himself."]
+    "hints": [
+      "The husband bought both travelers' tickets before departure.",
+      "He told the seller that they planned to return together.",
+      "Only he had a return ticket; his wife's was one-way."
+    ]
   },
   {
     "id": "seed-classic-subway-pact",
     "title": "The Old Pact on the Train",
     "story": "A one-armed man recognizes an old friend on a subway train. When the friend raises both hands in greeting, the man shoots him. They once survived the same disaster. Why?",
     "answer": "They had been shipwrecked with others. Facing starvation, they agreed that each would sacrifice an arm for food in turn. Rescue came just before the final man's turn. He fled and refused to honor the terrible pact. Years later the one-armed survivor recognized him, saw that he still had both arms, and killed him out of resentment.",
-    "hints": ["Before rescue, they made an extreme survival pact.", "The missing arm came from that experience.", "The old friend's two intact arms revived resentment over the broken promise."]
+    "hints": [
+      "They once survived a shipwreck and were stranded without food.",
+      "The survivors agreed to sacrifice an arm each in turn to feed the others.",
+      "Rescue arrived before the friend's turn; he fled afterward and refused to honor the pact."
+    ]
   },
   {
     "id": "seed-classic-birthday-surprise",
     "title": "Happy Birthday Behind the Door",
     "story": "A man kills his wife outside their home, then opens the door. The lights come on and a crowd shouts 'Happy birthday!' He had planned to flee the city, but collapses on the spot. Why?",
     "answer": "He believed the house was empty and intended to escape after killing his wife. She had arranged a surprise party: friends and family waited silently inside in the dark. As he dragged her body through the door, they switched on the lights and witnessed the scene. His escape plan was exposed.",
-    "hints": ["The people inside had been invited and were waiting for him.", "The person who organized the gathering had just been killed.", "Everyone kept the room dark and quiet to preserve the surprise."]
+    "hints": [
+      "His wife organized the gathering without telling him.",
+      "At her invitation, friends and relatives had hidden inside.",
+      "When the lights came on, he was dragging her body through the doorway."
+    ]
   },
   {
     "id": "seed-classic-dark-motel",
     "title": "The Only Dark Room",
     "story": "Late at night, a man in a motel parking lot keeps honking his horn. Window after window lights up, except one room. He apologizes, goes to the dark room, and finds his wife. Why?",
     "answer": "He had gone out to the car and forgotten their room number. The small motel was full and every room looked alike. His wife was deaf and still asleep inside. The horn woke the other guests, who switched on their lights to see what was happening. Her room stayed dark, so he knew which one was theirs.",
-    "hints": ["He needed to recover a piece of information he had forgotten.", "His wife could not hear the horn.", "The darkness identified their room."]
+    "hints": [
+      "He had gone to his car and forgotten his room number on returning.",
+      "His wife was deaf and asleep in their room.",
+      "The motel was full, and all the other guests turned on their lights to investigate the noise."
+    ]
   },
   {
     "id": "seed-classic-unopened-pack",
     "title": "The Pack That Never Opened",
     "story": "A dead man lies in an open field with an unopened pack on his back. There are no vehicles or footprints leading toward him. The people who find him say the pack could have saved him. Why?",
     "answer": "He jumped from an aircraft, but his parachute malfunctioned and never opened. The pack was the parachute container. There were no approaching footprints because he arrived from the sky.",
-    "hints": ["Think beyond the ground when considering how he arrived.", "The pack was not for carrying travel supplies.", "It should have opened before he landed."]
+    "hints": [
+      "An accident occurred during his descent after leaving an aircraft.",
+      "The pack was meant to slow his fall through the air.",
+      "Its parachute failed to deploy."
+    ]
   },
   {
     "id": "seed-classic-sunken-cards",
     "title": "The Winner Died First",
     "story": "Through a window I see two dead people, scattered playing cards, and a gun. One was shot; the other drowned. The winner of their last game was the one who was shot. Why?",
     "answer": "I am a diver looking into a cabin of a sunken ship. As it flooded, two people were trapped with a gun holding one bullet. Terrified of drowning, they played cards to decide who would use the bullet and die quickly. The winner was shot; the other later drowned as water filled the cabin.",
-    "hints": ["I am outside the window in the water.", "They faced the same inescapable danger.", "Their card game decided who received what they considered the less painful death."]
+    "hints": [
+      "The witness was a diver examining a wreck.",
+      "The men were trapped in a flooding cabin with only one bullet.",
+      "The game decided who could use the bullet to avoid drowning."
+    ]
+  },
+  {
+    "id": "seed-classic-bar-hiccups",
+    "title": "The Bartender's Gun",
+    "story": "A customer asks for water. The bartender points a gun at him. After a moment, the customer says thanks and leaves without drinking.",
+    "answer": "The customer wanted water for his hiccups. Hearing them, the bartender frightened him with a gun. In this story, the fright stopped the hiccups, so he left grateful.",
+    "hints": [
+      "He wanted relief from a physical discomfort.",
+      "The bartender noticed interruptions in his speech.",
+      "The fright stopped the symptom."
+    ]
+  },
+  {
+    "id": "seed-classic-rainy-elevator",
+    "title": "The Rainy-Day Elevator",
+    "story": "A man lives on floor ten. Alone on dry days, he takes the elevator to seven and walks the rest. On rainy days he rides to ten. He always rides straight down.",
+    "answer": "He is short and can reach only the lower buttons. The ground-floor button is accessible. His umbrella lets him press ten on rainy days.",
+    "hints": [
+      "Higher floors have higher buttons.",
+      "His reach is limited by his height.",
+      "Rain means he carries an umbrella."
+    ]
+  },
+  {
+    "id": "seed-classic-broken-fishbowl",
+    "title": "Antony and Cleopatra",
+    "story": "Antony and Cleopatra lie dead beside water and broken glass. Neither has wounds or was poisoned. A dog is the only witness.",
+    "answer": "They were goldfish. The dog knocked over their bowl, which shattered. Without water, the fish died.",
+    "hints": [
+      "The dog toppled a glass container of water.",
+      "The victims lived inside that container.",
+      "Their breathing depended on oxygen in water."
+    ]
+  },
+  {
+    "id": "seed-classic-silent-phone-call",
+    "title": "The Silent Call",
+    "story": "Unable to sleep, a man makes a phone call. When someone answers, he hangs up without speaking. He can finally fall asleep.",
+    "answer": "A guest next door was snoring. He called that hotel room to wake the guest, stopping the noise long enough to fall asleep.",
+    "hints": [
+      "Noise from the neighboring hotel room kept him awake.",
+      "The person answering was making that noise.",
+      "The ringing woke a snoring guest."
+    ]
+  },
+  {
+    "id": "seed-classic-night-watchman",
+    "title": "Rewarded and Fired",
+    "story": "A night watchman dreams of a plane crash and warns his employer. The employer cancels the flight, which crashes. He rewards the watchman, then fires him.",
+    "answer": "The dream occurred during the watchman's shift. His warning earned gratitude, but sleeping when he should have been guarding the premises cost him his job.",
+    "hints": [
+      "The dream happened during his shift.",
+      "His duties required him to stay awake.",
+      "The reward and dismissal concerned different actions."
+    ]
+  },
+  {
+    "id": "seed-classic-sawdust-cane",
+    "title": "The Sawdust",
+    "story": "A man dies. Some sawdust in his room could have saved him, but he never noticed it. What would it have revealed?",
+    "answer": "A blind circus performer earned his living from his unusually short stature. A rival shortened his cane. Mistaking the change for his own growth, he feared losing his livelihood and took his life. The sawdust would have exposed the tampering.",
+    "hints": [
+      "He relied on touch because he was blind.",
+      "His circus livelihood depended on his short stature.",
+      "A rival had altered his wooden cane."
+    ]
+  },
+  {
+    "id": "seed-classic-tunnel-light",
+    "title": "A Light in the Tunnel",
+    "story": "A train enters a tunnel. A passenger loses hope and considers taking his life. A tiny distant glow changes his mind, though it does not illuminate the exit.",
+    "answer": "Returning from surgery that restored his sight, he mistook the unlit carriage's darkness for renewed blindness. A passenger's glowing cigarette showed him that he could still see.",
+    "hints": [
+      "He was returning from eye surgery.",
+      "The carriage had no internal lighting.",
+      "The glow came from a cigarette and proved his sight remained."
+    ]
+  },
+  {
+    "id": "seed-classic-melted-support",
+    "title": "The Empty Room",
+    "story": "A man hangs dead in a windowless room locked from within. There is no furniture or ladder beneath him, only water. What happened to his support?",
+    "answer": "His support had been a block of ice. It melted after his death, leaving the puddle.",
+    "hints": [
+      "A solid object had supported his weight.",
+      "The room's warmth changed that object's state.",
+      "The puddle is what remains of the support."
+    ]
+  },
+  {
+    "id": "seed-classic-fifty-three-cards",
+    "title": "The Fifty-Third Card",
+    "story": "A man lies dead beside a card table. There are fifty-three playing cards and no jokers. Counting them reveals the cause of the quarrel.",
+    "answer": "The game used a single fifty-two-card deck. The man had smuggled in an extra card to cheat. Other players discovered it and killed him.",
+    "hints": [
+      "The game used one deck with the jokers removed.",
+      "The victim had concealed an extra card.",
+      "The other gamblers discovered his cheating."
+    ]
+  },
+  {
+    "id": "seed-classic-mountain-cabin",
+    "title": "The Mountain Cabin",
+    "story": "Two uniformed men are dead in a cabin on a mountainside. There are signs of fire nearby, but both died before it started. What happened?",
+    "answer": "The cabin is the cockpit of a crashed aircraft. The pilots died in the impact, before the fire.",
+    "hints": [
+      "Their uniforms indicate that they worked here in the same profession.",
+      "The cabin was part of a vehicle.",
+      "A fatal impact preceded the fire."
+    ]
+  },
+  {
+    "id": "seed-classic-second-funeral",
+    "title": "Another Funeral",
+    "story": "A woman falls for a stranger at her mother's funeral but gets no contact details. Days later she kills her sister. Why?",
+    "answer": "She hopes another family funeral will bring the stranger back. She kills her sister to create that occasion.",
+    "hints": [
+      "She wants to see the stranger again.",
+      "Her sister's death will cause another family gathering.",
+      "She expects some of the same mourners to return."
+    ]
+  },
+  {
+    "id": "seed-classic-counting-floors",
+    "title": "The Pointing Finger",
+    "story": "From my lit room, I see a murder across the street. The killer notices me, then moves his finger along my building, floor by floor. My fear grows.",
+    "answer": "He is counting floors and windows to locate the witness. He intends to come to my room and silence me.",
+    "hints": [
+      "He sees me as a witness he must silence.",
+      "His finger follows the building's windows in sequence.",
+      "He intends to visit the room he identifies."
+    ]
+  },
+  {
+    "id": "seed-classic-window-portraits",
+    "title": "The Cabin Portraits",
+    "story": "Lost in a forest, a hunter sleeps in an empty cabin. Realistic faces on the walls unsettle him. By daylight they are gone, and he realizes the danger he was in.",
+    "answer": "He mistook windows for framed portraits. People outside had been looking in. Daylight revealed the windows after the watchers left.",
+    "hints": [
+      "Daylight enters where the faces appeared.",
+      "The frames were part of the building.",
+      "The faces belonged to watchers outside."
+    ]
+  },
+  {
+    "id": "seed-classic-fatal-ringtone",
+    "title": "The Fatal Ring",
+    "story": "A husband phones his wife. Before she can answer, the call causes someone to kill her. Her husband meant no harm and knew nothing of the danger.",
+    "answer": "She was hiding from an intruder at home. Her unsilenced phone rang, revealing her hiding place to the killer.",
+    "hints": [
+      "She was hiding from an intruder.",
+      "Her phone was with her, with its ringer on.",
+      "The intruder located her by sound."
+    ]
+  },
+  {
+    "id": "seed-classic-five-in-rain",
+    "title": "Five in the Rain",
+    "story": "Five people head to church. Rain starts; four run and get soaked. The fifth takes no steps but arrives with them, dry.",
+    "answer": "Four pallbearers carry a coffin. The fifth person is the deceased inside it, sheltered from the rain.",
+    "hints": [
+      "Four people carry a large covered object.",
+      "The fifth travels inside it.",
+      "They are going to a funeral."
+    ]
+  },
+  {
+    "id": "seed-classic-bodies-in-well",
+    "title": "The Last Body in the Well",
+    "story": "Whenever a killer throws a victim into a well, the body disappears by morning. Then he kills his mother and throws her in. This body remains.",
+    "answer": "His mother had secretly removed the other bodies to conceal his crimes. With her dead, nobody continued the cover-up.",
+    "hints": [
+      "Someone visited the well after he left.",
+      "That person knowingly concealed his crimes.",
+      "His mother had been doing the cleanup."
+    ]
+  },
+  {
+    "id": "seed-classic-missing-bride",
+    "title": "The Missing Bride",
+    "story": "A bride vanishes during a wedding game of hide-and-seek. Guests think she ran away. Years later, opening a chest in the house reveals she never left.",
+    "answer": "She hid in an attic chest whose lid locked shut. Unable to open it from inside and never found, she died there. Her remains were discovered years later.",
+    "hints": [
+      "She went to the attic during the game.",
+      "Her hiding place was an old chest.",
+      "The closed lid locked, with no release inside."
+    ]
+  },
+  {
+    "id": "seed-classic-two-pills",
+    "title": "The Choice of Pills",
+    "story": "A kidnapper offers two identical pills, claiming one is poisoned. The hostage chooses first; he takes the other. Both swallow with their own water. Only the hostage dies, every time.",
+    "answer": "Both pills are harmless sugar pills. The hostage's water is poisoned; the kidnapper's water is safe. Choosing pills cannot change the outcome.",
+    "hints": [
+      "One of the kidnapper's claims about the pills is a lie.",
+      "Both pills are harmless sugar pills.",
+      "The hostage's water contains the poison."
+    ]
   }
 ]

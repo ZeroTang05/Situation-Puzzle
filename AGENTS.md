@@ -57,7 +57,7 @@ pnpm --dir worker exec wrangler deploy     # 部署后端到 Cloudflare
 
 两个终端并行：`pnpm dev`（前端 3000）+ `pnpm --dir worker dev`（worker 8787，本地 D1 由 wrangler 模拟，无需安装数据库）。`.env.local` 的 `NEXT_PUBLIC_API_URL` 指向 `http://localhost:8787`；留空则是纯前端离线模式（用 `data/library.json` + `app/api` 本地判题）。
 
-- 换题库：编辑 `data/library.json` 后运行 `pnpm sync:seed` 重新生成 0001_initial.sql 末尾的种子块，然后重建数据库（本地删 `worker/.wrangler/state` 后 `db:migrate:local`）。内置题只在迁移时种入，worker 运行期对种子行零写入。
+- 换题库：同步编辑 `data/library.json`、`data/library.en.json`，运行 `pnpm sync:seed` 与 `pnpm sync:xiaohongshu`。已有数据库执行生成的 `worker/refresh-seeds.sql`，无需重建，命令见 worker/README.md。它只更新内置题，移出题库的旧题标记 deleted 并保留审核日志；worker 运行期对种子行零写入。
 - 发布 B站 Toy：`pnpm build:toy <slug>`（slug 与 Toy 上传页的自定义路径一致；`--preview` 起本地 4173 子路径预览）。脚本在 `.toy-workspace/` 组装裁剪副本后构建，源码树零改动；产物 `out/`、ZIP 在 `toy-dist/`。前端配置了 `NEXT_PUBLIC_API_URL` 时判题一律走 worker（含内置种子题），汤底不进浏览器。
 
 ## 部署

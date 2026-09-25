@@ -35,13 +35,31 @@ pnpm --dir worker dev
 
 初始题库和统计表都在迁移里：`0001_initial.sql` 末尾的种子块由 `pnpm sync:seed` 从 `data/library.json` 生成，新库跑迁移即自带 30 道内置题；`stats` 表按语言存「已发布投稿数」计数。worker 运行期对种子行零写入（没有运行时播种逻辑）。
 
-改题库（增删改 `data/library.json`）后重建数据库：
+## 更新已有题库
+
+编辑中英文题库后，先生成同步文件：
 
 ```powershell
-pnpm sync:seed                                   # 重新生成迁移里的种子块
-Remove-Item -Recurse -Force worker/.wrangler/state  # 清掉本地模拟库
-pnpm --dir worker run db:migrate:local
+pnpm sync:seed
+pnpm sync:xiaohongshu
 ```
+
+`sync:seed` 同时更新新库初始化种子和 `refresh-seeds.sql`。生成文件不会连接或修改线上数据库。已有数据库不用重建；在项目根目录按目标环境执行其中一条：
+
+```powershell
+# 本地 D1
+pnpm --dir worker exec wrangler d1 execute Situation-Puzzle --local --file=refresh-seeds.sql
+
+# 线上 D1：通过在线查询更新题库；直接调用 Node，避免 Windows 批处理命令长度限制
+$seedSql = Get-Content -Raw -Encoding utf8 worker/refresh-seeds.sql
+node worker/node_modules/wrangler/bin/wrangler.js --cwd worker d1 execute Situation-Puzzle --remote "--command=$seedSql"
+```
+
+更新文件只处理 `creator_token='seed'` 的内置题：新增题目、更新保留题的汤面/汤底/提示、将移出题库的旧题标记为 `deleted`。旧题数据和审核记录保留；玩家投稿、投稿统计和同 ID 题目的管理员审核状态保持不变。脚本可重复执行。
+
+线上更新使用 `--command` 的查询接口。`--file` 走批量导入流程，期间数据库可能暂时无法接收查询，不适合不停机更新。操作前用 `pnpm --dir worker exec wrangler d1 time-travel info Situation-Puzzle` 记录恢复点，并备份待替换的内置题。
+
+还需重新部署 Worker（其中包含英文题库和内置题排序），并重建发布所使用的网页、小红书或 B 站 Toy 前端。仅再次执行初始化迁移不会更新已迁移数据库中的题目。
 
 汤数量统计：`GET /api/stats` 每语言读 1 行计数加内置题常量返回总数（seeds / published / total），不为计数扫描 soups 表。计数在投稿通过、后台复核/下架/删除时增量维护。
 

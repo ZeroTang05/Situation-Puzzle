@@ -1,45 +1,6 @@
--- 全部表结构合并为一份初始化迁移；内置题种子数据在文件末尾，由 scripts/sync-seed-sql.mjs 生成维护。
--- 产品不做用户体系：访客进度保存在各自浏览器的 localStorage，服务端只存题目与审核记录。
-
--- 海龟汤题目；新投稿经 Jev 二元审核通过即 'published'，未通过为 'rejected'，管理员仍可复核下架。
--- reviewed_at 记录管理员最后一次复核时间，未复核为 NULL。
-CREATE TABLE soups (
-  id TEXT PRIMARY KEY,
-  title TEXT NOT NULL,
-  story TEXT NOT NULL,
-  answer TEXT NOT NULL,
-  hints TEXT NOT NULL,
-  author_name TEXT NOT NULL DEFAULT '匿名玩家',
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'published', 'rejected', 'deleted')),
-  language TEXT NOT NULL DEFAULT 'zh' CHECK (language IN ('zh', 'en')),
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  published_at TEXT,
-  reviewed_at TEXT,
-  moderation_note TEXT,
-  creator_token TEXT NOT NULL DEFAULT ''
-);
-
-CREATE INDEX soups_public_feed ON soups(status, published_at DESC);
-CREATE INDEX soups_moderation_queue ON soups(status, created_at ASC);
-CREATE INDEX soups_review_queue ON soups(status, reviewed_at, created_at);
-
--- 管理动作独立保存，方便追查谁在何时发布、驳回或删除题目。
-CREATE TABLE moderation_logs (
-  id TEXT PRIMARY KEY,
-  soup_id TEXT NOT NULL REFERENCES soups(id),
-  action TEXT NOT NULL CHECK (action IN ('published', 'rejected', 'deleted')),
-  note TEXT,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
--- 统计计数：按语言维护「已发布的玩家投稿数」（键如 published:zh），投稿通过/审核状态变更时增量维护，
--- 读汤数量只查这张表（1 行），避免为计数扫描 soups。内置题数量固定，由 worker 从包内题库得出，不入此表。
-CREATE TABLE stats (
-  key TEXT PRIMARY KEY,
-  value INTEGER NOT NULL DEFAULT 0
-);
-
--- >>> seed-data（由 scripts/sync-seed-sql.mjs 生成，勿手改）
+-- 由 pnpm sync:seed 生成，仅更新 creator_token='seed' 的内置题，不修改玩家投稿或统计表。
+-- 旧内置题标记 deleted，保留数据与审核记录；同 ID 题目保留原有审核状态。
+UPDATE soups SET status='deleted' WHERE creator_token='seed' AND id NOT IN ('seed-classic-albatross','seed-classic-short-match','seed-classic-lighthouse','seed-classic-music-stopped','seed-classic-iced-drinks','seed-classic-rewound-tape','seed-classic-one-way-ticket','seed-classic-subway-pact','seed-classic-birthday-surprise','seed-classic-dark-motel','seed-classic-unopened-pack','seed-classic-sunken-cards','seed-classic-bar-hiccups','seed-classic-rainy-elevator','seed-classic-broken-fishbowl','seed-classic-silent-phone-call','seed-classic-night-watchman','seed-classic-sawdust-cane','seed-classic-tunnel-light','seed-classic-melted-support','seed-classic-fifty-three-cards','seed-classic-mountain-cabin','seed-classic-second-funeral','seed-classic-counting-floors','seed-classic-window-portraits','seed-classic-fatal-ringtone','seed-classic-five-in-rain','seed-classic-bodies-in-well','seed-classic-missing-bride','seed-classic-two-pills') AND status<>'deleted';
 INSERT INTO soups (id,title,story,answer,hints,author_name,status,created_at,published_at,language,creator_token) VALUES
   ('seed-classic-albatross','海鸟汤','男人尝了一口餐厅的海鸟汤，反复向厨师确认用的是什么肉。得到答复后，他付钱离开，当晚结束了自己的生命。汤没有毒，厨师也没有骗他。','男人曾与妻子遭遇海难。流落荒岛后，妻子死去，同伴给饥饿的他吃了一份肉，称是海鸟肉。获救后，他尝到真正的海鸟汤，发觉与岛上的味道完全不同，追问同伴，得知自己当时吃下的是妻子的遗体。他无法承受真相，最终自杀。','["他曾和妻子一起流落荒岛，妻子在那里死去。","岛上的同伴曾给他吃肉，并告诉他那是海鸟肉。","获救后，他联系当年的同伴，得知那顿肉来自妻子的遗体。"]','Jev 题库','published','2026-09-24T00:00:00.000Z','2026-09-24T00:00:00.000Z','zh','seed'),
   ('seed-classic-short-match','半根火柴','沙漠中发现一名坠落身亡的男人。他没有穿衣服，手里攥着半根未烧过的火柴。附近散落着衣物和行李，却没有飞机残骸。','他与同伴乘坐的热气球失去高度。众人抛下行李，连衣物也丢掉，仍在下坠。他们约定抽火柴，抽到短签的人离开吊篮，为其他人减轻重量。男人抽中了被折短的那根，履行约定后坠亡。','["他原本和几名同伴一起乘坐正在失去高度的热气球。","他们先后丢弃重物和衣服，希望减轻吊篮的负担。","众人用长短不同的火柴抽签，决定谁必须离开吊篮。"]','Jev 题库','published','2026-09-24T00:00:00.000Z','2026-09-24T00:00:00.000Z','zh','seed'),
@@ -70,5 +31,7 @@ INSERT INTO soups (id,title,story,answer,hints,author_name,status,created_at,pub
   ('seed-classic-five-in-rain','雨中的五个人','五个人一起去教堂，途中突然下雨。四个人开始跑，浑身湿透。第五个人没有自己走一步，却和他们同时抵达，身上也没有淋湿。','四个人抬着棺材去教堂参加葬礼，第五个人是棺中的死者。他由其他人抬着移动，棺材挡住了雨水。','["四个人正共同搬运一件有盖的大物件。","第五个人在那件物品里面，由他们抬着前进。","他们去教堂是为了参加一场葬礼。"]','Jev 题库','published','2026-09-24T00:00:00.000Z','2026-09-24T00:00:00.000Z','zh','seed'),
   ('seed-classic-bodies-in-well','井里最后一个人','男人每次杀人，都把尸体丢进一口井。第二天，尸体总会消失。多年后，他把母亲也丢了进去。可这一次，无论等多久，尸体都还在。','母亲一直暗中替儿子掩盖罪行，把井里的尸体移走。她死后，再也没有人替他做这件事，所以她的尸体一直留在井中。','["此前有人在男人离开后，悄悄处理井里的尸体。","那个人知道他的罪行，却长期选择包庇他。","母亲生前就是替他善后的那个人。"]','Jev 题库','published','2026-09-24T00:00:00.000Z','2026-09-24T00:00:00.000Z','zh','seed'),
   ('seed-classic-missing-bride','没有离开的新娘','婚礼上，新娘和宾客玩起捉迷藏。大家一直找不到她，以为她逃婚了。多年后，老宅里的一个箱子被打开，人们才发现她从来没有离开。','新娘当年躲进阁楼的一只旧箱子，箱盖意外锁住，无法从里面打开。没人找到她，她死在里面。多年后开启箱子，才发现遗体，解开失踪之谜。','["游戏开始后，她独自去了老宅的阁楼。","她挑选的藏身处是一只有盖的旧箱子。","箱盖合上后锁住了，里面没有能打开它的装置。"]','Jev 题库','published','2026-09-24T00:00:00.000Z','2026-09-24T00:00:00.000Z','zh','seed'),
-  ('seed-classic-two-pills','总能活下来的那个人','绑匪拿出两颗外观相同的药，说一颗有毒，让人质先选。他吃剩下的一颗。两人各喝面前杯里的水送服，结果每次都是人质死去，绑匪活下来。','两颗药都是无毒的糖片，绑匪关于毒药的说法是谎言。人质面前那杯水被下了毒，绑匪的水是安全的。选择哪颗药都不会改变结果。','["绑匪对药片的介绍中，有一句是他编造的。","那两颗药都是无毒的糖片。","毒物只在提供给人质的水里。"]','Jev 题库','published','2026-09-24T00:00:00.000Z','2026-09-24T00:00:00.000Z','zh','seed');
--- <<< seed-data
+  ('seed-classic-two-pills','总能活下来的那个人','绑匪拿出两颗外观相同的药，说一颗有毒，让人质先选。他吃剩下的一颗。两人各喝面前杯里的水送服，结果每次都是人质死去，绑匪活下来。','两颗药都是无毒的糖片，绑匪关于毒药的说法是谎言。人质面前那杯水被下了毒，绑匪的水是安全的。选择哪颗药都不会改变结果。','["绑匪对药片的介绍中，有一句是他编造的。","那两颗药都是无毒的糖片。","毒物只在提供给人质的水里。"]','Jev 题库','published','2026-09-24T00:00:00.000Z','2026-09-24T00:00:00.000Z','zh','seed')
+ON CONFLICT(id) DO UPDATE SET
+  title=excluded.title, story=excluded.story, answer=excluded.answer, hints=excluded.hints
+WHERE soups.creator_token='seed';
