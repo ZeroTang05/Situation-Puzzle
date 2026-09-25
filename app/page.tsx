@@ -83,6 +83,28 @@ export default function Home() {
   useEffect(() => { chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight }); }, [messages, loading, showAnswer]);
   useEffect(() => { solveRef.current?.scrollTo({ top: solveRef.current.scrollHeight }); }, [solveThread, loading]);
 
+  /** 手机键盘弹出时压缩对话区：键盘不改变 dvh，只改变 visualViewport 的可见高度；
+   *  把实际可见高度写进 CSS 变量 --vvh 供 .play 计算高度，题目卡就不会被顶出屏幕。 */
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const root = document.documentElement;
+    const sync = () => {
+      // 键盘至少占约 80px 才算弹出；未弹出时还原成常规 dvh 布局
+      if (viewport.height < window.innerHeight - 80) root.style.setProperty('--vvh', `${viewport.height}px`);
+      else root.style.removeProperty('--vvh');
+      // iOS 弹键盘时会平移整页去露输入框，拉回顶部让题目保持可见
+      window.scrollTo(0, 0);
+    };
+    viewport.addEventListener('resize', sync);
+    viewport.addEventListener('scroll', sync);
+    return () => {
+      viewport.removeEventListener('resize', sync);
+      viewport.removeEventListener('scroll', sync);
+      root.style.removeProperty('--vvh');
+    };
+  }, []);
+
   useEffect(() => {
     if (!confirmingAnswer) return;
     const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setConfirmingAnswer(false); };

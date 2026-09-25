@@ -27,8 +27,9 @@ button,input,textarea { font:inherit; } button { cursor:pointer; }
 .notice { position:fixed; left:50%; top:48px; z-index:6; transform:translateX(-50%); width:min(calc(100% - 24px),406px); display:flex; justify-content:space-between; gap:8px; padding:6px 8px; border:1px solid rgba(125,216,198,.35); border-radius:5px; background:#0c2436; color:#c9e8df; font-size:12px; box-shadow:0 8px 24px rgba(0,0,0,.45); }
 .notice button { border:0; background:none; color:inherit; font-size:18px; }
 
-/* 游玩页按小组件的 41px 顶栏与 38px 底部菜单排布；对话区占用剩余高度。 */
-.play { display:flex; flex-direction:column; height:calc(100dvh - 86px - env(safe-area-inset-bottom)); }
+/* 游玩页按小组件的 41px 顶栏与 38px 底部菜单排布；对话区占用剩余高度。
+   --vvh 由 page.tsx 在键盘弹出时写为 visualViewport 实际高度，布局随之压缩。 */
+.play { display:flex; flex-direction:column; height:calc(var(--vvh, 100dvh) - 86px - env(safe-area-inset-bottom)); }
 
 /* 题目卡：保留月亮与气泡的装饰背景，右下角海龟水印 */
 .hero { position:relative; display:flex; flex:0 1 auto; flex-direction:column; min-height:0; max-height:30dvh; overflow:hidden; padding:9px 10px 10px; border:1px solid var(--line); border-radius:5px; background:radial-gradient(circle at 85% 14%,#ffe7a3 0 7%,transparent 7.3%),radial-gradient(ellipse at 85% 18%,#497fa8 0,transparent 30%),linear-gradient(150deg,#0d426d,#052747); }
