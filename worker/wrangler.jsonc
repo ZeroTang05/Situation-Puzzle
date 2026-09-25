@@ -3,7 +3,7 @@
   "name": "situation-puzzle-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-23",
-  "d1_databases": [{ "binding": "DB", "database_name": "Situation-Puzzle", "database_id": "ad61afff-d626-43e8-b809-bc877b27a13e", "migrations_dir": "migrations" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "Situation-Puzzle", "database_id": "b96d4936-7a6b-4f93-b80f-731ea8f207e3", "migrations_dir": "migrations" }],
   "vars": { "ALLOWED_ORIGIN": "https://puzzle.xiaobaozi.cn,https://www.bilibili.com,https://www.bilibilitoy.com", "JEV_CONFIDENCE_THRESHOLD": "0.5" },
   "secrets": { "required": ["AI_GATEWAY_API_KEY", "ADMIN_TOKEN"] },
   "observability": {

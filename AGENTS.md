@@ -33,8 +33,8 @@ jev-turtle-soup/
 │  ├─ library.en.json      英文题库（与中文共用题目 ID）
 │  └─ library-sources.md   题源与改写说明
 ├─ worker/                 后端（Cloudflare Worker + D1），部署细节见 worker/README.md
-│  ├─ src/index.ts         全部后端逻辑：CORS、文件播种、公开题库、判题/结局、投稿审核
-│  ├─ migrations/0001_initial.sql  唯一表结构迁移（soups/moderation_logs，soups 带 language 列）
+│  ├─ src/index.ts         全部后端逻辑：CORS、公开题库、判题/结局、投稿审核
+│  ├─ migrations/0001_initial.sql  唯一表结构迁移（soups/moderation_logs/stats），末尾含内置题种子块（pnpm sync:seed 生成）
 │  ├─ wrangler.jsonc       D1 绑定、ALLOWED_ORIGIN、JEV_CONFIDENCE_THRESHOLD 等配置
 │  └─ .dev.vars            本地密钥（AI Gateway、ADMIN_TOKEN 等），不入库
 ├─ scripts/build-toy.mjs   B站 Toy 静态包构建：裁剪副本构建（无 admin/api/proxy、题库无汤底），校验后打 ZIP 到 toy-dist/
@@ -57,7 +57,7 @@ pnpm --dir worker exec wrangler deploy     # 部署后端到 Cloudflare
 
 两个终端并行：`pnpm dev`（前端 3000）+ `pnpm --dir worker dev`（worker 8787，本地 D1 由 wrangler 模拟，无需安装数据库）。`.env.local` 的 `NEXT_PUBLIC_API_URL` 指向 `http://localhost:8787`；留空则是纯前端离线模式（用 `data/library.json` + `app/api` 本地判题）。
 
-- 换题库：编辑 `data/library.json` 保存即重播种（dev 下 wrangler 监听文件自动重载）；种子行按 `creator_token='seed'` 或 `seed-` 前缀识别清理，id 命名风格不限。
+- 换题库：编辑 `data/library.json` 后运行 `pnpm sync:seed` 重新生成 0001_initial.sql 末尾的种子块，然后重建数据库（本地删 `worker/.wrangler/state` 后 `db:migrate:local`）。内置题只在迁移时种入，worker 运行期对种子行零写入。
 - 发布 B站 Toy：`pnpm build:toy <slug>`（slug 与 Toy 上传页的自定义路径一致；`--preview` 起本地 4173 子路径预览）。脚本在 `.toy-workspace/` 组装裁剪副本后构建，源码树零改动；产物 `out/`、ZIP 在 `toy-dist/`。前端配置了 `NEXT_PUBLIC_API_URL` 时判题一律走 worker（含内置种子题），汤底不进浏览器。
 
 ## 部署
@@ -65,6 +65,7 @@ pnpm --dir worker exec wrangler deploy     # 部署后端到 Cloudflare
 - 后端：`pnpm --dir worker exec wrangler deploy`（密钥用 `wrangler secret put` 设置；远端库迁移 `pnpm --dir worker run db:migrate:remote`）。首次部署清单见 worker/README.md。
 - 前端：Vercel，环境变量 `NEXT_PUBLIC_API_URL=https://situation-puzzle-api.xiaobaozi.cn`。改环境变量后需要 Redeploy 才生效（编译期内联）。
 - 线上 D1 与本地模拟 D1 完全独立，迁移分别执行。
+- **省额度**：D1 按「扫描行数」计费。内置题在迁移时一次性种入，worker 运行期对种子行零写入（已删除旧的冷启动重复播种逻辑）；汤数量读 stats 计数表不扫 soups 表。
 
 ## 关键约定
 
@@ -78,6 +79,7 @@ pnpm --dir worker exec wrangler deploy     # 部署后端到 Cloudflare
 - **身份与进度**：不做用户体系，服务端不存任何个人身份数据。所有访客（网页 / B站 Toy / 小程序 WebView）答题进度一律存浏览器 localStorage（`lib/browser-progress.ts`），换设备或清缓存后不同步；投稿匿名，创建者凭响应下发的 `creator_token` 编辑自己的题目。
 - **双语**：`?lang=zh|en` 贯穿题库列表、详情、判题、汤底、进度接口；内置题中英共用 ID（`data/library.en.json`），玩家投稿按提交语言保存，不自动翻译。
 - **分享**：链接用 `?soup=题目ID`，前端调 `GET /api/soups/:id` 读公开汤面（不带汤底）。
+- **统计计数**：汤数量走 `GET /api/stats`——读 stats 计数表（每语言 1 行，随迁移建表）加内置题常量，不扫 soups 表。计数在投稿通过（+1，与题目 INSERT 同 batch 原子）和后台状态跨越 published 边界（±1）时增量维护。
 - **admin**：访问 `/admin` 先过 `proxy.ts` 的浏览器原生账号密码验证（admin / ADMIN_TOKEN），审核请求由 `app/admin/api/*` 在 Next.js 服务端转发给 Worker，浏览器页面拿不到管理密钥。
 - **题库合并**：前端把线上题库按标题去重，同名保留线上版本（汤底不进浏览器）。
 

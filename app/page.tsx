@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import copyToClipboard from 'copy-to-clipboard';
 import library from '../data/library.json';
 import englishLibrary from '../data/library.en.json';
 import { apiBaseUrl } from '../lib/api-url';
@@ -156,7 +157,9 @@ export default function Home() {
     const url = new URL(window.location.pathname, window.location.origin);
     url.searchParams.set('soup', soup.id);
     url.searchParams.set('lang', language);
-    navigator.clipboard.writeText(url.toString()).then(() => setNotice(t.shared));
+    // B站 Toy 跑在内嵌 iframe 里没有 clipboard-write 权限：copy-to-clipboard 会走 execCommand 兜底；
+    // 仍失败就把链接直接放进通知栏，玩家长按手动复制。注意 v4 的 copy 是 async，返回 Promise<boolean>。
+    copyToClipboard(url.toString()).then((ok) => setNotice(ok ? t.shared : `${t.shareManual} ${url}`));
   }
   /** 公布答案：线上题目的汤底不进浏览器，确认后才向 worker 单独取一次 */
   async function revealAnswer() {

@@ -8,11 +8,13 @@
     "build": "next build",
     "build:toy": "node scripts/build-toy.mjs",
     "sync:xiaohongshu": "node scripts/sync-xiaohongshu.mjs",
+    "sync:seed": "node scripts/sync-seed-sql.mjs",
     "start": "next start",
     "lint": "eslint ."
   },
   "dependencies": {
     "ai": "^7.0.0",
+    "copy-to-clipboard": "^4.0.2",
     "next": "^16.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

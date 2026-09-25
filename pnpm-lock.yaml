@@ -11,6 +11,9 @@ importers:
       ai:
         specifier: ^7.0.0
         version: 7.0.112(zod@4.6.5)
+      copy-to-clipboard:
+        specifier: ^4.0.2
+        version: 4.0.2
       next:
         specifier: ^16.0.0
         version: 16.3.6(@babel/core@7.29.7)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -1148,6 +1151,9 @@ packages:
   cookie@1.1.1:
     resolution: {integrity: sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ==}
     engines: {node: '>=18'}
+
+  copy-to-clipboard@4.0.2:
+    resolution: {integrity: sha512-gklSft7IuhriZKHKpuoA1fpJSLPNgvUMWMo5BlnzAJm0zNKnznoSv23IjtNqclx8eKi6ZcdvFFzYEER/+U1LoQ==}
 
   core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
@@ -3315,6 +3321,8 @@ snapshots:
   convert-source-map@2.0.0: {}
 
   cookie@1.1.1: {}
+
+  copy-to-clipboard@4.0.2: {}
 
   core-util-is@1.0.3: {}
 

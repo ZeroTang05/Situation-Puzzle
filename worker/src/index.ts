@@ -16,10 +16,10 @@ type Soup = { id: string; title: string; story: string; answer: string; hints: s
 type SoupRow = Omit<Soup, 'hints'> & { hints: string };
 const parseHints = (rows: SoupRow[]) => rows.map(({ hints, ...rest }) => ({ ...rest, hints: JSON.parse(hints) as string[] }));
 
-/** 初始题库（data/library.json）：worker 每个实例启动后首次请求时整体覆盖 seed- 开头的行 */
+/** 内置题在数据库迁移时一次性种入（0001_initial.sql 末尾种子块，由 pnpm sync:seed 从 data/library.json 生成）；
+ *  worker 运行期对种子行零写入，改题库后用 worker/seed-data.sql 重新应用即可。 */
 type SeedSoup = { id: string; title: string; story: string; answer: string; hints: string[] };
-const seedLibrary = library as SeedSoup[];
-const seedOrder = new Map(seedLibrary.map((soup, index) => [soup.id, index]));
+const seedOrder = new Map((library as SeedSoup[]).map((soup, index) => [soup.id, index]));
 const englishSeeds = new Map((englishLibrary as SeedSoup[]).map((soup) => [soup.id, soup]));
 const requestLanguage = (request: Request): Language => new URL(request.url).searchParams.get('lang') === 'en' ? 'en' : 'zh';
 /** 内置题按请求语言返回相同 ID 的翻译；玩家投稿只展示原文语言。 */
@@ -30,21 +30,6 @@ function localizedSoup(soup: Soup, language: Language): Soup {
 /** 公开接口仅返回可玩的汤面，不下发汤底和创建者令牌。 */
 function publicSoupShape(soup: Soup) {
   return { id: soup.id, title: soup.title, story: soup.story, hints: soup.hints, language: soup.language, author_name: soup.author_name, created_at: soup.created_at, published_at: soup.published_at };
-}
-let seedPromise: Promise<void> | null = null;
-function ensureSeeded(env: Env): Promise<void> {
-  if (!seedPromise) {
-    seedPromise = (async () => {
-      const now = new Date().toISOString();
-      const statements = [env.DB.prepare("DELETE FROM soups WHERE id LIKE 'seed-%' OR creator_token = 'seed'")];
-      for (const soup of seedLibrary) {
-        statements.push(env.DB.prepare('INSERT INTO soups (id,title,story,answer,hints,author_name,status,created_at,published_at,creator_token) VALUES (?,?,?,?,?,?,?,?,?,?)')
-          .bind(soup.id, soup.title, soup.story, soup.answer, JSON.stringify(soup.hints), 'Jev 题库', 'published', now, now, 'seed'));
-      }
-      await env.DB.batch(statements);
-    })().catch((error) => { seedPromise = null; throw error; });
-  }
-  return seedPromise;
 }
 
 const json = (value: unknown, status = 200, origin = '*') => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin', ...(origin !== '*' && { 'Access-Control-Allow-Credentials': 'true' }) } });
@@ -76,8 +61,8 @@ export default {
     const url = new URL(request.url);
     const parts = url.pathname.split('/').filter(Boolean);
     try {
-      await ensureSeeded(env);
       if (request.method === 'GET' && url.pathname === '/health') return json({ ok: true }, 200, origin);
+      if (request.method === 'GET' && url.pathname === '/api/stats') return soupStats(env, origin);
       if (request.method === 'GET' && url.pathname === '/api/soups') return publicSoups(request, env, origin);
       if (request.method === 'GET' && parts.length === 3 && parts[0] === 'api' && parts[1] === 'soups') return publicSoup(parts[2], request, env, origin);
       if (request.method === 'POST' && url.pathname === '/api/soups') return createSoup(request, env, origin);
@@ -92,6 +77,14 @@ export default {
     }
   },
 };
+
+/** 汤数量统计：读 stats 计数表（每种语言 1 行）加内置题常量，不为取数量扫描 soups 表。 */
+async function soupStats(env: Env, origin: string) {
+  const { results } = await env.DB.prepare("SELECT key, value FROM stats WHERE key LIKE 'published:%'").all<{ key: string; value: number }>();
+  const published = Object.fromEntries(results.map((row) => [row.key.slice('published:'.length), row.value]));
+  const seeds = seedOrder.size;
+  return json({ seeds, published, total: { zh: seeds + (published.zh ?? 0), en: seeds + (published.en ?? 0) } }, 200, origin);
+}
 
 async function publicSoups(request: Request, env: Env, origin: string) {
   const language = requestLanguage(request);
@@ -129,7 +122,10 @@ async function createSoup(request: Request, env: Env, origin: string) {
   const approved = await reviewSoupWithJev(env.AI_GATEWAY_API_KEY, { title, story, answer, hints }, language);
   const now = new Date().toISOString();
   const soup: Soup = { id: id(), title, story, answer, hints, language, author_name: input.author_name?.trim().slice(0, 20) || (language === 'en' ? 'Anonymous player' : '匿名玩家'), status: approved ? 'published' : 'rejected', created_at: now, published_at: approved ? now : null, reviewed_at: approved ? null : now, moderation_note: approved ? null : 'Jev 审核未通过：色情或政治内容', creator_token: id() };
-  await env.DB.prepare('INSERT INTO soups (id,title,story,answer,hints,language,author_name,status,created_at,published_at,reviewed_at,moderation_note,creator_token) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(soup.id, soup.title, soup.story, soup.answer, JSON.stringify(soup.hints), soup.language, soup.author_name, soup.status, soup.created_at, soup.published_at, soup.reviewed_at, soup.moderation_note, soup.creator_token).run();
+  // 审核通过与计数 +1 放在同一个 batch 里原子生效，避免计数与题目行脱节。
+  const statements = [env.DB.prepare('INSERT INTO soups (id,title,story,answer,hints,language,author_name,status,created_at,published_at,reviewed_at,moderation_note,creator_token) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)').bind(soup.id, soup.title, soup.story, soup.answer, JSON.stringify(soup.hints), soup.language, soup.author_name, soup.status, soup.created_at, soup.published_at, soup.reviewed_at, soup.moderation_note, soup.creator_token)];
+  if (approved) statements.push(env.DB.prepare("INSERT INTO stats (key, value) VALUES (?, 1) ON CONFLICT(key) DO UPDATE SET value = value + 1").bind(`published:${language}`));
+  await env.DB.batch(statements);
   if (!approved) return json({ status: 'rejected', message: language === 'en' ? 'Review failed: this puzzle contains sexual or political content and was not published.' : '审核未通过：题目涉及色情或政治内容，未公开。' }, 200, origin);
   return json({ status: 'published', soup: { ...soup, answer: undefined, creator_token: undefined }, creator_token: soup.creator_token, message: language === 'en' ? 'Approved. Your puzzle is live and ready to share.' : '审核通过，题目已公开，可以分享给朋友。' }, 201, origin);
 }
@@ -207,7 +203,15 @@ async function admin(request: Request, parts: string[], env: Env, origin: string
     const soupId = parts[3]; const body = request.method === 'PATCH' ? await request.json() as { status?: SoupStatus; note?: string } : { status: 'deleted' as SoupStatus };
     if (!['published', 'rejected', 'deleted'].includes(body.status ?? '')) return json({ error: '无效审核状态' }, 400, origin);
     const now = new Date().toISOString();
-    await env.DB.batch([env.DB.prepare("UPDATE soups SET status=?, published_at=CASE WHEN ?='published' AND published_at IS NULL THEN ? ELSE published_at END, reviewed_at=?, moderation_note=? WHERE id=?").bind(body.status, body.status, now, now, body.note ?? null, soupId), env.DB.prepare('INSERT INTO moderation_logs (id,soup_id,action,note,created_at) VALUES (?,?,?,?,?)').bind(id(), soupId, body.status, body.note ?? null, now)]);
+    // 计数只跟踪玩家投稿的「已发布」状态（内置题不算）：先读一行旧状态，跨越 published 边界才增减。
+    const current = await env.DB.prepare('SELECT status, language, creator_token FROM soups WHERE id = ?').bind(soupId).first<{ status: SoupStatus; language: Language; creator_token: string }>();
+    const statements = [env.DB.prepare("UPDATE soups SET status=?, published_at=CASE WHEN ?='published' AND published_at IS NULL THEN ? ELSE published_at END, reviewed_at=?, moderation_note=? WHERE id=?").bind(body.status, body.status, now, now, body.note ?? null, soupId), env.DB.prepare('INSERT INTO moderation_logs (id,soup_id,action,note,created_at) VALUES (?,?,?,?,?)').bind(id(), soupId, body.status, body.note ?? null, now)];
+    const wasPublished = current?.status === 'published' && current.creator_token !== 'seed';
+    const willPublish = current != null && body.status === 'published' && current.creator_token !== 'seed';
+    if (current && wasPublished !== willPublish) statements.push(willPublish
+      ? env.DB.prepare("INSERT INTO stats (key, value) VALUES (?, 1) ON CONFLICT(key) DO UPDATE SET value = value + 1").bind(`published:${current.language}`)
+      : env.DB.prepare('UPDATE stats SET value = value - 1 WHERE key = ?').bind(`published:${current.language}`));
+    await env.DB.batch(statements);
     return json({ ok: true }, 200, origin);
   }
   return json({ error: '后台路由不存在' }, 404, origin);

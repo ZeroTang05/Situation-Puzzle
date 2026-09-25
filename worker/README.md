@@ -33,7 +33,17 @@ pnpm --dir worker db:migrate:local
 pnpm --dir worker dev
 ```
 
-初始题库不在迁移里：worker 每次启动读取项目根目录的 `data/library.json`，整体覆盖数据库中 `seed-` 开头的题目。改题库直接编辑该文件，dev 下保存即生效。
+初始题库和统计表都在迁移里：`0001_initial.sql` 末尾的种子块由 `pnpm sync:seed` 从 `data/library.json` 生成，新库跑迁移即自带 30 道内置题；`stats` 表按语言存「已发布投稿数」计数。worker 运行期对种子行零写入（没有运行时播种逻辑）。
+
+改题库（增删改 `data/library.json`）后重建数据库：
+
+```powershell
+pnpm sync:seed                                   # 重新生成迁移里的种子块
+Remove-Item -Recurse -Force worker/.wrangler/state  # 清掉本地模拟库
+pnpm --dir worker run db:migrate:local
+```
+
+汤数量统计：`GET /api/stats` 每语言读 1 行计数加内置题常量返回总数（seeds / published / total），不为计数扫描 soups 表。计数在投稿通过、后台复核/下架/删除时增量维护。
 
 ## 管理后台
 
