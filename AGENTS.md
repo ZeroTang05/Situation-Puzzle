@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Jev 海龟汤 — 项目导览
 
-移动优先的海龟汤（情境猜谜）网页：玩家提问，AI「Jev」回答 是/否/无关，并判断是否还原汤底。前端 Next.js（Turbopack）部署在 Vercel（https://puzzle.xiaobaozi.cn），后端 Cloudflare Worker + D1（https://situation-puzzle-api.xiaobaozi.cn），AI 判题走 OpenCode Zen 的 SystemOne 接口（模型 `jev-1.13-free`）。本文档面向开发与维护，用户视角的宣传页在 `README.md`。
+移动优先的海龟汤（情境猜谜）网页：玩家提问，AI「Jev」回答 是/否/无关，并判断是否还原汤底。前端 Next.js（Turbopack）部署在 Vercel（https://puzzle.xiaobaozi.cn），后端 Cloudflare Worker + D1（https://situation-puzzle-api.xiaobaozi.cn），AI 判题走 OpenCode Zen 的 SystemOne 接口（模型 `jev-1.13`）。本文档面向开发与维护，用户视角的宣传页在 `README.md`。
 
 ## 目录结构
 

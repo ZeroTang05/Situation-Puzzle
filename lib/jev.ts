@@ -1,7 +1,7 @@
 /** Jev 的统一入口：集中处理模型连接、选择题结果和置信度。 */
 // OpenCode Zen 的 SystemOne 接口：Jev 是「判题模型」，传 state 和带选项的问题，返回选项+概率
 const SYSTEMONE_URL = 'https://opencode.ai/zen/v1/systemone';
-const MODEL_ID = 'jev-1.13-free';
+const MODEL_ID = 'jev-1.13';
 const MAX_RETRIES = 2;
 export const JEV_CONFIDENCE_THRESHOLD = 0.4;
 export type Language = 'zh' | 'en';

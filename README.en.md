@@ -80,7 +80,7 @@ Classics, rewrites and originals live side by side, each with three hints. Sourc
 ## Acknowledgments
 
 - Classic situation puzzles come from public community sources (Minute Mysteries, Jed Hartman's situation puzzle archive, Braingle, Puzzling Stack Exchange, and others); sources and rewrite notes are documented in [`data/library-sources.md`](./data/library-sources.md).
-- Judging is powered by [OpenCode Zen](https://opencode.ai/zen), using the `jev-1.13-free` model.
+- Judging is powered by [OpenCode Zen](https://opencode.ai/zen), using the `jev-1.13` model.
 - Thanks to the community members of [Linux.do](https://linux.do/) for their long-term support and sharing.
 
 ---

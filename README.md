@@ -78,7 +78,7 @@ Jev 海龟汤把这个过程搬到了手机网页上：
 ## 致谢
 
 - 经典情境谜题来自社区公开资料（Minute Mysteries、Jed Hartman 情境谜题档案、Braingle、Puzzling Stack Exchange 等），题源与本项目改写说明见 [`data/library-sources.md`](./data/library-sources.md)。
-- 判题服务由 [OpenCode Zen](https://opencode.ai/zen) 提供，使用 `jev-1.13-free` 模型。
+- 判题服务由 [OpenCode Zen](https://opencode.ai/zen) 提供，使用 `jev-1.13` 模型。
 - 感谢 [Linux.do](https://linux.do/) 社区成员长期以来的支持与分享。
 
 ---
