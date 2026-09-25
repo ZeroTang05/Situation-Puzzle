@@ -27,7 +27,18 @@ Jev Turtle Soup puts that experience on a mobile web page:
 
 The main experience is a mobile-first website.
 
-<p align="center"><img src="docs/screenshot-play.png" alt="Jev Turtle Soup main screen" /></p>
+<p align="center">
+<table>
+  <tr>
+    <td><img src="docs/screenshot-play.png" alt="Jev Turtle Soup main screen" /></td>
+    <td><img src="docs/screenshot-play2.png" alt="Jev Turtle Soup gameplay flow" /></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshot-play3.png" alt="Jev Turtle Soup reveal the truth" /></td>
+    <td><img src="docs/screenshot-play4.png" alt="Jev Turtle Soup create and moderation" /></td>
+  </tr>
+</table>
+</p>
 
 ---
 
@@ -41,8 +52,6 @@ The main experience is a mobile-first website.
 | 🌍 **Bilingual: EN / ZH** | One tap to switch languages; every built-in puzzle ships with a full English story, answer and hints, and your choice is remembered. |
 | 📊 **Local progress** | Played and solved puzzles are marked automatically and stored on the current device. No account is required. |
 | ✍️ **Player submissions** | Write your own puzzle, answer and hints in the **Create** tab; Jev reviews it before it enters the public library, with a reason if it doesn't. |
-| 🛡 **Moderation dashboard** | Review, unpublish or delete submissions, with every action logged. |
-| 🔗 **Share with confidence** | A share link carries only the puzzle ID — the answer never travels with the link. |
 | 📱 **Mobile-first** | The website is tuned for touch. |
 | 🌗 **Ocean-night theme** | Dark base, rounded panels — easy on the eyes during long sessions. |
 
