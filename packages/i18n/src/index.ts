@@ -1,0 +1,250 @@
+/**
+ * 展示文案：服务端与本地存储只保存稳定枚举（yes/no/...），中文与英文只在展示层映射。
+ * 题目正文存题库；这里只放界面固定文案与状态翻译。
+ */
+import type { ErrorCode } from '@jev/contracts';
+
+export type Language = 'zh' | 'en';
+
+/** 判定枚举 → 文案 */
+const verdictCopy = {
+  zh: {
+    yes: '是',
+    no: '否',
+    irrelevant: '无关',
+    uncertain: '无法确定',
+    solved: '破解成功',
+    close: '接近真相',
+    not_yet: '还没猜对',
+    solvedDetail: '恭喜，这组推理抓住了汤底的核心真相。',
+    closeDetail: '方向对了，再补齐关键原因。',
+    not_yetDetail: '和汤底的核心事实对不上，换个思路再试一次。',
+    uncertainDetail: 'Jev 对这次判断没有足够把握，换个说法试试。',
+  },
+  en: {
+    yes: 'Yes',
+    no: 'No',
+    irrelevant: 'Irrelevant',
+    uncertain: 'Uncertain',
+    solved: 'Solved',
+    close: 'Close',
+    not_yet: 'Not yet',
+    solvedDetail: 'You have uncovered the heart of the story.',
+    closeDetail: 'You are on the right track. Find the missing link.',
+    not_yetDetail: 'This conflicts with the core facts. Try another angle.',
+    uncertainDetail: 'Jev is not confident enough. Try saying it another way.',
+  },
+} as const;
+
+export function displayVerdict(value: string, language: Language): string {
+  const key = value as keyof (typeof verdictCopy)['zh'];
+  return verdictCopy[language][key] ?? value;
+}
+
+export function verdictDetail(value: string, language: Language): string {
+  const key = `${value}Detail` as keyof (typeof verdictCopy)['zh'];
+  return verdictCopy[language][key] ?? verdictCopy[language].uncertainDetail;
+}
+
+/** 错误码 → 面向用户的文案（服务端 message 仅兜底） */
+const errorCopy: Record<ErrorCode, Record<Language, string>> = {
+  VALIDATION_FAILED: { zh: '输入格式不对，请检查后重试。', en: 'Invalid input. Please check and retry.' },
+  UNAUTHORIZED: { zh: '请先登录。', en: 'Please sign in first.' },
+  FORBIDDEN: { zh: '没有权限执行这个操作。', en: 'You are not allowed to do that.' },
+  NOT_FOUND: { zh: '内容不存在或已下架。', en: 'Not found or unavailable.' },
+  RATE_LIMITED: { zh: '操作太频繁了，稍等片刻再试。', en: 'Too many actions. Please slow down.' },
+  INTERNAL: { zh: '服务器出了点问题，请稍后再试。', en: 'Something went wrong. Please try again later.' },
+  SERVICE_UNAVAILABLE: { zh: '服务暂时不可用，请稍后再试。', en: 'Service temporarily unavailable.' },
+  ROOM_FULL: { zh: '房间已经满了。', en: 'The room is full.' },
+  ROOM_CLOSED: { zh: '房间已关闭。', en: 'The room is closed.' },
+  ROUND_ENDED: { zh: '这一局已经结束了。', en: 'This round has ended.' },
+  ALREADY_IN_ROOM: { zh: '你已在一个房间里，先退出再加入新的。', en: 'You are already in a room. Leave it first.' },
+  MEMBER_RESTRICTED: { zh: '你已被移出该房间，需要房主解除限制。', en: 'You were removed. The host must lift the restriction.' },
+  SPONSORSHIP_REQUIRED: { zh: '免费开房次数已用完，赞助后不限次数开房。', en: 'Free room credits exhausted. Sponsor for unlimited rooms.' },
+  FREE_ROOMS_EXHAUSTED: { zh: '免费开房次数已用完（每账号累计 10 个）。', en: 'All 10 free rooms have been used.' },
+  TURN_PENDING: { zh: '你已有一条正在处理的提交，等它完成再发。', en: 'You already have a pending submission.' },
+  QUEUE_FULL: { zh: '当前队列已满（8 条），请稍后再提交。', en: 'The queue is full. Please wait.' },
+  STATE_CONFLICT: { zh: '房间状态刚刚变化，请刷新后重试。', en: 'Room state changed. Refresh and retry.' },
+  IDEMPOTENCY_CONFLICT: { zh: '请求编号已被其他内容使用，请刷新后重试。', en: 'Request ID reused with different content.' },
+  EVENT_GAP: { zh: '记录已超出可补齐范围，正在重新同步。', en: 'Events out of range. Resyncing.' },
+  CONTENT_UNAVAILABLE: { zh: '题目暂时不可用。', en: 'This puzzle is unavailable.' },
+  PUZZLE_UNPUBLISHED: { zh: '这道题还未发布。', en: 'This puzzle is not published.' },
+  RATING_NOT_ALLOWED: { zh: '参与一局推理后才能评价这道题。', en: 'Participate in a round before rating.' },
+  JEV_UNAVAILABLE: { zh: 'Jev 暂时联系不上，稍后再试。', en: 'Jev is unreachable. Try again later.' },
+  JEV_BUSY: { zh: 'Jev 正忙，请稍后再试。', en: 'Jev is busy. Try again shortly.' },
+  ORDER_EXPIRED: { zh: '订单已过期，请重新下单。', en: 'The order expired. Please place a new one.' },
+  PAYMENT_CHANNEL_UNAVAILABLE: { zh: '支付通道尚未开通。', en: 'Payment channel is not available yet.' },
+  ORDER_STATE_CONFLICT: { zh: '订单状态已变化，请刷新查看。', en: 'Order state changed. Please refresh.' },
+};
+
+export function displayError(code: string, language: Language, fallback?: string): string {
+  const entry = (errorCopy as Record<string, Record<Language, string>>)[code];
+  return entry?.[language] ?? fallback ?? code;
+}
+
+/** 界面固定文案 */
+export const copy = {
+  zh: {
+    brand: 'Jev 海龟汤',
+    tagline: '和朋友一起，一问一答接近真相',
+    solo: '单人游玩',
+    multi: '开房间',
+    library: '题库',
+    me: '我的',
+    login: '登录',
+    logout: '退出登录',
+    send: '发送',
+    cancel: '取消',
+    confirm: '确定',
+    ask: '问 Jev',
+    discuss: '和大家讨论',
+    solve: '还原真相',
+    askPlaceholder: '问问 Jev…',
+    discussPlaceholder: '和房间里的人聊聊推理思路…',
+    solvePlaceholder: '写下你还原的完整故事…',
+    hint: '提示',
+    hintLocked: '由房主解锁',
+    reveal: '公布答案',
+    revealConfirm: '公布答案会结束这一局，所有成员都会看到汤底。确定吗？',
+    endRound: '结束本局',
+    endRoundConfirm: '结束本局但不公布汤底，其他成员只会看到结束原因。确定吗？',
+    nextRound: '下一局',
+    waitingRoom: '等待室',
+    invite: '邀请朋友',
+    inviteCopied: '邀请链接已复制，发给朋友即可加入。',
+    startRound: '开始本局',
+    selectPuzzle: '选题',
+    members: '成员',
+    host: '房主',
+    kick: '移除',
+    transfer: '转让房主',
+    leave: '离开房间',
+    closeRoom: '解散房间',
+    closeRoomConfirm: '解散后房间关闭，邀请链接失效。确定吗？',
+    judging: 'Jev 正在判断…',
+    queued: '排队中',
+    failed: '本次判断失败',
+    retry: '重试',
+    cancelTurn: '取消',
+    answer: '汤底',
+    playAgain: '再来一局',
+    freeRooms: '免费开房',
+    sponsorship: '赞助',
+    monthly: '月度赞助',
+    lifetime: '永久赞助',
+    sponsored: '赞助有效',
+    expired: '已到期',
+    orders: '订单',
+    emailLogin: '邮箱验证码登录',
+    googleLogin: '使用 Google 登录',
+    sendCode: '发送验证码',
+    codeSent: '验证码已发送，请查收邮箱',
+    nickname: '昵称',
+    history: '多人历史',
+    soloRecords: '单人记录（仅本浏览器）',
+    settings: '设置',
+    language: '语言',
+    offline: '连接已断开，正在重连…',
+    newMessages: '有新消息',
+    submitting: '正在提交…',
+    hostOffline: '房主暂时不在线',
+    full: '满员',
+    roundNo: '第 {n} 局',
+    questions: '有效提问 {n} 次',
+    hintsUsed: '用了 {n} 条提示',
+    byHost: '房主结束了本局',
+    solvedByTeam: '团队破解成功！',
+    revealedAnswer: '房主公布了答案',
+    meFreeLeft: '剩余 {n} 次',
+    unlimited: '不限次数',
+    testSponsor: '测试赞助（不会扣款）',
+    back: '返回',
+  },
+  en: {
+    brand: 'Jev Situation Puzzles',
+    tagline: 'One question at a time, together',
+    solo: 'Solo play',
+    multi: 'New room',
+    library: 'Library',
+    me: 'Me',
+    login: 'Sign in',
+    logout: 'Sign out',
+    send: 'Send',
+    cancel: 'Cancel',
+    confirm: 'Confirm',
+    ask: 'Ask Jev',
+    discuss: 'Discuss',
+    solve: 'Solve',
+    askPlaceholder: 'Ask Jev…',
+    discussPlaceholder: 'Share your thinking with the room…',
+    solvePlaceholder: 'Write out your full theory…',
+    hint: 'Hint',
+    hintLocked: 'Unlocked by the host',
+    reveal: 'Reveal answer',
+    revealConfirm: 'Revealing the answer ends this round for everyone. Continue?',
+    endRound: 'End round',
+    endRoundConfirm: 'End this round without the answer. Others will only see why it ended. Continue?',
+    nextRound: 'Next round',
+    waitingRoom: 'Waiting room',
+    invite: 'Invite friends',
+    inviteCopied: 'Invite link copied. Send it to your friends!',
+    startRound: 'Start round',
+    selectPuzzle: 'Pick a puzzle',
+    members: 'Members',
+    host: 'Host',
+    kick: 'Remove',
+    transfer: 'Make host',
+    leave: 'Leave room',
+    closeRoom: 'Close room',
+    closeRoomConfirm: 'The room will close and the invite link stops working. Continue?',
+    judging: 'Jev is thinking…',
+    queued: 'Queued',
+    failed: 'This judgment failed',
+    retry: 'Retry',
+    cancelTurn: 'Cancel',
+    answer: 'Answer',
+    playAgain: 'Play again',
+    freeRooms: 'Free rooms',
+    sponsorship: 'Sponsorship',
+    monthly: 'Monthly',
+    lifetime: 'Lifetime',
+    sponsored: 'Sponsor active',
+    expired: 'Expired',
+    orders: 'Orders',
+    emailLogin: 'Email code sign-in',
+    googleLogin: 'Continue with Google',
+    sendCode: 'Send code',
+    codeSent: 'Code sent. Check your inbox.',
+    nickname: 'Nickname',
+    history: 'Room history',
+    soloRecords: 'Solo records (this browser only)',
+    settings: 'Settings',
+    language: 'Language',
+    offline: 'Connection lost. Reconnecting…',
+    newMessages: 'New messages',
+    submitting: 'Submitting…',
+    hostOffline: 'The host is offline',
+    full: 'Full',
+    roundNo: 'Round {n}',
+    questions: '{n} effective questions',
+    hintsUsed: '{n} hints used',
+    byHost: 'The host ended this round',
+    solvedByTeam: 'The team solved it!',
+    revealedAnswer: 'The host revealed the answer',
+    meFreeLeft: '{n} left',
+    unlimited: 'Unlimited',
+    testSponsor: 'Test sponsorship (no charge)',
+    back: 'Back',
+  },
+} as const;
+
+export type Copy = (typeof copy)[Language];
+
+export function t(language: Language): Copy {
+  return copy[language];
+}
+
+/** 简单模板替换：'第 {n} 局'.replace('{n}', '3') */
+export function format(template: string, params: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => String(params[key] ?? `{${key}}`));
+}

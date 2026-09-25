@@ -1,0 +1,26 @@
+{
+  "name": "@jev/jobs",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@jev/database": "workspace:*",
+    "@jev/domain": "workspace:*",
+    "@jev/jev": "workspace:*",
+    "pg": "^8.16.3",
+    "pg-boss": "^10.3.0",
+    "drizzle-orm": "^0.44.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.15.4",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}

@@ -30,3 +30,6 @@ Thumbs.db
 .vercel
 
 docs/video-assets
+# 新系统前端构建产物与联调临时文件
+dist/
+mailsink.json

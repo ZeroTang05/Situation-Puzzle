@@ -10,7 +10,16 @@
     "sync:xiaohongshu": "node scripts/sync-xiaohongshu.mjs",
     "sync:seed": "node scripts/sync-seed-sql.mjs",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "new:typecheck": "pnpm -r --filter @jev/* exec tsc -p tsconfig.json --noEmit",
+    "new:test": "pnpm --filter @jev/domain --filter @jev/jev exec vitest run",
+    "new:api": "pnpm --dir apps/api dev",
+    "new:jobs": "pnpm --dir apps/jobs dev",
+    "new:web": "pnpm --dir apps/web dev",
+    "new:admin": "pnpm --dir apps/admin dev",
+    "new:db:migrate": "pnpm --dir packages/database db:migrate",
+    "new:db:seed": "pnpm --dir packages/database db:import-library -- --publish",
+    "smoke:new": "bash scripts/smoke-new-system.sh"
   },
   "dependencies": {
     "ai": "^7.0.0",
