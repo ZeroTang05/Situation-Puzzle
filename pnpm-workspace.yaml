@@ -1,7 +1,3 @@
 packages:
-  # 旧 Next.js 前端与 Cloudflare Worker：新系统切换完成前保持可构建（见 docs/rebuild/06-MIGRATION.md）
-  - .
-  - worker
-  # 新系统工作区
   - apps/*
   - packages/*

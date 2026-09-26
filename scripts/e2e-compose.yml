@@ -1,0 +1,15 @@
+# E2E 专用编排：只含一次性 PostgreSQL（e2e-run.sh 负责其余进程与清理）
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: jev
+      POSTGRES_PASSWORD: jev
+      POSTGRES_DB: jev
+    ports:
+      - '54339:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U jev']
+      interval: 5s
+      timeout: 3s
+      retries: 20

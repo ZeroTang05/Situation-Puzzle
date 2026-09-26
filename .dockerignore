@@ -1,0 +1,19 @@
+# 构建上下文裁剪：依赖与产物在容器内重新产生，不进构建上下文
+node_modules
+**/node_modules
+dist
+**/dist
+out
+.next
+toy-dist
+.toy-workspace
+.vercel
+.wrangler
+.git
+docs
+# 联调临时产物
+mailsink.json
+*.log
+.env
+.env.local
+.env.production

@@ -1,0 +1,96 @@
+# 一行命令部署：docker compose up -d --build
+# 前置：cp .env.example .env 并填写 POSTGRES_PASSWORD 与各项密钥（.env 同时用于
+#       compose 变量插值与容器环境注入）；DATABASE_URL 自动拼装，无需手填。
+services:
+  edge:
+    build:
+      context: .
+      dockerfile: infra/edge.Dockerfile
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/api.Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # 数据库连接指向 compose 内的 postgres 服务；覆盖 .env 里的同名字段
+      DATABASE_URL: postgresql://${POSTGRES_USER:-jev}:${POSTGRES_PASSWORD:?请在 .env 填写 POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-jev}
+      PUBLIC_BASE_URL: https://${DOMAIN:-localhost}
+      PORT: 8080
+    expose:
+      - '8080'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:8080/api/v1/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  jobs:
+    build:
+      context: .
+      dockerfile: infra/jobs.Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-jev}:${POSTGRES_PASSWORD:?请在 .env 填写 POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-jev}
+    depends_on:
+      api:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-jev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请在 .env 填写 POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-jev}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # 备份须离机存放；容器卷只做第一层兜底（docs/rebuild/02-MVP.md §4）
+    expose:
+      - '5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-jev}']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # 可选：一次性导入题库并本地发布（仅测试环境；正式环境须走权利审核，见 README）
+  # 用法：docker compose --profile seed run --rm seed
+  seed:
+    profiles: ['seed']
+    build:
+      context: .
+      dockerfile: infra/api.Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-jev}:${POSTGRES_PASSWORD:?请在 .env 填写 POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-jev}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ['sh', '-c', 'pnpm --dir packages/database run db:migrate && pnpm --dir packages/database run db:import-library -- --publish']
+
+volumes:
+  caddy-data:
+  caddy-config:
+  postgres-data:

@@ -1,8 +1,26 @@
 # Caddy 入口：自动 HTTPS；静态前端 + API/WS 反向代理（docs/rebuild/03-SPEC.md §1）
+# 注意：handle 块互斥且按路径最长优先匹配，API/WS 必须也用 handle 才能压过静态兜底
 {$DOMAIN} {
 	encode zstd gzip
 
-	# 玩家端静态文件：内容散列长缓存，入口 HTML 短缓存
+	# 管理端（handle_path 剥离 /admin 前缀）
+	handle_path /admin* {
+		root * /srv/admin
+		try_files {path} /index.html
+		file_server
+	}
+
+	# API 与 WebSocket：私有内容一律 no-store
+	handle /api/v1/* {
+		reverse_proxy api:8080 {
+			header_down Cache-Control no-store
+		}
+	}
+	handle /ws* {
+		reverse_proxy api:8080
+	}
+
+	# 玩家端静态文件：入口 HTML 短缓存，内容散列资源长缓存
 	handle {
 		root * /srv/web
 		try_files {path} /index.html
@@ -10,18 +28,5 @@
 		@assets path /assets/*
 		header @assets Cache-Control "public, max-age=31536000, immutable"
 		file_server
-	}
-
-	# 管理端
-	handle_path /admin* {
-		root * /srv/admin
-		try_files {path} /admin/index.html
-		file_server
-	}
-
-	# API 与 WebSocket：私有内容一律 no-store
-	reverse_proxy /ws* api:8080
-	reverse_proxy /api/v1/* api:8080 {
-		header_down Cache-Control no-store
 	}
 }
