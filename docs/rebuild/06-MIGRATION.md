@@ -1,5 +1,7 @@
 # 现有代码与数据迁移方案
 
+> 执行进度（2026-09-26）：旧系统文件已按用户决定提前删除（新代码已完整可用，旧代码保存在 main 分支可随时查阅）。D1 旧数据的导入工具仍未实现，需要旧库导出文件。
+
 ## 1. 现状核对
 
 核对基线 `d4fd1e4`。当前为 Next.js 单页前端、Cloudflare Worker 后端、D1 的 soups/moderation_logs/stats 三类业务表。`data/library.json` 与 `library.en.json` 各 30 条，共用题目 ID。没有账号、多人房间、支付或云端对话表。

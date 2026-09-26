@@ -2,7 +2,7 @@
 
 版本：1.0；日期：2026-09-26；基线：docs/rebuild 设计文档 v1.0。
 
-本文记录按设计文档完成的第一批可运行代码：monorepo、数据层、判题适配、API 服务、任务进程、玩家端、管理端与部署编排。旧系统（Next.js 单页 + Cloudflare Worker）保持原样可运行，切换按 06-MIGRATION.md 执行。
+本文记录按设计文档完成的第一批可运行代码：monorepo、数据层、判题适配、API 服务、任务进程、玩家端、管理端与部署编排。旧系统（Next.js 单页 + Cloudflare Worker）已按用户决定提前删除（06-MIGRATION.md），旧代码保存在 main 分支。
 
 ## 1. 已交付内容与设计对应
 
@@ -18,18 +18,18 @@
 | 赞助订单（05-OPERATIONS §3/§5） | 订单状态机、微信支付 v3 适配器（签名/验签/AES-GCM）、月度锚点续期算法、重复永久购买登记 | 订单与授权逻辑完成；微信通道需商户凭据后联调（M4） |
 | 单人隐私（08-SOLO） | 匿名签名凭证（jose）、无持久化接口、IndexedDB 本地会话、内存限速（IP 不落盘）、credentials omit | 完成 |
 | 认证（05-OPERATIONS §2） | Better Auth 1.7：Email OTP + Google OAuth、注册钩子初始化档案/免费账户 | 完成；真实邮件与 Google 回调待 M0 外部验证 |
-| 部署（03-SPEC §8） | `infra/`：Caddy + API + jobs + PostgreSQL 的 Docker Compose、Dockerfile、Caddyfile | 完成；服务器实际部署待 M0 |
+| 部署（03-SPEC §8） | `infra/`：Caddy + API + jobs + PostgreSQL 的 Docker Compose、Dockerfile、Caddyfile | 完成；本机 compose 全栈实测通过（见 §2.2），目标服务器部署待 M0 |
 
 ## 2. 验证证据
 
-- 类型：全部 10 个工作区 `tsc --noEmit` 通过（`pnpm new:typecheck`）。
-- 单测：24 项通过（`pnpm new:test`），含一次真实缺陷修复（ask 低置信度映射错误，由测试发现）。
-- 冒烟（`pnpm smoke:new`，本地 Docker PostgreSQL）：健康检查、30 题公开列表（响应无 answer 字段）、匿名单人开局与凭证、提示读取、better-auth 路由挂载、未登录 401 信封、jobs 进程启动。
+- 类型：全部 10 个工作区 `tsc --noEmit` 通过（`pnpm typecheck`）。
+- 单测：24 项通过（`pnpm test`），含一次真实缺陷修复（ask 低置信度映射错误，由测试发现）。
+- 冒烟（`pnpm smoke`，本地 Docker PostgreSQL）：健康检查、30 题公开列表（响应无 answer 字段）、匿名单人开局与凭证、提示读取、better-auth 路由挂载、未登录 401 信封、jobs 进程启动。
 - 前端构建：web 与 admin `vite build` 通过。
 
 ### 双用户多人房间端到端联调（2026-09-26 完成）
 
-真实进程 + 真实 PostgreSQL + 真实 SMTP 收信台 + 真实 WebSocket + 真实 Jev（OPENCODE_API_KEY 取自 worker/.dev.vars）：
+真实进程 + 真实 PostgreSQL + 真实 SMTP 收信台 + 真实 WebSocket + 真实 Jev（OPENCODE_API_KEY 取自 .env.local）：
 
 - **脚本化 E2E（`scripts/e2e-multiplayer.mjs`）：36/36 断言通过**。覆盖：双用户邮箱验证码登录（真实 SMTP 协议投递验证码）、建房预留免费次数、选题/开局控制版本、客人凭邀请晚加入并补齐事件、双端 WS 同步（同一条判定的同一编号）、**真实 Jev 提问与还原判定**、jev_calls 落库、首次有效判定消费免费次数（账本恰好 reserve+consume 各一条）、同房第二局不重复扣次、未揭晓答案 403 / 揭晓后参与者可读、关闭房间终态。
 - **浏览器 UI 联调**：房主在真实浏览器完成验证码登录 → 开房间 → 等待室（成员 2/8、在线状态点、房主徽标）→ 题库选题 → 开局；客人以第二客户端（独立 WS）加入并提问，房主页面实时显示提问与真实判定「是」；房主从浏览器 UI 提问，客人端实时收到并完成判定；提示解锁横幅、公布答案后结算页（汤底 + 提示回顾 + 下一局）均正常呈现。
@@ -42,6 +42,22 @@
 
 自动化环境注意（非产品缺陷）：in-app 浏览器标签页失焦时网络被挂起，页面内 fetch 停滞而外部 curl 正常；把标签页置前后立即恢复。
 
+### Docker 一行部署实测（2026-09-26 完成）
+
+`cp .env.example .env && docker compose up -d --build` 起全栈，实测通过：
+
+- 三镜像构建成功；API 容器启动自动执行迁移后再起服务；postgres 健康；jobs 正常轮询。
+- edge（Caddy）服务 web（200）、admin（200）；`/api/v1/health/live` 与题库列表经反代返回 JSON；WebSocket 升级经 edge 转发成功（探针实测 25ms 升级、未认证连接 5 秒被服务端关闭）。
+- `docker compose --profile seed run --rm seed` 灌入 30 题，公开列表即有数据。
+- 只有 edge 发布端口（80/443），postgres/api/jobs 仅内网可达。
+
+实测发现并修复的四个问题：
+
+1. 容器内 tsx 报 decorators 错误：镜像缺少根 `tsconfig.base.json`（apps 的 tsconfig 经 extends 链上溯找不到）→ Dockerfile 补 COPY。
+2. jobs 启动 `ERR_MODULE_NOT_FOUND: zod`：代码 import 了 zod 但未在 `apps/jobs/package.json` 声明，pnpm 严格 node_modules 下不可见 → 补声明（本地靠提升侥幸通过）。
+3. Caddyfile 中 `handle`（含静态兜底）先于 `reverse_proxy` 执行，API 路径被静态兜底吞掉返回 index.html → 反代改写进 `handle` 块，按 Caddy 路径最长优先匹配。
+4. 实时网关未强制「5 秒内 auth 帧」：未认证连接可无限挂起 → `handleConnection` 补 5 秒鉴权时限。
+
 以下为待人工/外部验证项（文档明确不自动视作完成）：真实第三方邮箱投递与 Google OAuth 回调（本地已用真实 SMTP 协议收信台验证登录链路）、真实微信支付（商户凭据）、目标服务器部署。
 
 ## 3. 本地运行
@@ -50,23 +66,30 @@
 # 1. 数据库（任选一种）
 docker run -d --name jev-pg -e POSTGRES_USER=jev -e POSTGRES_PASSWORD=jev -e POSTGRES_DB=jev -p 5432:5432 postgres:17
 
-# 2. 配置环境：复制 .env.example 中新系统段落为 .env.local，填 DATABASE_URL 与密钥
+# 2. 配置环境：复制 .env.example 为 .env.local，填 DATABASE_URL 与密钥
 #    （邮件用真实 SMTP；没有 SMTP 时 API 启动会失败——这是设计行为）
 
 # 3. 迁移 + 题库导入（--publish 仅限本地开发；正式库必须走权利审核）
-pnpm new:db:migrate
-pnpm new:db:seed
+pnpm db:migrate
+pnpm db:seed
 
 # 4. 三个进程并行
-pnpm new:api    # http://localhost:8080
-pnpm new:jobs   # 任务进程
-pnpm new:web    # http://localhost:5173（Vite 代理 /api/v1 与 /ws）
+pnpm dev:api    # http://localhost:8080
+pnpm dev:jobs   # 任务进程
+pnpm dev:web    # http://localhost:5173（Vite 代理 /api/v1 与 /ws）
 
 # 5. 管理端（可选）
-pnpm new:admin  # http://localhost:5174/admin
+pnpm dev:admin  # http://localhost:5174/admin
 ```
 
 管理员角色首次授予：直接向 `role_assignments` 插入一行（user_id, role）——后台界面只能由已有管理员操作，首个管理员用 SQL 初始化。
+
+服务器部署用 Docker 一行命令（详见根 README）：
+
+```bash
+cp .env.example .env   # 填好域名、数据库口令与密钥
+docker compose up -d --build
+```
 
 ## 4. 已知边界与下一步
 

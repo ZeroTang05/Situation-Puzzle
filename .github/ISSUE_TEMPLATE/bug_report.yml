@@ -1,0 +1,37 @@
+name: Bug 报告
+description: 游戏或部署出现了不符合预期的行为
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么？
+      description: 期望的行为和实际的行为，尽量具体。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 建房并邀请好友
+        2. 提问「…」
+        3. 判题返回…
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: 出现的场景
+      options:
+        - 单人模式
+        - 多人房间
+        - 自部署环境（Docker）
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图
+      description: 浏览器控制台报错、docker compose logs 片段等。

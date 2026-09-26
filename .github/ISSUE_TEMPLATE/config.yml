@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 想投稿新谜题？
+    url: https://github.com/ZeroTang/jev-turtle-soup
+    about: 投稿请直接在网站内「创作」页完成（草稿 → 自测一局 → 提交审核），不要开 Issue。
