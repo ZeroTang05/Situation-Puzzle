@@ -25,10 +25,10 @@ async function main(): Promise<void> {
   // 启动即验证数据库连通，失败就地崩溃
   await db.pool.query('select 1');
 
-  // 境内服务器：Google 服务端请求（token 兑换、JWKS）改写到出站代理，须在创建 auth 前安装
+  // 境内服务器：Google 服务端请求（token 兑换、userinfo）改写到出站中继，须在创建 auth 前安装
   if (env.GOOGLE_OAUTH_PROXY_BASE_URL) {
-    installGoogleOAuthProxy(env.GOOGLE_OAUTH_PROXY_BASE_URL);
-    logger.log(`Google OAuth 出站代理：${env.GOOGLE_OAUTH_PROXY_BASE_URL}`);
+    installGoogleOAuthProxy(env.GOOGLE_OAUTH_PROXY_BASE_URL, env.GOOGLE_OAUTH_PROXY_SHARED_SECRET!);
+    logger.log(`Google OAuth 出站中继：${env.GOOGLE_OAUTH_PROXY_BASE_URL}`);
   }
 
   const mailer =

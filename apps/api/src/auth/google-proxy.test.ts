@@ -1,62 +1,86 @@
 /**
- * Google OAuth 出站代理改写测试：用本地 HTTP 服务器充当代理节点，
- * 断言改写后的 URL 形状为 `<代理>/<原域名>/<路径>`，且非 Google 请求原样放行。
+ * Google OAuth 出站中继改写测试：用本地 HTTP 服务器充当 oauth-relay，
+ * 断言改写后的路径、X-Relay-Token 头与请求体透传形状，及非 Google 请求原样放行。
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { installGoogleOAuthProxy } from './google-proxy.js';
 
-/** 起一个记录请求路径的本地服务器 */
-async function startRecorder(): Promise<{ server: http.Server; url: string; seen: () => string[] }> {
-  const paths: string[] = [];
+interface Recorded {
+  paths: string[];
+  headers: Record<string, string | string[] | undefined>;
+  bodies: string[];
+}
+
+/** 起一个记录请求的本地服务器 */
+async function startRecorder(): Promise<{ server: http.Server; url: string; seen: Recorded }> {
+  const seen: Recorded = { paths: [], headers: {}, bodies: [] };
   const server = http.createServer((req, res) => {
-    paths.push(req.url ?? '');
-    res.writeHead(200, { 'content-type': 'application/json' });
-    res.end('{"ok":true}');
+    seen.paths.push(req.url ?? '');
+    seen.headers = { ...seen.headers, ...req.headers };
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      seen.bodies.push(body);
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end('{"ok":true}');
+    });
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const { port } = server.address() as AddressInfo;
-  return { server, url: `http://127.0.0.1:${port}`, seen: () => paths };
+  return { server, url: `http://127.0.0.1:${port}`, seen };
 }
 
-let proxy: Awaited<ReturnType<typeof startRecorder>>;
+let relay: Awaited<ReturnType<typeof startRecorder>>;
 let direct: Awaited<ReturnType<typeof startRecorder>>;
+const SECRET = 'test-shared-secret-0123456789abcdef';
 
 beforeEach(async () => {
-  proxy = await startRecorder();
+  relay = await startRecorder();
   direct = await startRecorder();
-  installGoogleOAuthProxy(proxy.url);
+  installGoogleOAuthProxy(relay.url, SECRET);
 });
 
 afterEach(async () => {
   await Promise.all([
-    new Promise<void>((resolve) => proxy.server.close(() => resolve())),
+    new Promise<void>((resolve) => relay.server.close(() => resolve())),
     new Promise<void>((resolve) => direct.server.close(() => resolve())),
   ]);
 });
 
 describe('installGoogleOAuthProxy', () => {
-  it('把 googleapis 域名的请求改写到代理节点', async () => {
-    const response = await fetch('https://www.googleapis.com/oauth2/v3/certs');
+  it('token 兑换改写到中继 /oauth/google/token，带 X-Relay-Token 并透传表单', async () => {
+    const body = 'code=abc&grant_type=authorization_code&client_id=x&client_secret=y';
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body,
+    });
     expect(response.ok).toBe(true);
-    // 代理节点收到的路径 = 原域名 + 原路径
-    expect(proxy.seen()).toEqual(['/www.googleapis.com/oauth2/v3/certs']);
+    expect(relay.seen.paths).toEqual(['/oauth/google/token']);
+    expect(relay.seen.headers['x-relay-token']).toBe(SECRET);
+    expect(relay.seen.bodies).toEqual([body]);
   });
 
-  it('改写保留查询串与 POST 方法', async () => {
-    await fetch('https://oauth2.googleapis.com/token?grant=x', { method: 'POST', body: 'code=1' });
-    expect(proxy.seen()).toEqual(['/oauth2.googleapis.com/token?grant=x']);
+  it('userinfo 改写到中继 /oauth/google/userinfo，Authorization 头透传', async () => {
+    await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
+      headers: { authorization: 'Bearer token123' },
+    });
+    expect(relay.seen.paths).toEqual(['/oauth/google/userinfo']);
+    expect(relay.seen.headers['x-relay-token']).toBe(SECRET);
+    expect(relay.seen.headers['authorization']).toBe('Bearer token123');
   });
 
   it('非 Google 域名的请求不改写（直连原始目标）', async () => {
     const response = await fetch(`${direct.url}/some/api`);
     expect(response.ok).toBe(true);
-    expect(direct.seen()).toEqual(['/some/api']);
-    expect(proxy.seen()).toEqual([]);
+    expect(direct.seen.paths).toEqual(['/some/api']);
+    expect(relay.seen.paths).toEqual([]);
   });
 
-  it('非法代理地址启动即抛错', () => {
-    expect(() => installGoogleOAuthProxy('ftp://bad.example')).toThrow('协议非法');
+  it('非法中继地址或缺失密钥启动即抛错', () => {
+    expect(() => installGoogleOAuthProxy('ftp://bad.example', SECRET)).toThrow('协议非法');
+    expect(() => installGoogleOAuthProxy('https://relay.example', '')).toThrow('SHARED_SECRET');
   });
 });

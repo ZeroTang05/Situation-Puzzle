@@ -67,16 +67,19 @@
 1. **验证码邮件改走 Resend**（`MAIL_TRANSPORT=resend`，官方 SDK、发件 `noreply@xiaobaozi.cn`，
    与内部其他项目共用账号）。实测：真实发信返回 Resend 邮件 ID（`scripts/probe-mail-and-proxy.mjs`）。
    保留 `smtp` 通道供本地联调（dev-mailsink 收信台 + 全量 E2E 读码）。
-2. **Google OAuth 服务端请求走出站代理**（`apps/api/src/auth/google-proxy.ts`）：境内服务器
-   无法直连 `*.googleapis.com`，配置 `GOOGLE_OAUTH_PROXY_BASE_URL` 后在启动时把 fetch 改写为
-   `<代理>/<原域名>/<路径>`（与 ai-proxy 节点转发 Groq/OpenAI 的形状一致）；Better Auth 的
-   token 兑换端点无覆盖口子，故采用全局改写（单测 4 项覆盖改写形状与非 Google 放行）。
-   授权跳转仍由用户浏览器直连 accounts.google.com（与 Open-GoWith 相同）。
+2. **Google OAuth 服务端请求走出站中继**（`apps/api/src/auth/google-proxy.ts`）：境内服务器
+   无法直连 `*.googleapis.com`，配置 `GOOGLE_OAUTH_PROXY_BASE_URL` +
+   `GOOGLE_OAUTH_PROXY_SHARED_SECRET` 后在启动时把 token 兑换与 userinfo 改写到独立部署的
+   oauth-relay（Deno Deploy，仓库 `E:\tzy\github\oauth-relay`）的专用路径
+   （`/oauth/google/token|userinfo`），并携带 `X-Relay-Token: <RELAY_SHARED_SECRET>`
+   （Better Auth 的 google provider 端点硬编码，故采用全局改写；单测 4 项覆盖改写形状）。
+   实测：中继 healthz 200；假凭据 token 兑换收到 Google 的 400 响应、假 Bearer userinfo
+   收到 Google 的 401 invalid_request——两段链路真实到达 Google
+   （`scripts/probe-mail-and-proxy.mjs`）。授权跳转仍由用户浏览器直连 accounts.google.com
+   （与 Open-GoWith 相同）。部署环境文件 `.env` 已配好中继地址与密钥。
 
-**遗留阻塞（外部依赖）**：Google 登录的 token 兑换是 POST，实测 ai-proxy 节点（Deno Deploy
-通用反代）当前对 `*.googleapis.com` 上游的 POST 一律崩溃（500），专用 `/oauth/google/*`
-路径上游 fetch 失败（502），GET 正常——节点需修复后 Google 登录方可端到端可用；
-`GOOGLE_CLIENT_ID/SECRET` 也尚未申请。节点修复与本项目的改写逻辑无关（形状已对齐）。
+**待外部凭据**：Google 登录端到端可用只差 `GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET`
+（Google Cloud OAuth 客户端，回调地址填 `<PUBLIC_BASE_URL>/api/v1/auth/callback/google`）。
 
 ## 3. 本地运行
 

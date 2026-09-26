@@ -29,8 +29,9 @@ const envSchema = z.object({
   // Google OAuth：可选配置——未配置时 Google 按钮隐藏、调用直接报错
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
-  // 境内服务器出站代理：配置后 Google 服务端请求改写为 <代理>/<原域名>/<路径>
+  // 境内服务器出站中继：与内部 oauth-relay 部署成对使用（专用路径 + 共享密钥）
   GOOGLE_OAUTH_PROXY_BASE_URL: z.string().optional(),
+  GOOGLE_OAUTH_PROXY_SHARED_SECRET: z.string().optional(),
 
   // Jev
   OPENCODE_API_KEY: z.string().default(''),
@@ -68,6 +69,9 @@ export function loadEnv(): Env {
   }
   if (env.MAIL_TRANSPORT === 'smtp' && (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS)) {
     throw new Error('环境配置校验失败 → MAIL_TRANSPORT=smtp 需要配置 SMTP_HOST / SMTP_USER / SMTP_PASS');
+  }
+  if (env.GOOGLE_OAUTH_PROXY_BASE_URL && !env.GOOGLE_OAUTH_PROXY_SHARED_SECRET) {
+    throw new Error('环境配置校验失败 → 配置了 GOOGLE_OAUTH_PROXY_BASE_URL 就必须配置 GOOGLE_OAUTH_PROXY_SHARED_SECRET');
   }
   if (env.NODE_ENV === 'production') {
     if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
