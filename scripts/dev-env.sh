@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 联调环境启动：SMTP 收信台 + API + jobs（真实 Jev 密钥从旧系统 worker/.dev.vars 读取，不回显）
+# 联调环境启动：SMTP 收信台 + API + jobs（真实 Jev 密钥从 .env.local 读取，不回显）
 set -e
 cd "$(dirname "$0")/.."
 
@@ -14,11 +14,11 @@ export SMTP_PORT=2526
 export SMTP_USER=dev
 export SMTP_PASS=dev
 export MAIL_FROM="Jev <dev@localhost>"
-export OPENCODE_API_KEY=$(grep '^OPENCODE_API_KEY=' worker/.dev.vars | cut -d= -f2- | tr -d '"')
+export OPENCODE_API_KEY=$(grep '^OPENCODE_API_KEY=' .env.local | cut -d= -f2- | tr -d '"' | tr -d '\r')
 export SINK_OUT="$(pwd)/mailsink.json"
 
 if [ -z "$OPENCODE_API_KEY" ]; then
-  echo "未找到 OPENCODE_API_KEY（worker/.dev.vars）" >&2
+  echo "未找到 OPENCODE_API_KEY（.env.local）" >&2
   exit 1
 fi
 echo "OPENCODE_API_KEY 已加载（长度 ${#OPENCODE_API_KEY}）"
