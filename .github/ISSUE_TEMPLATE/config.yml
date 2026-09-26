@@ -1,8 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: 项目导览（AGENTS.md）
-    url: ./blob/main/AGENTS.md
-    about: 目录结构、关键约定、本地启动
-  - name: Worker 部署（worker/README.md）
-    url: ./blob/main/worker/README.md
-    about: 后端、数据库迁移、首次部署
