@@ -59,6 +59,12 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   每局固定 `jevConfigVersion`
 - **认证**：Better Auth（Email OTP + Google）；`trustedOrigins` 来自 `PUBLIC_BASE_URL`，
   改来源先看 `apps/api/src/auth/auth.instance.ts`
+- **邮件通道**：`MAIL_TRANSPORT` 显式二选一（`apps/api/src/auth/mailer.ts`）——
+  `resend` 生产通道（官方 SDK，与内部其他项目共用 Resend 账号，发件 `noreply@xiaobaozi.cn`）；
+  `smtp` 本地联调通道（投递给 dev-mailsink）。通道与配置的对应关系在 `env.ts` 跨字段校验
+- **Google 出站代理**：境内服务器配 `GOOGLE_OAUTH_PROXY_BASE_URL` 后，Google 服务端请求
+  （token 兑换 POST、JWKS GET）在启动时改写为 `<代理>/<原域名>/<路径>`（`google-proxy.ts`，
+  单测覆盖改写形状）；授权跳转仍由用户浏览器直连 accounts.google.com
 - **锁序**：房间 → 局 → 赞助账户 → 免费账户 → 任务（跨 api/jobs 统一）
 
 ## 踩坑点
@@ -75,8 +81,12 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
 - **zod v4 改名**：`z.number().nonnegative()`（不是 nonneg）；`z.record` 两参
 - **exactOptionalPropertyTypes 开启**：可选属性赋 `undefined` 要用条件展开
 - **Windows CRLF**：shell 脚本入库加 `.gitattributes`；容器内执行前 `sed -i 's/\r$//'`（Dockerfile 已处理）
-- **开发期邮箱**：本地联调用 `scripts/dev-mailsink.mjs`（真实 SMTP 协议收信台），
-  不要把控制台打印验证码当已接入邮箱
+- **开发期邮箱**：本地联调用 `scripts/dev-mailsink.mjs`（真实 SMTP 协议收信台）+
+  `MAIL_TRANSPORT=smtp`，不要把控制台打印验证码当已接入邮箱
+- **ai-proxy 节点（ai-proxy.xiaobaozi.cn）**：Deno Deploy 通用反代，形状 `<代理>/<上游域名>/<路径>`；
+  Groq/OpenAI 的 POST 正常，但 `*.googleapis.com` 的 POST 会让函数崩 500（GET 正常）、
+  专用 `/oauth/google/*` 路径上游 fetch 失败——Google 登录的 token 兑换依赖此节点修复，
+  本地到该节点链路也偶发抖动，探针脚本已带重试
 
 ## 验证
 

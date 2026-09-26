@@ -17,8 +17,8 @@ Everyone shares the same reasoning trail and works toward the truth together.
 
 ## Quick start (local development)
 
-Prerequisites: Node.js 22+, pnpm 10, Docker (local database), a real SMTP
-mailbox service (for sign-in codes).
+Prerequisites: Node.js 22+, pnpm 10, Docker (local database), a Resend
+account (for sign-in codes).
 
 ```bash
 pnpm install
@@ -37,7 +37,7 @@ Open http://localhost:5173 . The admin UI runs at http://localhost:5174/admin .
 ## Server deployment (one command)
 
 ```bash
-cp .env.example .env   # domain, database password, SMTP, Jev key, etc.
+cp .env.example .env   # domain, database password, Resend key, Jev key, etc.
 docker compose up -d --build
 ```
 

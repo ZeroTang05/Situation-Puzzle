@@ -15,16 +15,22 @@ const envSchema = z.object({
   SOLO_TOKEN_SECRET: z.string().min(16, '缺少 SOLO_TOKEN_SECRET'),
   PUBLIC_BASE_URL: z.string().default('http://localhost:5173'),
 
-  // 邮件（Email OTP 必需）：缺失时启动失败——禁止控制台打印验证码充当邮箱
-  SMTP_HOST: z.string().min(1, '缺少 SMTP_HOST（邮件服务）'),
+  // 邮件（Email OTP 必需）：通道由 MAIL_TRANSPORT 显式选择，配置缺失启动失败
+  MAIL_TRANSPORT: z.enum(['resend', 'smtp']).default('resend'),
+  // Resend 通道（生产）：与内部其他项目共用同一 Resend 账号
+  RESEND_API_KEY: z.string().optional(),
+  // SMTP 通道（本地联调，投递给 dev-mailsink 收信台）
+  SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().default(465),
-  SMTP_USER: z.string().min(1, '缺少 SMTP_USER'),
-  SMTP_PASS: z.string().min(1, '缺少 SMTP_PASS'),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
   MAIL_FROM: z.string().min(1, '缺少 MAIL_FROM（发件地址）'),
 
   // Google OAuth：可选配置——未配置时 Google 按钮隐藏、调用直接报错
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
+  // 境内服务器出站代理：配置后 Google 服务端请求改写为 <代理>/<原域名>/<路径>
+  GOOGLE_OAUTH_PROXY_BASE_URL: z.string().optional(),
 
   // Jev
   OPENCODE_API_KEY: z.string().default(''),
@@ -56,6 +62,13 @@ export function loadEnv(): Env {
     throw new Error(`环境配置校验失败 → ${issues}`);
   }
   const env = parsed.data;
+  // 邮件通道跨字段校验：所选通道的必需配置缺失就立即失败
+  if (env.MAIL_TRANSPORT === 'resend' && !env.RESEND_API_KEY) {
+    throw new Error('环境配置校验失败 → MAIL_TRANSPORT=resend 需要配置 RESEND_API_KEY');
+  }
+  if (env.MAIL_TRANSPORT === 'smtp' && (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS)) {
+    throw new Error('环境配置校验失败 → MAIL_TRANSPORT=smtp 需要配置 SMTP_HOST / SMTP_USER / SMTP_PASS');
+  }
   if (env.NODE_ENV === 'production') {
     if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
       // 生产环境允许 Google 暂不开放（仅邮箱登录），但要明确记录

@@ -60,6 +60,24 @@
 
 以下为待人工/外部验证项（文档明确不自动视作完成）：真实第三方邮箱投递与 Google OAuth 回调（本地已用真实 SMTP 协议收信台验证登录链路）、真实微信支付（商户凭据）、目标服务器部署。
 
+### 登录通道对齐内部基础设施（2026-09-26 完成）
+
+参考 Open-GoWith 的登录系统实现两件事：
+
+1. **验证码邮件改走 Resend**（`MAIL_TRANSPORT=resend`，官方 SDK、发件 `noreply@xiaobaozi.cn`，
+   与内部其他项目共用账号）。实测：真实发信返回 Resend 邮件 ID（`scripts/probe-mail-and-proxy.mjs`）。
+   保留 `smtp` 通道供本地联调（dev-mailsink 收信台 + 全量 E2E 读码）。
+2. **Google OAuth 服务端请求走出站代理**（`apps/api/src/auth/google-proxy.ts`）：境内服务器
+   无法直连 `*.googleapis.com`，配置 `GOOGLE_OAUTH_PROXY_BASE_URL` 后在启动时把 fetch 改写为
+   `<代理>/<原域名>/<路径>`（与 ai-proxy 节点转发 Groq/OpenAI 的形状一致）；Better Auth 的
+   token 兑换端点无覆盖口子，故采用全局改写（单测 4 项覆盖改写形状与非 Google 放行）。
+   授权跳转仍由用户浏览器直连 accounts.google.com（与 Open-GoWith 相同）。
+
+**遗留阻塞（外部依赖）**：Google 登录的 token 兑换是 POST，实测 ai-proxy 节点（Deno Deploy
+通用反代）当前对 `*.googleapis.com` 上游的 POST 一律崩溃（500），专用 `/oauth/google/*`
+路径上游 fetch 失败（502），GET 正常——节点需修复后 Google 登录方可端到端可用；
+`GOOGLE_CLIENT_ID/SECRET` 也尚未申请。节点修复与本项目的改写逻辑无关（形状已对齐）。
+
 ## 3. 本地运行
 
 ```bash
@@ -67,7 +85,7 @@
 docker run -d --name jev-pg -e POSTGRES_USER=jev -e POSTGRES_PASSWORD=jev -e POSTGRES_DB=jev -p 5432:5432 postgres:17
 
 # 2. 配置环境：复制 .env.example 为 .env.local，填 DATABASE_URL 与密钥
-#    （邮件用真实 SMTP；没有 SMTP 时 API 启动会失败——这是设计行为）
+#    （邮件通道见模板：生产 resend + RESEND_API_KEY；本地联调 smtp 投递给 dev-mailsink）
 
 # 3. 迁移 + 题库导入（--publish 仅限本地开发；正式库必须走权利审核）
 pnpm db:migrate

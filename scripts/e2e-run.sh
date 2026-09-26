@@ -11,6 +11,10 @@ echo "== 1. 启动 PostgreSQL =="
 $COMPOSE up -d --wait postgres
 
 export DATABASE_URL=postgresql://jev:jev@localhost:54339/jev
+# E2E 脚本直连数据库做断言时读 E2E_DATABASE_URL
+export E2E_DATABASE_URL=$DATABASE_URL
+# E2E 直打 API（Origin 为 8080），better-auth trustedOrigins 需与之匹配
+export PUBLIC_BASE_URL=http://localhost:8080
 echo "== 2. 迁移 + 题库导入（本地发布）=="
 DATABASE_URL=$DATABASE_URL pnpm --dir packages/database run db:migrate > /dev/null
 DATABASE_URL=$DATABASE_URL pnpm --dir packages/database run db:import-library -- --publish
@@ -25,7 +29,9 @@ OPENCODE_API_KEY=$(grep '^OPENCODE_API_KEY=' .env.local | cut -d= -f2- | tr -d '
   bash scripts/dev-env.sh jobs & JOBS_WRAPPER=$!
 
 cleanup() {
-  kill $SINK_PID $API_WRAPPER $JOBS_WRAPPER 2>/dev/null || true
+  # //T 连子进程一起杀（pnpm 包装下 tsx 是独立进程，普通 kill 会漏）
+  taskkill //F //T //PID $API_WRAPPER //PID $JOBS_WRAPPER //PID $SINK_PID > /dev/null 2>&1 || true
+  kill $SINK_PID $API_WRAPPER $JOBS_WRAPPER > /dev/null 2>&1 || true
   $COMPOSE down -v > /dev/null 2>&1 || true
   rm -f mailsink.json
 }

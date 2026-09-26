@@ -11,6 +11,7 @@ export PUBLIC_BASE_URL=http://localhost:5173
 export AUTH_SECRET=smoke-test-secret-0123456789abcdef
 export SOLO_TOKEN_SECRET=smoke-test-secret-fedcba9876543210
 # SMTP 用占位值：冒烟不触发真实发信（真实登录通道属于 M0 外部验证）
+export MAIL_TRANSPORT=smtp
 export SMTP_HOST=127.0.0.1
 export SMTP_PORT=2525
 export SMTP_USER=smoke

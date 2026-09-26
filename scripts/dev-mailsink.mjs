@@ -17,12 +17,26 @@ function flush() {
 }
 
 function extractBody(raw) {
-  // nodemailer 默认 base64 或 7bit 文本；按头部分别处理
-  const isBase64 = /Content-Transfer-Encoding:\s*base64/i.test(raw);
-  const parts = raw.split(/\r?\n\r?\n/);
-  const body = parts.slice(1).join('\n\n');
-  if (isBase64) {
+  // 解析 text/plain 部分：multipart/alternative（text+html 邮件）取 plain 段，
+  // 单部分邮件取整个正文。编码按该段的 Content-Transfer-Encoding 处理。
+  const boundaryMatch = raw.match(/boundary="?([^"\r\n;]+)"?/i);
+  let section = raw;
+  if (boundaryMatch) {
+    const sections = raw.split(`--${boundaryMatch[1]}`);
+    const plain = sections.find((s) => /Content-Type:\s*text\/plain/i.test(s));
+    if (plain) section = plain;
+  }
+  const headerEnd = section.search(/\r?\n\r?\n/);
+  if (headerEnd < 0) return '';
+  const headers = section.slice(0, headerEnd);
+  const body = section.slice(headerEnd).replace(/^\r?\n\r?\n/, '').trim();
+  if (/Content-Transfer-Encoding:\s*base64/i.test(headers)) {
     return Buffer.from(body.replace(/\s+/g, ''), 'base64').toString('utf8');
+  }
+  if (/Content-Transfer-Encoding:\s*quoted-printable/i.test(headers)) {
+    return body
+      .replace(/=\r?\n/g, '')
+      .replace(/=([0-9A-F]{2})/gi, (_, hex) => Buffer.from(hex, 'hex').toString());
   }
   return body;
 }

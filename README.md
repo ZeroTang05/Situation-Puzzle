@@ -11,7 +11,7 @@ AI 主持的海龟汤（情境猜谜）游戏。玩家围绕一道悬疑故事�
 
 ## 快速开始（本地开发）
 
-前置：Node.js 22+、pnpm 10、Docker（本地数据库）、一个真实 SMTP 邮箱服务（登录验证码用）。
+前置：Node.js 22+、pnpm 10、Docker（本地数据库）、一个 Resend 账号（登录验证码邮件）。
 
 ```bash
 pnpm install
@@ -33,7 +33,7 @@ pnpm dev:api & pnpm dev:jobs & pnpm dev:web   # 三个进程并行
 前置：一台服务器、Docker 与 Docker Compose、一个解析到服务器的域名。
 
 ```bash
-cp .env.example .env   # 填写域名、数据库密码、SMTP、Jev 密钥等
+cp .env.example .env   # 填写域名、数据库密码、Resend 密钥、Jev 密钥等
 docker compose up -d --build
 ```
 
@@ -54,7 +54,7 @@ API + 任务进程 + PostgreSQL，并且 API 容器启动时自动执行数据�
                               │
                     PostgreSQL（业务数据 + pg-boss 任务队列）
                               │
-              Jev 判题（OpenCode Zen）／ SMTP 邮件 ／ 微信支付（商户开通后）
+              Jev 判题（OpenCode Zen）／ Resend 邮件 ／ 微信支付（商户开通后）
 ```
 
 ## 技术栈
@@ -63,7 +63,7 @@ API + 任务进程 + PostgreSQL，并且 API 容器启动时自动执行数据�
 | --- | --- |
 | 玩家端 | React 19 + Vite + React Router + TanStack Query；单人记录存 IndexedDB（idb） |
 | 管理端 | React-admin |
-| API | NestJS 11（HTTP + 标准 WebSocket）、Better Auth（邮箱验证码 + Google 登录） |
+| API | NestJS 11（HTTP + 标准 WebSocket）、Better Auth（邮箱验证码 + Google 登录，境内服务器走出站代理） |
 | 数据 | PostgreSQL 17 + Drizzle ORM；pg-boss 持久任务队列 |
 | 判题 | OpenCode Zen SystemOne（模型 `jev-1.13`），置信度阈值 0.5 |
 | 部署 | Docker Compose + Caddy |

@@ -8,7 +8,8 @@ import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { loadEnv } from './env.js';
 import { createDb } from '@jev/database';
-import { createSmtpMailer } from './auth/mailer.js';
+import { createResendMailer, createSmtpMailer } from './auth/mailer.js';
+import { installGoogleOAuthProxy } from './auth/google-proxy.js';
 import { createAuth } from './auth/auth.types.js';
 import { jevConfigFromEnv } from '@jev/jev';
 import { createAppContext } from './bootstrap.js';
@@ -24,13 +25,22 @@ async function main(): Promise<void> {
   // 启动即验证数据库连通，失败就地崩溃
   await db.pool.query('select 1');
 
-  const mailer = createSmtpMailer({
-    host: env.SMTP_HOST,
-    port: env.SMTP_PORT,
-    user: env.SMTP_USER,
-    pass: env.SMTP_PASS,
-    from: env.MAIL_FROM,
-  });
+  // 境内服务器：Google 服务端请求（token 兑换、JWKS）改写到出站代理，须在创建 auth 前安装
+  if (env.GOOGLE_OAUTH_PROXY_BASE_URL) {
+    installGoogleOAuthProxy(env.GOOGLE_OAUTH_PROXY_BASE_URL);
+    logger.log(`Google OAuth 出站代理：${env.GOOGLE_OAUTH_PROXY_BASE_URL}`);
+  }
+
+  const mailer =
+    env.MAIL_TRANSPORT === 'resend'
+      ? createResendMailer({ apiKey: env.RESEND_API_KEY!, from: env.MAIL_FROM })
+      : createSmtpMailer({
+          host: env.SMTP_HOST!,
+          port: env.SMTP_PORT,
+          user: env.SMTP_USER!,
+          pass: env.SMTP_PASS!,
+          from: env.MAIL_FROM,
+        });
 
   const auth = createAuth({ env, db, mailer });
   const jev = jevConfigFromEnv(env as unknown as NodeJS.ProcessEnv);

@@ -3,16 +3,20 @@
 set -e
 cd "$(dirname "$0")/.."
 
-export DATABASE_URL=postgresql://jev:jev@localhost:54329/jev
+# 默认端口 54329；e2e-run.sh 会先导出一次性库地址（54339），已有值不覆盖
+export DATABASE_URL=${DATABASE_URL:-postgresql://jev:jev@localhost:54329/jev}
 export PORT=8080
-# PUBLIC_BASE_URL 是「对外站点」的来源（better-auth trustedOrigins 用它校验前端 Origin）
-export PUBLIC_BASE_URL=http://localhost:5173
+# PUBLIC_BASE_URL 是「对外站点」的来源（better-auth trustedOrigins 用它校验前端 Origin）；
+# 默认 Vite 前端 5173；e2e-run.sh 会导出 8080（E2E 直打 API），已有值不覆盖
+export PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:5173}
 export AUTH_SECRET=e2e-dev-secret-0123456789abcdef
 export SOLO_TOKEN_SECRET=e2e-dev-secret-fedcba9876543210
 export SMTP_HOST=127.0.0.1
 export SMTP_PORT=2526
 export SMTP_USER=dev
 export SMTP_PASS=dev
+# 本地联调用 SMTP 收信台；生产用 Resend（默认）
+export MAIL_TRANSPORT=smtp
 export MAIL_FROM="Jev <dev@localhost>"
 export OPENCODE_API_KEY=$(grep '^OPENCODE_API_KEY=' .env.local | cut -d= -f2- | tr -d '"' | tr -d '\r')
 export SINK_OUT="$(pwd)/mailsink.json"
