@@ -83,6 +83,15 @@ export class RealtimeGateway {
 
   handleConnection(client: WebSocket): void {
     this.clients.set(client, { userId: null, subscriptions: new Map(), lastPongAt: Date.now(), alive: true });
+    // 5 秒鉴权时限（docs/rebuild/04-ROOM-JEV.md §5）：超时未发 auth 帧直接关闭，防未认证连接堆积
+    const authTimer = setTimeout(() => {
+      const state = this.clients.get(client);
+      if (state && !state.userId) {
+        client.close();
+      }
+    }, 5_000);
+    authTimer.unref();
+    client.on('close', () => clearTimeout(authTimer));
     client.on('pong', () => {
       const state = this.clients.get(client);
       if (state) state.lastPongAt = Date.now();
