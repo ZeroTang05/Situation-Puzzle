@@ -40,8 +40,18 @@ export function LibraryPage({ session }: { session: Session | null }) {
 
   const onPick = (puzzle: PuzzleItem) => {
     if (mode === 'select') {
-      // 房主选题流程：带上题目回到房间（由房间页完成 select_puzzle 命令）
       const roomId = params.get('roomId');
+      const followupRoomId = params.get('followup');
+      if (followupRoomId) {
+        // 再来一题：选定新题后创建独立新房并一键迁移合格成员（10-ROOM-LIFECYCLE-REVISION §一.2/3）
+        void api<{ targetRoomId: string }>('/rooms/followup', {
+          method: 'POST',
+          body: { sourceRoomId: followupRoomId, puzzleId: puzzle.id, language },
+        })
+          .then((result) => navigate(`/rooms/${result.targetRoomId}`))
+          .catch(() => undefined);
+        return;
+      }
       if (roomId) {
         navigate(`/rooms/${roomId}?selectPuzzle=${puzzle.id}&lang=${language}`);
       }

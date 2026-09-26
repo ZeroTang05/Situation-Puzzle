@@ -26,6 +26,11 @@ export interface AppContext {
   boss: PgBoss;
   queue: QueueHandle;
   expressServer: import('express').Express;
+  /**
+   * 实时网关钩子：main.ts 在网关创建后注入。
+   * 踢人等命令用它在事务提交后立即断开被移除者的订阅（本进程内）。
+   */
+  realtime?: { dropUserFromRoom: (userId: string, roomId: string) => void };
 }
 
 let context: AppContext | null = null;

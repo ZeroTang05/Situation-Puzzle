@@ -4,6 +4,7 @@
  */
 import { and, eq, inArray, sql, min } from 'drizzle-orm';
 import {
+  activeRoomUsers,
   freeRoomAccounts,
   roomCreditLedger,
   roomEntitlements,
@@ -25,6 +26,7 @@ export type RoomEventType =
   | 'room.member_unrestricted'
   | 'room.host_changed'
   | 'room.invite_rotated'
+  | 'room.followup_created'
   | 'room.closed'
   | 'round.started'
   | 'round.ended'
@@ -162,4 +164,40 @@ export async function refundConsumedEntitlementTx(tx: Tx, roomId: string): Promi
 export async function earliestSeqTx(tx: Tx, roomId: string): Promise<number | null> {
   const rows = await tx.select({ value: min(roomEvents.seq) }).from(roomEvents).where(eq(roomEvents.roomId, roomId));
   return rows[0]?.value ?? null;
+}
+
+/**
+ * 归档房间（docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md §二）：
+ * 取消该局全部未完成任务并推进取消代次 → 释放未消费预留 → 房间转 closed →
+ * 删除成员的进行中标记 → 追加 room.closed 事件。
+ * 归档是唯一终态路径：破解、公布、放弃、解散、运营终止都走这里，仅 reason 不同。
+ * 已消费的免费机会不退（运营事故补偿由 refundConsumedEntitlementTx 单独执行）。
+ */
+export async function archiveRoomTx(
+  tx: Tx,
+  roomId: string,
+  reason: 'by_host' | 'idle' | 'all_offline' | 'moderation' | 'host_left' | 'round_ended',
+  roundId: string | null,
+): Promise<void> {
+  const now = new Date();
+  if (roundId) {
+    const cancelled = await tx
+      .update(turns)
+      .set({ status: 'cancelled', completedAt: now })
+      .where(and(eq(turns.roundId, roundId), inArray(turns.status, ['queued', 'processing'])))
+      .returning({ turnId: turns.id });
+    if (cancelled.length > 0) {
+      for (const t of cancelled) {
+        await appendEvent(tx, { roomId, roundId, type: 'turn.cancelled', payload: { turnId: t.turnId } });
+      }
+    }
+    await tx
+      .update(rounds)
+      .set({ cancelGeneration: sql`${rounds.cancelGeneration} + 1` })
+      .where(eq(rounds.id, roundId));
+  }
+  await releaseEntitlementIfReservedTx(tx, roomId);
+  await tx.update(rooms).set({ status: 'closed', closedAt: now, closeReason: reason }).where(eq(rooms.id, roomId));
+  await tx.delete(activeRoomUsers).where(eq(activeRoomUsers.roomId, roomId));
+  await appendEvent(tx, { roomId, roundId, type: 'room.closed', payload: { reason } });
 }

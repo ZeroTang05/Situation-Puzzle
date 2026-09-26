@@ -10,6 +10,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import {
   activeRoomUsers,
   appendEvent,
+  archiveRoomTx,
   notifyRoomChange,
   presence,
   profiles,
@@ -21,7 +22,6 @@ import {
   roundParticipants,
   rounds,
   turns,
-  releaseEntitlementIfReservedTx,
 } from '@jev/database';
 import {
   DomainError,
@@ -144,10 +144,16 @@ export class CommandsService {
         ...(outcome.inviteToken !== undefined ? { inviteToken: outcome.inviteToken } : {}),
       };
       await tx.update(commands).set({ result: commandResult as unknown as Record<string, unknown> }).where(eq(commands.id, inserted[0]!.id));
-      return commandResult;
+      // droppedUserId 只在本次进程内使用（断开被踢者订阅），不写入幂等结果
+      return { ...commandResult, ...(outcome.droppedUserId ? { droppedUserId: outcome.droppedUserId } : {}) };
     });
 
     await notifyRoomChange(db.pool, roomId);
+    // 踢人后立即断开被移除者的实时订阅（docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md R06）
+    const dropped = (result as { droppedUserId?: string }).droppedUserId;
+    if (dropped) {
+      app().realtime?.dropUserFromRoom(dropped, roomId);
+    }
     return result;
   }
 
@@ -166,6 +172,8 @@ export class CommandsService {
     turnId?: string;
     acceptedSeq?: number;
     inviteToken?: string;
+    /** kick 命令产出：事务提交后由调用方断开被移除者的实时订阅 */
+    droppedUserId?: string;
   }> {
     const { user, room, round, isHost, input } = ctx;
     const payload = input.payload;
@@ -173,6 +181,9 @@ export class CommandsService {
     switch (input.type) {
       case 'select_puzzle': {
         if (!isHost) throw new DomainError('FORBIDDEN', '只有房主可以选题');
+        // 一房一题（docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md §一.1）：本房玩过题就不再接受新题
+        const [existingRound] = await tx.select({ id: rounds.id }).from(rounds).where(eq(rounds.roomId, room.id)).limit(1);
+        if (existingRound) throw new DomainError('STATE_CONFLICT', '这个房间已经玩过一道题，下一题请创建新房间');
         const { puzzleId, language } = payload as { puzzleId: string; language: 'zh' | 'en' };
         const [version] = await tx
           .select()
@@ -353,14 +364,14 @@ export class CommandsService {
           .set({ status: 'revealed', endedAt: new Date(), endReason: 'host_revealed' })
           .where(eq(rounds.id, round.id));
         await tx.update(roundParticipants).set({ knowsAnswer: true }).where(eq(roundParticipants.roundId, round.id));
-        await tx.update(rooms).set({ status: 'waiting', lastActivityAt: new Date() }).where(eq(rooms.id, room.id));
         await appendEvent(tx, {
           roomId: room.id,
           roundId: round.id,
           type: 'round.ended',
           payload: { roundId: round.id, status: 'revealed', reason: 'host_revealed' },
         });
-        await app().queue.sendInTx(tx, 'dispatch-room', { roomId: room.id });
+        // 终局即归档：本房一题，公布后房间只读（10-ROOM-LIFECYCLE-REVISION §一.1）
+        await archiveRoomTx(tx, room.id, 'round_ended', round.id);
         return { controlCommand: true };
       }
 
@@ -371,14 +382,14 @@ export class CommandsService {
           .update(rounds)
           .set({ status: 'abandoned', endedAt: new Date(), endReason: 'by_host' })
           .where(eq(rounds.id, round.id));
-        await tx.update(rooms).set({ status: 'waiting', lastActivityAt: new Date() }).where(eq(rooms.id, room.id));
         await appendEvent(tx, {
           roomId: room.id,
           roundId: round.id,
           type: 'round.ended',
           payload: { roundId: round.id, status: 'abandoned', reason: 'by_host' },
         });
-        await app().queue.sendInTx(tx, 'dispatch-room', { roomId: room.id });
+        // 房主主动放弃：房间归档，未消费预留释放（10-ROOM-LIFECYCLE-REVISION §一.4）
+        await archiveRoomTx(tx, room.id, 'round_ended', round.id);
         return { controlCommand: true };
       }
 
@@ -401,7 +412,7 @@ export class CommandsService {
               payload: { userId: successor, nickname: successorNickname?.nickname ?? successor },
             });
           } else {
-            await this.closeRoomTx(tx, room.id, 'host_left', round?.id ?? null);
+            await archiveRoomTx(tx, room.id, 'host_left', round?.id ?? null);
           }
         }
         return { controlCommand: true };
@@ -416,9 +427,9 @@ export class CommandsService {
           .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, userId)))
           .limit(1);
         if (!target || target.status !== 'joined') throw new DomainError('NOT_FOUND', '成员不存在');
-        const [targetProfile] = await tx.select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
+        const [targetProfile] = await tx.select({ nickname: profiles.nickname }).from(profiles).where(eq(profiles.userId, userId)).limit(1);
         await this.removeMember(tx, { room, userId, nickname: targetProfile?.nickname ?? userId, kicked: true });
-        return { controlCommand: true };
+        return { controlCommand: true, droppedUserId: userId };
       }
 
       case 'unrestrict_member': {
@@ -473,7 +484,7 @@ export class CommandsService {
 
       case 'close_room': {
         if (!isHost) throw new DomainError('FORBIDDEN', '只有房主可以解散房间');
-        await this.closeRoomTx(tx, room.id, 'by_host', round?.id ?? null);
+        await archiveRoomTx(tx, room.id, 'by_host', round?.id ?? null);
         return { controlCommand: true };
       }
 
@@ -552,31 +563,6 @@ export class CommandsService {
       .filter((m) => m.userId !== currentHostId && onlineSet.has(m.userId))
       .sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime());
     return candidates[0]?.userId ?? null;
-  }
-
-  /** 关闭房间：终止进行中局、释放未消费预留、删除进行中标记。 */
-  private async closeRoomTx(
-    tx: Parameters<Parameters<import('@jev/database').Database['transaction']>[0]>[0],
-    roomId: string,
-    reason: 'by_host' | 'host_left' | 'idle' | 'all_offline' | 'moderation',
-    activeRoundId: string | null,
-  ): Promise<void> {
-    const now = new Date();
-    if (activeRoundId) {
-      await tx
-        .update(rounds)
-        .set({ status: 'aborted', endedAt: now, endReason: reason })
-        .where(and(eq(rounds.id, activeRoundId), eq(rounds.status, 'active')));
-      await tx
-        .update(turns)
-        .set({ status: 'cancelled', completedAt: now })
-        .where(and(eq(turns.roundId, activeRoundId), sql`status in ('queued','processing')`));
-      await tx.update(rounds).set({ cancelGeneration: sql`${rounds.cancelGeneration} + 1` }).where(eq(rounds.id, activeRoundId));
-    }
-    await releaseEntitlementIfReservedTx(tx, roomId);
-    await tx.update(rooms).set({ status: 'closed', closedAt: now, closeReason: reason }).where(eq(rooms.id, roomId));
-    await tx.delete(activeRoomUsers).where(eq(activeRoomUsers.roomId, roomId));
-    await appendEvent(tx, { roomId, roundId: activeRoundId, type: 'room.closed', payload: { reason } });
   }
 }
 

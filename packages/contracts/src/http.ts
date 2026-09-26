@@ -122,6 +122,31 @@ export const roomJoinRequestSchema = z.object({
   token: z.string().min(8),
 });
 
+/** 再来一题：从已归档房间创建独立新房并一键迁移合格成员（10-ROOM-LIFECYCLE-REVISION §一.2/3） */
+export const roomFollowupRequestSchema = z.object({
+  sourceRoomId: z.string().uuid(),
+  puzzleId: z.string().uuid(),
+  language: languageSchema,
+});
+
+export const roomFollowupMemberSchema = z.object({
+  userId: z.string(),
+  nickname: z.string(),
+  /** false 时 reason 说明未迁入原因（in_other_room / room_full） */
+  migrated: z.boolean(),
+  reason: z.enum(['in_other_room', 'room_full']).optional(),
+});
+
+export const roomFollowupResponseSchema = z.object({
+  sourceRoomId: z.string(),
+  targetRoomId: z.string(),
+  /** 重复请求返回同一目标房 */
+  existing: z.boolean(),
+  /** 新房邀请令牌（仅首次创建返回；成员已直接迁入，此链接用于邀请新朋友） */
+  inviteToken: z.string().optional(),
+  members: z.array(roomFollowupMemberSchema),
+});
+
 // ---------- 房间命令 ----------
 
 export const commandTypes = [

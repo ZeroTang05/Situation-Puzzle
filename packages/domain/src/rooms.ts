@@ -14,22 +14,19 @@ export const PER_USER_QUEUE_LIMIT = 1;
 export const DISCUSSION_PER_MINUTE = 30;
 /** 排队 60 秒未开始判为失败 */
 export const TURN_QUEUE_TIMEOUT_MS = 60_000;
-/** 房主离线 90 秒转让 */
-export const HOST_OFFLINE_TRANSFER_MS = 90_000;
-/** 全员离线 30 分钟关闭 */
-export const ALL_OFFLINE_CLOSE_MS = 30 * 60_000;
-/** 等待室 24 小时无活动关闭 */
-export const WAITING_ROOM_IDLE_MS = 24 * 60 * 60_000;
 
 export type RoomStatus = 'waiting' | 'playing' | 'closed';
 export type RoundStatus = 'active' | 'solved' | 'revealed' | 'abandoned' | 'aborted';
 export type TurnStatus = 'queued' | 'processing' | 'succeeded' | 'failed' | 'cancelled';
 
-/** 房间状态机：waiting→playing→waiting 循环，终态 closed。 */
+/**
+ * 房间状态机（docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md）：
+ * waiting→playing→closed 单向；局结束即归档，离线与闲置不改变状态。
+ */
 export function assertRoomTransition(from: RoomStatus, to: RoomStatus): void {
   const allowed: Record<RoomStatus, RoomStatus[]> = {
     waiting: ['playing', 'closed'],
-    playing: ['waiting', 'closed'],
+    playing: ['closed'],
     closed: [],
   };
   if (!allowed[from].includes(to)) {
@@ -73,7 +70,7 @@ export function nextHintIndex(hintsRevealed: number): number {
   return hintsRevealed;
 }
 
-/** 房主候选：在线且最早加入的成员（排除现任房主）。 */
+/** 房主候选：在线且最早加入的成员（排除现任房主）。仅用于房主主动离开/转让。 */
 export function pickHostSuccessor(
   members: Array<{ userId: string; online: boolean; joinedAt: Date; status: 'joined' | 'left' | 'kicked' }>,
   currentHostId: string,

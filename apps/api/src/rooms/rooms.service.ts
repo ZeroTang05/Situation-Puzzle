@@ -13,6 +13,8 @@ import {
   presence,
   profiles,
   puzzleVersions,
+  puzzles,
+  roomFollowups,
   roomMembers,
   roomEvents,
   rooms,
@@ -73,55 +75,251 @@ export class RoomsService {
       return { roomId: existing[0]!.id, inviteToken: null, existing: true };
     }
 
+    // 每人最多一个进行中房间：已被迁入/加入某个活动房间时返回该房入口（10-ROOM-LIFECYCLE-REVISION §一.3）
+    const [activeRow] = await db.db
+      .select({ roomId: activeRoomUsers.roomId })
+      .from(activeRoomUsers)
+      .innerJoin(rooms, eq(rooms.id, activeRoomUsers.roomId))
+      .where(and(eq(activeRoomUsers.userId, user.userId), sql`${rooms.status} <> 'closed'`))
+      .limit(1);
+    if (activeRow) {
+      return { roomId: activeRow.roomId, inviteToken: null, existing: true };
+    }
+
     const inviteToken = randomBytes(16).toString('hex');
     const created = await db.tx(async (tx) => {
-      // 锁授权账户：赞助检查与免费扣减在同一把锁下完成
-      const grants = await tx.select().from(sponsorGrants).where(eq(sponsorGrants.userId, user.userId));
-      const freeRows = await tx.select().from(freeRoomAccounts).where(eq(freeRoomAccounts.userId, user.userId)).for('update');
-      const free = freeRows[0];
-      if (!free) throw new DomainError('UNAUTHORIZED', '账号未初始化免费次数账户');
-
-      const { source, grantId } = resolveEntitlementSource(grants, free, now);
-
-      const inserted = await tx
-        .insert(rooms)
-        .values({
-          creatorUserId: user.userId,
-          hostUserId: user.userId,
-          capacity,
-          inviteTokenHash: hashToken(inviteToken),
-        })
-        .returning({ id: rooms.id });
-      const roomId = inserted[0]!.id;
-
-      await tx.insert(roomMembers).values({ roomId, userId: user.userId, status: 'joined' });
-      await tx.insert(activeRoomUsers).values({ userId: user.userId, roomId });
-
-      const entitlement = await tx
-        .insert(roomEntitlements)
-        .values({ roomId, creatorUserId: user.userId, source, sponsorGrantId: grantId ?? null, status: 'reserved' })
-        .returning({ id: roomEntitlements.id });
-      await tx.update(rooms).set({ entitlementId: entitlement[0]!.id }).where(eq(rooms.id, roomId));
-
-      if (source === 'free') {
-        const reservedRows = await tx
-          .update(freeRoomAccounts)
-          .set({ reserved: sql`${freeRoomAccounts.reserved} + 1`, updatedAt: now })
-          .where(
-            and(
-              eq(freeRoomAccounts.userId, user.userId),
-              sql`${freeRoomAccounts.consumed} + ${freeRoomAccounts.reserved} < ${freeRoomAccounts.total}`,
-            ),
-          )
-          .returning({ userId: freeRoomAccounts.userId });
-        if (reservedRows.length === 0) throw new DomainError('FREE_ROOMS_EXHAUSTED', '免费开房次数已用完');
-        await tx.insert(roomCreditLedger).values({ roomId, userId: user.userId, action: 'reserve', amount: 1 });
-      }
+      const roomId = await this.createRoomTx(tx, { user, capacity, inviteTokenHash: hashToken(inviteToken), now });
       return { roomId };
     });
 
     await notifyRoomChange(db.pool, created.roomId);
     return { roomId: created.roomId, inviteToken, existing: false };
+  }
+
+  /**
+   * 建房事务体：锁授权账户 → 判定来源（先赞助后免费）→ 建房 + 成员 + 授权 + 预留流水。
+   * createRoom 与续玩新房共用；调用方负责前置状态检查（锁序：房间 → 赞助账户 → 免费账户）。
+   */
+  private async createRoomTx(
+    tx: Tx,
+    input: { user: SessionUser; capacity: number; inviteTokenHash: string; now: Date },
+  ): Promise<string> {
+    const { user, capacity, inviteTokenHash, now } = input;
+    const grants = await tx.select().from(sponsorGrants).where(eq(sponsorGrants.userId, user.userId));
+    const freeRows = await tx.select().from(freeRoomAccounts).where(eq(freeRoomAccounts.userId, user.userId)).for('update');
+    const free = freeRows[0];
+    if (!free) throw new DomainError('UNAUTHORIZED', '账号未初始化免费次数账户');
+
+    const { source, grantId } = resolveEntitlementSource(grants, free, now);
+
+    const inserted = await tx
+      .insert(rooms)
+      .values({
+        creatorUserId: user.userId,
+        hostUserId: user.userId,
+        capacity,
+        inviteTokenHash,
+      })
+      .returning({ id: rooms.id });
+    const roomId = inserted[0]!.id;
+
+    await tx.insert(roomMembers).values({ roomId, userId: user.userId, status: 'joined' });
+    await tx.insert(activeRoomUsers).values({ userId: user.userId, roomId });
+
+    const entitlement = await tx
+      .insert(roomEntitlements)
+      .values({ roomId, creatorUserId: user.userId, source, sponsorGrantId: grantId ?? null, status: 'reserved' })
+      .returning({ id: roomEntitlements.id });
+    await tx.update(rooms).set({ entitlementId: entitlement[0]!.id }).where(eq(rooms.id, roomId));
+
+    if (source === 'free') {
+      const reservedRows = await tx
+        .update(freeRoomAccounts)
+        .set({ reserved: sql`${freeRoomAccounts.reserved} + 1`, updatedAt: now })
+        .where(
+          and(
+            eq(freeRoomAccounts.userId, user.userId),
+            sql`${freeRoomAccounts.consumed} + ${freeRoomAccounts.reserved} < ${freeRoomAccounts.total}`,
+          ),
+        )
+        .returning({ userId: freeRoomAccounts.userId });
+      if (reservedRows.length === 0) throw new DomainError('FREE_ROOMS_EXHAUSTED', '免费开房次数已用完');
+      await tx.insert(roomCreditLedger).values({ roomId, userId: user.userId, action: 'reserve', amount: 1 });
+    }
+    return roomId;
+  }
+
+  /**
+   * 再来一题（docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md §一.2/3）：
+   * 房主从已归档房间选定新题，同一事务内创建独立新房并迁入合格成员。
+   * 每个新房重新检查赞助或免费资格；重复请求返回同一目标房；失败整事务回滚。
+   */
+  async createFollowupRoom(
+    user: SessionUser,
+    sourceRoomId: string,
+    puzzleId: string,
+    language: 'zh' | 'en',
+  ): Promise<{
+    sourceRoomId: string;
+    targetRoomId: string;
+    existing: boolean;
+    inviteToken?: string;
+    members: Array<{ userId: string; nickname: string; migrated: boolean; reason?: 'in_other_room' | 'room_full' }>;
+  }> {
+    const db = this.db;
+    const now = new Date();
+
+    const result = await db.tx(async (tx) => {
+      const [source] = await tx.select().from(rooms).where(eq(rooms.id, sourceRoomId)).for('update').limit(1);
+      if (!source) throw new DomainError('NOT_FOUND', '房间不存在');
+      if (source.status !== 'closed') throw new DomainError('STATE_CONFLICT', '房间尚未结束，不能发起下一题');
+      if (source.hostUserId !== user.userId) throw new DomainError('FORBIDDEN', '只有房主可以发起再来一题');
+
+      // 幂等：重复请求返回同一目标房
+      const [followup] = await tx.select().from(roomFollowups).where(eq(roomFollowups.sourceRoomId, source.id)).limit(1);
+      if (followup) {
+        return {
+          sourceRoomId: source.id,
+          targetRoomId: followup.targetRoomId,
+          existing: true,
+          memberResults: followup.memberResults as Array<Record<string, unknown>>,
+          newRoomId: null as string | null,
+          inviteToken: null as string | null,
+        };
+      }
+
+      // 新题版本：published + 语言可用
+      const [version] = await tx
+        .select()
+        .from(puzzleVersions)
+        .innerJoin(puzzles, eq(puzzles.id, puzzleVersions.puzzleId))
+        .where(
+          and(
+            eq(puzzleVersions.puzzleId, puzzleId),
+            eq(puzzleVersions.moderationStatus, 'published'),
+            eq(puzzleVersions.language, language),
+            eq(puzzles.unavailable, false),
+          ),
+        )
+        .orderBy(desc(puzzleVersions.versionNo))
+        .limit(1);
+      if (!version) throw new DomainError('PUZZLE_UNPUBLISHED', '题目不可用或未发布');
+
+      // 新房授权：与普通建房同一套规则（先赞助后免费）
+      const inviteToken = randomBytes(16).toString('hex');
+      const targetRoomId = await this.createRoomTx(tx, {
+        user,
+        capacity: source.capacity,
+        inviteTokenHash: hashToken(inviteToken),
+        now,
+      });
+
+      // 一键迁移：原房 joined 成员；已加入其他房间的跳过并注明原因
+      const sourceMembers = await tx
+        .select({ userId: roomMembers.userId })
+        .from(roomMembers)
+        .where(and(eq(roomMembers.roomId, source.id), eq(roomMembers.status, 'joined')));
+      const nicknameMap = await this.nicknamesOf(tx, sourceMembers.map((m) => m.userId));
+
+      const [memberCountRow] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(roomMembers)
+        .where(and(eq(roomMembers.roomId, targetRoomId), eq(roomMembers.status, 'joined')));
+      let memberCount = memberCountRow?.count ?? 1;
+
+      const memberResults: Array<{ userId: string; nickname: string; migrated: boolean; reason?: string }> = [];
+      for (const member of sourceMembers) {
+        if (member.userId === user.userId) continue; // 房主已随建房迁入
+        const nickname = nicknameMap.get(member.userId) ?? member.userId;
+        if (memberCount >= source.capacity) {
+          memberResults.push({ userId: member.userId, nickname, migrated: false, reason: 'room_full' });
+          continue;
+        }
+        const [otherActive] = await tx
+          .select({ roomId: activeRoomUsers.roomId })
+          .from(activeRoomUsers)
+          .where(eq(activeRoomUsers.userId, member.userId))
+          .limit(1);
+        if (otherActive && otherActive.roomId !== targetRoomId) {
+          memberResults.push({ userId: member.userId, nickname, migrated: false, reason: 'in_other_room' });
+          continue;
+        }
+        await tx.insert(roomMembers).values({ roomId: targetRoomId, userId: member.userId, status: 'joined' });
+        if (!otherActive) {
+          await tx.insert(activeRoomUsers).values({ userId: member.userId, roomId: targetRoomId });
+        }
+        memberCount += 1;
+        memberResults.push({ userId: member.userId, nickname, migrated: true });
+      }
+
+      // 新房直接开局：一房一题，从起点开始独立事件序列
+      const [newRound] = await tx
+        .insert(rounds)
+        .values({
+          roomId: targetRoomId,
+          roundNo: 1,
+          puzzleVersionId: version.puzzle_versions.id,
+          language: version.puzzle_versions.language,
+          jevConfigVersion: `${app().jev.model}@${app().jev.promptVersion}@t${app().jev.threshold}@${app().jev.language}`,
+        })
+        .returning();
+      const migratedUserIds = memberResults.filter((m) => m.migrated).map((m) => m.userId);
+      for (const userId of [user.userId, ...migratedUserIds]) {
+        await tx.insert(roundParticipants).values({ roundId: newRound!.id, userId }).onConflictDoNothing();
+      }
+      await tx.update(rooms).set({ status: 'playing', lastActivityAt: now }).where(eq(rooms.id, targetRoomId));
+      await appendEvent(tx, {
+        roomId: targetRoomId,
+        roundId: newRound!.id,
+        type: 'round.started',
+        payload: {
+          roundId: newRound!.id,
+          roundNo: 1,
+          puzzleId: version.puzzles.id,
+          title: version.puzzle_versions.title,
+          surface: version.puzzle_versions.surface,
+          language: version.puzzle_versions.language,
+          hintsTotal: version.puzzle_versions.hints.length,
+        },
+      });
+
+      // 旧房事件流里给在线成员新房入口；旧房历史保持只读独立
+      await appendEvent(tx, {
+        roomId: source.id,
+        roundId: null,
+        type: 'room.followup_created',
+        payload: { targetRoomId, hostUserId: user.userId, puzzleTitle: version.puzzle_versions.title },
+      });
+
+      // 续玩关系：source 唯一约束保证重复请求返回同一目标房
+      await tx.insert(roomFollowups).values({
+        sourceRoomId: source.id,
+        targetRoomId,
+        initiatedBy: user.userId,
+        memberResults,
+      });
+
+      return {
+        sourceRoomId: source.id,
+        targetRoomId,
+        existing: false,
+        memberResults: memberResults as Array<Record<string, unknown>>,
+        newRoomId: targetRoomId,
+        inviteToken,
+      };
+    });
+
+    // 唤醒两个房间的事件流：旧房推新房入口，新房推快照/开局
+    await notifyRoomChange(db.pool, result.sourceRoomId);
+    if (result.newRoomId) await notifyRoomChange(db.pool, result.newRoomId);
+
+    return {
+      sourceRoomId: result.sourceRoomId,
+      targetRoomId: result.targetRoomId,
+      existing: result.existing,
+      ...(result.inviteToken ? { inviteToken: result.inviteToken } : {}),
+      members: result.memberResults as Array<{ userId: string; nickname: string; migrated: boolean; reason?: 'in_other_room' | 'room_full' }>,
+    };
   }
 
   /** 邀请预览：只给最小信息，不给成员资料。 */

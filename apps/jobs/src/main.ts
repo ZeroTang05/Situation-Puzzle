@@ -1,11 +1,14 @@
 /**
- * jobs 进程：pg-boss 任务执行器（docs/rebuild/04-ROOM-JEV.md §4）。
+ * jobs 进程：pg-boss 任务执行器（docs/rebuild/04-ROOM-JEV.md §4、10-ROOM-LIFECYCLE-REVISION.md）。
  *
  * 任务拓扑：
  *   dispatch-room    房间调度：领取最早 queued 任务并投递 process-turn
  *   process-turn     判题执行：领取（短事务）→ Jev 请求（事务外）→ 结果事务
  *   review-puzzle    投稿机器检查：Jev 辅助审核
- *   maintenance      每 5 秒巡检：排队超时、占用失效、房主转让、全员离线、订单关单
+ *   maintenance      每 5 秒巡检：排队超时、占用失效（不关闭房间、不转让房主）
+ *
+ * 房间生命周期：破解/公布/放弃/解散/运营终止时归档；离线与闲置不自动归档，
+ * 模型故障只让当次任务明确失败，房间保留以便恢复后继续。
  *
  * 锁序：房间 → 局 → 赞助账户 → 免费账户 → 任务。
  */
@@ -16,14 +19,13 @@ import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '@jev/database/schema';
 import {
   appendEvent,
+  archiveRoomTx,
   consumeEntitlementIfFreeTx,
   freeRoomAccounts,
   notifyRoomChange,
-  presence,
   profiles,
   puzzleVersions,
   puzzles,
-  refundConsumedEntitlementTx,
   roomMembers,
   rooms,
   roundParticipants,
@@ -40,8 +42,6 @@ const TURN_ATTEMPT_TIMEOUT_MS = 20_000;
 const TURN_TOTAL_DEADLINE_MS = 45_000;
 const TURN_QUEUE_TIMEOUT_MS = 60_000;
 const LEASE_MS = 60_000;
-/** 单局连续基础设施失败次数阈值：达到即中止本局并关闭房间 */
-const CONSECUTIVE_INFRA_FAILURES_LIMIT = 3;
 
 interface Env {
   DATABASE_URL: string;
@@ -268,18 +268,14 @@ class JobsApp {
       await consumeEntitlementIfFreeTx(tx, room.id);
 
       if (solved) {
-        // 破解成功：全局结束，取消未完成任务
-        await tx
-          .update(turns)
-          .set({ status: 'cancelled', completedAt: now })
-          .where(and(eq(turns.roundId, round.id), inArray(turns.status, ['queued', 'processing'])));
+        // 破解成功：终局并归档房间（一房一题，10-ROOM-LIFECYCLE-REVISION §一.1）
         await tx
           .update(rounds)
-          .set({ status: 'solved', endedAt: now, endReason: 'solved', cancelGeneration: sql`${rounds.cancelGeneration} + 1` })
+          .set({ status: 'solved', endedAt: now, endReason: 'solved' })
           .where(eq(rounds.id, round.id));
         await tx.update(roundParticipants).set({ knowsAnswer: true }).where(eq(roundParticipants.roundId, round.id));
-        await tx.update(rooms).set({ status: 'waiting', lastActivityAt: now }).where(eq(rooms.id, room.id));
         await appendEvent(tx, { roomId: room.id, roundId: round.id, type: 'round.ended', payload: { roundId: round.id, status: 'solved', reason: 'solved' } });
+        await archiveRoomTx(tx, room.id, 'round_ended', round.id);
       }
     });
     await notifyRoomChange(this.pool, payload.roomId);
@@ -287,7 +283,7 @@ class JobsApp {
     await this.boss.send('dispatch-room', { roomId: payload.roomId } satisfies DispatchPayload);
   }
 
-  /** 失败事务：写失败状态与事件；连续基础设施失败达阈值时中止本局并关闭房间（含免费次数退回）。 */
+  /** 失败事务：写失败状态与事件。房间保留以便恢复后继续；运营终止走带原因的管理操作（R05）。 */
   private async failTurn(payload: TurnPayload, reason: string, retryable: boolean): Promise<void> {
     const db = this.db;
     const now = new Date();
@@ -295,7 +291,6 @@ class JobsApp {
       const [room] = await tx.select().from(rooms).where(eq(rooms.id, payload.roomId)).for('update').limit(1);
       const [turn] = await tx.select().from(turns).where(eq(turns.id, payload.turnId)).for('update').limit(1);
       if (!room || !turn) return;
-      const [round] = await tx.select().from(rounds).where(eq(rounds.id, turn.roundId)).limit(1);
       if (turn.status !== 'processing' && turn.status !== 'queued') return;
 
       await tx
@@ -308,52 +303,6 @@ class JobsApp {
         type: 'turn.failed',
         payload: { turnId: turn.id, reason, retryable },
       });
-
-      if (!round || round.status !== 'active') return;
-      // 连续 3 个任务因基础设施失败：中止本局并关闭房间（docs/rebuild/04-ROOM-JEV.md §7）
-      const recent = await tx
-        .select({ status: turns.status, failReason: turns.failReason })
-        .from(turns)
-        .where(and(eq(turns.roundId, round.id), inArray(turns.status, ['failed', 'succeeded'])))
-        .orderBy(sql`${turns.acceptedSeq} desc`)
-        .limit(CONSECUTIVE_INFRA_FAILURES_LIMIT);
-      const infraStreak =
-        recent.length >= CONSECUTIVE_INFRA_FAILURES_LIMIT &&
-        recent.every((t) => t.status === 'failed' && t.failReason === 'jev_infra');
-      if (infraStreak && reason === 'jev_infra') {
-        const normalEnded = await tx
-          .select({ count: sql<number>`count(*)::int` })
-          .from(rounds)
-          .where(and(eq(rounds.roomId, room.id), inArray(rounds.status, ['solved', 'revealed'])));
-        await tx
-          .update(rounds)
-          .set({ status: 'aborted', endedAt: now, endReason: 'jev_unavailable', cancelGeneration: sql`${rounds.cancelGeneration} + 1` })
-          .where(and(eq(rounds.id, round.id), eq(rounds.status, 'active')));
-        await tx
-          .update(turns)
-          .set({ status: 'cancelled', completedAt: now })
-          .where(and(eq(turns.roundId, round.id), inArray(turns.status, ['queued', 'processing'])));
-        await appendEvent(tx, {
-          roomId: room.id,
-          roundId: round.id,
-          type: 'round.ended',
-          payload: { roundId: round.id, status: 'aborted', reason: 'jev_unavailable' },
-        });
-
-        if ((normalEnded[0]?.count ?? 0) === 0) {
-          // 该房间从无正常结束的局：免费次数整房退回一次；赞助房间仅记录故障
-          const refunded = await refundConsumedEntitlementTx(tx, room.id);
-          await appendEvent(tx, {
-            roomId: room.id,
-            roundId: null,
-            type: 'room.closed',
-            payload: { reason: 'moderation', refundedFreeRoom: refunded },
-          });
-        } else {
-          await appendEvent(tx, { roomId: room.id, roundId: null, type: 'room.closed', payload: { reason: 'moderation' } });
-        }
-        await tx.update(rooms).set({ status: 'closed', closedAt: now, closeReason: 'moderation' }).where(eq(rooms.id, room.id));
-      }
     });
     await notifyRoomChange(this.pool, payload.roomId);
     await this.boss.send('dispatch-room', { roomId: payload.roomId } satisfies DispatchPayload);
@@ -409,7 +358,8 @@ class JobsApp {
 
   // ---------- 巡检 ----------
 
-  /** 每 5 秒：失效 processing、有排队无调度任务的房间、房主转让、全员离线、等待室闲置。 */
+  /** 每 5 秒：失效 processing、有排队无调度任务的房间、presence 清理、账本异常告警。
+   * 不关闭房间、不转让房主：离线与闲置不改变房间生命周期（10-ROOM-LIFECYCLE-REVISION §一.4）。 */
   private async maintenance(): Promise<void> {
     const db = this.db;
     const now = new Date();
@@ -449,107 +399,15 @@ class JobsApp {
         await this.boss.send('dispatch-room', { roomId: row.roomId } satisfies DispatchPayload);
       }
 
-      // 3. 全员离线 30 分钟：结束进行中局并关闭房间
-      const offlineRooms = await db
-        .select({ id: rooms.id })
-        .from(rooms)
-        .where(
-          and(
-            sql`rooms.status <> 'closed'`,
-            sql`not exists (select 1 from presence p where p.room_id = rooms.id and p.last_seen_at > now() - interval '45 seconds')`,
-            sql`rooms.last_activity_at < now() - interval '30 minutes'`,
-          ),
-        )
-        .limit(10);
-      for (const room of offlineRooms) {
-        await db.transaction(async (tx) => {
-          const [activeRound] = await tx
-            .select()
-            .from(rounds)
-            .where(and(eq(rounds.roomId, room.id), eq(rounds.status, 'active')))
-            .limit(1);
-          if (activeRound) {
-            await tx
-              .update(rounds)
-              .set({ status: 'abandoned', endedAt: now, endReason: 'all_offline', cancelGeneration: sql`${rounds.cancelGeneration} + 1` })
-              .where(eq(rounds.id, activeRound.id));
-            await tx
-              .update(turns)
-              .set({ status: 'cancelled', completedAt: now })
-              .where(and(eq(turns.roundId, activeRound.id), inArray(turns.status, ['queued', 'processing'])));
-            await appendEvent(tx, { roomId: room.id, roundId: activeRound.id, type: 'round.ended', payload: { roundId: activeRound.id, status: 'abandoned', reason: 'all_offline' } });
-          }
-          await tx.update(rooms).set({ status: 'closed', closedAt: now, closeReason: 'all_offline' }).where(eq(rooms.id, room.id));
-          await tx.delete(presence).where(eq(presence.roomId, room.id));
-          await appendEvent(tx, { roomId: room.id, roundId: activeRound?.id ?? null, type: 'room.closed', payload: { reason: 'all_offline' } });
-        });
-      }
-
-      // 4. 等待室 24 小时无活动关闭
-      const idleRooms = await db
-        .select({ id: rooms.id })
-        .from(rooms)
-        .where(and(eq(rooms.status, 'waiting'), sql`last_activity_at < now() - interval '24 hours'`))
-        .limit(10);
-      for (const room of idleRooms) {
-        await db.transaction(async (tx) => {
-          await tx.update(rooms).set({ status: 'closed', closedAt: now, closeReason: 'idle' }).where(eq(rooms.id, room.id));
-          await appendEvent(tx, { roomId: room.id, roundId: null, type: 'room.closed', payload: { reason: 'idle' } });
-        });
-      }
-
-      // 5. 房主离线 90 秒转让（docs/rebuild/04-ROOM-JEV.md §6）
-      const roomsWithHostOffline = await db
-        .select({ id: rooms.id, hostUserId: rooms.hostUserId })
-        .from(rooms)
-        .where(
-          and(
-            sql`rooms.status <> 'closed'`,
-            sql`exists (select 1 from room_members m where m.room_id = rooms.id and m.status = 'joined')`,
-            sql`not exists (select 1 from presence p where p.user_id = rooms.host_user_id and p.last_seen_at > now() - interval '90 seconds')`,
-          ),
-        )
-        .limit(10);
-      for (const room of roomsWithHostOffline) {
-        await db.transaction(async (tx) => {
-          const [fresh] = await tx.select().from(rooms).where(eq(rooms.id, room.id)).for('update').limit(1);
-          if (!fresh || fresh.hostUserId !== room.hostUserId || fresh.status === 'closed') return;
-          const [stillOffline] = await tx
-            .select({ id: presence.userId })
-            .from(presence)
-            .where(and(eq(presence.userId, fresh.hostUserId), sql`last_seen_at > now() - interval '90 seconds'`))
-            .limit(1);
-          if (stillOffline) return; // 房主已回线
-          const members = await tx
-            .select({ userId: roomMembers.userId, joinedAt: roomMembers.joinedAt })
-            .from(roomMembers)
-            .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.status, 'joined')));
-          const online = await tx
-            .select({ userId: presence.userId })
-            .from(presence)
-            .where(sql`last_seen_at > now() - interval '45 seconds'`);
-          const onlineSet = new Set(online.map((o) => o.userId));
-          const successor = members
-            .filter((m) => m.userId !== fresh.hostUserId && onlineSet.has(m.userId))
-            .sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime())[0];
-          if (!successor) return;
-          await tx.update(rooms).set({ hostUserId: successor.userId }).where(eq(rooms.id, room.id));
-          const nickname = (await tx.select({ n: profiles.nickname }).from(profiles).where(eq(profiles.userId, successor.userId)).limit(1))[0]?.n;
-          await appendEvent(tx, { roomId: room.id, roundId: null, type: 'room.host_changed', payload: { userId: successor.userId, nickname: nickname ?? successor.userId } });
-        });
-      }
-
-      // 6. presence 清理：超过 45 秒无心跳的行
+      // 3. presence 清理：超过 45 秒无心跳的行
       await db.execute(sql`delete from presence where last_seen_at < now() - interval '45 seconds'`);
 
-      // 7. 赞助房间不再检查的账本一致性兜底：负余额由 CHECK 保护，这里只做异常告警
+      // 4. 账本一致性兜底：负余额由 CHECK 保护，这里只做异常告警
       const [negative] = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(freeRoomAccounts)
         .where(sql`consumed < 0 or reserved < 0 or consumed + reserved > total`);
       if ((negative?.count ?? 0) > 0) throw new Error(`免费次数账本出现负值：${negative?.count} 行，立即排查`);
-
-      // 8. 单人/总请求数等匿名聚合指标在日志中输出
     } catch (error) {
       console.error('[jobs] 巡检失败', error);
     } finally {

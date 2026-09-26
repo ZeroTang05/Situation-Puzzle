@@ -1,5 +1,7 @@
 # 新系统实施记录（M1～M2 阶段交付）
 
+> 本文记录 2026-09-26 的旧实现及当时验证结果。房间规则已由 [10-ROOM-LIFECYCLE-REVISION.md](10-ROOM-LIFECYCLE-REVISION.md) 修订：一房一题、换题新房、离线不归档、单人不限流。本文关于同房第二局及相关测试的“完成”状态不代表新规则已实现。
+
 版本：1.0；日期：2026-09-26；基线：docs/rebuild 设计文档 v1.0。
 
 本文记录按设计文档完成的第一批可运行代码：monorepo、数据层、判题适配、API 服务、任务进程、玩家端、管理端与部署编排。旧系统（Next.js 单页 + Cloudflare Worker）已按用户决定提前删除（06-MIGRATION.md），旧代码保存在 main 分支。
@@ -80,6 +82,22 @@
 
 **待外部凭据**：Google 登录端到端可用只差 `GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET`
 （Google Cloud OAuth 客户端，回调地址填 `<PUBLIC_BASE_URL>/api/v1/auth/callback/google`）。
+
+### 房间生命周期修订落地（2026-09-27 完成）
+
+按 [10-ROOM-LIFECYCLE-REVISION.md](10-ROOM-LIFECYCLE-REVISION.md) 完成 R01～R09、R11（R10 收费闭环、R12 创作中心按文档约定后置）：
+
+- **R11 旧数据统计**：`scripts/stats-multi-round-rooms.mjs` 在迁移前统计多局房间；实测 0（尚无生产数据），`rounds(room_id)` 唯一索引（迁移 0001）安全应用。
+- **R01 一房一题**：房间状态机改为 waiting→playing→closed 单向（局结束即归档）；`select_puzzle` 拒绝已玩过题的房间；破解/公布/放弃都经共享 `archiveRoomTx` 归档（close_reason 新增 `round_ended`），旧房只读。
+- **R02 一键迁移**：新表 `room_followups`（source 唯一，重复请求返回同一目标房）；`POST /rooms/followup` 在同一事务内建房、授权、迁移合格成员（被踢/退出不迁移、已在他房明确显示未迁入）并直接开局；旧房事件流推送 `room.followup_created` 新房入口；首页「开房间」入口兼容被迁入成员。
+- **R03 独立计费**：建房授权逻辑抽为 `createRoomTx` 供普通建房与续玩共用；每个新 roomId 独立预留与消费；无资格时新房创建失败、旧房不受影响。
+- **R04/R05**：删除全员离线关闭、等待室闲置关闭、房主离线自动转让、连续模型故障关房；presence 清理与队列兜底巡检保留。
+- **R06**：踢人命令提交后立即断开被移除者的实时订阅（网关 `dropUserFromRoom`）；每 5 秒巡检复核订阅成员资格；被踢者写接口、补齐接口、快照全部 403。
+- **R07**：新成员可从订阅握手补齐加入前全部公开事件并取得当前局快照；汤底与未解锁提示仍受权限控制。
+- **R08**：移除单人按题目版本的 30 次/分钟限流；保留每进程 Jev 并发闸门（JEV_BUSY）。
+- **R09**：契约新增 followup 请求/响应与 `room.followup_created` 事件；E2E 重写为 63 项断言；emailOTP 发码限流提到 10 次/分钟（默认 3 在多人同时登录时误伤）。
+
+验证：`pnpm typecheck` 全绿；单测 25 项通过；`pnpm smoke` 通过（冒烟脚本补上自含一次性 PostgreSQL，不再依赖手工预启动的库）；`pnpm e2e:multiplayer` **63/63 断言通过**（4 用户、真实 SMTP + 真实 Jev ×3 调用：双人判题、还原、新房首判）；web/admin 构建通过。
 
 ## 3. 本地运行
 

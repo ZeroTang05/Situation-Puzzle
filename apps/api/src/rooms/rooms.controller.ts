@@ -1,8 +1,8 @@
 /** 房间 HTTP 接口：建房、邀请、加入、快照、命令、事件补齐、历史、答案。 */
 import { Body, Controller, Get, HttpCode, Inject, Param, Post, Query, HttpStatus } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
-import { freeRoomAccounts, roomEntitlements, sponsorGrants } from '@jev/database';
+import { and, eq, sql } from 'drizzle-orm';
+import { activeRoomUsers, freeRoomAccounts, roomEntitlements, rooms, sponsorGrants } from '@jev/database';
 import { hasActiveSponsorship } from '@jev/domain';
 import { app } from '../context.js';
 import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http.js';
@@ -12,6 +12,7 @@ import { CommandsService, type CommandInput } from './commands.service.js';
 import {
   roomCommandRequestSchema,
   roomCreateRequestSchema,
+  roomFollowupRequestSchema,
   roomJoinRequestSchema,
 } from '@jev/contracts';
 import { z } from 'zod';
@@ -44,6 +45,16 @@ export class RoomsController {
   @Post('rooms/join')
   async join(@CurrentUser() user: SessionUser, @Body(new ZodValidationPipe(roomJoinRequestSchema)) body: z.infer<typeof roomJoinRequestSchema>) {
     return this.roomsService.joinRoom(user, body.token);
+  }
+
+  /** 再来一题：房主从已归档房间创建独立新房并一键迁移合格成员（10-ROOM-LIFECYCLE-REVISION §一.2/3） */
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Post('rooms/followup')
+  async createFollowup(
+    @CurrentUser() user: SessionUser,
+    @Body(new ZodValidationPipe(roomFollowupRequestSchema)) body: z.infer<typeof roomFollowupRequestSchema>,
+  ) {
+    return this.roomsService.createFollowupRoom(user, body.sourceRoomId, body.puzzleId, body.language);
   }
 
   @Get('rooms/:id/snapshot')
@@ -97,7 +108,7 @@ export class RoomsController {
     return this.roomsService.roundAnswer(user, id);
   }
 
-  /** 当前可开房状态：供「开房间」按钮预判（权威判定仍在建房事务内）。 */
+  /** 当前可开房状态：供「开房间」按钮预判（权威判定仍在建房事务内）。openRoomId 含自己创建与被迁入的房间。 */
   @Get('rooms/entitlement-preview')
   async entitlementPreview(@CurrentUser() user: SessionUser) {
     const context = app();
@@ -105,9 +116,10 @@ export class RoomsController {
       context.db.db.select().from(sponsorGrants).where(eq(sponsorGrants.userId, user.userId)),
       context.db.db.select().from(freeRoomAccounts).where(eq(freeRoomAccounts.userId, user.userId)).limit(1),
       context.db.db
-        .select({ id: roomEntitlements.roomId })
-        .from(roomEntitlements)
-        .where(and(eq(roomEntitlements.creatorUserId, user.userId), eq(roomEntitlements.status, 'reserved')))
+        .select({ id: activeRoomUsers.roomId })
+        .from(activeRoomUsers)
+        .innerJoin(rooms, eq(rooms.id, activeRoomUsers.roomId))
+        .where(and(eq(activeRoomUsers.userId, user.userId), sql`${rooms.status} <> 'closed'`))
         .limit(1),
     ]);
     const free = freeRows[0];

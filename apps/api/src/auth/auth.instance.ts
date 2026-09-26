@@ -59,6 +59,8 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
         // 验证码 5 分钟有效、6 位；同邮箱 60 秒限发由 better-auth rateLimit 承担
         otpLength: 6,
         expiresIn: 300,
+        // 插件默认 3 次/分钟过于收紧（多人同时登录会误伤），提到 10 次/分钟
+        rateLimit: { window: 60, max: 10 },
         sendVerificationOTP: async ({ email, otp }) => {
           await mailer.sendVerificationCode(email, otp, env.JEV_LANGUAGE);
         },

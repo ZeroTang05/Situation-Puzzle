@@ -3,12 +3,17 @@ import { assertCanEnqueue, assertRoomTransition, nextHintIndex, pickHostSuccesso
 import { DomainError } from '../src/error.js';
 
 describe('房间状态机', () => {
-  it('waiting → playing → waiting 循环合法', () => {
+  it('waiting → playing → closed 单向（一房一题，局结束即归档）', () => {
     expect(() => assertRoomTransition('waiting', 'playing')).not.toThrow();
-    expect(() => assertRoomTransition('playing', 'waiting')).not.toThrow();
+    expect(() => assertRoomTransition('playing', 'closed')).not.toThrow();
+    expect(() => assertRoomTransition('waiting', 'closed')).not.toThrow();
+  });
+  it('playing 不再回到 waiting（10-ROOM-LIFECYCLE-REVISION §二）', () => {
+    expect(() => assertRoomTransition('playing', 'waiting')).toThrow(DomainError);
   });
   it('closed 是终态', () => {
     expect(() => assertRoomTransition('closed', 'waiting')).toThrow(DomainError);
+    expect(() => assertRoomTransition('closed', 'playing')).toThrow(DomainError);
   });
 });
 

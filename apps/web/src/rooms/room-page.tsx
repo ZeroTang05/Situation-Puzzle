@@ -66,6 +66,13 @@ export function RoomPage({ session }: { session: Session | null }) {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [state?.turns.length, state?.discussions.length]);
 
+  // 被移出房间：实时订阅已被服务端断开，页面回到首页
+  useEffect(() => {
+    if (state && me && state.roomStatus === 'playing' && !state.members.some((m) => m.userId === me)) {
+      navigate('/');
+    }
+  }, [state, me, navigate]);
+
   const round = state?.round ?? null;
   const isHost = state !== null && me !== null && state.hostUserId === me;
   const memberCount = state?.members.length ?? 0;
@@ -137,9 +144,9 @@ export function RoomPage({ session }: { session: Session | null }) {
       {error && <p className="error-text" role="alert">{error}</p>}
       {inviteCopied && <p className="accent">{copy.inviteCopied}</p>}
 
-      {state.roomStatus === 'closed' && (
+      {state.roomStatus === 'closed' && !answered && (
         <section className="panel">
-          <p className="muted">房间已关闭。</p>
+          <p className="muted">房间已结束，历史记录保留可查。</p>
           <button className="btn" onClick={() => navigate('/')}>{copy.back}</button>
         </section>
       )}
@@ -303,7 +310,7 @@ export function RoomPage({ session }: { session: Session | null }) {
         </>
       )}
 
-      {/* ---------- 结算 ---------- */}
+      {/* ---------- 结算（房间已归档：一房一题，历史保留可查） ---------- */}
       {answered && (
         <section className="panel stack">
           <p className={`verdict-badge verdict-${round.status === 'solved' ? 'solved' : 'close'}`}>
@@ -312,8 +319,13 @@ export function RoomPage({ session }: { session: Session | null }) {
           <AnswerBlock roundId={round.roundId} />
           <div className="hint-row">
             {isHost && (
-              <button className="btn btn-primary" onClick={() => navigate(`/library?mode=select&roomId=${roomId}&lang=${language}`)}>
-                {copy.nextRound}
+              <button className="btn btn-primary" onClick={() => navigate(`/library?mode=select&followup=${roomId}&lang=${language}`)}>
+                {copy.nextPuzzle}
+              </button>
+            )}
+            {state.followupTargetRoomId && (
+              <button className="btn btn-primary" onClick={() => navigate(`/rooms/${state.followupTargetRoomId}`)}>
+                {copy.enterNewRoom}
               </button>
             )}
             <button className="btn btn-ghost" onClick={() => navigate('/')}>{copy.back}</button>

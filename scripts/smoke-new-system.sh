@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
-# 新系统冒烟测试：本地 Docker PostgreSQL + API + jobs（docs/rebuild/02-MVP.md 阶段验收的最小自动化子集）
+# 新系统冒烟测试：一次性 Docker PostgreSQL + API + jobs（docs/rebuild/02-MVP.md 阶段验收的最小自动化子集）
 set -e
 cd "$(dirname "$0")/.."
 
 export NODE_ENV=development
 export DATABASE_URL=postgresql://jev:jev@localhost:54329/jev
+
+echo "== 启动一次性 PostgreSQL =="
+docker rm -f jev-pg-smoke > /dev/null 2>&1 || true
+docker run -d --name jev-pg-smoke -e POSTGRES_USER=jev -e POSTGRES_PASSWORD=jev -e POSTGRES_DB=jev -p 54329:5432 postgres:17 > /dev/null
+for i in $(seq 1 30); do
+  docker exec jev-pg-smoke pg_isready -U jev > /dev/null 2>&1 && break
+  sleep 1
+done
+pnpm --dir packages/database run db:migrate > /dev/null
+pnpm --dir packages/database run db:import-library -- --publish > /dev/null
 export PORT=8080
 export PUBLIC_BASE_URL=http://localhost:5173
 # 冒烟专用测试密钥；正式部署必须重新生成
@@ -29,7 +39,8 @@ JOBS_PID=$!
 echo "JOBS PID: $JOBS_PID"
 
 cleanup() {
-  kill $API_PID $JOBS_PID 2>/dev/null || true
+  kill $API_PID $JOBS_PID > /dev/null 2>&1 || true
+  docker rm -f jev-pg-smoke > /dev/null 2>&1 || true
 }
 trap cleanup EXIT
 

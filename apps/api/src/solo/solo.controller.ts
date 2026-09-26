@@ -1,10 +1,10 @@
 /**
- * 单人判题：匿名、无服务端对话存储（docs/rebuild/08-SOLO.md）。
+ * 单人判题：匿名、无服务端对话存储（docs/rebuild/08-SOLO.md、10-ROOM-LIFECYCLE-REVISION §一.6）。
  *
  * - 凭证是无状态签名令牌（jose HS256）：只含用途、题目版本、语言、判题配置版本
  * - 请求不加载会话、不写任何业务表；问题只在处理所需的内存中存在
- * - 并发限制：每进程 2 个 Jev 请求（首轮预算），超出返回 JEV_BUSY
- * - 限速只在内存里，IP 最长保留 60 秒，不写磁盘、不进日志
+ * - 并发限制：每进程 2 个 Jev 请求（真实容量），超出返回 JEV_BUSY；
+ *   不按用户、题目或 IP 做业务限流，无每日/总次数额度
  */
 import { Controller, Post, Body, HttpCode } from '@nestjs/common';
 import { SignJWT, jwtVerify } from 'jose';
@@ -56,40 +56,9 @@ class ConcurrencyGate {
   }
 }
 
-/** 内存限速：键 → 时间窗计数；60 秒无写入即被清理。 */
-class MemoryRateLimiter {
-  private buckets = new Map<string, { count: number; resetAt: number }>();
-  constructor(
-    private readonly max: number,
-    private readonly windowMs: number,
-  ) {}
-
-  check(key: string): void {
-    this.cleanup();
-    const now = Date.now();
-    const bucket = this.buckets.get(key);
-    if (!bucket || bucket.resetAt <= now) {
-      this.buckets.set(key, { count: 1, resetAt: now + this.windowMs });
-      return;
-    }
-    bucket.count += 1;
-    if (bucket.count > this.max) {
-      throw new DomainError('RATE_LIMITED', '操作太频繁了，稍等片刻再试。');
-    }
-  }
-
-  private cleanup(): void {
-    const now = Date.now();
-    for (const [key, bucket] of this.buckets) {
-      if (bucket.resetAt <= now) this.buckets.delete(key);
-    }
-  }
-}
-
 @Controller('solo')
 export class SoloController {
   private gate = new ConcurrencyGate(app().env.SOLO_JEV_CONCURRENCY);
-  private limiter = new MemoryRateLimiter(30, 60_000);
 
   private secret(): Uint8Array {
     return new TextEncoder().encode(app().env.SOLO_TOKEN_SECRET);
@@ -201,7 +170,6 @@ export class SoloController {
   async solve(@Body(new ZodValidationPipe(soloSolveRequestSchema)) body: z.infer<typeof soloSolveRequestSchema>) {
     const payload = await this.verifyToken(body.token);
     const version = await this.loadVersion(payload);
-    this.limiter.check(payload.pv);
 
     await this.gate.acquire();
     let verdict;
@@ -227,7 +195,6 @@ export class SoloController {
   private async runJudge(token: string, question: string) {
     const payload = await this.verifyToken(token);
     const version = await this.loadVersion(payload);
-    this.limiter.check(payload.pv);
 
     await this.gate.acquire();
     let verdict;

@@ -59,6 +59,8 @@ export interface RoomState {
   turns: RoomTurn[];
   discussions: DiscussionMessage[];
   lastSeq: number;
+  /** 房主发起「再来一题」后的新房入口（10-ROOM-LIFECYCLE-REVISION §一.3） */
+  followupTargetRoomId: string | null;
 }
 
 type SyncStatus = 'connecting' | 'syncing' | 'ready' | 'offline';
@@ -108,7 +110,8 @@ function applyEvent(state: RoomState, event: RoomEvent): RoomState {
     case 'round.ended': {
       if (!state.round || state.round.roundId !== event.roundId) return state;
       const status = p.status as RoomRound['status'];
-      return { ...state, roomStatus: 'waiting', round: { ...state.round, status } };
+      // 一房一题：局结束即房间归档（closed），历史只读
+      return { ...state, roomStatus: 'closed', round: { ...state.round, status } };
     }
     case 'turn.accepted': {
       const turn: RoomTurn = {
@@ -153,6 +156,10 @@ function applyEvent(state: RoomState, event: RoomEvent): RoomState {
       if (state.discussions.some((d) => d.eventId === message.eventId)) return state;
       return { ...state, discussions: [...state.discussions, message] };
     }
+    case 'room.followup_created': {
+      // 一房一题：旧房收到新房入口事件（在线成员由此进入）
+      return { ...state, followupTargetRoomId: String(p.targetRoomId) };
+    }
     case 'room.closed': {
       return { ...state, roomStatus: 'closed' };
     }
@@ -189,6 +196,7 @@ async function fetchSnapshot(roomId: string): Promise<{ state: RoomState; answer
       turns: snap.turns,
       discussions: [],
       lastSeq: snap.lastSeq,
+      followupTargetRoomId: null,
     },
     answer: snap.round?.answer ?? null,
   };

@@ -108,13 +108,24 @@ export class RealtimeGateway {
     this.clients.delete(client);
   }
 
-  /** 每 5 秒：心跳帧广播高水位 + 补发遗漏事件 + 踢掉超时连接。 */
+  /** 每 5 秒：心跳帧广播高水位 + 补发遗漏事件 + 踢掉超时连接 + 复核成员资格。 */
   private async tick(): Promise<void> {
     const now = Date.now();
     for (const [client, state] of this.clientEntries()) {
       if (!state.alive || now - state.lastPongAt > 45_000) {
         client.terminate();
         continue;
+      }
+      // 每次补发前复核成员资格：被踢/退出/封禁的连接立即失去订阅（R06）
+      for (const roomId of [...state.subscriptions.keys()]) {
+        const [member] = await app().db.db
+          .select({ id: roomMembers.id })
+          .from(roomMembers)
+          .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.userId, state.userId!), eq(roomMembers.status, 'joined')))
+          .limit(1);
+        if (!member) {
+          this.dropSubscription(client, state, roomId);
+        }
       }
       if (state.userId && state.subscriptions.size > 0) {
         try {
@@ -130,6 +141,24 @@ export class RealtimeGateway {
           this.logger.warn('心跳补发失败', error);
         }
       }
+    }
+  }
+
+  /** 断开某用户在某房间的订阅：无其他订阅则直接断开连接（踢人即时生效）。 */
+  dropUserFromRoom(userId: string, roomId: string): void {
+    for (const [client, state] of this.clientEntries()) {
+      if (state.userId !== userId) continue;
+      this.dropSubscription(client, state, roomId);
+    }
+  }
+
+  /** 移除单个连接上某房间的订阅；连接没有任何订阅时关闭（保留无意义且占用鉴权时限）。 */
+  private dropSubscription(client: WebSocket, state: ClientState, roomId: string): void {
+    if (!state.subscriptions.has(roomId)) return;
+    state.subscriptions.delete(roomId);
+    this.send(client, { type: 'error', code: 'FORBIDDEN', message: '你已不在该房间' });
+    if (state.subscriptions.size === 0) {
+      client.close();
     }
   }
 

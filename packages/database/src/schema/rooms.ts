@@ -1,11 +1,12 @@
 /**
- * 房间域：多人房间、成员、局、问答任务、房间事件。
+ * 房间域：多人房间、成员、局、问答任务、房间事件、续玩关系。
  *
- * 四条数据库层不变量（部分唯一索引，业务层不得绕过）：
+ * 数据库层不变量（唯一索引，业务层不得绕过）：
  *  1. 同一局最多一个 processing 任务
  *  2. 同一局同一用户最多一个 queued/processing 任务
- *  3. 同一房间最多一个进行中局
+ *  3. 一个房间至多一局（docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md：一房一题）
  *  4. 同一创建者最多一个未关闭房间
+ *  5. 一个源房间至多一条续玩记录（重复请求返回同一目标房）
  */
 import { sql } from 'drizzle-orm';
 import {
@@ -42,6 +43,8 @@ export const closeReasonEnum = pgEnum('close_reason', [
   'all_offline',
   'moderation',
   'host_left',
+  /** 破解或公布汤底后归档（10-ROOM-LIFECYCLE-REVISION §一.1） */
+  'round_ended',
 ]);
 
 // ---------- 房间 ----------
@@ -158,11 +161,8 @@ export const rounds = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   },
   (t) => [
-    // 不变量 3：一个房间最多一个进行中局
-    uniqueIndex('rounds_one_active_per_room_uq')
-      .on(t.roomId)
-      .where(sql`status = 'active'`),
-    uniqueIndex('rounds_room_no_uq').on(t.roomId, t.roundNo),
+    // 不变量 3：一个房间至多一局（一房一题；多局旧数据已在迁移前统计，见 10 号文档 R11）
+    uniqueIndex('rounds_room_id_uq').on(t.roomId),
     index('rounds_status_idx').on(t.status),
   ],
 );
@@ -187,6 +187,37 @@ export const roundParticipants = pgTable(
     canRead: boolean('can_read').notNull().default(true),
   },
   (t) => [uniqueIndex('round_participants_round_user_uq').on(t.roundId, t.userId)],
+);
+
+// ---------- 续玩关系 ----------
+
+/**
+ * 续玩关系（再来一题）：源房 → 目标房的迁移记录。
+ * source_room_id 唯一保证重复请求返回同一目标房；成员迁移结果存 jsonb 快照。
+ */
+export const roomFollowups = pgTable(
+  'room_followups',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sourceRoomId: uuid('source_room_id')
+      .notNull()
+      .references(() => rooms.id, { onDelete: 'cascade' }),
+    targetRoomId: uuid('target_room_id')
+      .notNull()
+      .references(() => rooms.id, { onDelete: 'cascade' }),
+    /** 发起者（原房房主） */
+    initiatedBy: text('initiated_by')
+      .notNull()
+      .references(() => user.id),
+    /** 每个成员的迁移结果：[{ userId, nickname, migrated, reason? }] */
+    memberResults: jsonb('member_results').$type<Array<Record<string, unknown>>>().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [
+    // 不变量 5：一个源房间至多一条续玩记录
+    uniqueIndex('room_followups_source_uq').on(t.sourceRoomId),
+    index('room_followups_target_idx').on(t.targetRoomId),
+  ],
 );
 
 // ---------- 命令与问答 ----------

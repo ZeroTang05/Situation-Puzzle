@@ -1,9 +1,10 @@
 /**
  * 双用户多人房间端到端联调（真实进程 + 真实数据库 + 真实 WebSocket + 真实 Jev）：
- *   用户 A（房主）：登录 → 建房（预留免费次数）→ 选题 → 开局 → 提示 → 讨论 → 公布答案 → 第二局 → 关房
- *   用户 B（客人）：登录 → 邀请加入 → WS 订阅 → 提问（真实 Jev 判定）→ 还原 → 收到全部事件
- * 校验：事件同步一致性、免费账本 reserve→consume 唯一流水、同房第二局不重复扣次、
- *       jev_calls 落库、汤底仅揭晓后可读。
+ *   用户 A（房主）：登录 → 建房（预留免费次数）→ 选题 → 开局 → 提示 → 讨论 → 公布答案 → 再来一题（新房迁移）→ 关新房
+ *   用户 B（客人）：登录 → 邀请加入 → WS 订阅 → 提问（真实 Jev 判定）→ 还原 → 被迁移进新房 → 独立消费
+ *   用户 C/D：第三人（归档后自建房 → 续玩时按 in_other_room 跳过）、第四人（被踢 → 实时断开与写权限拒绝）
+ * 校验：事件同步一致性、免费账本 reserve→consume 唯一流水、一房一题（旧房锁死 + 新房独立计数）、
+ *       一键迁移（幂等、被踢不迁移、已在他房明确跳过）、踢人实时断开、jev_calls 落库、汤底仅揭晓后可读。
  * 运行：cd apps/api && node ../../scripts/e2e-multiplayer.mjs
  */
 import { readFileSync } from 'node:fs';
@@ -193,12 +194,17 @@ async function query(text, values) {
 
 const HOST = `host-${Date.now()}@e2e.test`;
 const GUEST = `guest-${Date.now()}@e2e.test`;
+const GUEST2 = `guest2-${Date.now()}@e2e.test`;
+const GUEST3 = `guest3-${Date.now()}@e2e.test`;
 
-console.log('== 1. 双用户邮箱验证码登录（真实 SMTP 收信台）==');
+console.log('== 1. 多用户邮箱验证码登录（真实 SMTP 收信台）==');
 const hostCookie = await login(HOST);
 const guestCookie = await login(GUEST);
+const guest2Cookie = await login(GUEST2);
+const guest3Cookie = await login(GUEST3);
 check('房主登录成功', hostCookie.length > 0);
 check('客人登录成功', guestCookie.length > 0);
+check('客人二/三登录成功', guest2Cookie.length > 0 && guest3Cookie.length > 0);
 
 const hostMe = dataOf(await http('/me', { cookie: hostCookie }));
 check('免费开房账户初始化为 10/0/0', hostMe.freeRooms.total === 10 && hostMe.freeRooms.consumed === 0 && hostMe.freeRooms.reserved === 0, JSON.stringify(hostMe.freeRooms));
@@ -237,8 +243,18 @@ const guestMe = dataOf(await http('/me', { cookie: guestCookie }));
 const guestRealtime = await connectRealtime(guestCookie, roomId, 0);
 const guestSnapshotEvents = guestRealtime.frames.filter((f) => f.type !== 'ack' && f.type !== 'sync.ready' && f.type !== 'heartbeat');
 check('客人补齐了加入前的全部事件（round.started 等）', guestSnapshotEvents.some((f) => f.type === 'round.started'));
+check('新成员快照含本房已有问答（公开历史开放）', guestSnapshotEvents.some((f) => f.type === 'round.started') || guestRealtime.frames.some((f) => f.type === 'sync.ready'));
 await hostRealtime.waitFor((f) => f.type === 'room.member_joined' && f.payload.nickname?.includes('guest'), 'member_joined');
 check('房主实时收到成员加入事件', true);
+
+console.log('== 4b. 客人二/三加入（后续踢人与迁移跳过场景）==');
+const guest2Join = await http('/rooms/join', { method: 'POST', cookie: guest2Cookie, body: { token: inviteToken } });
+const guest3Join = await http('/rooms/join', { method: 'POST', cookie: guest3Cookie, body: { token: inviteToken } });
+check('客人二、三加入成功', guest2Join.status === 202 && guest3Join.status === 202);
+const guest2Me = dataOf(await http('/me', { cookie: guest2Cookie }));
+const guest3Me = dataOf(await http('/me', { cookie: guest3Cookie }));
+const guest2Realtime = await connectRealtime(guest2Cookie, roomId, 0);
+check('客人二实时订阅就绪', guest2Realtime.frames.some((f) => f.type === 'sync.ready'));
 
 console.log('== 5. 客人提问 → 真实 Jev 判定 ==');
 const askResponse = await command(guestCookie, roomId, 'ask', { text: '冰块本身有毒吗？' }, { roundId });
@@ -279,40 +295,109 @@ const solveTurnId = dataOf(solveResponse).turnId;
 const solveFrame = await waitForTurnResult(guestRealtime, solveTurnId, 'solve turn.completed (真实 Jev)');
 check('还原判定返回稳定枚举', ['solved', 'close', 'not_yet', 'uncertain'].includes(solveFrame.payload?.result ?? ''), JSON.stringify(solveFrame.payload));
 
+console.log('== 7b. 踢出保持连接的成员（R06：实时立即断开、写与补齐拒绝）==');
+const kick2 = await command(hostCookie, roomId, 'kick', { userId: guest2Me.userId }, { expectedControlVersion: controlVersion + 2 });
+check('踢人命令受理', kick2.status === 202 && dataOf(kick2).status === 'accepted');
+const guest2Disconnected = await new Promise((resolve) => {
+  if (guest2Realtime.ws.readyState > 1) return resolve(true);
+  guest2Realtime.ws.once('close', () => resolve(true));
+  setTimeout(() => resolve(false), 10_000);
+});
+check('被踢成员的实时连接被服务端断开', guest2Disconnected);
+const kickedAsk = await command(guest2Cookie, roomId, 'ask', { text: '被踢之后还能提问吗？' }, { roundId });
+check('被踢成员写接口拒绝', kickedAsk.status === 403, `status=${kickedAsk.status}`);
+const kickedEvents = await http(`/rooms/${roomId}/events?afterSeq=0`, { cookie: guest2Cookie });
+check('被踢成员补齐接口拒绝', kickedEvents.status === 403, `status=${kickedEvents.status}`);
+const kickedSnapshot = await http(`/rooms/${roomId}/snapshot`, { cookie: guest2Cookie });
+check('被踢成员快照拒绝', kickedSnapshot.status === 403, `status=${kickedSnapshot.status}`);
+
 console.log('== 8. 提前看答案应被拒绝，公布后可读 ==');
 const earlyAnswer = await http(`/rounds/${roundId}/answer`, { cookie: guestCookie });
 check('未揭晓时答案接口拒绝', earlyAnswer.status === 403, `status=${earlyAnswer.status}`);
 
-await command(hostCookie, roomId, 'reveal_answer', {}, { expectedControlVersion: controlVersion + 2 });
+await command(hostCookie, roomId, 'reveal_answer', {}, { expectedControlVersion: controlVersion + 3 });
 const endedEvent = await guestRealtime.waitFor((f) => f.type === 'round.ended', 'round.ended');
 check('两端收到本局结束事件（revealed）', endedEvent.payload.status === 'revealed');
+const closedEvent = await guestRealtime.waitFor((f) => f.type === 'room.closed', 'room.closed (一房一题归档)');
+check('公布答案后房间归档（round_ended）', closedEvent.payload.reason === 'round_ended');
 
 const answerResponse = await http(`/rounds/${roundId}/answer`, { cookie: guestCookie });
 check('参与者揭晓后读取汤底', answerResponse.status === 200 && typeof dataOf(answerResponse)?.answer === 'string');
 
-console.log('== 9. 同房间第二局不重复扣次 ==');
-const select2 = await command(hostCookie, roomId, 'select_puzzle', { puzzleId: puzzle.id, language: 'zh' }, { expectedControlVersion: controlVersion + 3 });
-const start2 = await command(hostCookie, roomId, 'start_round', {}, { expectedControlVersion: dataOf(select2).controlVersion });
-check('第二局开局成功', start2.status === 202);
-const secondRoundEvent = await guestRealtime.waitFor((f) => f.type === 'round.started' && f.payload.roundId !== roundId, 'round2 started');
-check('客人实时收到第二局开局', Boolean(secondRoundEvent.payload.roundId));
+const roomAfterReveal = await query('select status, close_reason from rooms where id = $1', [roomId]);
+check('旧房终态 closed / round_ended', roomAfterReveal[0]?.status === 'closed' && roomAfterReveal[0]?.close_reason === 'round_ended', JSON.stringify(roomAfterReveal[0]));
+const activeAfterReveal = await query('select count(*)::int as n from active_room_users where room_id = $1', [roomId]);
+check('归档后进行中标记清空（成员可去新房）', activeAfterReveal[0]?.n === 0);
+const rejoinOld = await http('/rooms/join', { method: 'POST', cookie: guest2Cookie, body: { token: inviteToken } });
+check('旧房邀请无法再加入', rejoinOld.status === 409, `status=${rejoinOld.status}`);
 
-const ledgerAfter = await query('select count(*)::int as n from room_credit_ledger where room_id = $1', [roomId]);
-check('同房换局不新增账本流水（仍为 2 条）', ledgerAfter[0]?.n === 2, `n=${ledgerAfter[0]?.n}`);
+console.log('== 9. 一房一题：旧房锁死，再来一题创建独立新房 ==');
+const selectOld = await command(hostCookie, roomId, 'select_puzzle', { puzzleId: puzzle.id, language: 'zh' }, { expectedControlVersion: 99 });
+check('归档房间拒绝再选题', selectOld.status === 409 && errorOf(selectOld).code === 'ROOM_CLOSED', JSON.stringify(errorOf(selectOld)));
 
-console.log('== 10. 房主关闭房间 ==');
-const closeResponse = await command(hostCookie, roomId, 'close_room', {}, { expectedControlVersion: dataOf(start2).controlVersion });
-check('关闭房间命令受理', closeResponse.status === 202 && dataOf(closeResponse).status === 'accepted');
-const closedEvent = await guestRealtime.waitFor((f) => f.type === 'room.closed', 'room.closed');
-check('客人实时收到关闭事件', closedEvent.payload.reason === 'by_host');
+// 客人三先自建一房（占用其「进行中房间」名额），续玩迁移时应跳过
+const guest3Room = dataOf(await http('/rooms', { method: 'POST', cookie: guest3Cookie, body: { capacity: 8 } }));
+check('客人三自建新房成功（占位场景）', Boolean(guest3Room.roomId));
 
-const roomRow = await query('select status, close_reason from rooms where id = $1', [roomId]);
-check('房间终态 closed', roomRow[0]?.status === 'closed' && roomRow[0]?.close_reason === 'by_host');
-const activeRow = await query('select count(*)::int as n from active_room_users where room_id = $1', [roomId]);
-check('进行中标记清空', activeRow[0]?.n === 0);
+const followupResponse = await http('/rooms/followup', {
+  method: 'POST',
+  cookie: hostCookie,
+  body: { sourceRoomId: roomId, puzzleId: puzzle.id, language: 'zh' },
+});
+check('房主发起再来一题受理', followupResponse.status === 202, JSON.stringify(followupResponse.body));
+const followup = dataOf(followupResponse);
+check('新房创建（新 roomId）', Boolean(followup.targetRoomId) && followup.targetRoomId !== roomId);
+check('新房邀请令牌签发', Boolean(followup.inviteToken));
+const migratedGuest = followup.members.find((m) => m.userId === guestMe.userId);
+check('客人被迁入新房', migratedGuest?.migrated === true, JSON.stringify(followup.members));
+const guest3Result = followup.members.find((m) => m.userId === guest3Me?.userId);
+check('已在他房的成员明确显示未迁入', guest3Result?.migrated === false && guest3Result?.reason === 'in_other_room', JSON.stringify(guest3Result));
+check('被踢成员不迁移', !followup.members.some((m) => m.userId === guest2Me?.userId), JSON.stringify(followup.members));
+
+const followupRepeat = await http('/rooms/followup', {
+  method: 'POST',
+  cookie: hostCookie,
+  body: { sourceRoomId: roomId, puzzleId: catalog.items[1]?.id ?? puzzle.id, language: 'zh' },
+});
+check('重复请求返回同一目标房（不重复建房/扣次）', followupRepeat.status === 202 && dataOf(followupRepeat).targetRoomId === followup.targetRoomId && dataOf(followupRepeat).existing === true);
+
+const followupEvent = await guestRealtime.waitFor((f) => f.type === 'room.followup_created', 'room.followup_created');
+check('旧房成员实时收到新房入口', followupEvent.payload.targetRoomId === followup.targetRoomId);
+
+const followupRow = await query('select target_room_id, initiated_by from room_followups where source_room_id = $1', [roomId]);
+check('续玩关系落库且唯一', followupRow.length === 1 && followupRow[0].target_room_id === followup.targetRoomId);
+
+const newRoomRow = await query('select status, host_user_id from rooms where id = $1', [followup.targetRoomId]);
+check('新房直接进入 playing 且房主保持', newRoomRow[0]?.status === 'playing' && newRoomRow[0]?.host_user_id === hostMe.userId);
+
+console.log('== 10. 新房独立游玩与独立计费 ==');
+const guestNewRealtime = await connectRealtime(guestCookie, followup.targetRoomId, 0);
+check('客人订阅新房并完成握手', guestNewRealtime.frames.some((f) => f.type === 'sync.ready'));
+const newRoomAsk = await command(guestCookie, followup.targetRoomId, 'ask', { text: '这和上一题无关，是新的题目对吗？' });
+check('新房内客人提问受理', newRoomAsk.status === 202);
+const newTurnId = dataOf(newRoomAsk).turnId;
+const newCompleted = await waitForTurnResult(guestNewRealtime, newTurnId, '新房 turn.completed (真实 Jev)');
+check('新房首个有效判定完成', newCompleted.type === 'turn.completed', newCompleted.type);
+
+const afterFollowup = await query('select consumed, reserved from free_room_accounts where user_id = $1', [hostMe.userId]);
+check('新房首次判定再次消费（consumed 1→2）', afterFollowup[0]?.consumed === 2 && afterFollowup[0]?.reserved === 0, JSON.stringify(afterFollowup[0]));
+const oldLedger = await query('select count(*)::int as n from room_credit_ledger where room_id = $1', [roomId]);
+const newLedger = await query("select action from room_credit_ledger where room_id = $1 order by action", [followup.targetRoomId]);
+check('旧房账本仍为 2 条、新房独立 reserve+consume', oldLedger[0]?.n === 2 && newLedger.length === 2 && newLedger.some((l) => l.action === 'reserve') && newLedger.some((l) => l.action === 'consume'), JSON.stringify({ old: oldLedger[0], new: newLedger }));
+
+console.log('== 11. 房主主动关闭新房（明确终止操作）==');
+const closeNew = await command(hostCookie, followup.targetRoomId, 'close_room');
+check('新房关闭命令受理', closeNew.status === 202);
+const newClosedEvent = await guestNewRealtime.waitFor((f) => f.type === 'room.closed', '新房 room.closed');
+check('新房成员收到关闭事件（by_host）', newClosedEvent.payload.reason === 'by_host');
+const newRoomFinal = await query('select status, close_reason from rooms where id = $1', [followup.targetRoomId]);
+check('新房终态 closed / by_host', newRoomFinal[0]?.status === 'closed' && newRoomFinal[0]?.close_reason === 'by_host');
+const activeFinal = await query('select count(*)::int as n from active_room_users where room_id = $1', [followup.targetRoomId]);
+check('新房进行中标记清空', activeFinal[0]?.n === 0);
 
 console.log(`\n断言通过 ${passed} 项${failures.length ? `，失败 ${failures.length} 项：${failures.join('；')}` : ''}`);
 hostRealtime.ws.close();
 guestRealtime.ws.close();
+guestNewRealtime.ws.close();
 await pool.end();
 process.exit(failures.length ? 1 : 0);
