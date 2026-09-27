@@ -122,6 +122,38 @@ export const roomJoinRequestSchema = z.object({
   token: z.string().min(8),
 });
 
+// ---------- 题目投票与作者署名（docs/rebuild/11-VOTES-AND-AUTHORSHIP.md） ----------
+
+export const voteValueSchema = z.enum(['up', 'down']);
+export type VoteValue = z.infer<typeof voteValueSchema>;
+
+/** 公开署名投影：匿名时 name 为 null，不含内部作者归属 */
+export const authorDisplaySchema = z.object({
+  mode: z.enum(['anonymous', 'signature']),
+  name: z.string().nullable(),
+});
+
+export const ratingStatsSchema = z.object({
+  upCount: z.number().int(),
+  downCount: z.number().int(),
+});
+
+/** 本人选择与最新统计：只向本人返回 choice，响应禁止公共缓存 */
+export const myRatingSchema = ratingStatsSchema.extend({
+  choice: voteValueSchema.nullable(),
+});
+
+/** PUT /ratings/:puzzleId：明确设置选择（客户端切换=PUT 或 DELETE，不做「切换」服务器命令） */
+export const ratingPutRequestSchema = z.object({
+  value: voteValueSchema,
+});
+
+/** 创作署名设置：signature 时 name 必填（1～30 字符，服务端去首尾空格） */
+export const authorDisplaySettingSchema = z.object({
+  mode: z.enum(['anonymous', 'signature']),
+  name: z.string().max(30).optional(),
+});
+
 /** 再来一题：从已归档房间创建独立新房并一键迁移合格成员（10-ROOM-LIFECYCLE-REVISION §一.2/3） */
 export const roomFollowupRequestSchema = z.object({
   sourceRoomId: z.string().uuid(),

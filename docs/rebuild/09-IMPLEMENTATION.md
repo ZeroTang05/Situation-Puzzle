@@ -99,6 +99,18 @@
 
 验证：`pnpm typecheck` 全绿；单测 25 项通过；`pnpm smoke` 通过（冒烟脚本补上自含一次性 PostgreSQL，不再依赖手工预启动的库）；`pnpm e2e:multiplayer` **63/63 断言通过**（4 用户、真实 SMTP + 真实 Jev ×3 调用：双人判题、还原、新房首判）；web/admin 构建通过。
 
+### 题目投票与作者署名（2026-09-27 完成）
+
+按 [11-VOTES-AND-AUTHORSHIP.md](11-VOTES-AND-AUTHORSHIP.md) 完成 U01～U06：
+
+- **U01/U02**：`ratings` 表重做为赞踩投票（`vote_value` up/down、记录投票时版本、取消即删行），删除游玩资格依赖与 `review`/`roundId` 列（迁移 0002）；`GET/PUT/DELETE /ratings/:puzzleId` 明确设置或取消，唯一约束保证同值重试不累加；作者自投（含匿名作者按内部归属）403；本人选择接口 `Cache-Control: no-store`。
+- **U03**：题库列表/详情聚合 upCount/downCount；`sort=latest|popular`，popular 得分 = 赞 − 踩，依次按得分、赞数、首次发布时间降序、作品 ID 升序；latest 修正为发布时间降序（原先按无时序的 UUID 排序）；两种排序均为混合方向 keyset 游标（排序字段 + 作品 ID），客户端按作品 ID 去重。
+- **U04**：作品级署名（anonymous/signature + 已批准展示名 + 待审名三字段）；新稿默认匿名，署名/改名进待审、随发布批准或后台单独审核生效；改回匿名立即生效；公开投影只含 `authorDisplay {mode, name}`，匿名与署名响应都不含内部作者归属；管理端列表显示归属与署名并提供批准/拒绝动作（审计留痕）。
+- **U05**：题库列表显示署名与计数并提供排序切换；单人页（题目详情 + 结算）与多人结算页有赞踩按钮——未登录点击跳登录并回原题，乐观更新失败回滚；创作中心 UI 属 R12 范围（署名 API 已就绪）。
+- **U06**：E2E 共享工具库抽出（`scripts/e2e-lib.mjs`），新增 `pnpm e2e:votes`（25 项断言：两账号赞→重复→切换→取消、未登录 401、自投 403、署名审核全流程、popular/latest 排序与游标翻页、服务端无单人业务表）。
+
+验证：`pnpm typecheck` 全绿；`pnpm e2e:votes` **25/25**；`pnpm e2e:multiplayer` **64/64** 回归通过；`pnpm smoke` 通过；web/admin 构建通过。
+
 ## 3. 本地运行
 
 ```bash

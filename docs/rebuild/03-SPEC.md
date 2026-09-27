@@ -91,13 +91,13 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 | 认证库管理的 user/session/account/verification 表 | 按所锁定 Better Auth 版本生成；账号与业务 profile 一对一，不手写替代认证协议 |
 | `profiles` | `user_id`、昵称、账号状态、创建时间；状态 active/suspended/deletion_pending |
 | `role_assignments` | `user_id`、角色；用户与角色唯一 |
-| `puzzles` | 作品 ID、作者用户 ID（旧题可为空）、来源类型、当前发布版本指针、可用状态 |
+| `puzzles` | 作品 ID、内部作者用户 ID（旧题可为空）、来源类型、当前发布版本指针、可用状态；作品级署名模式、已批准展示名与待审署名；匿名公共投影隐藏作者身份 |
 | `puzzle_versions` | 作品、版本号、语言、标题、汤面、汤底、提示、核心事实、因果链、难度、时长、内容提醒、审核状态；`(puzzle_id, version_no, language)` 唯一；提交后不可变 |
 | `puzzle_rights` | 作品/版本、权利状态 pending/approved/rejected、来源链接、授权依据、协议版本、确认人和时间 |
 | `puzzle_test_cases` | 版本、问题或还原、预期判定、理由、关键程度、人工确认人 |
 | `moderation_reviews` | 版本、阶段、结论、理由、操作者、自动模型版本、时间 |
 | `reports` | 举报人、对象类型与 ID、原因、处理状态、处置记录 |
-| `ratings` | 用户、作品、评价、关联已参与局；用户与作品唯一 |
+| `ratings` | 用户、作品、up/down（赞/踩）、投票时版本、创建及更新时间；用户与作品唯一；取消删除投票，不要求游玩记录 |
 
 首发业务只发布中文；旧英文迁为对应语言版本并保留翻译关系。每局固定语言与版本，不能由单个成员切换游戏语言；界面语言独立。
 
@@ -169,7 +169,8 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 | `POST /orders`、`GET /orders/:id` | 创建赞助订单、仅本人查单；服务端计价 |
 | `POST /payments/:channel/notify` | 通道回调，原始请求体验签；不使用用户会话 |
 | `POST /refund-requests` | 本人提出退款申请；财务审核与通道执行分离 |
-| `POST /reports`、`PUT /ratings/:puzzleId` | 举报与满足条件的评价 |
+| `POST /reports` | 登录用户提交举报 |
+| `GET /ratings/:puzzleId`、`PUT /ratings/:puzzleId`、`DELETE /ratings/:puzzleId` | 查询本人选择、设置赞/踩、取消投票；登录后可用，禁止作者自投；具体契约见 11-VOTES-AND-AUTHORSHIP.md |
 | `/admin/*` | 角色守卫与审计；具体操作见运营文档 |
 | `GET /health/live`、`GET /health/ready` | 进程存活与数据库/任务基础就绪，不暴露密钥 |
 

@@ -43,7 +43,9 @@ export const reportObjectEnum = pgEnum('report_object', ['turn', 'puzzle', 'room
 
 export const reportStatusEnum = pgEnum('report_status', ['open', 'processing', 'resolved', 'rejected']);
 
-export const ratingValueEnum = pgEnum('rating_value', ['good', 'hard', 'bad']);
+export const voteValueEnum = pgEnum('vote_value', ['up', 'down']);
+
+export const authorDisplayModeEnum = pgEnum('author_display_mode', ['anonymous', 'signature']);
 
 // ---------- 身份扩展 ----------
 
@@ -88,6 +90,13 @@ export const puzzles = pgTable(
     ),
     /** 紧急停用： true 时任何接口不得返回内容或开局 */
     unavailable: boolean('unavailable').notNull().default(false),
+    /**
+     * 公开署名（docs/rebuild/11-VOTES-AND-AUTHORSHIP.md §4）：作者按作品选择匿名或署名。
+     * 展示名经审核后生效（pendingName 待审）；匿名时公共投影不含任何作者身份。
+     */
+    authorDisplayMode: authorDisplayModeEnum('author_display_mode').notNull().default('anonymous'),
+    authorDisplayName: text('author_display_name'),
+    authorPendingName: text('author_pending_name'),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   },
@@ -215,7 +224,11 @@ export const reports = pgTable(
   (t) => [index('reports_object_idx').on(t.objectType, t.objectId), index('reports_status_idx').on(t.status)],
 );
 
-/** 题目评价：每用户每题一条，可修改；需满足参与条件（服务端校验）。 */
+/**
+ * 题目投票（docs/rebuild/11-VOTES-AND-AUTHORSHIP.md §6）：每账号每题一票，up=赞 / down=踩。
+ * 可切换（PUT 覆盖）或取消（DELETE 删除行）；不要求游玩记录；作者自投由服务端校验拒绝。
+ * votedVersionId 记录投票时的已发布版本，改版继续累计原作品投票。
+ */
 export const ratings = pgTable(
   'ratings',
   {
@@ -226,10 +239,9 @@ export const ratings = pgTable(
     puzzleId: uuid('puzzle_id')
       .notNull()
       .references(() => puzzles.id, { onDelete: 'cascade' }),
-    value: ratingValueEnum('value').notNull(),
-    review: text('review'),
-    /** 关联的参与局：证明评价资格 */
-    roundId: uuid('round_id'),
+    value: voteValueEnum('value').notNull(),
+    /** 投票时作品的已发布版本编号（后台可按版本分析反馈） */
+    votedVersionId: uuid('voted_version_id').references((): AnyPgColumn => puzzleVersions.id),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   },

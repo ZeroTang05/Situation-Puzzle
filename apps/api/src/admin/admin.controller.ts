@@ -7,6 +7,7 @@ import { UseGuards } from '@nestjs/common';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import {
   activeRoomUsers,
+  archiveRoomTx,
   auditLogs,
   jevCalls,
   orders,
@@ -66,6 +67,12 @@ export class AdminController {
         surface: puzzleVersions.surface,
         status: puzzleVersions.moderationStatus,
         authorUserId: puzzles.authorUserId,
+        /** 作者归属与公开署名：审核人员可核验（11-VOTES-AND-AUTHORSHIP.md §5） */
+        authorDisplayMode: puzzles.authorDisplayMode,
+        authorDisplayName: puzzles.authorDisplayName,
+        authorPendingName: puzzles.authorPendingName,
+        upCount: sql<number>`(select count(*) filter (where r.value = 'up')::int from ratings r where r.puzzle_id = puzzles.id)`,
+        downCount: sql<number>`(select count(*) filter (where r.value = 'down')::int from ratings r where r.puzzle_id = puzzles.id)`,
         rightsStatus: puzzleRights.status,
         createdAt: puzzleVersions.createdAt,
       })
@@ -104,6 +111,14 @@ export class AdminController {
       }
       await tx.update(puzzleVersions).set({ moderationStatus: 'published' }).where(eq(puzzleVersions.id, id));
       await tx.update(puzzles).set({ currentPublishedVersionId: id, updatedAt: new Date() }).where(eq(puzzles.id, version.puzzleId));
+      // 署名申请随发布批准一并生效（docs/rebuild/11-VOTES-AND-AUTHORSHIP.md §4）
+      const [puzzle] = await tx.select().from(puzzles).where(eq(puzzles.id, version.puzzleId)).limit(1);
+      if (puzzle?.authorPendingName) {
+        await tx
+          .update(puzzles)
+          .set({ authorDisplayMode: 'signature', authorDisplayName: puzzle.authorPendingName, authorPendingName: null })
+          .where(eq(puzzles.id, version.puzzleId));
+      }
       await tx.insert(auditLogs).values({ operatorUserId: operator.userId, action: 'puzzle.approve', objectType: 'puzzle_version', objectId: id, reason: body.reason });
       return { puzzleId: version.puzzleId };
     });
@@ -119,6 +134,44 @@ export class AdminController {
     await db.db.update(puzzleVersions).set({ moderationStatus: 'changes_requested' }).where(eq(puzzleVersions.id, id));
     await this.audit(operator, 'puzzle.reject', 'puzzle_version', id, body.reason);
     return { ok: true };
+  }
+
+  /** 署名审核：批准待审展示名（匿名→署名或改名立即公开）；拒绝则维持此前公开状态。 */
+  @Post('puzzles/:id/author-display/:decision')
+  @RequireRoles('admin', 'moderator')
+  async reviewAuthorDisplay(
+    @CurrentUser() operator: SessionUser,
+    @Param('id') id: string,
+    @Param('decision') decision: string,
+    @Body(new ZodValidationPipe(reasonSchema)) body: z.infer<typeof reasonSchema>,
+  ) {
+    const db = app().db;
+    if (decision !== 'approve' && decision !== 'reject') {
+      throw new DomainError('VALIDATION_FAILED', '审核动作只能是 approve 或 reject');
+    }
+    const result = await db.tx(async (tx) => {
+      const [puzzle] = await tx.select().from(puzzles).where(eq(puzzles.id, id)).for('update').limit(1);
+      if (!puzzle) throw new DomainError('NOT_FOUND', '作品不存在');
+      if (!puzzle.authorPendingName) throw new DomainError('STATE_CONFLICT', '没有待审核的署名');
+      if (decision === 'approve') {
+        await tx
+          .update(puzzles)
+          .set({ authorDisplayMode: 'signature', authorDisplayName: puzzle.authorPendingName, authorPendingName: null })
+          .where(eq(puzzles.id, id));
+      } else {
+        // 拒绝：清掉待审名，公开状态不变（真实投票计数不做任何修改）
+        await tx.update(puzzles).set({ authorPendingName: null }).where(eq(puzzles.id, id));
+      }
+      await tx.insert(auditLogs).values({
+        operatorUserId: operator.userId,
+        action: `puzzle.author_display.${decision}`,
+        objectType: 'puzzle',
+        objectId: id,
+        reason: body.reason,
+      });
+      return { ok: true };
+    });
+    return result;
   }
 
   /** 下架：只影响新开局；进行中的局可用固定版本完成。 */

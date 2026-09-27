@@ -16,7 +16,8 @@
     "db:seed": "pnpm --dir packages/database db:import-library -- --publish",
     "smoke": "bash scripts/smoke-new-system.sh",
     "check:deps": "node scripts/check-deps.mjs",
-    "e2e:multiplayer": "bash scripts/e2e-run.sh multiplayer"
+    "e2e:multiplayer": "bash scripts/e2e-run.sh multiplayer",
+    "e2e:votes": "bash scripts/e2e-run.sh votes"
   },
   "devDependencies": {
     "@types/node": "^24.0.0"

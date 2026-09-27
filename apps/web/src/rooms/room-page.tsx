@@ -9,6 +9,7 @@ import { api, ApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
 import { displayVerdict, verdictDetail, format, t } from '@jev/i18n';
 import { useRoomSync } from './use-room-sync.js';
+import { VoteButtons } from '../catalog/vote-buttons.js';
 import type { Session } from '../session.js';
 
 interface PuzzleItem {
@@ -329,6 +330,8 @@ export function RoomPage({ session }: { session: Session | null }) {
             {round.status === 'solved' ? copy.solvedByTeam : copy.revealedAnswer}
           </p>
           <AnswerBlock roundId={round.roundId} />
+          {/* 结算投票：多人各账号独立投票（11-VOTES-AND-AUTHORSHIP.md §5） */}
+          <VoteButtons puzzleId={round.puzzleId} session={session} initialUp={0} initialDown={0} />
           <div className="hint-row">
             {isHost && (
               <button className="btn btn-primary" onClick={() => navigate(`/library?mode=select&followup=${roomId}&lang=${language}`)}>

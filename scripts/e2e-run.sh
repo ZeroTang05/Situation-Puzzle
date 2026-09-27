@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # 一键端到端验证：起本地 PostgreSQL + SMTP 收信台 + API + jobs，跑双用户多人房间 E2E 后清理。
 # 前置：Docker 可用；OPENCODE_API_KEY 在 .env.local（真实 Jev 判定）。
-# 用法：pnpm e2e:multiplayer
+# 用法：pnpm e2e:multiplayer（多人全流程）或 pnpm e2e:votes（投票与署名，无 Jev 调用）
 set -e
 cd "$(dirname "$0")/.."
+
+MODE="${1:-multiplayer}"
 
 COMPOSE="docker compose -f scripts/e2e-compose.yml"
 
@@ -42,6 +44,9 @@ for i in $(seq 1 40); do
   if [ "$i" = "40" ]; then echo "API 未就绪"; exit 1; fi
 done
 
-echo "== 4. 双用户多人房间 E2E =="
-(cd apps/api && node ../../scripts/e2e-multiplayer.mjs)
+echo "== 4. E2E：${MODE} =="
+case "${MODE}" in
+  votes) (cd apps/api && node ../../scripts/e2e-votes.mjs) ;;
+  *)     (cd apps/api && node ../../scripts/e2e-multiplayer.mjs) ;;
+esac
 echo "端到端验证通过 ✓"

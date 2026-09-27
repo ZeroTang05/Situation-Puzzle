@@ -7,87 +7,17 @@
  *       一键迁移（幂等、被踢不迁移、已在他房明确跳过）、踢人实时断开、jev_calls 落库、汤底仅揭晓后可读。
  * 运行：cd apps/api && node ../../scripts/e2e-multiplayer.mjs
  */
-import { readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
+import { requireFromApi, STEP_TIMEOUT, check, summary, http, dataOf, errorOf, login } from './e2e-lib.mjs';
 
-// scripts/ 不在工作区依赖图内：从 apps/api 的依赖里解析 ws 与 pg
-const requireFromApi = createRequire(new URL('../apps/api/package.json', import.meta.url));
 const pg = requireFromApi('pg');
-
-const BASE = 'http://localhost:8080/api/v1';
 const DB_URL = process.env.E2E_DATABASE_URL ?? 'postgresql://jev:jev@localhost:54329/jev';
-const MAILSINK = new URL('../mailsink.json', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
-const STEP_TIMEOUT = 70_000;
 
-let passed = 0;
-const failures = [];
-function check(name, condition, detail = '') {
-  if (condition) {
-    passed += 1;
-    console.log(`  ✓ ${name}`);
-  } else {
-    failures.push(name);
-    console.log(`  ✗ ${name} ${detail}`);
-  }
-}
-
-async function http(path, { method = 'GET', body, cookie } = {}) {
-  const response = await fetch(`${BASE}${path}`, {
-    method,
-    headers: {
-      Origin: 'http://localhost:8080',
-      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-      ...(cookie ? { Cookie: cookie } : {}),
-    },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+async function command(cookie, roomId, type, payload = {}, extra = {}) {
+  return http(`/rooms/${roomId}/commands`, {
+    method: 'POST',
+    cookie,
+    body: { clientRequestId: crypto.randomUUID(), type, payload, ...extra },
   });
-  const setCookies = response.headers.getSetCookie?.() ?? [];
-  let payload = null;
-  try {
-    payload = await response.json();
-  } catch {
-    payload = null;
-  }
-  return { status: response.status, body: payload, setCookies };
-}
-
-function dataOf(response) {
-  return response.body?.data;
-}
-
-function errorOf(response) {
-  return response.body?.error ?? { code: `HTTP_${response.status}`, message: '' };
-}
-
-/** 邮箱验证码登录：发码 → 从收信台取码 → 验证码换会话 Cookie */
-async function login(email) {
-  const sent = await http('/auth/email-otp/send-verification-otp', { method: 'POST', body: { email, type: 'sign-in' } });
-  if (sent.status !== 200) throw new Error(`发码失败：${sent.status} ${JSON.stringify(sent.body)}`);
-
-  let otp = null;
-  for (let i = 0; i < 30; i++) {
-    await new Promise((r) => setTimeout(r, 500));
-    try {
-      const mails = JSON.parse(readFileSync(MAILSINK, 'utf8'));
-      const mail = mails.filter((m) => m.to.includes(email)).at(-1);
-      if (mail) {
-        const match = mail.body.match(/\b(\d{6})\b/);
-        if (match) {
-          otp = match[1];
-          break;
-        }
-      }
-    } catch {
-      /* 收信台未写盘，继续等 */
-    }
-  }
-  if (!otp) throw new Error('60 秒内未收到验证码');
-
-  const verified = await http('/auth/sign-in/email-otp', { method: 'POST', body: { email, otp } });
-  if (verified.status !== 200) throw new Error(`登录失败：${verified.status} ${JSON.stringify(verified.body)}`);
-  const sessionCookie = verified.setCookies.map((c) => c.split(';')[0]).filter((c) => c.includes('session_token') || c.includes('session_data')).join('; ');
-  if (!sessionCookie) throw new Error('登录响应没有会话 Cookie');
-  return sessionCookie;
 }
 
 /** 实时客户端：票据 → ws 连接 → 鉴权 → 订阅；收集事件帧 */
@@ -166,14 +96,6 @@ async function connectRealtime(cookie, roomId, lastSeq = 0) {
       });
     },
   };
-}
-
-async function command(cookie, roomId, type, payload = {}, extra = {}) {
-  return http(`/rooms/${roomId}/commands`, {
-    method: 'POST',
-    cookie,
-    body: { clientRequestId: crypto.randomUUID(), type, payload, ...extra },
-  });
 }
 
 async function waitForTurnResult(realtime, turnId, label) {
@@ -397,9 +319,8 @@ check('解散正在游戏的房间时局同步置为 aborted', newRoundFinal[0]?
 const activeFinal = await query('select count(*)::int as n from active_room_users where room_id = $1', [followup.targetRoomId]);
 check('新房进行中标记清空', activeFinal[0]?.n === 0);
 
-console.log(`\n断言通过 ${passed} 项${failures.length ? `，失败 ${failures.length} 项：${failures.join('；')}` : ''}`);
 hostRealtime.ws.close();
 guestRealtime.ws.close();
 guestNewRealtime.ws.close();
 await pool.end();
-process.exit(failures.length ? 1 : 0);
+summary();

@@ -15,6 +15,13 @@
       "when": 1790438788995,
       "tag": "0001_gray_nextwave",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790510698840,
+      "tag": "0002_votes_and_authorship",
+      "breakpoints": true
     }
   ]
 }

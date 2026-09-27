@@ -9,6 +9,7 @@ import { useLanguage } from '../state/language.js';
 import { displayVerdict, verdictDetail, format } from '@jev/i18n';
 import { soloStore, type SoloSessionRow } from './local-store.js';
 import type { Session } from '../session.js';
+import { VoteButtons } from '../catalog/vote-buttons.js';
 
 type InputMode = 'ask' | 'solve';
 
@@ -20,7 +21,7 @@ interface TurnRow {
   result: string | null;
 }
 
-export function SoloPage({ session: _session }: { session: Session | null }) {
+export function SoloPage({ session: authSession }: { session: Session | null }) {
   const { puzzleId } = useParams();
   const { copy, language } = useLanguage();
   const navigate = useNavigate();
@@ -33,7 +34,22 @@ export function SoloPage({ session: _session }: { session: Session | null }) {
   const [error, setError] = useState<string | null>(null);
   const [storageWarning, setStorageWarning] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [publicStats, setPublicStats] = useState<{ upCount: number; downCount: number } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // 公开计数与署名（题目详情）：未登录也能看；投票组件内部再取本人选择
+  useEffect(() => {
+    if (!puzzleId) return;
+    let cancelled = false;
+    void api<{ upCount: number; downCount: number }>(`/puzzles/${puzzleId}`)
+      .then((detail) => {
+        if (!cancelled) setPublicStats({ upCount: detail.upCount, downCount: detail.downCount });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [puzzleId]);
 
   // 开局：向服务端取固定版本与凭证（无会话、不写服务端表）
   useEffect(() => {
@@ -209,6 +225,11 @@ export function SoloPage({ session: _session }: { session: Session | null }) {
 
       <section className="hero-card">
         <p className="story">{session.surface}</p>
+        {publicStats && (
+          <div className="hint-row">
+            <VoteButtons puzzleId={puzzleId!} session={authSession} initialUp={publicStats.upCount} initialDown={publicStats.downCount} />
+          </div>
+        )}
       </section>
 
       <section className="chat" aria-live="polite">
@@ -236,6 +257,14 @@ export function SoloPage({ session: _session }: { session: Session | null }) {
         <section className="panel answer-panel">
           <h3>{copy.answer}</h3>
           <p>{session.revealedAnswer}</p>
+        </section>
+      )}
+
+      {/* 结算投票：单人各账号独立，不改变他人选择（11-VOTES-AND-AUTHORSHIP.md §5） */}
+      {(solved || session.revealedAnswer) && publicStats && (
+        <section className="panel">
+          <p className="muted">觉得这道题怎么样？</p>
+          <VoteButtons puzzleId={puzzleId!} session={authSession} initialUp={publicStats.upCount} initialDown={publicStats.downCount} />
         </section>
       )}
 
