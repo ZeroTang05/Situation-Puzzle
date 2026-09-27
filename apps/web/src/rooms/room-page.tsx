@@ -145,9 +145,21 @@ export function RoomPage({ session }: { session: Session | null }) {
       {inviteCopied && <p className="accent">{copy.inviteCopied}</p>}
 
       {state.roomStatus === 'closed' && !answered && (
-        <section className="panel">
+        <section className="panel stack">
           <p className="muted">房间已结束，历史记录保留可查。</p>
-          <button className="btn" onClick={() => navigate('/')}>{copy.back}</button>
+          <div className="hint-row">
+            {isHost && (
+              <button className="btn btn-primary" onClick={() => navigate(`/library?mode=select&followup=${roomId}&lang=${language}`)}>
+                {copy.nextPuzzle}
+              </button>
+            )}
+            {state.followupTargetRoomId && (
+              <button className="btn btn-primary" onClick={() => navigate(`/rooms/${state.followupTargetRoomId}`)}>
+                {copy.enterNewRoom}
+              </button>
+            )}
+            <button className="btn btn-ghost" onClick={() => navigate('/')}>{copy.back}</button>
+          </div>
         </section>
       )}
 

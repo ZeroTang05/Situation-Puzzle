@@ -25,6 +25,7 @@ export function LibraryPage({ session }: { session: Session | null }) {
   const [params] = useSearchParams();
   const mode = params.get('mode') === 'select' ? 'select' : 'solo';
   const [playedIds, setPlayedIds] = useState<Set<string>>(new Set());
+  const [followupError, setFollowupError] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['puzzles', language],
@@ -44,12 +45,13 @@ export function LibraryPage({ session }: { session: Session | null }) {
       const followupRoomId = params.get('followup');
       if (followupRoomId) {
         // 再来一题：选定新题后创建独立新房并一键迁移合格成员（10-ROOM-LIFECYCLE-REVISION §一.2/3）
+        setFollowupError(null);
         void api<{ targetRoomId: string }>('/rooms/followup', {
           method: 'POST',
           body: { sourceRoomId: followupRoomId, puzzleId: puzzle.id, language },
         })
           .then((result) => navigate(`/rooms/${result.targetRoomId}`))
-          .catch(() => undefined);
+          .catch((err: unknown) => setFollowupError(err instanceof Error ? err.message : '创建新房失败，请稍后再试'));
         return;
       }
       if (roomId) {
@@ -71,6 +73,7 @@ export function LibraryPage({ session }: { session: Session | null }) {
       <p className="muted library-intro">{copy.tagline}</p>
       {isLoading && <p className="muted">加载中…</p>}
       {error && <p className="error-text">题库加载失败，请刷新重试。</p>}
+      {followupError && <p className="error-text" role="alert">{followupError}</p>}
       <div className="puzzle-grid">
         {data?.items.map((puzzle) => (
           <article key={puzzle.id} className="panel puzzle-card">

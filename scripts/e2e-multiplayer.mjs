@@ -392,6 +392,8 @@ const newClosedEvent = await guestNewRealtime.waitFor((f) => f.type === 'room.cl
 check('新房成员收到关闭事件（by_host）', newClosedEvent.payload.reason === 'by_host');
 const newRoomFinal = await query('select status, close_reason from rooms where id = $1', [followup.targetRoomId]);
 check('新房终态 closed / by_host', newRoomFinal[0]?.status === 'closed' && newRoomFinal[0]?.close_reason === 'by_host');
+const newRoundFinal = await query('select status, end_reason from rounds where room_id = $1', [followup.targetRoomId]);
+check('解散正在游戏的房间时局同步置为 aborted', newRoundFinal[0]?.status === 'aborted' && newRoundFinal[0]?.end_reason === 'by_host', JSON.stringify(newRoundFinal[0]));
 const activeFinal = await query('select count(*)::int as n from active_room_users where room_id = $1', [followup.targetRoomId]);
 check('新房进行中标记清空', activeFinal[0]?.n === 0);
 

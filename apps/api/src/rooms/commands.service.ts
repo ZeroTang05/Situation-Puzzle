@@ -28,6 +28,7 @@ import {
   assertControlVersion,
   assertCanEnqueue,
   nextHintIndex,
+  pickHostSuccessor,
 } from '@jev/domain';
 import type { CommandType } from '@jev/contracts';
 import { app } from '../context.js';
@@ -547,7 +548,7 @@ export class CommandsService {
     }
   }
 
-  /** 在线且最早加入的继任房主。 */
+  /** 在线且最早加入的继任房主（纯规则在 domain.pickHostSuccessor）。 */
   private async pickSuccessorTx(
     tx: Parameters<Parameters<import('@jev/database').Database['transaction']>[0]>[0],
     roomId: string,
@@ -559,10 +560,10 @@ export class CommandsService {
       .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.status, 'joined')));
     const online = await tx.select({ userId: presence.userId }).from(presence);
     const onlineSet = new Set(online.map((o) => o.userId));
-    const candidates = members
-      .filter((m) => m.userId !== currentHostId && onlineSet.has(m.userId))
-      .sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime());
-    return candidates[0]?.userId ?? null;
+    return pickHostSuccessor(
+      members.map((m) => ({ ...m, status: 'joined' as const, online: onlineSet.has(m.userId) })),
+      currentHostId,
+    );
   }
 }
 

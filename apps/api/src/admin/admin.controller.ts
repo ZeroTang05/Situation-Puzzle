@@ -230,7 +230,7 @@ export class AdminController {
     return { room, rounds: roundRows, events };
   }
 
-  /** 运营强制结束：按系统中止规则处理（aborted + 释放/退回由关闭逻辑统一处理）。 */
+  /** 运营强制结束：走统一归档路径（aborted + 释放预留 + room.closed 事件），附审计原因。 */
   @Post('rooms/:id/force-close')
   @RequireRoles('admin')
   async forceClose(@CurrentUser() operator: SessionUser, @Param('id') id: string, @Body(new ZodValidationPipe(reasonSchema)) body: z.infer<typeof reasonSchema>) {
@@ -244,18 +244,7 @@ export class AdminController {
         .from(rounds)
         .where(and(eq(rounds.roomId, id), eq(rounds.status, 'active')))
         .limit(1);
-      const now = new Date();
-      if (round) {
-        await tx.update(rounds).set({ status: 'aborted', endedAt: now, endReason: 'moderation' }).where(eq(rounds.id, round.id));
-        await tx.update(rounds).set({ cancelGeneration: sql`${rounds.cancelGeneration} + 1` }).where(eq(rounds.id, round.id));
-        await tx
-          .update(turns)
-          .set({ status: 'cancelled', completedAt: now })
-          .where(and(eq(turns.roundId, round.id), sql`status in ('queued','processing')`));
-      }
-      await releaseEntitlementIfReservedTx(tx, id);
-      await tx.update(rooms).set({ status: 'closed', closedAt: now, closeReason: 'moderation' }).where(eq(rooms.id, id));
-      await tx.delete(activeRoomUsers).where(eq(activeRoomUsers.roomId, id));
+      await archiveRoomTx(tx, id, 'moderation', round?.id ?? null);
       await tx.insert(auditLogs).values({ operatorUserId: operator.userId, action: 'room.force_close', objectType: 'room', objectId: id, reason: body.reason });
     });
     return { ok: true };

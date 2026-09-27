@@ -37,22 +37,18 @@ const ISSUER = 'jev-solo';
 /** 每进程单人 Jev 并发闸门：超出即返回繁忙，浏览器保留输入稍后重试。 */
 class ConcurrencyGate {
   private active = 0;
-  private waiters: Array<() => void> = [];
 
   constructor(private readonly limit: number) {}
 
   async acquire(): Promise<void> {
-    if (this.active < this.limit) {
-      this.active += 1;
-      return;
+    if (this.active >= this.limit) {
+      throw new DomainError('JEV_BUSY', 'Jev 正忙，请稍后再试');
     }
-    throw new DomainError('JEV_BUSY', 'Jev 正忙，请稍后再试');
+    this.active += 1;
   }
 
   release(): void {
     this.active -= 1;
-    const next = this.waiters.shift();
-    if (next) next();
   }
 }
 

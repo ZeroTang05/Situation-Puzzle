@@ -181,6 +181,11 @@ export async function archiveRoomTx(
 ): Promise<void> {
   const now = new Date();
   if (roundId) {
+    // 仍在进行的局置为 aborted（已终态的局不动：revealed/abandoned/solved 由调用方先写）
+    await tx
+      .update(rounds)
+      .set({ status: 'aborted', endedAt: now, endReason: reason })
+      .where(and(eq(rounds.id, roundId), eq(rounds.status, 'active')));
     const cancelled = await tx
       .update(turns)
       .set({ status: 'cancelled', completedAt: now })

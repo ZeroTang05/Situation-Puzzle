@@ -188,6 +188,14 @@ export class RoomsService {
         };
       }
 
+      // 房主归档当前房之前不能有另一个未归档房间，否则新房创建会撞唯一约束
+      const [otherOpen] = await tx
+        .select({ id: rooms.id })
+        .from(rooms)
+        .where(and(eq(rooms.creatorUserId, user.userId), sql`status <> 'closed'`))
+        .limit(1);
+      if (otherOpen) throw new DomainError('STATE_CONFLICT', '你还有一个未结束的房间，先归档它再发起下一题');
+
       // 新题版本：published + 语言可用
       const [version] = await tx
         .select()

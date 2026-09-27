@@ -50,7 +50,7 @@ const envSchema = z.object({
 
   /** 实时连接票据签名密钥（默认派生自 AUTH_SECRET） */
   REALTIME_TICKET_SECRET: z.string().optional(),
-  /** 每进程单人 Jev 并发上限（首轮预算 2） */
+  /** 每进程单人 Jev 并发上限（按服务器与 Jev 真实容量调整，默认 2） */
   SOLO_JEV_CONCURRENCY: z.coerce.number().int().default(2),
 });
 
