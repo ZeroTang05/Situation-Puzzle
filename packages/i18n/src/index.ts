@@ -85,7 +85,7 @@ export function displayError(code: string, language: Language, fallback?: string
 /** 界面固定文案 */
 export const copy = {
   zh: {
-    brand: 'Jev 海龟汤',
+    brand: 'AI海龟汤',
     tagline: '和朋友一起，一问一答接近真相',
     solo: '单人游玩',
     multi: '开房间',
@@ -163,7 +163,7 @@ export const copy = {
     back: '返回',
   },
   en: {
-    brand: 'Jev Situation Puzzles',
+    brand: 'AI Situation Puzzles',
     tagline: 'One question at a time, together',
     solo: 'Solo play',
     multi: 'New room',
