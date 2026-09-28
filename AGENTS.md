@@ -19,7 +19,7 @@ packages/database    Drizzle 表结构（36 张表）、追加式迁移（drizzl
 packages/jev         Jev SystemOne 适配：20s 超时、错误分类、缺概率=协议错误、阈值 0.5、配置版本号
 packages/i18n        稳定枚举/错误码 → 中英文案
 packages/ui          设计变量（深海色系、16px 正文、44px 触控）
-infra/               edge.Dockerfile（web+admin 静态烘进 Caddy）、api/jobs Dockerfile、Caddyfile
+infra/               web.Dockerfile / admin.Dockerfile（apps/web+apps/admin 静态烘进 nginx）、api/jobs Dockerfile、各自 nginx.conf
 scripts/             冒烟与端到端联调脚本（smoke-new-system.sh、e2e-run.sh、dev-env.sh、dev-mailsink.mjs）
 data/                题库 JSON 导入源（library.json / library.en.json 共用 ID）
 docs/rebuild/        产品与架构设计文档（01~09）

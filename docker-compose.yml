@@ -1,23 +1,45 @@
 # 一行命令部署：docker compose up -d --build
 # 前置：cp .env.example .env 并填写 POSTGRES_PASSWORD 与各项密钥（.env 同时用于
 #       compose 变量插值与容器环境注入）；DATABASE_URL 自动拼装，无需手填。
+#
+# 拓扑：宿主 Nginx 反代 → web:80 / admin:80（前端静态 + 容器内已反代 API/WS）
+#       api / jobs / postgres 不直接对外，仅 web & admin 容器内部与服务名互通。
 services:
-  edge:
+  web:
     build:
       context: .
-      dockerfile: infra/edge.Dockerfile
+      dockerfile: infra/web.Dockerfile
     restart: unless-stopped
+    # 高位端口外暴：宿主 Nginx 用 127.0.0.1:18081 反代 / (玩家端)
     ports:
-      - '80:80'
-      - '443:443'
-    volumes:
-      - caddy-data:/data
-      - caddy-config:/config
+      - '127.0.0.1:${WEB_HOST_PORT:-18081}:80'
     depends_on:
       api:
         condition: service_healthy
-    environment:
-      DOMAIN: ${DOMAIN:-localhost}
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1/']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  admin:
+    build:
+      context: .
+      dockerfile: infra/admin.Dockerfile
+    restart: unless-stopped
+    # 高位端口外暴：宿主 Nginx 用 127.0.0.1:18082 反代 /admin (管理端)
+    ports:
+      - '127.0.0.1:${ADMIN_HOST_PORT:-18082}:80'
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1/']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   api:
     build:
@@ -29,8 +51,10 @@ services:
     environment:
       # 数据库连接指向 compose 内的 postgres 服务；覆盖 .env 里的同名字段
       DATABASE_URL: postgresql://${POSTGRES_USER:-jev}:${POSTGRES_PASSWORD:?请在 .env 填写 POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-jev}
-      PUBLIC_BASE_URL: https://${DOMAIN:-localhost}
+      # 对外完整地址（即 better-auth 校验 Origin 用的那个；接 Nginx 后改 https://<域名>）
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:${WEB_HOST_PORT:-18081}}
       PORT: 8080
+    # api 不外暴：所有 API/WS 流量经 web 容器内反代走 api:8080
     expose:
       - '8080'
     depends_on:
@@ -66,6 +90,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       # 备份须离机存放；容器卷只做第一层兜底（docs/rebuild/02-MVP.md §4）
+    # 不映射到宿主端口（宿主 5432 已被其他 Postgres 占用），仅容器内网互通
     expose:
       - '5432'
     healthcheck:
@@ -91,6 +116,4 @@ services:
     command: ['sh', '-c', 'pnpm --dir packages/database run db:migrate && pnpm --dir packages/database run db:import-library -- --publish']
 
 volumes:
-  caddy-data:
-  caddy-config:
   postgres-data:

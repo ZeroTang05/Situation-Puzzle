@@ -1,5 +1,17 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "noEmit": true, "jsx": "react-jsx", "lib": ["ES2022", "DOM", "DOM.Iterable"], "types": ["vite/client"] },
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    // 根 tsconfig 用的是 moduleResolution: "bundler"，它**不解析** vite package.json 里的
+    // `imports` 子模块（如 #types/*）。admin 构建时 tsc 会卡在 vite 自身 .d.ts 上。
+    // 单包切到 node16 让 tsc 按 Node 真实子模块解析；加 customConditions 优先拿 types 入口，
+    // 避免运行时再去解析 vite 自身的 ESM 形态。
+    "module": "node16",
+    "moduleResolution": "node16",
+    "customConditions": ["types", "node"]
+  },
   "include": ["src", "vite.config.ts"]
 }

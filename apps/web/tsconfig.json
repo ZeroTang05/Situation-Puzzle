@@ -4,7 +4,13 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    // 同 apps/admin：根用 moduleResolution: "bundler" 在 tsc 处理 vite/zod v4 子模块时
+    // 会卡住（zod/v4/locales/*.d.ts 在 CommonJS 形态下需要 esModuleInterop 默认导入，
+    // 切换为 node16 + customConditions 优先拿 types 入口即可彻底跳过那段 CJS 形态）。
+    "module": "node16",
+    "moduleResolution": "node16",
+    "customConditions": ["types", "node"]
   },
   "include": ["src", "vite.config.ts"]
 }
