@@ -7,6 +7,8 @@ import { RoomPage } from './rooms/room-page.js';
 import { InvitePage } from './rooms/invite-page.js';
 import { MePage } from './me/me-page.js';
 import { LoginPage } from './auth/login-page.js';
+import { ForgotPasswordPage } from './auth/forgot-password-page.js';
+import { ResetPasswordPage } from './auth/reset-password-page.js';
 import { useSession } from './api/auth-client.js';
 
 export function App() {
@@ -25,6 +27,8 @@ export function App() {
       <Route path="/invite/:token" element={<InvitePage session={session ?? null} />} />
       <Route path="/me" element={<MePage session={session ?? null} />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

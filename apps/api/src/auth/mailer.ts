@@ -15,6 +15,8 @@ const BRAND_EN = 'AI Situation Puzzles';
 
 export interface Mailer {
   sendVerificationCode(to: string, code: string, language: 'zh' | 'en'): Promise<void>;
+  /** 忘记密码：发送一次性重置链接（url 已含 token，1 小时有效） */
+  sendPasswordReset(to: string, url: string, language: 'zh' | 'en'): Promise<void>;
 }
 
 interface CodeMailContent {
@@ -39,12 +41,42 @@ function codeMailContent(code: string, language: 'zh' | 'en'): CodeMailContent {
   };
 }
 
+/** 中英双语重置密码邮件内容；链接由 Better Auth 签发的一次性 token 构成 */
+function resetMailContent(url: string, language: 'zh' | 'en'): CodeMailContent {
+  if (language === 'en') {
+    return {
+      subject: `${BRAND_EN} password reset`,
+      text: `Reset your ${BRAND_EN} password with this link (valid for 1 hour): ${url}\nIf you did not request this, ignore this email.`,
+      html: `<div style="font-family:-apple-system,'Segoe UI',sans-serif;color:#0a1522;line-height:1.6"><p style="margin:0 0 12px">Click the link below to set a new ${BRAND_EN} password (valid for 1 hour):</p><p style="margin:0 0 12px"><a href="${url}">${url}</a></p><p style="margin:0;color:#5b6b7a">If you did not request this, ignore this email.</p></div>`,
+    };
+  }
+  return {
+    subject: `${BRAND_ZH} 重置密码`,
+    text: `点击链接设置你的 ${BRAND_ZH} 新密码（1 小时内有效）：${url}\n若不是你本人操作，请忽略这封邮件。`,
+    html: `<div style="font-family:-apple-system,'Segoe UI',sans-serif;color:#0a1522;line-height:1.6"><p style="margin:0 0 12px">点击下面的链接设置你的 ${BRAND_ZH} 新密码（1 小时内有效）：</p><p style="margin:0 0 12px"><a href="${url}">${url}</a></p><p style="margin:0;color:#5b6b7a">若不是你本人操作，请忽略这封邮件。</p></div>`,
+  };
+}
+
 /** 生产通道：Resend HTTP API（无需 SMTP 端口连通性） */
 export function createResendMailer(options: { apiKey: string; from: string }): Mailer {
   const resend = new Resend(options.apiKey);
   return {
     async sendVerificationCode(to, code, language) {
       const content = codeMailContent(code, language);
+      const response = await resend.emails.send({
+        from: options.from,
+        to,
+        subject: content.subject,
+        text: content.text,
+        html: content.html,
+      });
+      if (response.error) {
+        throw new Error(`Resend 发信失败（${response.error.name}）：${response.error.message}`);
+      }
+    },
+
+    async sendPasswordReset(to, url, language) {
+      const content = resetMailContent(url, language);
       const response = await resend.emails.send({
         from: options.from,
         to,
@@ -77,6 +109,11 @@ export function createSmtpMailer(options: {
   return {
     async sendVerificationCode(to, code, language) {
       const content = codeMailContent(code, language);
+      await transport.sendMail({ from: options.from, to, subject: content.subject, text: content.text, html: content.html });
+    },
+
+    async sendPasswordReset(to, url, language) {
+      const content = resetMailContent(url, language);
       await transport.sendMail({ from: options.from, to, subject: content.subject, text: content.text, html: content.html });
     },
   };

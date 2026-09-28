@@ -31,7 +31,8 @@ export function LoginPage() {
   // 注册专用：是否已通过 OTP；提交注册前必须 true。
   const [signupOtpVerified, setSignupOtpVerified] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  // 从重置页跳回时提示用新密码登录（/login?reset=1）
+  const [notice, setNotice] = useState<string | null>(params.get('reset') ? '密码已重置，请用新密码登录' : null);
   const [error, setError] = useState<string | null>(null);
 
   // ---------- 验证码发送 ----------
@@ -225,6 +226,9 @@ export function LoginPage() {
                 >
                   {copy.login}
                 </button>
+                <p className="muted" style={{ textAlign: 'center' }}>
+                  忘记密码？<a href="/forgot-password">找回密码</a>
+                </p>
               </div>
             )}
 

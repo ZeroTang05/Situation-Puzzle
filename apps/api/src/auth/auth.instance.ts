@@ -50,6 +50,11 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
       minPasswordLength: 8,
       // 邮件 OTP 与密码双轨并存：用户首次用 OTP 注册后仍可补建密码
       requireEmailVerification: false,
+      // 忘记密码：Better Auth 签发一次性 token，拼成站内重置页链接交给 mailer
+      sendResetPassword: async ({ user, token }) => {
+        const url = `${env.PUBLIC_BASE_URL}/reset-password?token=${encodeURIComponent(token)}`;
+        await mailer.sendPasswordReset(user.email, url, env.JEV_LANGUAGE);
+      },
     },
     socialProviders: env.GOOGLE_CLIENT_ID
       ? {
