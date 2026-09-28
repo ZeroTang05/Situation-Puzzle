@@ -52,6 +52,12 @@ const envSchema = z.object({
   REALTIME_TICKET_SECRET: z.string().optional(),
   /** 每进程单人 Jev 并发上限（按服务器与 Jev 真实容量调整，默认 2） */
   SOLO_JEV_CONCURRENCY: z.coerce.number().int().default(2),
+
+  /** Bootstrap admin：启动时若 user 不存在则创建（按 better-auth 标准 hash 存 account.password）；
+   *  写完 user 后插入 role_assignments.role='admin'。已存在则跳过建账号，仅补 admin 角色。
+   *  该变量仍可保留作"兜底授角色"，与 BOOTSTRAP_ADMIN/EMAIL+PASSWORD 独立使用。 */
+  BOOTSTRAP_ADMIN_EMAIL: z.string().email().optional(),
+  BOOTSTRAP_ADMIN_PASSWORD: z.string().min(8).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

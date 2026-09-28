@@ -5,6 +5,7 @@ import { authProvider } from './auth-provider.js';
 import { dataProvider } from './data-provider.js';
 import { PuzzleList, VersionDetail } from './puzzles.js';
 import { UserList, RoomList, ReportList, OrderList, Dashboard } from './resources.js';
+import { AdminLoginRedirect } from './admin-login-redirect.js';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -12,7 +13,9 @@ createRoot(document.getElementById('root')!).render(
       authProvider={authProvider}
       dataProvider={dataProvider}
       dashboard={Dashboard}
-      basename="/admin"
+      // 用我们自己的 Redirect 替掉 React-Admin 自带的 Username/Password 表单，
+      // 让 admin 复用 web 端登录入口（EmailOTP / 密码 / Google），共用 cookie。
+      loginPage={AdminLoginRedirect}
       requireAuth
     >
       <Resource name="puzzles" list={PuzzleList} show={VersionDetail} recordRepresentation="title" options={{ label: '题库与投稿' }} />

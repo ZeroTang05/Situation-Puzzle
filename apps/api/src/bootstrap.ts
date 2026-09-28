@@ -5,9 +5,13 @@
  */
 import express from 'express';
 import { toNodeHandler } from 'better-auth/node';
+import { hashPassword } from 'better-auth/crypto';
+import { generateId } from 'better-auth';
 import PgBoss from 'pg-boss';
+import { and, eq } from 'drizzle-orm';
 import type { PoolClient } from 'pg';
 import type { Env } from './env.js';
+import { account, profiles, roleAssignments, user } from '@jev/database';
 import type { DbHandle } from '@jev/database';
 import type { Mailer } from './auth/mailer.js';
 import type { BetterAuthInstance } from './auth/auth.types.js';
@@ -78,5 +82,117 @@ export async function createAppContext(input: BootstrapInput): Promise<AppContex
     expressServer: server,
   };
   setAppContext(context);
+
+  await ensureBootstrapAdmin(input.env, input.db);
+
   return context;
+}
+
+/**
+ * 启动时用 BOOTSTRAP_ADMIN_EMAIL + BOOTSTRAP_ADMIN_PASSWORD 直接建一个 admin 账号。
+ *  - 用 better-auth 自带的 hashPassword 写 account.password（schema 列就是 better-auth 的存储）
+ *  - 用户已存在：跳过建账号，但仍会保证有 admin 角色（idempotent）
+ *  - 同步执行：必须在任何 admin 路由之前完成
+ *  - PASSWORD 不提供时只看 EMAIL，若 EMAIL 已存在则补 admin 角色；不存在则报错引导
+ */
+async function ensureBootstrapAdmin(env: Env, db: DbHandle): Promise<void> {
+  const email = env.BOOTSTRAP_ADMIN_EMAIL?.trim();
+  if (!email) return;
+  const password = env.BOOTSTRAP_ADMIN_PASSWORD?.trim() || undefined;
+  const lower = email.toLowerCase();
+
+  const [existing] = await db.db
+    .select({ id: user.id, name: user.name, emailVerified: user.emailVerified })
+    .from(user)
+    .where(eq(user.email, lower))
+    .limit(1);
+
+  if (existing) {
+    console.log(`[bootstrap-admin] user ${lower} 已存在，跳过 user 创建`);
+    // 用户已存在但可能没有 password（之前走的是 OTP 注册）→ 若提供了密码则补上
+    if (password) {
+      await db.tx(async (tx) => {
+        const [cred] = await tx
+          .select({ id: account.id, password: account.password })
+          .from(account)
+          .where(and(eq(account.userId, existing.id), eq(account.providerId, 'credential')))
+          .limit(1);
+        if (!cred) {
+          await tx.insert(account).values({
+            id: generateId(),
+            userId: existing.id,
+            accountId: existing.id,
+            providerId: 'credential',
+            password: await hashPassword(password),
+          });
+          console.log(`[bootstrap-admin] ${lower} 缺失 password，已补建 account 行`);
+        } else if (!cred.password) {
+          await tx
+            .update(account)
+            .set({ password: await hashPassword(password) })
+            .where(eq(account.id, cred.id));
+          console.log(`[bootstrap-admin] ${lower} account 行 password 为空，已更新为 BOOTSTRAP_ADMIN_PASSWORD`);
+        } else {
+          console.log(`[bootstrap-admin] ${lower} account.password 已有值，未覆盖`);
+        }
+      });
+    }
+    await grantAdminRole(db, existing.id, lower);
+    return;
+  }
+
+  if (!password) {
+    console.warn(
+      `[bootstrap-admin] user ${lower} 不存在且未提供 BOOTSTRAP_ADMIN_PASSWORD，跳过创建。请先注册或设置完整凭据。`,
+    );
+    return;
+  }
+  if (password.length < 8) {
+    console.warn(`[bootstrap-admin] BOOTSTRAP_ADMIN_PASSWORD 长度不足 8 位，跳过创建`);
+    return;
+  }
+
+  const userId = generateId();
+  const hashed = await hashPassword(password);
+
+  await db.tx(async (tx) => {
+    await tx.insert(user).values({
+      id: userId,
+      name: lower.split('@')[0] ?? lower,
+      email: lower,
+      emailVerified: true, // 后台 bootstrap 直接信任邮箱已归属运维
+    });
+    // account 行：email/password 走 credential provider
+    await tx.insert(account).values({
+      id: generateId(),
+      userId,
+      accountId: userId,
+      providerId: 'credential',
+      password: hashed,
+    });
+    // profiles 行：与 user 1:1，初始昵称取邮箱前缀
+    await tx.insert(profiles).values({ userId, nickname: lower.split('@')[0] ?? lower });
+    await tx.insert(roleAssignments).values({ userId, role: 'admin' });
+  });
+
+  console.log(`[bootstrap-admin] user ${lower} 创建并已获 admin 角色`);
+}
+
+/**
+ * 给已知 user 授 admin 角色（已存在则跳过）。
+ */
+async function grantAdminRole(db: DbHandle, userId: string, emailForLog: string): Promise<void> {
+  await db.tx(async (tx) => {
+    const [existing] = await tx
+      .select({ role: roleAssignments.role })
+      .from(roleAssignments)
+      .where(eq(roleAssignments.userId, userId))
+      .limit(1);
+    if (existing) {
+      console.log(`[bootstrap-admin] ${emailForLog} 已有角色 ${existing.role}，跳过`);
+      return;
+    }
+    await tx.insert(roleAssignments).values({ userId, role: 'admin' });
+    console.log(`[bootstrap-admin] ${emailForLog} 已获 admin 角色`);
+  });
 }

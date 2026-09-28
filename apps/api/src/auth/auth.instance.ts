@@ -44,7 +44,13 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
         verification: verificationTable,
       },
     }),
-    emailAndPassword: { enabled: false },
+    emailAndPassword: {
+      enabled: true,
+      // 8+ 字符：避免过短口令撞库，同时不阻用户体验
+      minPasswordLength: 8,
+      // 邮件 OTP 与密码双轨并存：用户首次用 OTP 注册后仍可补建密码
+      requireEmailVerification: false,
+    },
     socialProviders: env.GOOGLE_CLIENT_ID
       ? {
           google: {
