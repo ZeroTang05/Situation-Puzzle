@@ -29,7 +29,11 @@ const envSchema = z.object({
   // Google OAuth：可选配置——未配置时 Google 按钮隐藏、调用直接报错
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
-  // 境内服务器出站中继：与内部 oauth-relay 部署成对使用（专用路径 + 共享密钥）
+  // LINUX DO OAuth（connect.linux.do）：可选配置——未配置时 LINUX DO 按钮隐藏
+  LINUXDO_OAUTH_CLIENT_ID: z.string().optional(),
+  LINUXDO_OAUTH_CLIENT_SECRET: z.string().optional(),
+  // 境内服务器出站中继：与内部 oauth-relay 部署成对使用（专用路径 + 共享密钥），
+  // Google 与 LINUX DO 的服务端出站请求共用同一个中继
   GOOGLE_OAUTH_PROXY_BASE_URL: z.string().optional(),
   GOOGLE_OAUTH_PROXY_SHARED_SECRET: z.string().optional(),
 
@@ -81,8 +85,11 @@ export function loadEnv(): Env {
   }
   if (env.NODE_ENV === 'production') {
     if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
-      // 生产环境允许 Google 暂不开放（仅邮箱登录），但要明确记录
-      console.warn('[env] 未配置 Google OAuth：生产环境将只有邮箱验证码登录');
+      // 生产环境允许第三方登录暂不开放（邮箱/密码登录兜底），但要明确记录
+      console.warn('[env] 未配置 Google OAuth：生产环境将没有 Google 登录');
+    }
+    if (!env.LINUXDO_OAUTH_CLIENT_ID || !env.LINUXDO_OAUTH_CLIENT_SECRET) {
+      console.warn('[env] 未配置 LinuxDo OAuth：生产环境将没有 LINUX DO 登录');
     }
   }
   return env;

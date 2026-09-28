@@ -133,17 +133,17 @@ export function LoginPage() {
     navigate(next, { replace: true });
   };
 
-  // ---------- Google ----------
-  const google = async () => {
+  // ---------- 第三方 OAuth（Google / LINUX DO） ----------
+  const oauthSignIn = async (provider: 'google' | 'linuxdo') => {
     setBusy(true);
     setError(null);
     const { data, error: oauthError } = await authClient.signIn.social({
-      provider: 'google',
+      provider,
       callbackURL: next,
     });
     setBusy(false);
     if (oauthError) {
-      setError(oauthError.message ?? '无法启动 Google 登录');
+      setError(oauthError.message ?? '无法启动第三方登录');
       return;
     }
     if (data?.url) {
@@ -391,8 +391,11 @@ export function LoginPage() {
         <div className="divider">
           <span className="muted">或</span>
         </div>
-        <button className="btn" onClick={() => void google()} disabled={busy}>
+        <button className="btn" onClick={() => void oauthSignIn('google')} disabled={busy}>
           {copy.googleLogin}
+        </button>
+        <button className="btn" onClick={() => void oauthSignIn('linuxdo')} disabled={busy}>
+          使用 LINUX DO 登录
         </button>
 
         {/* 模式切换：底部超链接 */}

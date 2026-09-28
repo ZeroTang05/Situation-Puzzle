@@ -58,16 +58,16 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   客户端 `credentials: 'omit'`
 - **判题**：阈值只能服务端读；`uncertain` 是有效判定；缺概率是协议错误不编造；
   每局固定 `jevConfigVersion`
-- **认证**：Better Auth（邮箱/密码 + Email OTP + Google）；`trustedOrigins` 来自 `PUBLIC_BASE_URL`，
+- **认证**：Better Auth（邮箱/密码 + Email OTP + Google + LINUX DO）；`trustedOrigins` 来自 `PUBLIC_BASE_URL`，
   改来源先看 `apps/api/src/auth/auth.instance.ts`
 - **邮件通道**：`MAIL_TRANSPORT` 显式二选一（`apps/api/src/auth/mailer.ts`）——
   `resend` 生产通道（官方 SDK，与内部其他项目共用 Resend 账号，发件 `noreply@xiaobaozi.cn`）；
   `smtp` 本地联调通道（投递给 dev-mailsink）。通道与配置的对应关系在 `env.ts` 跨字段校验
-- **Google 出站中继**：境内服务器配 `GOOGLE_OAUTH_PROXY_BASE_URL` +
-  `GOOGLE_OAUTH_PROXY_SHARED_SECRET` 后，Google 服务端请求（token 兑换 POST、
+- **OAuth 出站中继**：境内服务器配 `GOOGLE_OAUTH_PROXY_BASE_URL` +
+  `GOOGLE_OAUTH_PROXY_SHARED_SECRET` 后，Google 与 LINUX DO 的服务端请求（token 兑换 POST、
   userinfo GET）在启动时改写到内部 oauth-relay（Deno Deploy，仓库
   `E:\tzy\github\oauth-relay`）的专用路径并带 `X-Relay-Token`（`google-proxy.ts`，
-  单测覆盖改写形状）；授权跳转仍由用户浏览器直连 accounts.google.com
+  单测覆盖改写形状）；授权跳转仍由用户浏览器直连 accounts.google.com / connect.linux.do
 - **锁序**：房间 → 局 → 赞助账户 → 免费账户 → 任务（跨 api/jobs 统一）
 
 ## 踩坑点

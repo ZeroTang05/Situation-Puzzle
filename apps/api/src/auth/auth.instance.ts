@@ -7,7 +7,7 @@
  */
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { emailOTP } from 'better-auth/plugins';
+import { emailOTP, genericOAuth } from 'better-auth/plugins';
 import {
   user as userTable,
   session as sessionTable,
@@ -25,6 +25,21 @@ export interface AuthDeps {
   env: Env;
   db: DbHandle;
   mailer: Mailer;
+}
+
+/** LINUX DO /api/user 的展示名：name 优先，退回 username */
+function linuxdoDisplayName(profile: Record<string, unknown>): string | undefined {
+  const name = typeof profile.name === 'string' ? profile.name.trim() : '';
+  const username = typeof profile.username === 'string' ? profile.username.trim() : '';
+  return name || username || undefined;
+}
+
+/** LINUX DO 头像是 Discourse 模板路径，把 {size} 换成 288px；相对路径补全为绝对地址 */
+function linuxdoAvatar(profile: Record<string, unknown>): string | undefined {
+  if (typeof profile.avatar_template !== 'string') return undefined;
+  const url = profile.avatar_template.replace('{size}', '288');
+  if (url.startsWith('https://') || url.startsWith('http://')) return url;
+  return url.startsWith('/') ? `https://connect.linux.do${url}` : undefined;
 }
 
 export function createAuth({ env, db, mailer }: AuthDeps) {
@@ -76,6 +91,41 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
           await mailer.sendVerificationCode(email, otp, env.JEV_LANGUAGE);
         },
       }),
+      // LINUX DO OAuth（connect.linux.do，对接参数参考 GoWith）：无 OIDC discovery，
+      // token 兑换用 Basic 头、不开 PKCE；/api/user 不返回邮箱，用稳定占位邮箱建账号
+      ...(env.LINUXDO_OAUTH_CLIENT_ID && env.LINUXDO_OAUTH_CLIENT_SECRET
+        ? [
+            genericOAuth({
+              config: [
+                {
+                  providerId: 'linuxdo',
+                  name: 'LINUX DO',
+                  clientId: env.LINUXDO_OAUTH_CLIENT_ID,
+                  clientSecret: env.LINUXDO_OAUTH_CLIENT_SECRET,
+                  authorizationUrl: 'https://connect.linux.do/oauth2/authorize',
+                  tokenUrl: 'https://connect.linux.do/oauth2/token',
+                  userInfoUrl: 'https://connect.linux.do/api/user',
+                  scopes: [],
+                  pkce: false,
+                  authentication: 'basic',
+                  mapProfileToUser: (profile) => {
+                    if (profile.id === undefined || profile.id === null) {
+                      throw new Error('LINUX DO 未返回稳定用户标识');
+                    }
+                    // exactOptionalPropertyTypes：可选字段有值才放进对象
+                    const name = linuxdoDisplayName(profile);
+                    const image = linuxdoAvatar(profile);
+                    return {
+                      email: `linuxdo-${String(profile.id)}@linuxdo.invalid`,
+                      ...(name !== undefined && { name }),
+                      ...(image !== undefined && { image }),
+                    };
+                  },
+                },
+              ],
+            }),
+          ]
+        : []),
     ],
     session: {
       expiresIn: 60 * 60 * 24 * 30,

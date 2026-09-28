@@ -9,7 +9,7 @@ import { ExpressAdapter } from '@nestjs/platform-express';
 import { loadEnv } from './env.js';
 import { createDb } from '@jev/database';
 import { createResendMailer, createSmtpMailer } from './auth/mailer.js';
-import { installGoogleOAuthProxy } from './auth/google-proxy.js';
+import { installOAuthRelay } from './auth/google-proxy.js';
 import { createAuth } from './auth/auth.types.js';
 import { jevConfigFromEnv } from '@jev/jev';
 import { createAppContext } from './bootstrap.js';
@@ -25,10 +25,10 @@ async function main(): Promise<void> {
   // 启动即验证数据库连通，失败就地崩溃
   await db.pool.query('select 1');
 
-  // 境内服务器：Google 服务端请求（token 兑换、userinfo）改写到出站中继，须在创建 auth 前安装
+  // 境内服务器：Google / LINUX DO 的服务端出站请求（token 兑换、userinfo）改写到出站中继，须在创建 auth 前安装
   if (env.GOOGLE_OAUTH_PROXY_BASE_URL) {
-    installGoogleOAuthProxy(env.GOOGLE_OAUTH_PROXY_BASE_URL, env.GOOGLE_OAUTH_PROXY_SHARED_SECRET!);
-    logger.log(`Google OAuth 出站中继：${env.GOOGLE_OAUTH_PROXY_BASE_URL}`);
+    installOAuthRelay(env.GOOGLE_OAUTH_PROXY_BASE_URL, env.GOOGLE_OAUTH_PROXY_SHARED_SECRET!);
+    logger.log(`OAuth 出站中继（Google / LINUX DO）：${env.GOOGLE_OAUTH_PROXY_BASE_URL}`);
   }
 
   const mailer =
