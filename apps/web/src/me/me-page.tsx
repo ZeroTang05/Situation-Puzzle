@@ -30,9 +30,29 @@ export function MePage({ session }: { session: Session | null }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [localCount, setLocalCount] = useState<number | null>(null);
+  // 昵称修改：允许重名，保存后让 /me 重新拉取
+  const [editingNickname, setEditingNickname] = useState(false);
+  const [nicknameDraft, setNicknameDraft] = useState('');
+  const [nicknameError, setNicknameError] = useState<string | null>(null);
+  const [savingNickname, setSavingNickname] = useState(false);
 
   const me = useQuery({ queryKey: ['me'], queryFn: () => api<MeResponse>('/me'), enabled: session !== null, retry: false });
   const history = useQuery({ queryKey: ['me-history'], queryFn: () => api<HistoryResponse>('/me/history'), enabled: session !== null, retry: false });
+
+  const saveNickname = async () => {
+    setSavingNickname(true);
+    setNicknameError(null);
+    try {
+      await api<{ nickname: string }>('/me/nickname', { method: 'PATCH', body: { nickname: nicknameDraft } });
+      await queryClient.invalidateQueries({ queryKey: ['me'] });
+      setEditingNickname(false);
+    } catch (error) {
+      setNicknameError(error instanceof Error ? error.message : '保存失败，请稍后再试');
+      return;
+    } finally {
+      setSavingNickname(false);
+    }
+  };
 
   useEffect(() => {
     void soloStore.listSessions().then((rows) => setLocalCount(rows.length));
@@ -56,7 +76,48 @@ export function MePage({ session }: { session: Session | null }) {
       </header>
 
       <section className="panel stack">
-        <h2>{me.data?.nickname ?? session.user.email}</h2>
+        {editingNickname ? (
+          <>
+            <label className="field-label" htmlFor="nickname">
+              昵称
+              <input
+                id="nickname"
+                className="field"
+                type="text"
+                value={nicknameDraft}
+                maxLength={30}
+                onChange={(e) => setNicknameDraft(e.target.value)}
+                placeholder="1～30 个字符，可与其他玩家重名"
+              />
+            </label>
+            {nicknameError && <p className="error-text" role="alert">{nicknameError}</p>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                className="btn btn-primary"
+                disabled={savingNickname || nicknameDraft.trim().length === 0}
+                onClick={() => void saveNickname()}
+              >
+                保存
+              </button>
+              <button className="btn" disabled={savingNickname} onClick={() => setEditingNickname(false)}>
+                取消
+              </button>
+            </div>
+          </>
+        ) : (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <h2 style={{ margin: 0 }}>{me.data?.nickname ?? session.user.email}</h2>
+            <button
+              className="btn btn-sm btn-ghost"
+              onClick={() => {
+                setNicknameDraft(me.data?.nickname ?? '');
+                setEditingNickname(true);
+              }}
+            >
+              修改
+            </button>
+          </div>
+        )}
         <p className="muted">{session.user.email}</p>
         {me.data && (
           <p>

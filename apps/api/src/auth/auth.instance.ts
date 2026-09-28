@@ -8,6 +8,7 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { emailOTP, genericOAuth } from 'better-auth/plugins';
+import { randomInt } from 'node:crypto';
 import {
   user as userTable,
   session as sessionTable,
@@ -25,6 +26,11 @@ export interface AuthDeps {
   env: Env;
   db: DbHandle;
   mailer: Mailer;
+}
+
+/** 默认昵称：用户 + 6 位随机编号（昵称允许重复，不做唯一性检查） */
+export function defaultNickname(): string {
+  return `用户${randomInt(100000, 1000000)}`;
 }
 
 /** LINUX DO /api/user 的展示名：name 优先，退回 username */
@@ -143,7 +149,8 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
       user: {
         create: {
           after: async (userRow) => {
-            const nickname = userRow.name || userRow.email.split('@')[0] || '玩家';
+            // 昵称允许重复；未填写时用「用户+随机编号」，避免把邮箱前缀当昵称展示
+            const nickname = userRow.name?.trim() || defaultNickname();
             await db.db.insert(profiles).values({ userId: userRow.id, nickname }).onConflictDoNothing();
             await db.db.insert(freeRoomAccounts).values({ userId: userRow.id }).onConflictDoNothing();
             await db.db.insert(sponsorAccounts).values({ userId: userRow.id }).onConflictDoNothing();

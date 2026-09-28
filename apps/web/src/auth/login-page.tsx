@@ -109,11 +109,11 @@ export function LoginPage() {
     }
     setBusy(true);
     setError(null);
-    const fallbackName = name.trim().length > 0 ? name : email.split('@')[0] ?? email;
+    // 昵称留空就直接注册：服务端会给「用户+随机编号」的默认昵称（不回退邮箱前缀）
     const { error: signErr } = await authClient.signUp.email({
       email,
       password,
-      name: fallbackName,
+      name: name.trim(),
     });
     setBusy(false);
     if (signErr) {

@@ -315,6 +315,11 @@ export const meResponseSchema = z.object({
   }),
 });
 
+/** 修改昵称：允许与其他玩家重名，仅约束 1～30 字符（服务端去首尾空格） */
+export const nicknameUpdateRequestSchema = z.object({
+  nickname: z.string().trim().min(1).max(30),
+});
+
 export const sponsorProductSchema = z.object({
   productVersionId: z.string(),
   type: z.enum(['monthly', 'lifetime']),

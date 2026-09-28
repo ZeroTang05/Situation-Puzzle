@@ -15,6 +15,7 @@ import { account, profiles, roleAssignments, user } from '@jev/database';
 import type { DbHandle } from '@jev/database';
 import type { Mailer } from './auth/mailer.js';
 import type { BetterAuthInstance } from './auth/auth.types.js';
+import { defaultNickname } from './auth/auth.instance.js';
 import type { JevConfig } from '@jev/jev';
 import { type AppContext, type QueueHandle, setAppContext } from './context.js';
 
@@ -170,8 +171,8 @@ async function ensureBootstrapAdmin(env: Env, db: DbHandle): Promise<void> {
       providerId: 'credential',
       password: hashed,
     });
-    // profiles 行：与 user 1:1，初始昵称取邮箱前缀
-    await tx.insert(profiles).values({ userId, nickname: lower.split('@')[0] ?? lower });
+    // profiles 行：与 user 1:1，昵称用「用户+随机编号」（不在昵称里暴露邮箱前缀）
+    await tx.insert(profiles).values({ userId, nickname: defaultNickname() });
     await tx.insert(roleAssignments).values({ userId, role: 'admin' });
   });
 

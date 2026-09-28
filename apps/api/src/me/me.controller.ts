@@ -1,9 +1,10 @@
 /** 当前账号：身份、赞助有效期、免费开房余量、多人历史。 */
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, Get, Patch } from '@nestjs/common';
 import { desc, eq, inArray } from 'drizzle-orm';
 import {
   freeRoomAccounts,
   orders,
+  profiles,
   roomMembers,
   rooms,
   rounds,
@@ -14,8 +15,8 @@ import {
 } from '@jev/database';
 import { freeRoomsRemaining, hasActiveSponsorship, hasLifetimeGrant } from '@jev/domain';
 import { app } from '../context.js';
-import { CurrentUser, type SessionUser } from '../common/http.js';
-import { meResponseSchema } from '@jev/contracts';
+import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http.js';
+import { meResponseSchema, nicknameUpdateRequestSchema } from '@jev/contracts';
 import { z } from 'zod';
 
 @Controller('me')
@@ -61,6 +62,19 @@ export class MeController {
       .limit(1);
     const free = rows[0];
     return { remaining: free ? freeRoomsRemaining(free) : 0, total: free?.total ?? 10 };
+  }
+
+  /** 修改昵称：允许与其他玩家重名，仅约束 1～30 字符（去首尾空格） */
+  @Patch('nickname')
+  async updateNickname(
+    @CurrentUser() user: SessionUser,
+    @Body(new ZodValidationPipe(nicknameUpdateRequestSchema)) body: z.infer<typeof nicknameUpdateRequestSchema>,
+  ): Promise<{ nickname: string }> {
+    await app().db.db
+      .update(profiles)
+      .set({ nickname: body.nickname, updatedAt: new Date() })
+      .where(eq(profiles.userId, user.userId));
+    return { nickname: body.nickname };
   }
 
   /** 多人历史：按成员关系查房间，含每局的题目与结局 */
