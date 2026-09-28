@@ -20,7 +20,7 @@
 
 用户明确要求邮箱验证码与 Google OAuth（谷歌账号授权）同时支持。登录页以邮箱输入为主要入口，Google 按钮为第二入口；登录成功后返回原邀请或购买页面。
 
-采用 Better Auth 的 [Email OTP](https://better-auth.com/docs/plugins/email-otp) 和 [Google 登录](https://better-auth.com/docs/authentication/google)。Google 仅申请身份所需的 openid/email/profile，不申请读取 Gmail 邮件权限。OAuth 回调、state 校验和令牌验证交由成熟认证库，按 [Google 服务端授权说明](https://developers.google.com/identity/protocols/oauth2/web-server) 配置域名与回调。
+采用 Better Auth 的邮箱/密码（emailAndPassword）、[Email OTP](https://better-auth.com/docs/plugins/email-otp) 和 [Google 登录](https://better-auth.com/docs/authentication/google)。Google 仅申请身份所需的 openid/email/profile，不申请读取 Gmail 邮件权限。OAuth 回调、state 校验和令牌验证交由成熟认证库，按 [Google 服务端授权说明](https://developers.google.com/identity/protocols/oauth2/web-server) 配置域名与回调。
 
 邮箱验证码默认有效 5 分钟、同邮箱 60 秒内限发一次、每次验证码最多尝试 5 次；发送同时按邮箱、账号和 IP 限速，参数通过真实投递测试调整。邮件服务负责真实投递，发信域名设置相应认证记录；不得把控制台打印验证码当作已接入邮箱。
 

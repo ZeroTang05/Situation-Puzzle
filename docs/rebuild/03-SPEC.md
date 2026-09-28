@@ -8,7 +8,7 @@
 
 ```mermaid
 flowchart TB
-    Web[浏览器玩家端] --> Edge[Caddy HTTPS 入口]
+    Web[浏览器玩家端] --> Edge[宿主 Nginx/OpenResty HTTPS 入口]
     Admin[浏览器管理端] --> Edge
     Future[后续小程序与 App] -.-> Edge
     Edge --> Static[Web 与后台静态文件]
@@ -37,9 +37,9 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 | 数据访问 | PostgreSQL + Drizzle ORM（类型化数据库访问）；单人端使用 idb | 服务端事务、行锁、唯一约束承担多人及商业一致性；idb 封装浏览器 IndexedDB |
 | 任务队列 | pg-boss（基于 PostgreSQL 的成熟任务库） | 多人判题、审核、查单、定时关闭使用持久任务；单人文本不进入队列；首发无需 Redis |
 | 实时连接 | NestJS `WsAdapter` + `ws`，标准 WebSocket | 浏览器与后续小程序可使用标准协议；重连和补齐使用本文规定的持久事件接口 |
-| 身份 | Better Auth + Email OTP（邮箱验证码）+ Google OAuth（第三方授权） | 会话与协议使用成熟库；房间、内容、财务权限由业务服务判断 |
+| 身份 | Better Auth + 邮箱/密码 + Email OTP（邮箱验证码）+ Google OAuth（第三方授权） | 会话与协议使用成熟库；房间、内容、财务权限由业务服务判断 |
 | 契约 | Zod（运行时结构校验）+ OpenAPI + JSON Schema | 输入先校验再执行；HTTP 客户端按契约生成，客户端不引用服务端机密类型 |
-| 部署 | Docker Compose + Caddy（HTTPS 与反向代理） | 单服务器可运维、可备份、可回退；玩家端与管理端单独构建 |
+| 部署 | Docker Compose（前端 / 管理 / API / Jobs / 各自独立容器，TLS 终结在宿主 Nginx/OpenResty） | 单服务器可运维、可备份、可回退；玩家端与管理端单独构建 |
 | 验证 | Vitest、Playwright、真实 PostgreSQL | 纯规则测试与真实数据库并发测试分工；浏览器测试覆盖多人行为 |
 
 这些框架能力已核对官方资料：[Vite](https://vite.dev/guide/)、[NestJS WebSocket 适配器](https://docs.nestjs.com/websockets/adapter)、[Drizzle](https://orm.drizzle.team/docs/overview)、[pg-boss](https://github.com/timgit/pg-boss)、[Better Auth](https://better-auth.com/docs/introduction)、[React-admin](https://marmelab.com/react-admin/documentation.html)。实现前锁定互相兼容的稳定版本，提交锁文件，生产构建使用冻结依赖安装。
@@ -206,7 +206,7 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 
 ## 8. 部署与运行
 
-首发容器：Caddy、API、Jobs、PostgreSQL。数据库和任务内部端口仅内网可达；公网只暴露 HTTPS。静态资源用内容散列缓存，入口 HTML 短缓存；API、私有历史与答案使用 `Cache-Control: no-store`。
+首发容器：Web（前端 nginx）、Admin（管理端 nginx）、API、Jobs、PostgreSQL。前端/管理端容器内置 nginx 反代到 API；宿主 Nginx/OpenResty 终结 TLS。数据库和任务内部端口仅内网可达；公网只暴露 HTTPS。静态资源用内容散列缓存，入口 HTML 短缓存；API、私有历史与答案使用 `Cache-Control: no-store`。
 
 环境配置包括数据库地址、登录密钥、Google 客户端凭据、邮件服务参数、Jev 密钥与地址/模型、支付凭据、允许域名、环境标识。公开前端配置只含公开地址和构建版本；密钥不进入镜像和仓库。必需配置缺失时对应进程启动失败并给出明确日志；显式测试版配置可以关闭支付入口。
 

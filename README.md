@@ -37,8 +37,8 @@ cp .env.example .env   # 填写域名、数据库密码、Resend 密钥、Jev �
 docker compose up -d --build
 ```
 
-这一条命令会构建并启动全部四个服务：Caddy 入口（自动 HTTPS）+ 玩家端/管理端静态站 +
-API + 任务进程 + PostgreSQL，并且 API 容器启动时自动执行数据库迁移。首次体验可再执行
+这一条命令会构建并启动全部服务：玩家端/管理端/后端 API + 任务进程 + PostgreSQL，
+并且 API 容器启动时自动执行数据库迁移。首次体验可再执行
 `docker compose --profile seed run --rm seed` 导入演示题库（正式环境须走内容权利审核）。
 
 升级版本：`git pull && docker compose up -d --build`。
@@ -46,11 +46,11 @@ API + 任务进程 + PostgreSQL，并且 API 容器启动时自动执行数据�
 ## 部署形态
 
 ```
-浏览器 ──> Caddy（自动 HTTPS）
-            ├─ /            玩家端静态文件（apps/web 构建）
-            ├─ /admin       管理端静态文件（apps/admin 构建）
-            ├─ /api/v1/*    NestJS API
-            └─ /ws          标准 WebSocket（房间实时同步）
+浏览器 ──> 宿主 Nginx / OpenResty（HTTPS 与反代，本仓库已不含 Caddy）
+            ├─ /            玩家端容器（apps/web 构建）
+            ├─ /admin       管理端容器（apps/admin 构建）
+            ├─ /api/v1/*    通过前端容器内部 nginx 反代到 NestJS API
+            └─ /ws          通过前端容器内部 nginx 反代（房间实时同步）
                               │
                     PostgreSQL（业务数据 + pg-boss 任务队列）
                               │
@@ -63,10 +63,10 @@ API + 任务进程 + PostgreSQL，并且 API 容器启动时自动执行数据�
 | --- | --- |
 | 玩家端 | React 19 + Vite + React Router + TanStack Query；单人记录存 IndexedDB（idb） |
 | 管理端 | React-admin |
-| API | NestJS 11（HTTP + 标准 WebSocket）、Better Auth（邮箱验证码 + Google 登录，境内服务器走出站代理） |
+| API | NestJS 11（HTTP + 标准 WebSocket）、Better Auth（邮箱/密码 + Email OTP + Google 登录，境内服务器走出站代理） |
 | 数据 | PostgreSQL 17 + Drizzle ORM；pg-boss 持久任务队列 |
 | 判题 | OpenCode Zen SystemOne（模型 `jev-1.13`），置信度阈值 0.5 |
-| 部署 | Docker Compose + Caddy |
+| 部署 | Docker Compose（前端/管理/API 各自独立容器，TLS 终结由宿主 Nginx/OpenResty 负责） |
 
 ## 项目结构
 
@@ -76,7 +76,7 @@ apps/admin      管理端（内容审核、用户、房间、订单、举报）
 apps/api        后端服务（认证、题库、单人、房间、实时、赞助、治理、后台接口）
 apps/jobs       任务进程（判题执行、房间调度、投稿机审、巡检）
 packages/*      共享包：契约(Zod)、领域规则、数据库表结构、Jev 适配、文案、样式
-infra           Dockerfile 与 Caddy 配置
+infra           各服务 Dockerfile 与前端容器内 nginx 配置
 data            题库 JSON（导入源）
 docs/rebuild    产品与架构设计文档
 ```

@@ -19,8 +19,8 @@
 | 免费开房账本（05-OPERATIONS §4） | `room_entitlements` + `room_credit_ledger`（(room_id,action) 唯一）：建房预留 → 首次有效判定消费 → 故障整房退回一次 | 完成 |
 | 赞助订单（05-OPERATIONS §3/§5） | 订单状态机、微信支付 v3 适配器（签名/验签/AES-GCM）、月度锚点续期算法、重复永久购买登记 | 订单与授权逻辑完成；微信通道需商户凭据后联调（M4） |
 | 单人隐私（08-SOLO） | 匿名签名凭证（jose）、无持久化接口、IndexedDB 本地会话、内存限速（IP 不落盘）、credentials omit | 完成 |
-| 认证（05-OPERATIONS §2） | Better Auth 1.7：Email OTP + Google OAuth、注册钩子初始化档案/免费账户 | 完成；真实邮件与 Google 回调待 M0 外部验证 |
-| 部署（03-SPEC §8） | `infra/`：Caddy + API + jobs + PostgreSQL 的 Docker Compose、Dockerfile、Caddyfile | 完成；本机 compose 全栈实测通过（见 §2.2），目标服务器部署待 M0 |
+| 认证（05-OPERATIONS §2） | Better Auth 1.7：邮箱/密码 + Email OTP + Google OAuth、注册钩子初始化档案/免费账户 | 完成；真实邮件与 Google 回调待 M0 外部验证 |
+| 部署（03-SPEC §8） | `infra/`：Web/Admin/API/Jobs/PostgreSQL 各容器独立构建，宿主 Nginx 终结 TLS | 完成；本机 compose 全栈实测通过（见 §2.2），目标服务器部署待 M0 |
 
 ## 2. 验证证据
 
@@ -49,7 +49,7 @@
 `cp .env.example .env && docker compose up -d --build` 起全栈，实测通过：
 
 - 三镜像构建成功；API 容器启动自动执行迁移后再起服务；postgres 健康；jobs 正常轮询。
-- edge（Caddy）服务 web（200）、admin（200）；`/api/v1/health/live` 与题库列表经反代返回 JSON；WebSocket 升级经 edge 转发成功（探针实测 25ms 升级、未认证连接 5 秒被服务端关闭）。
+- web/admin 容器各自 200；`/api/v1/health/live` 与题库列表经前端容器内置 nginx 反代返回 JSON；WebSocket 升级经前端容器反代转发成功（探针实测 25ms 升级、未认证连接 5 秒被服务端关闭）。
 - `docker compose --profile seed run --rm seed` 灌入 30 题，公开列表即有数据。
 - 只有 edge 发布端口（80/443），postgres/api/jobs 仅内网可达。
 
@@ -57,7 +57,7 @@
 
 1. 容器内 tsx 报 decorators 错误：镜像缺少根 `tsconfig.base.json`（apps 的 tsconfig 经 extends 链上溯找不到）→ Dockerfile 补 COPY。
 2. jobs 启动 `ERR_MODULE_NOT_FOUND: zod`：代码 import 了 zod 但未在 `apps/jobs/package.json` 声明，pnpm 严格 node_modules 下不可见 → 补声明（本地靠提升侥幸通过）。
-3. Caddyfile 中 `handle`（含静态兜底）先于 `reverse_proxy` 执行，API 路径被静态兜底吞掉返回 index.html → 反代改写进 `handle` 块，按 Caddy 路径最长优先匹配。
+3. 前端容器内 nginx `location` 优先级：静态资源 / `try_files` 兜底若先于 `proxy_pass /api/v1/*` 命中，会把 API 路径当 SPA 返回 index.html；将 `proxy_pass` 单独写到 `location ^~ /api/v1/` 与 `location ^~ /ws` 块，按最长前缀匹配即可。
 4. 实时网关未强制「5 秒内 auth 帧」：未认证连接可无限挂起 → `handleConnection` 补 5 秒鉴权时限。
 
 以下为待人工/外部验证项（文档明确不自动视作完成）：真实第三方邮箱投递与 Google OAuth 回调（本地已用真实 SMTP 协议收信台验证登录链路）、真实微信支付（商户凭据）、目标服务器部署。

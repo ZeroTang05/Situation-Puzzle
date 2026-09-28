@@ -58,7 +58,7 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   客户端 `credentials: 'omit'`
 - **判题**：阈值只能服务端读；`uncertain` 是有效判定；缺概率是协议错误不编造；
   每局固定 `jevConfigVersion`
-- **认证**：Better Auth（Email OTP + Google）；`trustedOrigins` 来自 `PUBLIC_BASE_URL`，
+- **认证**：Better Auth（邮箱/密码 + Email OTP + Google）；`trustedOrigins` 来自 `PUBLIC_BASE_URL`，
   改来源先看 `apps/api/src/auth/auth.instance.ts`
 - **邮件通道**：`MAIL_TRANSPORT` 显式二选一（`apps/api/src/auth/mailer.ts`）——
   `resend` 生产通道（官方 SDK，与内部其他项目共用 Resend 账号，发件 `noreply@xiaobaozi.cn`）；
