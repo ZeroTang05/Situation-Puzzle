@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const target = join(root, 'platforms', 'xiaohongshu', 'shared');
+const target = join(root, 'platforms', 'xiaohongshu', '海龟汤', 'shared');
 await mkdir(target, { recursive: true });
 
 const zh = JSON.parse(await readFile(join(root, 'data', 'library.json'), 'utf8'));

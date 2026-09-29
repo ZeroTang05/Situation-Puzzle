@@ -36,10 +36,10 @@ const seedSoups = (language) => library[language].map(({ answer, ...soup }) => s
 
 Page({
   data: {
-    language: 'zh', t: copy.zh, view: 'play', soups: [], currentId: '', soup: null,
+    language: 'zh', t: copy.zh, libraryOpen: false, soups: [], currentId: '', soup: null,
     messages: [], solveMessages: [], solveOpen: false, question: '',
     hintCount: 0, hintIndex: 0, answer: '', notice: '', loading: true, busy: false,
-    records: {}, progress: null, form: { title: '', story: '', answer: '', hint1: '', hint2: '', hint3: '' },
+    records: {},
   },
 
   onLoad(options) {
@@ -53,7 +53,9 @@ Page({
       const language = sharedLanguage === 'en' || sharedLanguage === 'zh' ? sharedLanguage : savedLanguage === 'en' ? 'en' : 'zh';
       const records = (await readStorage('jev-browser-progress')) || {};
       const soups = decorate(seedSoups(language), records);
-      const chosen = soups.find((item) => item.id === this.sharedId) || soups[0] || null;
+      // 普通入口随机抽题；分享入口优先打开指定题目。
+      const chosen = soups.find((item) => item.id === this.sharedId)
+        || soups[Math.floor(Math.random() * soups.length)] || null;
       this.setData({ language, t: { ...copy[language], ...legacyCopy[language], play: copy[language].play }, records, soups, currentId: chosen?.id || '', soup: chosen, loading: false });
       this.refreshProgress();
       try { await this.loadSoups(); }
@@ -81,8 +83,7 @@ Page({
 
   refreshProgress() {
     const { soups, records } = this.data;
-    const entries = soups.filter((soup) => records[soup.id]).map((soup) => ({ soup_id: soup.id, title: soup.title, ...records[soup.id] }));
-    this.setData({ soups: decorate(soups, records), progress: { total: soups.length, attempted: entries.length, solved: entries.filter((entry) => entry.solved_at).length, soups: entries } });
+    this.setData({ soups: decorate(soups, records) });
   },
   async recordResult(soupId, outcome, isQuestion) {
     const records = { ...this.data.records };
@@ -101,22 +102,26 @@ Page({
     const language = this.data.language === 'zh' ? 'en' : 'zh';
     const soups = decorate(seedSoups(language), this.data.records);
     const chosen = soups.find((item) => item.id === this.data.currentId) || soups[0] || null;
-    this.setData({ language, t: { ...copy[language], ...legacyCopy[language], play: copy[language].play }, soups, soup: chosen, currentId: chosen?.id || '', notice: '', messages: [], solveMessages: [], answer: '', hintCount: 0 });
+    this.setData({ language, t: { ...copy[language], ...legacyCopy[language], play: copy[language].play }, soups, soup: chosen, currentId: chosen?.id || '', libraryOpen: false, notice: '', messages: [], solveMessages: [], answer: '', hintCount: 0 });
     this.refreshProgress();
     try { await writeStorage('jev-language', language); await this.loadSoups(); }
     catch (error) { console.error('切换语言失败', error); this.setData({ notice: `${this.data.t.requestFailed} ${error.message || ''}` }); }
   },
-  changeView(event) {
-    const view = event.currentTarget.dataset.view;
-    this.setData({ view });
+  // 题库悬浮展开，选择后收起，保持游玩界面的位置。
+  toggleLibrary() {
+    if (this.data.busy) return;
+    this.setData({ libraryOpen: !this.data.libraryOpen });
   },
+  closeLibrary() { this.setData({ libraryOpen: false }); },
   chooseSoup(event) {
+    if (this.data.busy) return;
     const soup = this.data.soups.find((item) => item.id === event.currentTarget.dataset.id);
     if (!soup) return;
-    this.setData({ view: 'play', soup, currentId: soup.id, messages: [], solveMessages: [], solveOpen: false, question: '', hintCount: 0, hintIndex: 0, answer: '', notice: '' });
+    this.setData({ libraryOpen: false, soup, currentId: soup.id, messages: [], solveMessages: [], solveOpen: false, question: '', hintCount: 0, hintIndex: 0, answer: '', notice: '' });
   },
   // 换一题：优先在没玩过的题里随机抽；都玩过就退回在其余题里随机。
   nextSoup() {
+    if (this.data.busy) return;
     const { soups, currentId, records } = this.data;
     if (!soups.length) return;
     const others = soups.filter((item) => item.id !== currentId);
@@ -125,7 +130,6 @@ Page({
     if (pool.length) this.chooseSoup({ currentTarget: { dataset: { id: pool[Math.floor(Math.random() * pool.length)].id } } });
   },
   questionInput(event) { this.setData({ question: event.detail.value }); },
-  formInput(event) { this.setData({ [`form.${event.currentTarget.dataset.field}`]: event.detail.value }); },
   openSolve() { this.setData({ solveOpen: true, question: '' }); },
   closeSolve() { this.setData({ solveOpen: false, question: '' }); },
 
@@ -171,26 +175,6 @@ Page({
       },
     });
   },
-  async submitSoup() {
-    if (this.data.busy) return;
-    const form = this.data.form;
-    if (![form.title, form.story, form.answer, form.hint1].every((value) => value.trim())) { this.setData({ notice: this.data.t.missing }); return; }
-    this.setData({ busy: true, notice: '' });
-    try {
-      const result = await request('/api/soups', 'POST', {
-        title: form.title.trim(), story: form.story.trim(), answer: form.answer.trim(),
-        hints: [form.hint1, form.hint2, form.hint3].map((value) => value.trim()).filter(Boolean), language: this.data.language,
-      });
-      this.setData({ notice: result.message });
-      if (result.status === 'published') {
-        await this.loadSoups();
-        this.chooseSoup({ currentTarget: { dataset: { id: result.soup.id } } });
-        this.setData({ form: { title: '', story: '', answer: '', hint1: '', hint2: '', hint3: '' }, notice: result.message });
-      }
-    } catch (error) { console.error('题目审核失败', error); this.setData({ notice: `${this.data.t.requestFailed} ${error.message || ''}` }); }
-    finally { this.setData({ busy: false }); }
-  },
-
   // 分享参数只携带后端定义的稳定题目 ID。
   shareCurrentSoup() {
     const { soup, language } = this.data;

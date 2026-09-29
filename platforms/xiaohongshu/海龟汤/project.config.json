@@ -1,0 +1,21 @@
+{
+  "compileType": "miniwidget",
+  "libVersion": "3.133.1",
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "setting": {
+    "minified": true,
+    "urlCheck": true,
+    "useNewDevtools": false,
+    "useNewCompiler": true
+  },
+  "condition": {},
+  "editorSetting": {
+    "tabIndent": "auto",
+    "tabSize": 2
+  },
+  "appid": "6ab4dc7bb0598000019f0658",
+  "projectName": "海龟汤"
+}
