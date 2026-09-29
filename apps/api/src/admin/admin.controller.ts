@@ -4,7 +4,7 @@
  */
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
   activeRoomUsers,
   archiveRoomTx,
@@ -33,6 +33,7 @@ import { SessionGuard } from '../auth/session.guard.js';
 import { z } from 'zod';
 
 const reasonSchema = z.object({ reason: z.string().min(2).max(500) });
+const approveSchema = reasonSchema.extend({ scope: z.enum(['language', 'revision']).default('language') });
 const grantSchema = z.object({ months: z.number().int().min(1).max(12), reason: z.string().min(2).max(500) });
 
 @Controller('admin')
@@ -79,7 +80,7 @@ export class AdminController {
       .from(puzzles)
       .innerJoin(
         puzzleVersions,
-        and(eq(puzzleVersions.puzzleId, puzzles.id), sql`puzzle_versions.id = (select id from puzzle_versions v where v.puzzle_id = puzzles.id order by v.version_no desc limit 1)`),
+        and(eq(puzzleVersions.puzzleId, puzzles.id), sql`${puzzleVersions.versionNo} = (select max(v.version_no) from puzzle_versions v where v.puzzle_id = ${puzzles.id})`),
       )
       .leftJoin(puzzleRights, eq(puzzleRights.puzzleId, puzzles.id))
       .where(and(...conditions))
@@ -94,33 +95,53 @@ export class AdminController {
     const rows = await app().db.db.select().from(puzzleVersions).where(eq(puzzleVersions.id, id)).limit(1);
     if (rows.length === 0) throw new DomainError('NOT_FOUND', '版本不存在');
     const rights = await app().db.db.select().from(puzzleRights).where(eq(puzzleRights.puzzleId, rows[0]!.puzzleId)).limit(1);
-    return { version: rows[0], rights: rights[0] ?? null };
+    const versions = await app().db.db.select().from(puzzleVersions)
+      .where(and(eq(puzzleVersions.puzzleId, rows[0]!.puzzleId), eq(puzzleVersions.versionNo, rows[0]!.versionNo)))
+      .orderBy(asc(puzzleVersions.language));
+    return { version: rows[0], versions, rights: rights[0] ?? null };
   }
 
-  /** 批准发布：商业授权与质量审核均需通过；同事务设置发布指针。 */
+  /** 批准当前语言或明确选定的同版全部语言；发布与逐语言审计在同一事务完成。 */
   @Post('puzzle-versions/:id/approve')
   @RequireRoles('admin', 'moderator')
-  async approve(@CurrentUser() operator: SessionUser, @Param('id') id: string, @Body(new ZodValidationPipe(reasonSchema)) body: z.infer<typeof reasonSchema>) {
+  async approve(@CurrentUser() operator: SessionUser, @Param('id') id: string, @Body(new ZodValidationPipe(approveSchema)) body: z.infer<typeof approveSchema>) {
     const db = app().db;
     const result = await db.tx(async (tx) => {
-      const [version] = await tx.select().from(puzzleVersions).where(eq(puzzleVersions.id, id)).for('update').limit(1);
+      const [version] = await tx.select().from(puzzleVersions).where(eq(puzzleVersions.id, id)).limit(1);
       if (!version) throw new DomainError('NOT_FOUND', '版本不存在');
+      // 先锁作品，再按固定顺序锁同版语言，串行处理同一作品的发布操作。
+      const [puzzle] = await tx.select().from(puzzles).where(eq(puzzles.id, version.puzzleId)).for('update').limit(1);
+      if (!puzzle) throw new DomainError('NOT_FOUND', '作品不存在');
+      const versions = await tx.select().from(puzzleVersions)
+        .where(and(eq(puzzleVersions.puzzleId, version.puzzleId), eq(puzzleVersions.versionNo, version.versionNo)))
+        .orderBy(asc(puzzleVersions.language), asc(puzzleVersions.id)).for('update');
+      const selected = body.scope === 'revision' ? versions : versions.filter((candidate) => candidate.id === id);
+      if (selected.length === 0) throw new DomainError('NOT_FOUND', '版本不存在');
+      const blocked = selected.find((candidate) => candidate.moderationStatus !== 'pending_review' && candidate.moderationStatus !== 'published');
+      if (blocked) throw new DomainError('STATE_CONFLICT', `${blocked.language} 版本状态为 ${blocked.moderationStatus}，请先完成审核流程`);
       const [rights] = await tx.select().from(puzzleRights).where(eq(puzzleRights.puzzleId, version.puzzleId)).for('update').limit(1);
       if (!rights || rights.status !== 'approved') {
         throw new DomainError('STATE_CONFLICT', '商业授权未通过，不能发布');
       }
-      await tx.update(puzzleVersions).set({ moderationStatus: 'published' }).where(eq(puzzleVersions.id, id));
-      await tx.update(puzzles).set({ currentPublishedVersionId: id, updatedAt: new Date() }).where(eq(puzzles.id, version.puzzleId));
+      const affected = selected.filter((candidate) => candidate.moderationStatus === 'pending_review');
+      if (affected.length === 0) throw new DomainError('STATE_CONFLICT', '所选语言版本已全部发布');
+      await tx.update(puzzleVersions).set({ moderationStatus: 'published' }).where(inArray(puzzleVersions.id, affected.map((candidate) => candidate.id)));
+      // 同版补发语言保留现有发布指针；切换版号时使用本次批准的版本。
+      const publishedId = versions.some((candidate) => candidate.id === puzzle.currentPublishedVersionId)
+        ? puzzle.currentPublishedVersionId! : id;
+      await tx.update(puzzles).set({ currentPublishedVersionId: publishedId, updatedAt: new Date() }).where(eq(puzzles.id, version.puzzleId));
       // 署名申请随发布批准一并生效（docs/rebuild/11-VOTES-AND-AUTHORSHIP.md §4）
-      const [puzzle] = await tx.select().from(puzzles).where(eq(puzzles.id, version.puzzleId)).limit(1);
       if (puzzle?.authorPendingName) {
         await tx
           .update(puzzles)
           .set({ authorDisplayMode: 'signature', authorDisplayName: puzzle.authorPendingName, authorPendingName: null })
           .where(eq(puzzles.id, version.puzzleId));
       }
-      await tx.insert(auditLogs).values({ operatorUserId: operator.userId, action: 'puzzle.approve', objectType: 'puzzle_version', objectId: id, reason: body.reason });
-      return { puzzleId: version.puzzleId };
+      await tx.insert(auditLogs).values(affected.map((candidate) => ({
+        operatorUserId: operator.userId, action: 'puzzle.approve', objectType: 'puzzle_version', objectId: candidate.id, reason: body.reason,
+        afterSummary: { scope: body.scope, versionNo: version.versionNo, language: candidate.language, moderationStatus: 'published' },
+      })));
+      return { puzzleId: version.puzzleId, publishedLanguages: selected.map((candidate) => candidate.language) };
     });
     return result;
   }

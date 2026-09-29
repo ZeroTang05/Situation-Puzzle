@@ -22,10 +22,15 @@ const baseProvider: DataProvider = {
       for (const [key, value] of Object.entries(params.filter)) query.set(key, String(value));
     }
     const data = (await adminFetch(`/${resource}?${query.toString()}`)) as { items: Record<string, unknown>[] } | Record<string, unknown>[];
-    const items = Array.isArray(data) ? data : data.items;
+    const rows = Array.isArray(data) ? data : data.items;
+    const items = resource === 'puzzles' ? rows.map((row) => ({ ...row, id: row.versionId })) : rows;
     return { data: items, total: items.length } as never;
   },
   getOne: async (resource, params) => {
+    if (resource === 'puzzles') {
+      const detail = await adminFetch(`/puzzle-versions/${String(params.id)}`) as { version: Record<string, unknown>; versions: Record<string, unknown>[]; rights: unknown };
+      return { data: { ...detail.version, id: detail.version.id, versionId: detail.version.id, status: detail.version.moderationStatus, versions: detail.versions, rights: detail.rights } } as never;
+    }
     const data = await adminFetch(`/${resource}/${String(params.id)}`);
     return { data } as never;
   },

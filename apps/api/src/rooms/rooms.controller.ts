@@ -93,7 +93,7 @@ export class RoomsController {
       type: body.type,
       ...(body.roundId !== undefined ? { roundId: body.roundId } : {}),
       ...(body.expectedControlVersion !== undefined ? { expectedControlVersion: body.expectedControlVersion } : {}),
-      payload: (body.payload ?? {}) as Record<string, unknown>,
+      payload: body.payload,
     };
     return this.commandsService.handle(user, id, input);
   }

@@ -7,6 +7,7 @@ export const PuzzleList = () => (
     <Datagrid rowClick="show" bulkActionButtons={false}>
       <TextField source="title" label="标题" />
       <TextField source="language" label="语言" />
+      <NumberField source="versionNo" label="版号" />
       <TextField source="status" label="状态" />
       <TextField source="rightsStatus" label="授权" />
       {/* 真实投票计数只读展示；后台不能手填（11-VOTES-AND-AUTHORSHIP.md §5） */}
@@ -63,7 +64,7 @@ function PuzzleActionsField() {
     <>
       {record.status === 'pending_review' && (
         <>
-          <Button label="批准" onClick={() => act(`/puzzle-versions/${record.versionId}/approve`)} />
+          <Button label="批准当前语言" onClick={() => act(`/puzzle-versions/${record.versionId}/approve`)} />
           <Button label="退回" onClick={() => act(`/puzzle-versions/${record.versionId}/reject`)} />
         </>
       )}
@@ -82,9 +83,40 @@ export const VersionDetail = () => (
   <Show>
     <SimpleShowLayout>
       <TextField source="title" label="标题" />
+      <NumberField source="versionNo" label="版号" />
+      <TextField source="language" label="语言" />
       <TextField source="surface" label="汤面" />
       <TextField source="answer" label="汤底" />
       <TextField source="status" label="状态" />
+      <SameRevisionReview />
+      <PuzzleActionsField />
     </SimpleShowLayout>
   </Show>
 );
+
+/** 同版多语言内容在批准前一起展示，批量操作明确带上审核范围。 */
+function SameRevisionReview() {
+  const record = useRecordContext() as { versionId: string; versions?: Array<{ id: string; language: string; title: string; surface: string; answer: string; hints: string[]; moderationStatus: string }> } | undefined;
+  const notify = useNotify();
+  const refresh = useRefresh();
+  if (!record?.versions) return null;
+  const ready = record.versions.every((version) => version.moderationStatus === 'pending_review' || version.moderationStatus === 'published');
+  const pending = record.versions.some((version) => version.moderationStatus === 'pending_review');
+  const approveAll = () => {
+    const reason = window.prompt('请输入同版全部语言的审核理由');
+    if (reason === null) return;
+    void adminAction(`/puzzle-versions/${record.versionId}/approve`, { reason, scope: 'revision' })
+      .then(() => { notify('同版全部语言已发布'); refresh(); })
+      .catch((error: Error) => notify(error.message, { type: 'error' }));
+  };
+  return <section>
+    <h3>同版语言审核</h3>
+    {record.versions.map((version) => <article key={version.id}>
+      <h4>{version.language === 'en' ? '英文' : '中文'} · {version.title} · {version.moderationStatus}</h4>
+      <p><strong>汤面：</strong>{version.surface}</p>
+      <p><strong>汤底：</strong>{version.answer}</p>
+      <ol>{version.hints.map((hint, index) => <li key={index}>{hint}</li>)}</ol>
+    </article>)}
+    <Button label="批准同版全部语言" disabled={!ready || !pending} onClick={approveAll} />
+  </section>;
+}

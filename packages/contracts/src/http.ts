@@ -204,7 +204,7 @@ export const commandTypes = [
 export const commandTypeSchema = z.enum(commandTypes);
 export type CommandType = (typeof commandTypes)[number];
 
-/** 命令 payload 按类型分派 */
+/** 命令 payload 按类型分派，由请求契约统一校验。 */
 export const commandPayloadSchemas = {
   select_puzzle: z.object({ puzzleId: z.string().uuid(), language: languageSchema }),
   start_round: z.object({}),
@@ -229,7 +229,15 @@ export const roomCommandRequestSchema = z.object({
   roundId: z.string().uuid().optional(),
   /** 控制命令必须携带期望的控制版本；讨论与判题提交不携带 */
   expectedControlVersion: z.number().int().optional(),
-  payload: z.unknown(),
+  /** 无参数命令允许省略；有参数命令仍须通过对应类型的字段校验。 */
+  payload: z.record(z.string(), z.unknown()).default({}),
+}).superRefine((request, context) => {
+  const parsed = commandPayloadSchemas[request.type].safeParse(request.payload);
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) {
+      context.addIssue({ code: 'custom', path: ['payload', ...issue.path], message: issue.message });
+    }
+  }
 });
 
 export const roomCommandResponseSchema = z.object({

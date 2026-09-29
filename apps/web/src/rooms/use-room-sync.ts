@@ -191,7 +191,8 @@ export function useRoomSync(roomId: string, userId: string | null) {
     }
   }, [roomId]);
   const sendCommand = useCallback(async (input: CommandInput) => {
-    const result = await api<CommandResult>(`/rooms/${roomId}/commands`, { method: 'POST', body: input, timeoutMs: 10_000 });
+    // 所有命令在出网时携带 payload；无参数命令使用空对象。
+    const result = await api<CommandResult>(`/rooms/${roomId}/commands`, { method: 'POST', body: { ...input, payload: input.payload ?? {} }, timeoutMs: 10_000 });
     confirmResult(result);
     return result;
   }, [roomId, confirmResult]);
