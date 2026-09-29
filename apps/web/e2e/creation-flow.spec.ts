@@ -1,6 +1,6 @@
-/** 真实浏览器、API、任务进程和 Jev 的创作流程；发布测试需真实审核员账号。 */
+/** 真实浏览器、API、任务进程和 Jev 的创作流程；初审通过直接发布，后审测试需真实审核员账号。 */
 import { test, expect, type BrowserContext, type APIRequestContext } from '@playwright/test';
-import { creationDetailSchema, creationLicenseVersion, type CreationDetail } from '@jev/contracts';
+import { creationDetailSchema, type CreationDetail } from '@jev/contracts';
 
 /** 创建独立作者账号，真实登录会话由浏览器上下文保存。 */
 async function register(context: BrowserContext) {
@@ -13,7 +13,7 @@ async function detail(request: APIRequestContext, id: string): Promise<CreationD
   return creationDetailSchema.parse((await response.json()).data);
 }
 const condition = (version: CreationDetail) => ({ expectedVersionId: version.versionId, expectedUpdatedAt: version.updatedAt });
-const manuscript = { title: '送信的邮差', surface: '邮差经过一间屋子。他没有把信放进信箱，却救下了屋里的老人。发生了什么？', answer: '邮差闻到煤气味，发现屋里老人煤气中毒昏迷，立刻报警，救援人员救出了老人。', hints: ['邮差发现了异常。', '异常是一种气味。', '老人因煤气中毒昏迷。'], coreFacts: ['老人煤气中毒昏迷', '邮差闻到煤气味后报警', '救援人员救出老人'], causalChain: '煤气泄漏→老人中毒昏迷→邮差闻到气味→报警→救援人员救人', language: 'zh', difficulty: 'easy', licenseBasis: '本测试稿件由作者原创，仅用于开发环境流程验收。', sourceUrl: '', authorDisplay: { mode: 'anonymous' }, testCases: [{ kind: 'ask', input: '老人是因为煤气中毒昏迷的吗？', expected: 'yes', reason: '明确的核心事实', criticality: 'critical' }] };
+const manuscript = { title: '送信的邮差', surface: '邮差经过一间屋子。他没有把信放进信箱，却救下了屋里的老人。发生了什么？', answer: '邮差闻到煤气味，发现屋里老人煤气中毒昏迷，立刻报警，救援人员救出了老人。', hints: ['邮差发现了异常。', '异常是一种气味。', '老人因煤气中毒昏迷。'], language: 'zh', difficulty: 'easy', origin: 'original', sourceUrl: '', authorDisplay: { mode: 'anonymous' } };
 
 test('作者保存、私密试题、权限隔离、提交撤回与版本保留', async ({ page, context, browser }) => {
   await register(context);
@@ -47,28 +47,34 @@ test('作者保存、私密试题、权限隔离、提交撤回与版本保留',
     await page.reload();
     await page.getByRole('button', { name: '私人试题', exact: true }).click();
     await expect(page).toHaveURL(`/creations/${id}/preview`);
-    await page.getByLabel('问题或还原', { exact: true }).fill(manuscript.testCases[0]!.input);
+    await page.getByLabel('问题或还原', { exact: true }).fill('老人是因为煤气中毒昏迷的吗？');
     await page.getByRole('button', { name: '发送', exact: true }).click();
     await expect(page.locator('.confidence').last()).toContainText(/置信度 \d+%/, { timeout: 70_000 });
     await page.reload();
     await expect(page.locator('.confidence').last()).toContainText(/置信度 \d+%/);
     await page.getByRole('link', { name: '回到编辑' }).click();
-    await page.getByRole('checkbox', { name: /^我确认拥有原创/ }).check();
+    await expect(page.getByRole('checkbox')).toHaveCount(0);
+    await expect(page.getByText('审核材料', { exact: true })).toHaveCount(0);
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: '提交审核', exact: true }).click();
     await expect.poll(async () => (await detail(context.request, id)).status).not.toBe('draft');
     const submitted = await detail(context.request, id);
     expect((await context.request.patch(`/api/v1/creations/${id}`, { data: { ...manuscript, ...condition(submitted) } })).status()).toBe(409);
-    const withdrawn = await context.request.post(`/api/v1/creations/${id}/withdraw`, { data: condition(submitted) });
+    let withdrawn = await context.request.post(`/api/v1/creations/${id}/${submitted.status === 'published' ? 'revise' : 'withdraw'}`, { data: condition(submitted) });
+    if (withdrawn.status() === 409) {
+      const published = await detail(context.request, id);
+      expect(published.status).toBe('published');
+      withdrawn = await context.request.post(`/api/v1/creations/${id}/revise`, { data: condition(published) });
+    }
     expect(withdrawn.ok(), await withdrawn.text()).toBe(true);
     const next = await detail(context.request, id);
     expect(next.status).toBe('draft'); expect(next.versionNo).toBe(2);
-    expect(next.versions.find((version) => version.versionId === submitted.versionId)?.status).toBe('changes_requested');
+    expect(['published', 'changes_requested']).toContain(next.versions.find((version) => version.versionId === submitted.versionId)?.status);
     expect(next.draft.answer).toBe(manuscript.answer);
   } finally { await guest.close(); }
 });
 
-test('授权与内容分别批准后公开，修改新稿保留线上版本', async ({ context, browser }) => {
+test('Jev 初审直接公开，修改新稿保留线上版本，后台可下架', async ({ context, browser }) => {
   test.setTimeout(600_000);
   const email = process.env.E2E_ADMIN_EMAIL; const password = process.env.E2E_ADMIN_PASSWORD;
   if (!email || !password) throw new Error('发布验收需要 E2E_ADMIN_EMAIL 和 E2E_ADMIN_PASSWORD，账号必须已有审核员角色');
@@ -85,16 +91,11 @@ test('授权与内容分别批准后公开，修改新稿保留线上版本', as
     id = (await created.json()).data.puzzleId;
     if (!id) throw new Error('创建响应缺少作品编号');
     const draft = await detail(context.request, id);
-    const submitted = await context.request.post(`/api/v1/creations/${id}/submit`, { data: { ...condition(draft), agreementAccepted: true, agreementVersion: creationLicenseVersion } });
+    const submitted = await context.request.post(`/api/v1/creations/${id}/submit`, { data: { ...condition(draft) } });
     expect(submitted.ok(), await submitted.text()).toBe(true);
-    await expect.poll(async () => (await detail(context.request, id!)).status, { timeout: 500_000, intervals: [1000, 3000, 5000] }).toBe('pending_review');
+    await expect.poll(async () => (await detail(context.request, id!)).status, { timeout: 500_000, intervals: [1000, 3000, 5000] }).toBe('published');
     const version = await detail(context.request, id);
     expect((await context.request.post(`/api/v1/admin/puzzle-versions/${version.versionId}/approve`, { data: { reason: '作者尝试自发' } })).status()).toBe(403);
-    expect((await admin.request.post(`/api/v1/admin/puzzle-versions/${version.versionId}/approve`, { data: { reason: '检查授权门槛' } })).status()).toBe(409);
-    const rights = await admin.request.post(`/api/v1/admin/puzzles/${id}/rights/approve`, { data: { reason: '开发环境原创授权核验', expectedVersionId: version.versionId } });
-    expect(rights.ok(), await rights.text()).toBe(true);
-    const approved = await admin.request.post(`/api/v1/admin/puzzle-versions/${version.versionId}/approve`, { data: { reason: '开发环境内容质量核验' } });
-    expect(approved.ok(), await approved.text()).toBe(true);
     const publicResponse = await context.request.get(`/api/v1/puzzles/${id}?language=zh`);
     expect(publicResponse.ok(), await publicResponse.text()).toBe(true);
     const published = (await publicResponse.json()).data;
@@ -108,6 +109,9 @@ test('授权与内容分别批准后公开，修改新稿保留线上版本', as
     const edit = await context.request.patch(`/api/v1/creations/${id}`, { data: { ...next.draft, title: '新版标题', ...condition(next) } });
     expect(edit.ok(), await edit.text()).toBe(true);
     expect((await (await context.request.get(`/api/v1/puzzles/${id}?language=zh`)).json()).data.title).toBe(manuscript.title);
+    const takenDown = await admin.request.post(`/api/v1/admin/puzzles/${id}/takedown`, { data: { reason: '后台后审发现问题' } });
+    expect(takenDown.ok(), await takenDown.text()).toBe(true);
+    expect((await context.request.get(`/api/v1/puzzles/${id}?language=zh`)).status()).toBe(404);
   } finally {
     try {
       if (id) {
@@ -116,4 +120,24 @@ test('授权与内容分别批准后公开，修改新稿保留线上版本', as
       }
     } finally { await admin.close(); }
   }
+});
+
+test('转载只补原作者链接，自制不展示额外材料或协议', async ({ page, context }) => {
+  await register(context);
+  await page.goto('/creations/new?lang=zh');
+  await expect(page.getByRole('checkbox')).toHaveCount(0);
+  await expect(page.getByLabel('原作者链接', { exact: true })).toHaveCount(0);
+  await page.getByLabel('题目来源', { exact: true }).selectOption('repost');
+  await page.getByLabel('原作者链接', { exact: true }).fill('https://example.com/original-author/puzzle');
+  await page.getByLabel('标题', { exact: true }).fill('转载草稿');
+  await page.getByRole('button', { name: '保存草稿', exact: true }).click();
+  await expect(page).toHaveURL(/\/creations\/[0-9a-f-]+$/);
+  const id = new URL(page.url()).pathname.split('/').at(-1)!;
+  const saved = await detail(context.request, id);
+  expect(saved.draft.origin).toBe('repost');
+  expect(saved.draft.sourceUrl).toBe('https://example.com/original-author/puzzle');
+  await page.getByLabel('题目来源', { exact: true }).selectOption('original');
+  await expect(page.getByLabel('原作者链接', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '保存草稿', exact: true }).click();
+  await expect.poll(async () => (await detail(context.request, id)).draft.sourceUrl).toBe('');
 });

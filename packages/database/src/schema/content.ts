@@ -2,7 +2,7 @@
  * 内容域：用户档案、题库作品与版本、商业授权、投稿审核、举报与评价。
  *
  * 题目内容发布后不可变（puzzle_versions 提交后不再修改）；修改产生新版本，
- * 进行中的游戏固定使用开局时的版本。未通过权利审核的内容不得进入公开题库。
+ * 进行中的游戏固定使用开局时的版本。用户投稿由 Jev 初审后发布，后台后审。
  */
 import {
   pgEnum,
@@ -141,7 +141,7 @@ export const puzzleVersions = pgTable(
   ],
 );
 
-/** 商业授权：pending 的内容不能发布为可收费题库（首发全部人工批准）。 */
+/** 作品来源与后台权利核验；用户投稿不要求提交授权协议。 */
 export const puzzleRights = pgTable(
   'puzzle_rights',
   {
@@ -150,6 +150,8 @@ export const puzzleRights = pgTable(
       .notNull()
       .references(() => puzzles.id, { onDelete: 'cascade' }),
     status: rightsStatusEnum('status').notNull().default('pending'),
+    /** original=自制，repost=转载；转载需要原作者链接。 */
+    origin: text('origin').$type<'original' | 'repost'>().notNull().default('original'),
     sourceUrl: text('source_url'),
     /** 授权依据说明（原创声明 / 授权链接 / 平台自有） */
     licenseBasis: text('license_basis').notNull(),

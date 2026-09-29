@@ -104,7 +104,9 @@ export class AdminController {
       .orderBy(asc(puzzleVersions.language));
     const testCases = await app().db.db.select().from(puzzleTestCases).where(inArray(puzzleTestCases.versionId, versions.map((version) => version.id)));
     const reviews = await app().db.db.select().from(moderationReviews).where(inArray(moderationReviews.versionId, versions.map((version) => version.id))).orderBy(desc(moderationReviews.createdAt));
-    return { version: rows[0], versions, testCases, reviews, rights: rights[0] ?? null };
+    const [puzzle] = await app().db.db.select({ unavailable: puzzles.unavailable }).from(puzzles).where(eq(puzzles.id, rows[0]!.puzzleId)).limit(1);
+    if (!puzzle) throw new DomainError('NOT_FOUND', '作品不存在');
+    return { version: { ...rows[0], unavailable: puzzle.unavailable }, versions, testCases, reviews, rights: rights[0] ?? null };
   }
 
   /** 批准当前语言或明确选定的同版全部语言；发布与逐语言审计在同一事务完成。 */
@@ -128,10 +130,10 @@ export class AdminController {
       const blocked = selected.find((candidate) => candidate.moderationStatus !== 'pending_review' && candidate.moderationStatus !== 'published');
       if (blocked) throw new DomainError('STATE_CONFLICT', `${blocked.language} 版本状态为 ${blocked.moderationStatus}，请先完成审核流程`);
       const [rights] = await tx.select().from(puzzleRights).where(eq(puzzleRights.puzzleId, version.puzzleId)).for('update').limit(1);
-      if (!rights || rights.status !== 'approved') {
+      if (puzzle.source !== 'community' && (!rights || rights.status !== 'approved')) {
         throw new DomainError('STATE_CONFLICT', '商业授权未通过，不能发布');
       }
-      const affected = selected.filter((candidate) => candidate.moderationStatus === 'pending_review');
+      const affected = selected.filter((candidate) => candidate.moderationStatus === 'pending_review' || puzzle.unavailable);
       if (affected.length === 0) throw new DomainError('STATE_CONFLICT', '所选语言版本已全部发布');
       await tx.update(puzzleVersions).set({ moderationStatus: 'published' }).where(inArray(puzzleVersions.id, affected.map((candidate) => candidate.id)));
       // 同版补发语言保留现有发布指针；切换版号时使用本次批准的版本。
@@ -236,9 +238,14 @@ export class AdminController {
   @Post('puzzles/:id/takedown')
   @RequireRoles('admin', 'moderator')
   async takedown(@CurrentUser() operator: SessionUser, @Param('id') id: string, @Body(new ZodValidationPipe(reasonSchema)) body: z.infer<typeof reasonSchema>) {
-    await app().db.db.update(puzzles).set({ unavailable: true, updatedAt: new Date() }).where(eq(puzzles.id, id));
-    await this.audit(operator, 'puzzle.takedown', 'puzzle', id, body.reason);
-    return { ok: true };
+    return app().db.tx(async (tx) => {
+      const [puzzle] = await tx.select().from(puzzles).where(eq(puzzles.id, id)).for('update').limit(1);
+      if (!puzzle) throw new DomainError('NOT_FOUND', '作品不存在');
+      await tx.update(puzzles).set({ unavailable: true, updatedAt: new Date() }).where(eq(puzzles.id, id));
+      if (puzzle.currentPublishedVersionId) await tx.insert(moderationReviews).values({ versionId: puzzle.currentPublishedVersionId, stage: 'human', conclusion: 'taken_down', reason: body.reason, operatorUserId: operator.userId });
+      await tx.insert(auditLogs).values({ operatorUserId: operator.userId, action: 'puzzle.takedown', objectType: 'puzzle', objectId: id, reason: body.reason });
+      return { ok: true };
+    });
   }
 
   // ---------- 用户 ----------

@@ -54,7 +54,7 @@ function AuthorInternalField() {
 
 function PuzzleActionsField() {
   const record = useRecordContext() as
-    | { versionId?: string; puzzleId?: string; status?: string; authorPendingName?: string | null }
+    | { versionId?: string; puzzleId?: string; status?: string; unavailable?: boolean; authorPendingName?: string | null }
     | undefined;
   const notify = useNotify();
   const refresh = useRefresh();
@@ -70,13 +70,13 @@ function PuzzleActionsField() {
 
   return (
     <>
-      {record.status === 'pending_review' && (
+      {(record.status === 'pending_review' || (record.status === 'published' && record.unavailable)) && (
         <>
           <Button label={c.approveLanguage} onClick={() => act(`/puzzle-versions/${record.versionId}/approve`)} />
-          <Button label={c.reject} onClick={() => act(`/puzzle-versions/${record.versionId}/reject`)} />
+          {record.status === 'pending_review' && <Button label={c.reject} onClick={() => act(`/puzzle-versions/${record.versionId}/reject`)} />}
         </>
       )}
-      {record.status === 'published' && <Button label={c.takedown} onClick={() => act(`/puzzles/${record.puzzleId}/takedown`)} />}
+      {record.status === 'published' && !record.unavailable && <Button label={c.takedown} onClick={() => act(`/puzzles/${record.puzzleId}/takedown`)} />}
       {record.authorPendingName && (
         <>
           <Button label={c.approveAttribution} onClick={() => act(`/puzzles/${record.puzzleId}/author-display/approve`)} />
@@ -99,7 +99,7 @@ export function VersionDetail() {
         <TextField source="answer" label={c.answerLabel} />
         <TextField source="status" label={c.statusCol} />
         <SameRevisionReview />
-        <RightsReview />
+        <SourceInfo />
         <AuthorMaterials />
         <PuzzleActionsField />
       </SimpleShowLayout>
@@ -107,37 +107,23 @@ export function VersionDetail() {
   );
 }
 
-/** 授权依据和明确同意单独审核，通过后才能发布内容。 */
-function RightsReview() {
-  const record = useRecordContext() as { puzzleId: string; versionId: string; status: string; rights?: { status: string; licenseBasis: string; sourceUrl: string | null; agreementVersion: string; agreedAt: string | null } } | undefined;
-  const notify = useNotify(); const refresh = useRefresh();
-  const { language } = useLanguage(); const c = copy(language);
+/** 来源信息用于后台后审；用户无需填写额外审核材料。 */
+function SourceInfo() {
+  const record = useRecordContext() as { rights?: { origin: string; sourceUrl: string | null } } | undefined;
+  const { language } = useLanguage();
   if (!record?.rights) return null;
-  const rights = record.rights;
-  const decide = (decision: 'approve' | 'reject') => {
-    const reason = window.prompt(c.promptRights);
-    if (reason === null) return;
-    void adminAction(`/puzzles/${record.puzzleId}/rights/${decision}`, { reason, expectedVersionId: record.versionId })
-      .then(() => { notify(c.rightsSaved); refresh(); })
-      .catch((error: Error) => notify(error.message, { type: 'error' }));
-  };
-  return <section><h3>{c.sectionRights}</h3><p>{c.rightsStatusLabel}：{rights.status}</p><p>{rights.licenseBasis}</p>
-    {rights.sourceUrl && <a href={rights.sourceUrl} target="_blank" rel="noreferrer">{c.rightsViewSource}</a>}
-    <p>{c.rightsAgreementVersion}：{rights.agreementVersion} · {c.rightsAgreedAt}：{rights.agreedAt ? new Date(rights.agreedAt).toLocaleString() : c.rightsNotAgreed}</p>
-    <Button label={c.approveRights} disabled={!rights.agreedAt || !['pending_review', 'published'].includes(record.status)} onClick={() => decide('approve')} />
-    <Button label={c.rejectRights} disabled={!['pending_review', 'published'].includes(record.status)} onClick={() => decide('reject')} />
+  return <section><h3>{language === 'zh' ? '题目来源' : 'Puzzle origin'}</h3>
+    <p>{record.rights.origin === 'repost' ? (language === 'zh' ? '转载' : 'Repost') : (language === 'zh' ? '自制' : 'Original')}</p>
+    {record.rights.sourceUrl && <a href={record.rights.sourceUrl} target="_blank" rel="noreferrer">{language === 'zh' ? '原作者链接' : 'Original author link'}</a>}
   </section>;
 }
 
-/** 审核员可核对作者提交的事实、因果关系和标准判题用例。 */
+/** 展示 Jev 初审和后台复核结果。 */
 function AuthorMaterials() {
-  const record = useRecordContext() as { coreFacts?: string[]; causalChain?: string; testCases?: Array<{ id: string; versionId: string; input: string; expected: string; reason: string | null; criticality: string }>; reviews?: Array<{ id: string; stage: string; conclusion: string; reason: string | null; createdAt: string }> } | undefined;
+  const record = useRecordContext() as { reviews?: Array<{ id: string; stage: string; conclusion: string; reason: string | null; createdAt: string }> } | undefined;
   const { language } = useLanguage(); const c = copy(language);
   if (!record) return null;
-  return <section><h3>{c.sectionAuthorMaterials}</h3><ul>{record.coreFacts?.map((fact, index) => <li key={index}>{fact}</li>)}</ul><p>{record.causalChain}</p>
-    {record.testCases?.map((item) => <article key={item.id}><p>{item.input}</p><p>{c.testCaseExpected}：{item.expected} · {item.criticality === 'critical' ? c.testCaseCritical : c.testCaseNormal}</p><p>{item.reason}</p></article>)}
-    <h3>{c.sectionReviews}</h3>{record.reviews?.map((review) => <article key={review.id}><p>{review.stage} · {review.conclusion}</p><p style={{ whiteSpace: 'pre-wrap' }}>{review.reason}</p><small>{new Date(review.createdAt).toLocaleString()}</small></article>)}
-  </section>;
+  return <section><h3>{c.sectionReviews}</h3>{record.reviews?.map((review) => <article key={review.id}><p>{review.stage} · {review.conclusion}</p><p style={{ whiteSpace: 'pre-wrap' }}>{review.reason}</p><small>{new Date(review.createdAt).toLocaleString()}</small></article>)}</section>;
 }
 
 /** 同版多语言内容在批准前一起展示，批量操作明确带上审核范围。 */

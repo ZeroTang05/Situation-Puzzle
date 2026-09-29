@@ -1,10 +1,10 @@
-/** 创作中心：作者保存、试题和提交独立版本，后台分别审核授权与内容后公开发布。 */
+/** 创作中心：作者保存、试题和提交独立版本，Jev 初审通过后公开发布，后台后审。 */
 import { Body, Controller, Get, Param, Post, Patch, UseGuards } from '@nestjs/common';
 import { SignJWT } from 'jose';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
-import { puzzleRights, puzzleVersions, puzzles, moderationReviews, puzzleTestCases, type Database } from '@jev/database';
+import { puzzleRights, puzzleVersions, puzzles, moderationReviews, type Database } from '@jev/database';
 import { DomainError } from '@jev/domain';
-import { authorDisplaySettingSchema, creationDraftSchema, creationSaveRequestSchema, creationCompleteSchema, creationSubmitRequestSchema, creationRevisionRequestSchema, creationLicenseVersion, type CreationDraft } from '@jev/contracts';
+import { authorDisplaySettingSchema, creationDraftSchema, creationSaveRequestSchema, creationCompleteSchema, creationSubmitRequestSchema, creationRevisionRequestSchema, type CreationDraft } from '@jev/contracts';
 import { z } from 'zod';
 import { app } from '../context.js';
 import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http.js';
@@ -21,7 +21,7 @@ function authorSetting(display: CreationDraft['authorDisplay'], approvedName: st
 }
 /** 题目正文与授权、署名分开保存。 */
 function content(body: CreationDraft) {
-  return { title: body.title, surface: body.surface, answer: body.answer, hints: body.hints, language: body.language, coreFacts: body.coreFacts, causalChain: body.causalChain, difficulty: body.difficulty };
+  return { title: body.title, surface: body.surface, answer: body.answer, hints: body.hints, language: body.language, difficulty: body.difficulty };
 }
 /** 先锁作品再锁版本，版本条件避免旧页面覆盖新编辑。 */
 async function lockCreation(tx: Tx, userId: string, puzzleId: string, condition: Condition) {
@@ -32,17 +32,10 @@ async function lockCreation(tx: Tx, userId: string, puzzleId: string, condition:
   if (latest.id !== condition.expectedVersionId || puzzle.updatedAt.getTime() !== new Date(condition.expectedUpdatedAt).getTime()) throw new DomainError('STATE_CONFLICT', '作品已在其它页面更新，请重新载入后编辑');
   return { puzzle, latest };
 }
-/** 只保存作者明确填写的标准用例，不保存私人试题对话。 */
-async function saveCases(tx: Tx, versionId: string, cases: CreationDraft['testCases']) {
-  await tx.delete(puzzleTestCases).where(eq(puzzleTestCases.versionId, versionId));
-  if (cases.length) await tx.insert(puzzleTestCases).values(cases.map((item) => ({ versionId, ...item })));
-}
 /** 已提交版本的内容保留，修改通过复制新草稿完成。 */
 async function forkDraft(tx: Tx, latest: Version) {
   const [next] = await tx.insert(puzzleVersions).values({ puzzleId: latest.puzzleId, versionNo: latest.versionNo + 1, language: latest.language, title: latest.title, surface: latest.surface, answer: latest.answer, hints: latest.hints, coreFacts: latest.coreFacts, causalChain: latest.causalChain, difficulty: latest.difficulty, contentWarnings: latest.contentWarnings, durationMinutes: latest.durationMinutes, moderationStatus: 'draft' }).returning();
   if (!next) throw new Error('创建新草稿失败');
-  const cases = await tx.select().from(puzzleTestCases).where(eq(puzzleTestCases.versionId, latest.id));
-  if (cases.length) await tx.insert(puzzleTestCases).values(cases.map((item) => ({ versionId: next.id, kind: item.kind, input: item.input, expected: item.expected, reason: item.reason, criticality: item.criticality })));
   await tx.update(puzzles).set({ updatedAt: new Date() }).where(eq(puzzles.id, latest.puzzleId));
   return { versionId: next.id, status: 'draft' as const };
 }
@@ -50,7 +43,7 @@ async function forkDraft(tx: Tx, latest: Version) {
 @Controller('creations')
 @UseGuards(SessionGuard)
 export class CreationsController {
-  /** 新建私有草稿；授权同意时间在正式提交时记录。 */
+  /** 新建私有草稿并记录自制或转载来源。 */
   @Post()
   async create(@CurrentUser() user: SessionUser, @Body(new ZodValidationPipe(creationDraftSchema)) body: CreationDraft) {
     return app().db.tx(async (tx) => {
@@ -58,8 +51,7 @@ export class CreationsController {
       if (!puzzle) throw new Error('创建作品失败');
       const [version] = await tx.insert(puzzleVersions).values({ puzzleId: puzzle.id, versionNo: 1, ...content(body), moderationStatus: 'draft' }).returning();
       if (!version) throw new Error('创建草稿失败');
-      await saveCases(tx, version.id, body.testCases);
-      await tx.insert(puzzleRights).values({ puzzleId: puzzle.id, status: 'pending', licenseBasis: body.licenseBasis, sourceUrl: body.sourceUrl || null, agreementVersion: creationLicenseVersion });
+      await tx.insert(puzzleRights).values({ puzzleId: puzzle.id, status: 'pending', origin: body.origin, licenseBasis: '', sourceUrl: body.origin === 'repost' ? body.sourceUrl || null : null, agreementVersion: '' });
       return { puzzleId: puzzle.id, versionId: version.id };
     });
   }
@@ -82,12 +74,11 @@ export class CreationsController {
       if (!latest) throw new DomainError('NOT_FOUND', '作品版本缺失');
       const [rights] = await tx.select().from(puzzleRights).where(eq(puzzleRights.puzzleId, puzzleId)).limit(1);
       if (!rights) throw new DomainError('NOT_FOUND', '授权记录缺失');
-      const cases = await tx.select().from(puzzleTestCases).where(eq(puzzleTestCases.versionId, latest.id)).orderBy(asc(puzzleTestCases.createdAt), asc(puzzleTestCases.id));
       const reviews = await tx.select({ versionId: moderationReviews.versionId, stage: moderationReviews.stage, conclusion: moderationReviews.conclusion, reason: moderationReviews.reason, createdAt: moderationReviews.createdAt }).from(moderationReviews).where(inArray(moderationReviews.versionId, versions.map((version) => version.id))).orderBy(desc(moderationReviews.createdAt));
       const requestedName = puzzle.authorPendingName ?? puzzle.authorDisplayName;
       return { puzzleId, versionId: latest.id, versionNo: latest.versionNo, status: latest.moderationStatus, updatedAt: puzzle.updatedAt,
-        draft: { title: latest.title, surface: latest.surface, answer: latest.answer, hints: latest.hints, language: latest.language, difficulty: latest.difficulty, coreFacts: latest.coreFacts, causalChain: latest.causalChain ?? '', licenseBasis: rights.licenseBasis, sourceUrl: rights.sourceUrl ?? '', testCases: cases.map((item) => ({ kind: item.kind, input: item.input, expected: item.expected, reason: item.reason ?? '', criticality: item.criticality })), authorDisplay: requestedName ? { mode: 'signature', name: requestedName } : { mode: 'anonymous' } },
-        rights: { status: rights.status, agreementVersion: rights.agreementVersion, agreedAt: rights.agreedAt }, authorDisplay: { mode: puzzle.authorDisplayMode, name: puzzle.authorDisplayName, pendingName: puzzle.authorPendingName }, reviews,
+        draft: { title: latest.title, surface: latest.surface, answer: latest.answer, hints: latest.hints, language: latest.language, difficulty: latest.difficulty, origin: rights.origin, sourceUrl: rights.sourceUrl ?? '', authorDisplay: requestedName ? { mode: 'signature', name: requestedName } : { mode: 'anonymous' } },
+        authorDisplay: { mode: puzzle.authorDisplayMode, name: puzzle.authorDisplayName, pendingName: puzzle.authorPendingName }, reviews,
         versions: versions.map((version) => ({ versionId: version.id, versionNo: version.versionNo, language: version.language, status: version.moderationStatus })),
       };
     });
@@ -99,10 +90,9 @@ export class CreationsController {
       const { latest, puzzle } = await lockCreation(tx, user.userId, puzzleId, body);
       if (latest.moderationStatus !== 'draft') throw new DomainError('STATE_CONFLICT', '请先创建新草稿再编辑');
       await tx.update(puzzleVersions).set(content(body)).where(eq(puzzleVersions.id, latest.id));
-      await saveCases(tx, latest.id, body.testCases);
       const [rights] = await tx.select().from(puzzleRights).where(eq(puzzleRights.puzzleId, puzzleId)).for('update').limit(1);
       if (!rights) throw new DomainError('NOT_FOUND', '授权记录缺失');
-      if (rights.licenseBasis !== body.licenseBasis || (rights.sourceUrl ?? '') !== body.sourceUrl) await tx.update(puzzleRights).set({ licenseBasis: body.licenseBasis, sourceUrl: body.sourceUrl || null, status: 'pending', agreedAt: null, confirmedAt: null, confirmedBy: null }).where(eq(puzzleRights.id, rights.id));
+      await tx.update(puzzleRights).set({ origin: body.origin, sourceUrl: body.origin === 'repost' ? body.sourceUrl || null : null }).where(eq(puzzleRights.id, rights.id));
       await tx.update(puzzles).set({ ...authorSetting(body.authorDisplay, puzzle.authorDisplayName), updatedAt: new Date() }).where(eq(puzzles.id, puzzleId));
       return { versionId: latest.id, status: 'draft' as const };
     });
@@ -112,7 +102,7 @@ export class CreationsController {
   async revise(@CurrentUser() user: SessionUser, @Param('puzzleId') puzzleId: string, @Body(new ZodValidationPipe(creationRevisionRequestSchema)) body: Condition) {
     return app().db.tx(async (tx) => { const { latest } = await lockCreation(tx, user.userId, puzzleId, body); if (!['changes_requested', 'published', 'taken_down'].includes(latest.moderationStatus)) throw new DomainError('STATE_CONFLICT', '当前状态不能创建新草稿'); return forkDraft(tx, latest); });
   }
-  /** 提交不可变版本及明确授权同意，完整性校验通过后才投递机器检查。 */
+  /** 提交不可变版本，完整性校验通过后投递 Jev 初审。 */
   @Post(':puzzleId/submit')
   async submit(@CurrentUser() user: SessionUser, @Param('puzzleId') puzzleId: string, @Body(new ZodValidationPipe(creationSubmitRequestSchema)) body: z.infer<typeof creationSubmitRequestSchema>) {
     return app().db.tx(async (tx) => {
@@ -120,9 +110,7 @@ export class CreationsController {
       if (latest.moderationStatus !== 'draft') throw new DomainError('STATE_CONFLICT', '只有草稿可以提交');
       const [rights] = await tx.select().from(puzzleRights).where(eq(puzzleRights.puzzleId, puzzleId)).for('update').limit(1);
       if (!rights) throw new DomainError('NOT_FOUND', '授权记录缺失');
-      const cases = await tx.select().from(puzzleTestCases).where(eq(puzzleTestCases.versionId, latest.id));
-      new ZodValidationPipe(creationCompleteSchema).transform({ ...latest, causalChain: latest.causalChain ?? '', testCases: cases, sourceUrl: rights.sourceUrl ?? '', licenseBasis: rights.licenseBasis, authorDisplay: puzzle.authorPendingName ? { mode: 'signature', name: puzzle.authorPendingName } : { mode: 'anonymous' } }, { type: 'body' });
-      await tx.update(puzzleRights).set({ agreedAt: new Date(), agreementVersion: body.agreementVersion }).where(eq(puzzleRights.id, rights.id));
+      new ZodValidationPipe(creationCompleteSchema).transform({ ...latest, origin: rights.origin, sourceUrl: rights.sourceUrl ?? '', authorDisplay: puzzle.authorPendingName ? { mode: 'signature', name: puzzle.authorPendingName } : { mode: 'anonymous' } }, { type: 'body' });
       await tx.update(puzzleVersions).set({ moderationStatus: 'submitted' }).where(eq(puzzleVersions.id, latest.id));
       await tx.update(puzzles).set({ updatedAt: new Date() }).where(eq(puzzles.id, puzzleId));
       await tx.insert(moderationReviews).values({ versionId: latest.id, stage: 'submit', conclusion: 'submitted', operatorUserId: user.userId });

@@ -1,35 +1,28 @@
-/** 使用真实共享契约检查草稿、投稿材料和明确授权的边界。 */
+/** 投稿只要求题目与来源，转载链接和版本条件由共享契约检查。 */
 import { describe, expect, it } from 'vitest';
-import { creationDraftSchema, creationCompleteSchema, creationSubmitRequestSchema, creationTestCaseSchema, creationLicenseVersion } from '@jev/contracts';
-
-const draft = { title: '邮差', surface: '', answer: '', hints: [], language: 'zh', difficulty: 'medium', licenseBasis: '', sourceUrl: '', coreFacts: [], causalChain: '', testCases: [], authorDisplay: { mode: 'anonymous' } };
-const complete = { ...draft, surface: '邮差每天送信。今天他没有送信，却救了一条命。', answer: '他发现有人煤气中毒并立即报警。', hints: ['异常气味', '屋里有人', '煤气泄漏'], coreFacts: ['邮差发现煤气泄漏'], causalChain: '闻到煤气→发现昏迷者→报警救人', licenseBasis: '本人原创', testCases: [{ kind: 'ask', input: '有人煤气中毒吗？', expected: 'yes', criticality: 'critical', reason: '核心事实' }] };
-
-describe('作者投稿契约', () => {
-  it('允许保存只有标题的草稿，同时拒绝将其直接投稿', () => {
+import { creationDraftSchema, creationCompleteSchema, creationSubmitRequestSchema } from '@jev/contracts';
+const draft = { title: '邮差', surface: '', answer: '', hints: [], language: 'zh', difficulty: 'medium', origin: 'original', sourceUrl: '', authorDisplay: { mode: 'anonymous' } };
+const complete = { ...draft, surface: '邮差没有送信，却救了一条命。', answer: '他发现有人煤气中毒并报警。', hints: ['异常气味', '屋里有人', '煤气泄漏'] };
+describe('简化投稿契约', () => {
+  it('允许只保存标题，提交仍需完整题目和三条提示', () => {
     expect(creationDraftSchema.safeParse(draft).success).toBe(true);
     expect(creationCompleteSchema.safeParse(draft).success).toBe(false);
+    expect(creationCompleteSchema.safeParse({ ...complete, hints: ['提示'] }).success).toBe(false);
   });
-  it('完整稿件包含事实、因果链、三条提示与标准用例', () => {
-    expect(creationCompleteSchema.safeParse(complete).success).toBe(true);
-    for (const change of [{ hints: ['提示'] }, { coreFacts: [] }, { causalChain: '' }, { testCases: [] }, { licenseBasis: '' }]) {
-      expect(creationCompleteSchema.safeParse({ ...complete, ...change }).success).toBe(false);
-    }
+  it('自制无需链接、协议或审核补充材料', () => {
+    expect(creationCompleteSchema.parse(complete)).toEqual(complete);
+    const condition = { expectedVersionId: crypto.randomUUID(), expectedUpdatedAt: new Date().toISOString() };
+    expect(creationSubmitRequestSchema.parse(condition)).toEqual(condition);
+    expect(creationSubmitRequestSchema.safeParse({}).success).toBe(false);
   });
-  it('提交必须明确同意当前授权文本并携带保存版本条件', () => {
-    const request = { expectedVersionId: crypto.randomUUID(), expectedUpdatedAt: new Date().toISOString(), agreementAccepted: true, agreementVersion: creationLicenseVersion };
-    expect(creationSubmitRequestSchema.safeParse(request).success).toBe(true);
-    expect(creationSubmitRequestSchema.safeParse({ ...request, agreementAccepted: false }).success).toBe(false);
-    expect(creationSubmitRequestSchema.safeParse({ ...request, agreementVersion: 'old' }).success).toBe(false);
-    expect(creationSubmitRequestSchema.safeParse({ agreementAccepted: true, agreementVersion: creationLicenseVersion }).success).toBe(false);
+  it('转载可先保存草稿，提交必须填写原作者网页链接', () => {
+    expect(creationDraftSchema.safeParse({ ...draft, origin: 'repost' }).success).toBe(true);
+    expect(creationCompleteSchema.safeParse({ ...complete, origin: 'repost' }).success).toBe(false);
+    expect(creationCompleteSchema.safeParse({ ...complete, origin: 'repost', sourceUrl: 'https://example.com/author/story' }).success).toBe(true);
+    for (const sourceUrl of ['javascript:alert(1)', 'ftp://example.com/story']) expect(creationCompleteSchema.safeParse({ ...complete, origin: 'repost', sourceUrl }).success).toBe(false);
   });
-  it('提问和还原只能选择各自的判定类型', () => {
-    expect(creationTestCaseSchema.safeParse({ kind: 'ask', input: '问题', expected: 'solved' }).success).toBe(false);
-    expect(creationTestCaseSchema.safeParse({ kind: 'solve', input: '还原', expected: 'yes' }).success).toBe(false);
-    expect(creationTestCaseSchema.safeParse({ kind: 'ask', input: '问'.repeat(501), expected: 'yes' }).success).toBe(false);
-  });
-  it('来源链接只允许网页地址，署名必须填写展示名', () => {
-    expect(creationDraftSchema.safeParse({ ...draft, sourceUrl: 'javascript:alert(1)' }).success).toBe(false);
+  it('来源类型和署名必须有效', () => {
+    expect(creationDraftSchema.safeParse({ ...draft, origin: 'other' }).success).toBe(false);
     expect(creationDraftSchema.safeParse({ ...draft, authorDisplay: { mode: 'signature', name: ' ' } }).success).toBe(false);
   });
 });

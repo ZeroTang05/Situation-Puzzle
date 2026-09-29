@@ -33,8 +33,9 @@ import {
   turns,
   jevCalls,
   moderationReviews,
-  puzzleTestCases,
+  auditLogs,
 } from '@jev/database';
+import { creationReviewOutcome } from '@jev/domain';
 import { JevClient, jevConfigFromEnv, isInfraFailure, type JevAttemptRecord } from '@jev/jev';
 import { loadEnv } from './env.js';
 import type { DispatchPayload, TurnPayload, ReviewPayload } from './types.js';
@@ -342,26 +343,27 @@ class JobsApp {
         answer: version.answer,
         hints: version.hints,
       });
-      const cases = await db.select().from(puzzleTestCases).where(eq(puzzleTestCases.versionId, version.id)).orderBy(asc(puzzleTestCases.createdAt), asc(puzzleTestCases.id));
-      const failures: string[] = [];
-      for (const [index, item] of cases.entries()) {
-        const content = { title: version.title, surface: version.surface, answer: version.answer, coreFacts: version.coreFacts };
-        const result = item.kind === 'ask' ? await reviewer.ask({ ...content, question: item.input }) : await reviewer.solve({ ...content, solution: item.input });
-        if (result.result !== item.expected) failures.push(`标准用例 ${index + 1}：预期 ${item.expected}，实际 ${result.result}`);
-      }
-      const conclusion = verdict === 'review_reject' || failures.length ? 'changes_requested' : 'pending_review';
+      const outcome = creationReviewOutcome(verdict);
+      const conclusion = outcome.status;
       await db.transaction(async (tx) => {
-        await tx.select().from(puzzles).where(eq(puzzles.id, version.puzzleId)).for('update');
+        const [puzzle] = await tx.select().from(puzzles).where(eq(puzzles.id, version.puzzleId)).for('update');
+        if (!puzzle) throw new Error('投稿作品不存在');
         const [current] = await tx.select().from(puzzleVersions).where(eq(puzzleVersions.id, version.id)).for('update').limit(1);
         if (current?.moderationStatus !== 'checking') return;
         await tx.insert(moderationReviews).values({
           versionId: version.id,
           stage: 'machine',
           conclusion,
-          reason: failures.length ? failures.join('\n') : verdict === 'review_reject' ? '内容检查未通过' : verdict === 'review_uncertain' ? '内容检查无法确定，待人工复核' : '内容及标准用例检查通过，待人工审核',
+          reason: outcome.reason,
           modelVersion: `${this.jevModel}@${this.jevPromptVersion}`,
         });
         await tx.update(puzzleVersions).set({ moderationStatus: conclusion }).where(eq(puzzleVersions.id, version.id));
+        if (conclusion === 'published') {
+          // 下架作品的新稿保留停用标记，恢复公开由后台明确批准。
+          await tx.update(puzzles).set({ currentPublishedVersionId: version.id, updatedAt: new Date() }).where(eq(puzzles.id, version.puzzleId));
+          await tx.insert(auditLogs).values({ action: 'puzzle.auto_publish', objectType: 'puzzle_version', objectId: version.id, reason: outcome.reason, afterSummary: { moderationStatus: conclusion, unavailable: puzzle.unavailable } });
+        }
+
       });
     } catch (error) {
       console.error('[jobs] 投稿机器检查失败', error);

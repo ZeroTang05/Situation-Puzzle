@@ -35,7 +35,7 @@ pnpm dev:jobs           # 任务进程
 pnpm dev:web            # 玩家端 :5173（Vite 代理 /api/v1 与 /ws）
 pnpm dev:admin          # 管理端 :5174
 pnpm db:migrate         # 追加式迁移（可重复执行）
-pnpm db:seed            # 导入 30 题并本地发布（--publish 仅限开发，正式须走权利审核）
+pnpm db:seed            # 导入 30 题并本地发布（--publish 仅限开发，平台自带及导入题库平台自带及导入题库正式须走权利审核，用户投稿由 Jev 初审发布，用户投稿由 Jev 初审发布）
 pnpm smoke              # 冒烟：一次性 PostgreSQL + API + jobs + 接口断言
 pnpm e2e:multiplayer    # 双用户多人 E2E：36 项断言（真实 SMTP 登录 + 真实 Jev）
 ```
