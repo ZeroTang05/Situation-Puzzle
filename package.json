@@ -9,7 +9,7 @@
     "dev:web": "pnpm --dir apps/web dev",
     "dev:admin": "pnpm --dir apps/admin dev",
     "typecheck": "pnpm -r --filter @jev/* exec tsc -p tsconfig.json --noEmit",
-    "test": "pnpm --filter @jev/domain --filter @jev/jev exec vitest run",
+    "test": "pnpm --filter @jev/domain --filter @jev/jev --filter @jev/web exec vitest run",
     "build:web": "pnpm --dir apps/web build",
     "build:admin": "pnpm --dir apps/admin build",
     "db:migrate": "pnpm --dir packages/database db:migrate",

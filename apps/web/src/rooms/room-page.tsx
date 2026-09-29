@@ -25,8 +25,8 @@ export function RoomPage({ session }: { session: Session | null }) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const me = session?.user.id ?? null;
-  const { state, status, kicked, sendCommand } = useRoomSync(roomId ?? '', me);
-  const outbox = useRoomOutbox(me, roomId ?? '', state, status, sendCommand);
+  const { state, status, kicked, sendCommand, confirmResult } = useRoomSync(roomId ?? '', me);
+  const outbox = useRoomOutbox(me, roomId ?? '', state, status, sendCommand, confirmResult);
 
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -72,7 +72,7 @@ export function RoomPage({ session }: { session: Session | null }) {
       if (result) setParams({}, { replace: true });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params, state?.hostUserId, status]);
+  }, [params, state?.hostUserId, status, outbox.local?.key]);
 
   useEffect(() => {
     if (atBottom.current) chatBottomRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
@@ -94,13 +94,6 @@ export function RoomPage({ session }: { session: Session | null }) {
     const timer = setTimeout(() => setShowConnection(true), 2000);
     return () => clearTimeout(timer);
   }, [status]);
-
-  // 被移出房间：实时订阅已被服务端断开，页面回到首页
-  useEffect(() => {
-    if (state && me && state.roomStatus === 'playing' && !state.members.some((m) => m.userId === me)) {
-      navigate('/');
-    }
-  }, [state, me, navigate]);
 
   const round = state?.round ?? null;
   const isHost = state !== null && me !== null && state.hostUserId === me;
@@ -151,7 +144,8 @@ export function RoomPage({ session }: { session: Session | null }) {
   if (!state) {
     return (
       <main className="shell page-loading">
-        <p className="muted">{status === 'offline' ? copy.offline : '加载中…'}</p>
+        <p className="muted">{status === 'auth_required' ? '登录已过期，请重新登录' : status === 'offline' ? copy.offline : '加载中…'}</p>
+        {status === 'auth_required' && <a className="btn" href={`/login?next=/rooms/${roomId}`}>重新登录</a>}
       </main>
     );
   }
@@ -171,6 +165,10 @@ export function RoomPage({ session }: { session: Session | null }) {
       {showConnection && status !== 'ready' && <p className="offline-banner" role="status">{status === 'auth_required' ? '登录已过期，请重新登录' : status === 'offline' ? '网络已断开，草稿已保留' : '正在恢复连接…'}{status === 'auth_required' && <a href={`/login?next=/rooms/${roomId}`}>重新登录</a>}</p>}
       {outbox.storageError && <p className="error-text" role="alert">{outbox.storageError}</p>}
       {error && <p className="error-text" role="alert">{error}</p>}
+      {outbox.local?.pending.filter((p) => !['ask', 'solve', 'discussion'].includes(p.input.type) && p.status !== 'sent').map((p) => <div key={p.input.clientRequestId} role="status">
+        <p>{p.status === 'rejected' ? p.error : p.status === 'sending' ? '操作提交中…' : '正在确认操作结果'}</p>
+        {p.status === 'confirming' && <button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>继续确认</button>}
+      </div>)}
       {inviteCopied && <p className="accent">{copy.inviteCopied}</p>}
 
       {state.roomStatus === 'closed' && !answered && (

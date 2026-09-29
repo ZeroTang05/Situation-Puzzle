@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { wsServerFrameSchema, type RoomEvent, type WsClientFrame } from '@jev/contracts';
 import { api, ApiError } from '../api/client.js';
-import { applyEvent, fetchSnapshot, type RoomState } from './room-state.js';
+import { fetchSnapshot, type RoomState } from './room-state.js';
+import { receiveEvent, reconnectDelay } from './reliability.js';
 export type { RoomState, RoomRound } from './room-state.js';
 
 export type SyncStatus = 'connecting' | 'syncing' | 'ready' | 'reconnecting' | 'offline' | 'auth_required' | 'forbidden';
@@ -55,7 +56,7 @@ export function useRoomSync(roomId: string, userId: string | null) {
       detach();
       if (disposed || stopped) return;
       setStatus(navigator.onLine ? 'reconnecting' : 'offline');
-      if (navigator.onLine) timer = setTimeout(() => void connect(), Math.min(15_000, 500 * 2 ** Math.min(attempt++, 5) + Math.random() * 300));
+      if (navigator.onLine) timer = setTimeout(() => void connect(), reconnectDelay(attempt++, Math.random()));
     };
     const armDeadline = () => {
       clearTimeout(deadline);
@@ -143,14 +144,8 @@ export function useRoomSync(roomId: string, userId: string | null) {
             if (!('seq' in frame) || frame.roomId !== roomId || !stateRef.current) return;
             const event = frame as RoomEvent;
             if (event.seq <= stateRef.current.lastSeq) return;
-            buffering.set(event.seq, event);
+            const next = receiveEvent(stateRef.current, event, buffering);
             if (buffering.size > 1000) { await snapshot(generation); return; }
-            let next = stateRef.current;
-            while (buffering.has(next.lastSeq + 1)) {
-              const item = buffering.get(next.lastSeq + 1)!;
-              buffering.delete(item.seq);
-              next = { ...applyEvent(next, item), lastSeq: item.seq };
-            }
             update(next);
             if (syncing) armDeadline();
             if (buffering.size) subscribe();
@@ -187,16 +182,19 @@ export function useRoomSync(roomId: string, userId: string | null) {
     };
   }, [roomId, userId]);
 
-  const sendCommand = useCallback(async (input: CommandInput) => {
-    const generation = generationRef.current;
-    const result = await api<CommandResult>(`/rooms/${roomId}/commands`, { method: 'POST', body: input, timeoutMs: 10_000 });
-    if (generation === generationRef.current && stateRef.current?.roomId === roomId) {
+  /** 命令查询与首次响应共用版本更新，断线期间的成功控制操作也能推进版本。 */
+  const confirmResult = useCallback((result: CommandResult) => {
+    if (stateRef.current?.roomId === roomId) {
       const next = { ...stateRef.current, controlVersion: Math.max(stateRef.current.controlVersion, result.controlVersion) };
       stateRef.current = next;
       setState(next);
     }
-    return result;
   }, [roomId]);
+  const sendCommand = useCallback(async (input: CommandInput) => {
+    const result = await api<CommandResult>(`/rooms/${roomId}/commands`, { method: 'POST', body: input, timeoutMs: 10_000 });
+    confirmResult(result);
+    return result;
+  }, [roomId, confirmResult]);
 
-  return { state: state?.roomId === roomId ? state : null, status, kicked: status === 'forbidden', sendCommand, refresh: () => restartRef.current?.() };
+  return { state: state?.roomId === roomId ? state : null, status, kicked: status === 'forbidden', sendCommand, confirmResult, refresh: () => restartRef.current?.() };
 }

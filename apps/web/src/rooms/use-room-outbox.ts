@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client.js';
 import { loadRoomLocal, saveRoomLocal, type RoomLocal, type PendingCommand } from './room-local.js';
 import type { CommandInput, CommandResult, RoomState, SyncStatus } from './use-room-sync.js';
+import { confirmCommand, recoveryAction } from './reliability.js';
 
-export function useRoomOutbox(userId: string | null, roomId: string, state: RoomState | null, status: SyncStatus, sendCommand: (input: CommandInput) => Promise<CommandResult>) {
+export function useRoomOutbox(userId: string | null, roomId: string, state: RoomState | null, status: SyncStatus, sendCommand: (input: CommandInput) => Promise<CommandResult>, confirmResult: (result: CommandResult) => void) {
   const [local, setLocal] = useState<RoomLocal | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
   const ref = useRef<RoomLocal | null>(null);
@@ -43,13 +44,7 @@ export function useRoomOutbox(userId: string | null, roomId: string, state: Room
   const patch = (id: string, values: Partial<PendingCommand>) => update((current) => ({
     ...current, pending: current.pending.map((p) => p.input.clientRequestId === id ? { ...p, ...values } : p),
   }));
-  const confirm = (item: PendingCommand, result: CommandResult) => update((current) => {
-    const mode = item.input.type;
-    const text = item.input.payload?.text;
-    const drafts = { ...current.drafts };
-    if ((mode === 'ask' || mode === 'solve' || mode === 'discussion') && drafts[mode].trim() === text) drafts[mode] = '';
-    return { ...current, drafts, pending: current.pending.map((p) => p.input.clientRequestId === item.input.clientRequestId ? { ...p, status: 'sent', result } : p) };
-  });
+  const confirm = (item: PendingCommand, result: CommandResult) => update((current) => confirmCommand(current, item, result));
 
   const execute = async (item: PendingCommand, recovering: boolean): Promise<CommandResult | undefined> => {
     const id = item.input.clientRequestId;
@@ -64,15 +59,16 @@ export function useRoomOutbox(userId: string | null, roomId: string, state: Room
         if (!current()) return;
         if (found.status === 'accepted') result = found.result;
         else {
-          if (state?.roomStatus === 'closed') { await patch(id, { status: 'rejected', error: '房间已结束，该请求未被受理' }); return; }
-          const isMessage = ['ask', 'solve', 'discussion'].includes(item.input.type);
-          if (!isMessage || item.retries >= 1) { await patch(id, { status: 'confirming', error: '尚未确认，请稍后继续确认' }); return; }
+          const action = recoveryAction(item, state?.roomStatus === 'closed');
+          if (action === 'reject') { await patch(id, { status: 'rejected', error: '房间已结束，该请求未被受理' }); return; }
+          if (action === 'query_only') { await patch(id, { status: 'confirming', error: '尚未确认，请稍后继续确认' }); return; }
           await patch(id, { retries: item.retries + 1 });
         }
       }
       if (!current()) return;
       result ??= await sendCommand(item.input);
       if (!current()) return;
+      confirmResult(result);
       await confirm(item, result);
       return result;
     } catch (error) {
