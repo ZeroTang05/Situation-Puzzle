@@ -63,7 +63,7 @@ docker compose up -d --build
 | --- | --- |
 | 玩家端 | React 19 + Vite + React Router + TanStack Query；单人记录存 IndexedDB（idb） |
 | 管理端 | React-admin |
-| API | NestJS 11（HTTP + 标准 WebSocket）、Better Auth（邮箱/密码 + Email OTP + Google 登录，境内服务器走出站代理） |
+| API | NestJS 11（HTTP + 标准 WebSocket）、Better Auth（邮箱/密码 + Email OTP + Google / LINUX DO 登录，境内服务器走出站代理） |
 | 数据 | PostgreSQL 17 + Drizzle ORM；pg-boss 持久任务队列 |
 | 判题 | OpenCode Zen SystemOne（模型 `jev-1.13`），置信度阈值 0.5 |
 | 部署 | Docker Compose（前端/管理/API 各自独立容器，TLS 终结由宿主 Nginx/OpenResty 负责） |

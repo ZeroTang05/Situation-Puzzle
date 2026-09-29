@@ -89,7 +89,7 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 | 表 | 关键字段与约束 |
 | --- | --- |
 | 认证库管理的 user/session/account/verification 表 | 按所锁定 Better Auth 版本生成；账号与业务 profile 一对一，不手写替代认证协议 |
-| `profiles` | `user_id`、昵称、账号状态、创建时间；状态 active/suspended/deletion_pending |
+| `profiles` | `user_id`、昵称（允许重复；未定制默认「用户+6 位随机编号」，可在「我的」修改）、账号状态、创建时间；状态 active/suspended/deletion_pending |
 | `role_assignments` | `user_id`、角色；用户与角色唯一 |
 | `puzzles` | 作品 ID、内部作者用户 ID（旧题可为空）、来源类型、当前发布版本指针、可用状态；作品级署名模式、已批准展示名与待审署名；匿名公共投影隐藏作者身份 |
 | `puzzle_versions` | 作品、版本号、语言、标题、汤面、汤底、提示、核心事实、因果链、难度、时长、内容提醒、审核状态；`(puzzle_id, version_no, language)` 唯一；提交后不可变 |

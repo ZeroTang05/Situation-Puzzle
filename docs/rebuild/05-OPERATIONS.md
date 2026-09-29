@@ -18,11 +18,15 @@
 
 ## 2. 登录和账号
 
-用户明确要求邮箱验证码与 Google OAuth（谷歌账号授权）同时支持。登录页以邮箱输入为主要入口，Google 按钮为第二入口；登录成功后返回原邀请或购买页面。
+登录支持四种方式：邮箱验证码、邮箱+密码、Google OAuth（谷歌账号授权）与 LINUX DO OAuth。登录页以邮箱输入为主要入口，密码与验证码两个标签页切换，Google 与 LINUX DO 按钮为第三方入口；登录成功后返回原邀请或购买页面。
 
-采用 Better Auth 的邮箱/密码（emailAndPassword）、[Email OTP](https://better-auth.com/docs/plugins/email-otp) 和 [Google 登录](https://better-auth.com/docs/authentication/google)。Google 仅申请身份所需的 openid/email/profile，不申请读取 Gmail 邮件权限。OAuth 回调、state 校验和令牌验证交由成熟认证库，按 [Google 服务端授权说明](https://developers.google.com/identity/protocols/oauth2/web-server) 配置域名与回调。
+采用 Better Auth 的邮箱/密码（emailAndPassword）、[Email OTP](https://better-auth.com/docs/plugins/email-otp)、[Google 登录](https://better-auth.com/docs/authentication/google) 和 [通用 OAuth 插件](https://better-auth.com/docs/plugins/generic-oauth)（承载 LINUX DO）。Google 仅申请身份所需的 openid/email/profile，不申请读取 Gmail 邮件权限。OAuth 回调、state 校验和令牌验证交由成熟认证库，按 [Google 服务端授权说明](https://developers.google.com/identity/protocols/oauth2/web-server) 配置域名与回调。
 
 邮箱验证码默认有效 5 分钟、同邮箱 60 秒内限发一次、每次验证码最多尝试 5 次；发送同时按邮箱、账号和 IP 限速，参数通过真实投递测试调整。邮件服务负责真实投递，发信域名设置相应认证记录；不得把控制台打印验证码当作已接入邮箱。
+
+忘记密码：登录页密码区提供找回密码入口。Better Auth 签发一次性重置 token（1 小时有效），服务端拼成站内 `/reset-password?token=…` 链接交由邮件通道发送；重置页校验两次输入一致后设置新密码，成功后跳回登录页提示使用新密码。邮箱不存在时申请接口同样返回成功，页面只展示统一的「已发送」提示，防账号枚举。无需额外数据库字段，密码凭据由认证库的 account 表保存。
+
+LINUX DO（connect.linux.do）走授权码模式：授权跳转由用户浏览器直连，token 兑换用 HTTP Basic 头携带凭据、不使用 PKCE，用户信息取 `/api/user`（Discourse 风格接口）。该接口不返回邮箱，以 `linuxdo-<用户id>@linuxdo.invalid` 占位邮箱建号（`.invalid` 为保留的不可用顶级域，不会与真实邮箱冲突）；展示名优先 LINUX DO 昵称、退回用户名，头像为带 `{size}` 占位的模板路径，服务端补全为 288px 绝对地址。应用回调统一为 `https://<域名>/api/v1/auth/callback/linuxdo`。境内服务器复用 Google 的同一出站中继转发 token 与 userinfo 请求，授权跳转仍由浏览器直连。
 
 同一个内部用户 ID 关联不同登录方式。Google 身份使用 provider+subject 唯一识别，不只凭返回的邮箱地址识别。账号绑定必须在已登录会话中重新确认本人身份；Google 返回邮箱与已有账号相同但身份尚未绑定时，引导先用邮箱验证码登录再绑定。不得因字符串相同自动合并已存在的游戏、付款或永久赞助记录。
 
@@ -30,9 +34,11 @@
 
 每个新用户只初始化一次免费计数；以用户 ID 唯一约束保证并发注册不重复发放。退出登录不会重置次数；封禁账号不能再次使用旧会话。邮箱账号门槛不能证明一个现实中的人只注册一个账号，首发目标为“每账号 10 次”，配合注册和调用频率控制。
 
+昵称允许与其他玩家重名，仅约束 1～30 个字符（去首尾空格）。注册未填写时默认「用户+6 位随机编号」，不使用邮箱前缀，避免在房间内暴露邮箱；玩家可在「我的」页面随时修改，修改即生效并同步到后续房间展示。
+
 网页会话使用 Secure、HttpOnly、SameSite Cookie；写接口验证可信来源与认证库提供的请求保护。服务端每次操作检查停用状态，踢出用户的实时连接。管理账号增加二次认证并独立配置角色。
 
-Google 授权和邮件都需在目标服务器及目标用户网络做真实端到端验证。其一失败要明确展示当前登录错误，不把另一方式偷偷绑定成新账号。
+Google、LINUX DO 授权和邮件都需在目标服务器及目标用户网络做真实端到端验证。其一失败要明确展示当前登录错误，不把另一方式偷偷绑定成新账号。
 
 ## 3. 月度与永久有效期
 
