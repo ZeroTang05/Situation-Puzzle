@@ -2,11 +2,12 @@
 import { useNavigate } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { api } from '../api/client.js';
+import { api, translateApiError } from '../api/client.js';
 import { authClient } from '../api/auth-client.js';
 import { useLanguage } from '../state/language.js';
 import { soloStore } from '../solo/local-store.js';
 import { clearRoomLocal } from '../rooms/room-local.js';
+import { format } from '@jev/i18n';
 import type { Session } from '../session.js';
 import { creationCopy } from '../creations/copy.js';
 
@@ -49,7 +50,7 @@ export function MePage({ session }: { session: Session | null }) {
       await queryClient.invalidateQueries({ queryKey: ['me'] });
       setEditingNickname(false);
     } catch (error) {
-      setNicknameError(error instanceof Error ? error.message : '保存失败，请稍后再试');
+      setNicknameError(translateApiError(error, language, copy.saveFail));
       return;
     } finally {
       setSavingNickname(false);
@@ -64,7 +65,7 @@ export function MePage({ session }: { session: Session | null }) {
     return (
       <main className="shell narrow">
         <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>{copy.back}</button>
-        <p className="muted">{copy.login}后查看账号与赞助状态。单人游玩无需登录。</p>
+        <p className="muted">{copy.meRequiresLogin}</p>
         <button className="btn btn-primary" onClick={() => navigate('/login?next=/me')}>{copy.login}</button>
       </main>
     );
@@ -82,7 +83,7 @@ export function MePage({ session }: { session: Session | null }) {
         {editingNickname ? (
           <>
             <label className="field-label" htmlFor="nickname">
-              昵称
+              {copy.nickname}
               <input
                 id="nickname"
                 className="field"
@@ -90,7 +91,7 @@ export function MePage({ session }: { session: Session | null }) {
                 value={nicknameDraft}
                 maxLength={30}
                 onChange={(e) => setNicknameDraft(e.target.value)}
-                placeholder="1～30 个字符，可与其他玩家重名"
+                placeholder={copy.nicknameRule}
               />
             </label>
             {nicknameError && <p className="error-text" role="alert">{nicknameError}</p>}
@@ -100,10 +101,10 @@ export function MePage({ session }: { session: Session | null }) {
                 disabled={savingNickname || nicknameDraft.trim().length === 0}
                 onClick={() => void saveNickname()}
               >
-                保存
+                {copy.saved}
               </button>
               <button className="btn" disabled={savingNickname} onClick={() => setEditingNickname(false)}>
-                取消
+                {copy.cancelEdit}
               </button>
             </div>
           </>
@@ -117,7 +118,7 @@ export function MePage({ session }: { session: Session | null }) {
                 setEditingNickname(true);
               }}
             >
-              修改
+              {copy.modify}
             </button>
           </div>
         )}
@@ -147,15 +148,15 @@ export function MePage({ session }: { session: Session | null }) {
 
       <section className="panel stack">
         <h3>{copy.history}</h3>
-        {history.data?.rooms.length === 0 && <p className="muted">还没有多人房间记录。</p>}
+        {history.data?.rooms.length === 0 && <p className="muted">{copy.noRoomHistory}</p>}
         {history.data?.rooms.map((room) => (
           <article key={room.roomId} className="stack-sm">
             <button className="btn btn-sm" onClick={() => navigate(`/rooms/${room.roomId}`)}>
-              {new Date(room.createdAt).toLocaleDateString()} · {room.roomStatus === 'closed' ? '已结束' : '进行中'}
+              {new Date(room.createdAt).toLocaleDateString()} · {room.roomStatus === 'closed' ? copy.roomStatusClosed : copy.roomStatusActive}
             </button>
             {room.rounds.map((r) => (
               <p key={r.roundId} className="muted">
-                第 {r.roundNo} 局 {r.title ?? ''} · {r.status}
+                {format(copy.roundX, { n: r.roundNo })} {r.title ?? ''} · {r.status}
               </p>
             ))}
           </article>
@@ -164,7 +165,7 @@ export function MePage({ session }: { session: Session | null }) {
 
       <section className="panel stack">
         <h3>{copy.soloRecords}</h3>
-        <p className="muted">共 {localCount ?? 0} 局，仅保存在本浏览器。</p>
+        <p className="muted">{format(copy.soloOnlyBrowser, { n: localCount ?? 0 })}</p>
         <button
           className="btn btn-sm btn-ghost"
           onClick={() =>
@@ -177,15 +178,15 @@ export function MePage({ session }: { session: Session | null }) {
             })
           }
         >
-          导出记录
+          {copy.exportRecords}
         </button>
         <button
           className="btn btn-sm btn-ghost"
           onClick={() => {
-            if (window.confirm('确定清空全部单人记录？此操作不可恢复。')) void soloStore.clearAll();
+            if (window.confirm(copy.clearRecordsConfirm)) void soloStore.clearAll();
           }}
         >
-          清空记录
+          {copy.clearRecords}
         </button>
       </section>
     </main>

@@ -4,11 +4,15 @@ import { Admin, Resource, ListGuesser } from 'react-admin';
 import { authProvider } from './auth-provider.js';
 import { dataProvider } from './data-provider.js';
 import { PuzzleList, VersionDetail } from './puzzles.js';
-import { UserList, RoomList, ReportList, OrderList, Dashboard } from './resources.js';
+import { UserList, RoomList, ReportList, OrderList, Dashboard, LangSwitch } from './resources.js';
 import { AdminLoginRedirect } from './admin-login-redirect.js';
+import { LanguageProvider, useLanguage } from './language.js';
+import { copy } from './copy.js';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+function AdminShell() {
+  const { language } = useLanguage();
+  const c = copy(language);
+  return (
     <Admin
       authProvider={authProvider}
       dataProvider={dataProvider}
@@ -18,12 +22,27 @@ createRoot(document.getElementById('root')!).render(
       loginPage={AdminLoginRedirect}
       requireAuth
     >
-      <Resource name="puzzles" list={PuzzleList} show={VersionDetail} recordRepresentation="title" options={{ label: '题库与投稿' }} />
-      <Resource name="users" list={UserList} recordRepresentation="nickname" options={{ label: '用户' }} />
-      <Resource name="rooms" list={RoomList} recordRepresentation="roomId" options={{ label: '房间' }} />
-      <Resource name="reports" list={ReportList} recordRepresentation="reason" options={{ label: '举报' }} />
-      <Resource name="orders" list={OrderList} recordRepresentation="orderId" options={{ label: '订单' }} />
-      <Resource name="overview" list={ListGuesser} options={{ label: '总览' }} />
+      <Resource name="puzzles" list={PuzzleList} show={VersionDetail} recordRepresentation="title" options={{ label: c.menuPuzzles }} />
+      <Resource name="users" list={UserList} recordRepresentation="nickname" options={{ label: c.menuUsers }} />
+      <Resource name="rooms" list={RoomList} recordRepresentation="roomId" options={{ label: c.menuRooms }} />
+      <Resource name="reports" list={ReportList} recordRepresentation="reason" options={{ label: c.menuReports }} />
+      <Resource name="orders" list={OrderList} recordRepresentation="orderId" options={{ label: c.menuOrders }} />
+      <Resource name="overview" list={ListGuesser} options={{ label: c.menuOverview }} />
     </Admin>
+  );
+}
+
+function App() {
+  return (
+    <LanguageProvider>
+      <AdminShell />
+      <LangSwitch />
+    </LanguageProvider>
+  );
+}
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
   </StrictMode>,
 );

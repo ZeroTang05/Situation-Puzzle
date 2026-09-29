@@ -8,7 +8,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { authClient } from '../api/auth-client.js';
+import { translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
+import { format } from '@jev/i18n';
 import { otpCooldownKey, readOtpDeadline, remainingOtpSeconds, sendOtpCode, OtpSendError } from './otp-cooldown.js';
 
 type Mode = 'signin' | 'signup';
@@ -33,13 +35,15 @@ export function LoginPage() {
   const [signupOtpVerified, setSignupOtpVerified] = useState(false);
   const [busy, setBusy] = useState(false);
   // 从重置页跳回时提示用新密码登录（/login?reset=1）
-  const [notice, setNotice] = useState<string | null>(params.get('reset') ? '密码已重置，请用新密码登录' : null);
+  const [notice, setNotice] = useState<string | null>(params.get('reset') ? copy.passwordResetSuccess : null);
   const [error, setError] = useState<string | null>(null);
   const sendingCode = useRef(false);
   const [sendUntil, setSendUntil] = useState(() => readOtpDeadline(localStorage));
   const [now, setNow] = useState(Date.now);
   const sendWait = remainingOtpSeconds(sendUntil, now);
-  const sendLabel = sendWait ? (language === 'en' ? `Retry in ${sendWait}s` : `${sendWait} 秒后重试`) : (language === 'en' ? 'Send code' : stage === 'code' ? '重新发送验证码' : '发送验证码');
+  const sendLabel = sendWait
+    ? (language === 'en' ? format(copy.retryIn, { n: sendWait }) : format(copy.resendIn, { n: sendWait }))
+    : (language === 'en' ? copy.sendCodeAlt : stage === 'code' ? copy.resendCode : copy.sendCode);
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
     const sync = (event: StorageEvent) => { if (event.key === otpCooldownKey) setSendUntil(readOtpDeadline(localStorage)); };
@@ -64,11 +68,11 @@ export function LoginPage() {
       const seconds = await sendOtpCode(email.trim().toLowerCase(), 'sign-in');
       rememberWait(seconds);
       setStage('code');
-      setNotice(type === 'sign-in' ? copy.codeSent : '验证码已发送（请查收用于注册）');
+      setNotice(type === 'sign-in' ? copy.codeSent : copy.codeSentSignup);
     } catch (error) {
       if (error instanceof OtpSendError) rememberWait(error.retryAfterSeconds);
       else rememberWait(60); // 网络中断时发送结果未知，等待期间仍可验证已有验证码。
-      setError(error instanceof Error ? error.message : '验证码发送失败，请稍后重试。');
+      setError(translateApiError(error, language, copy.sendCodeFail));
     } finally {
       sendingCode.current = false;
       setBusy(false);
@@ -82,7 +86,7 @@ export function LoginPage() {
     const { error: verifyError } = await authClient.signIn.emailOtp({ email: email.trim().toLowerCase(), otp: code });
     setBusy(false);
     if (verifyError) {
-      setError(verifyError.message ?? '验证码不正确');
+      setError(verifyError.message ?? copy.otpInvalid);
       return;
     }
     navigate(next, { replace: true });
@@ -99,14 +103,14 @@ export function LoginPage() {
       if (verifyError.code === 'USER_NOT_FOUND') {
         // 邮箱尚未注册 → OTP 视为有效（这一步只能确认 OTP 一致性；最终注册由 sign-up 写库）
         setSignupOtpVerified(true);
-        setNotice('邮箱已验证，请设置密码完成注册');
+        setNotice(copy.emailVerified);
         return;
       }
-      setError(msg || '验证码不正确');
+      setError(msg || copy.otpInvalid);
       return;
     }
     // 走到了：邮箱其实已注册，提示用户去登录
-    setError('该邮箱已注册，请改用「去登录」');
+    setError(copy.emailRegisteredGoSignin);
   };
 
   // ---------- 密码登录 ----------
@@ -116,7 +120,7 @@ export function LoginPage() {
     const { error: pwError } = await authClient.signIn.email({ email: email.trim().toLowerCase(), password });
     setBusy(false);
     if (pwError) {
-      setError(pwError.message ?? '邮箱或密码不正确；首次登录请使用验证码。');
+      setError(pwError.message ?? copy.signinFail);
       return;
     }
     navigate(next, { replace: true });
@@ -125,7 +129,7 @@ export function LoginPage() {
   // ---------- 注册：必须在 OTP 通过后才能提交 ----------
   const signupWithPassword = async () => {
     if (!signupOtpVerified) {
-      setError('请先完成邮箱验证码验证');
+      setError(copy.signupVerifyEmailFirst);
       return;
     }
     setBusy(true);
@@ -138,7 +142,7 @@ export function LoginPage() {
     });
     setBusy(false);
     if (signErr) {
-      setError(signErr.message ?? '注册失败，请稍后再试');
+      setError(signErr.message ?? copy.signupFail);
       return;
     }
     // 注册完成 → 自动登录
@@ -148,7 +152,7 @@ export function LoginPage() {
     if (signInErr) {
       setMode('signin');
       setMethod('password');
-      setNotice('注册成功，请使用刚设置的密码登录');
+      setNotice(copy.signupSuccessSignin);
       return;
     }
     navigate(next, { replace: true });
@@ -164,7 +168,7 @@ export function LoginPage() {
     });
     setBusy(false);
     if (oauthError) {
-      setError(oauthError.message ?? '无法启动第三方登录');
+      setError(oauthError.message ?? copy.oauthFail);
       return;
     }
     if (data?.url) {
@@ -184,7 +188,7 @@ export function LoginPage() {
     setMethod('password');
   };
 
-  const headingTitle = mode === 'signin' ? copy.login : '注册新账号';
+  const headingTitle = mode === 'signin' ? copy.signin : copy.signup;
 
   return (
     <main className="shell narrow">
@@ -197,20 +201,20 @@ export function LoginPage() {
         {/* ===== 登录：密码 / 验证码 双 tab ===== */}
         {mode === 'signin' && (
           <>
-            <nav className="mode-tabs" aria-label="登录方式">
+            <nav className="mode-tabs" aria-label={copy.signin}>
               <button
                 type="button"
                 className={'mode-tab' + (method === 'password' ? ' active' : '')}
                 onClick={() => { setMethod('password'); setError(null); setStage('email'); }}
               >
-                密码
+                {copy.password}
               </button>
               <button
                 type="button"
                 className={'mode-tab' + (method === 'otp' ? ' active' : '')}
                 onClick={() => { setMethod('otp'); setError(null); setStage('email'); }}
               >
-                邮箱验证码
+                {copy.emailCode}
               </button>
             </nav>
 
@@ -225,7 +229,7 @@ export function LoginPage() {
                     autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    placeholder={copy.emailPlaceholder}
                   />
                 </label>
                 <label className="field-label" htmlFor="password">
@@ -237,7 +241,7 @@ export function LoginPage() {
                     autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="至少 8 位"
+                    placeholder={copy.minChars}
                   />
                 </label>
                 <button
@@ -248,7 +252,7 @@ export function LoginPage() {
                   {copy.login}
                 </button>
                 <p className="muted" style={{ textAlign: 'center' }}>
-                  忘记密码？<a href="/forgot-password">找回密码</a>
+                  {copy.forgotPassword}？<a href="/forgot-password">{copy.goLogin}</a>
                 </p>
               </div>
             )}
@@ -264,7 +268,7 @@ export function LoginPage() {
                     autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    placeholder={copy.emailPlaceholder}
                   />
                 </label>
                 <button
@@ -281,7 +285,7 @@ export function LoginPage() {
               <div className="stack">
                 {notice && <p className="muted">{notice}</p>}
                 <label className="field-label" htmlFor="code-otp">
-                  验证码
+                  {copy.emailCode}
                   <input
                     id="code-otp"
                     className="field"
@@ -289,7 +293,7 @@ export function LoginPage() {
                     autoComplete="one-time-code"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
-                    placeholder="000000"
+                    placeholder={copy.codePlaceholder}
                   />
                 </label>
                 <button
@@ -297,7 +301,7 @@ export function LoginPage() {
                   disabled={busy || code.length < 4}
                   onClick={() => void verifyOtpForSignIn()}
                 >
-                  登录
+                  {copy.signIn}
                 </button>
               </div>
             )}
@@ -308,7 +312,7 @@ export function LoginPage() {
         {mode === 'signup' && (
           <div className="stack">
             <label className="field-label" htmlFor="name-su">
-              昵称
+              {copy.nickname}
               <input
                 id="name-su"
                 className="field"
@@ -316,7 +320,7 @@ export function LoginPage() {
                 autoComplete="nickname"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="选填，登录后可在「我的」里改"
+                placeholder={copy.nicknamePlaceholder}
               />
             </label>
 
@@ -335,7 +339,7 @@ export function LoginPage() {
                     setSignupOtpVerified(false);
                   }
                 }}
-                placeholder="you@example.com"
+                placeholder={copy.emailPlaceholder}
               />
             </label>
 
@@ -353,7 +357,7 @@ export function LoginPage() {
             {!signupOtpVerified && (
               <>
                 <label className="field-label" htmlFor="code-su">
-                  验证码
+                  {copy.emailCode}
                   <input
                     id="code-su"
                     className="field"
@@ -361,7 +365,7 @@ export function LoginPage() {
                     autoComplete="one-time-code"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
-                    placeholder="000000"
+                    placeholder={copy.codePlaceholder}
                   />
                 </label>
                 <button
@@ -369,14 +373,14 @@ export function LoginPage() {
                   disabled={busy || code.length < 4}
                   onClick={() => void verifyOtpForSignup()}
                 >
-                  验证邮箱
+                  {copy.verifyEmail}
                 </button>
               </>
             )}
 
             {signupOtpVerified && (
               <>
-                <p className="ok-text">✓ 邮箱已验证</p>
+                <p className="ok-text">{copy.emailVerified}</p>
                 <label className="field-label" htmlFor="password-su">
                   Password
                   <input
@@ -386,7 +390,7 @@ export function LoginPage() {
                     autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="至少 8 位"
+                    placeholder={copy.minChars}
                   />
                 </label>
                 <button
@@ -394,7 +398,7 @@ export function LoginPage() {
                   disabled={busy || password.length < 8}
                   onClick={() => void signupWithPassword()}
                 >
-                  注册并登录
+                  {copy.signupAndLogin}
                 </button>
               </>
             )}
@@ -407,21 +411,21 @@ export function LoginPage() {
         )}
 
         <div className="divider">
-          <span className="muted">或</span>
+          <span className="muted">{copy.or}</span>
         </div>
         <button className="btn" onClick={() => void oauthSignIn('google')} disabled={busy}>
           {copy.googleLogin}
         </button>
         <button className="btn" onClick={() => void oauthSignIn('linuxdo')} disabled={busy}>
-          使用 LINUX DO 登录
+          {copy.linuxdoLogin}
         </button>
 
         {/* 模式切换：底部超链接 */}
         <p className="muted" style={{ textAlign: 'center', marginTop: 12 }}>
           {mode === 'signin' ? (
-            <>还没有账号？<a href="#" onClick={(e) => { e.preventDefault(); switchMode('signup'); }}>去注册</a></>
+            <>{copy.noAccount}<a href="#" onClick={(e) => { e.preventDefault(); switchMode('signup'); }}>{copy.goSignup}</a></>
           ) : (
-            <>已经有账号？<a href="#" onClick={(e) => { e.preventDefault(); switchMode('signin'); }}>去登录</a></>
+            <>{copy.haveAccount}<a href="#" onClick={(e) => { e.preventDefault(); switchMode('signin'); }}>{copy.goLogin}</a></>
           )}
         </p>
       </section>

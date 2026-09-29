@@ -8,7 +8,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { api } from '../api/client.js';
+import { useLanguage } from '../state/language.js';
 import type { Session } from '../session.js';
+import { format } from '@jev/i18n';
 
 interface RatingState {
   choice: 'up' | 'down' | null;
@@ -27,6 +29,7 @@ export function VoteButtons({
   initialUp: number;
   initialDown: number;
 }) {
+  const { copy } = useLanguage();
   const navigate = useNavigate();
   const [state, setState] = useState<RatingState>({ choice: null, upCount: initialUp, downCount: initialDown });
   const [busy, setBusy] = useState(false);
@@ -73,12 +76,13 @@ export function VoteButtons({
   };
 
   return (
-    <span className="vote-row" role="group" aria-label="题目投票">
+    <span className="vote-row" role="group" aria-label={copy.voteGroup}>
       <button
         className={`btn btn-sm ${state.choice === 'up' ? 'btn-primary' : 'btn-ghost'}`}
         disabled={busy}
         onClick={() => act('up')}
         aria-pressed={state.choice === 'up'}
+        aria-label={copy.voteUp}
       >
         👍 {state.upCount}
       </button>
@@ -87,12 +91,13 @@ export function VoteButtons({
         disabled={busy}
         onClick={() => act('down')}
         aria-pressed={state.choice === 'down'}
+        aria-label={copy.voteDown}
       >
         👎 {state.downCount}
       </button>
       {error && (
         <span className="error-text" role="alert">
-          投票失败，请重试
+          {copy.voteFail}
         </span>
       )}
     </span>
@@ -101,9 +106,10 @@ export function VoteButtons({
 
 /** 列表/详情里的只读署名展示：署名显示已批准名，匿名显示「匿名作者」。 */
 export function AuthorLabel({ mode, name }: { mode: 'anonymous' | 'signature'; name: string | null }) {
+  const { copy } = useLanguage();
   return (
     <span className="muted">
-      {mode === 'signature' && name ? `作者：${name}` : '匿名作者'}
+      {mode === 'signature' && name ? format(copy.byAuthor, { name }) : copy.anonymousAuthor}
     </span>
   );
 }

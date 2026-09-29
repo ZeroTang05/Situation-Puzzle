@@ -18,7 +18,7 @@ export function CreationListPage({ session }: { session: Session | null }) {
     {query.error && <p className="error-text" role="alert">{query.error.message}</p>}
     {query.data?.items.length === 0 && <section className="creation-empty"><p>{text.empty}</p><Link className="btn btn-primary" to="/creations/new">{text.create}</Link></section>}
     <div className="creation-list">{query.data?.items.map((work) => <article key={work.puzzleId} className="creation-row">
-      <div><span className={`creation-status status-${work.status}`}>{creationStatusLabel(work.status, language)}</span><span className="muted">{text.version} {work.versionNo} · {work.language === 'en' ? 'English' : '中文'}</span></div>
+      <div><span className={`creation-status status-${work.status}`}>{creationStatusLabel(work.status, language)}</span><span className="muted">{text.version} {work.versionNo} · {work.language === 'en' ? copy.languageEn : copy.languageZh}</span></div>
       <Link to={`/creations/${work.puzzleId}`}><h3>{work.title}</h3></Link>
       <p className="muted">👍 {work.upCount}　👎 {work.downCount}　{text.feedback} {work.popularityScore}</p>
       {work.pendingName && <p className="muted">{text.pendingName}：{work.pendingName}</p>}

@@ -4,7 +4,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { api, ApiError } from '../api/client.js';
+import { api, ApiError, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
 import { displayVerdict, verdictDetail, format } from '@jev/i18n';
 import { soloStore, type SoloSessionRow } from './local-store.js';
@@ -88,10 +88,10 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
         setSession(row);
         setTurns([]);
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : '题目加载失败，请稍后再试');
+        setError(translateApiError(err, language, copy.soloLoadFail));
       }
     })();
-  }, [puzzleId, language]);
+  }, [puzzleId, language, copy.soloLoadFail]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -138,16 +138,16 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
         await soloStore.bumpProgress(session.puzzleId, { solved: true });
       }
     } catch (err) {
-      const note = err instanceof ApiError ? err.message : '网络错误，请重试';
+      const note = translateApiError(err, language, copy.networkError);
       await soloStore.finishTurn(localTurnId, { status: 'failed', failNote: note });
       setTurns((prev) => prev.map((t) => (t.localTurnId === localTurnId ? { ...t, status: 'failed' } : t)));
       // 失败后本地保留问题：重试按当前输入模式重新提交
       setText(submittedText);
-      if (err instanceof ApiError && err.code === 'JEV_BUSY') setError('Jev 正忙，请稍后再试。');
+      if (err instanceof ApiError && err.code === 'JEV_BUSY') setError(copy.jevBusy);
       else setError(note);
       if (err instanceof ApiError && err.code === 'VALIDATION_FAILED') {
         // 凭证过期：重新开局获取
-        setError('单人凭证已过期，请重新进入这道题。');
+        setError(copy.sessionExpired);
       }
     } finally {
       setSending(false);
@@ -172,7 +172,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
         setTurns((await soloStore.listTurns(session.localSessionId)) as TurnRow[]);
       });
     } catch {
-      setError('提示获取失败，请稍后再试');
+      setError(copy.hintFail);
     } finally {
       setHintBusy(false);
     }
@@ -191,7 +191,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
       setShowAnswer(true);
       await soloStore.bumpProgress(session.puzzleId, { revealed: true });
     } catch {
-      setError('汤底获取失败，稍后再试。');
+      setError(copy.revealFail);
     }
   };
 
@@ -216,7 +216,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
       </main>
     );
   }
-  if (!session) return <main className="shell page-loading">加载中…</main>;
+  if (!session) return <main className="shell page-loading">{copy.loadingRound}</main>;
 
   const solved = session.status === 'solved';
 
@@ -242,7 +242,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
       <section className="chat" aria-live="polite">
         <div className="host-intro">
           <span className="avatar">🐢</span>
-          <p>{language === 'zh' ? '我是 Jev，这碗汤的主持人。大胆提问，我只回答「是、否、无关」。' : 'I am Jev, your host. Ask anything — I will answer Yes, No or Irrelevant.'}</p>
+          <p>{copy.jevIntro}</p>
         </div>
         {turns.filter((turn) => turn.result !== 'hint').map((turn) => (
           <TurnCard key={turn.localTurnId} turn={turn} />
@@ -250,7 +250,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
         <div ref={bottomRef} />
       </section>
 
-      {storageWarning && <p className="error-text">本地记录未保存，请导出后继续。</p>}
+      {storageWarning && <p className="error-text">{copy.storageNotSaved}</p>}
       {error && <p className="error-text" role="alert">{error}</p>}
 
       {solved && (
@@ -270,7 +270,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
       {/* 结算投票：单人各账号独立，不改变他人选择（11-VOTES-AND-AUTHORSHIP.md §5） */}
       {(solved || session.revealedAnswer) && publicStats && (
         <section className="panel">
-          <p className="muted">觉得这道题怎么样？</p>
+          <p className="muted">{copy.rateYourPuzzle}</p>
           <VoteButtons puzzleId={puzzleId!} session={authSession} initialUp={publicStats.upCount} initialDown={publicStats.downCount} />
         </section>
       )}
@@ -329,17 +329,17 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
 
       <footer className="solo-tools">
         <button className="btn btn-sm btn-ghost" onClick={() => void exportAndClear()}>
-          导出记录
+          {copy.exportRecords}
         </button>
         <button
           className="btn btn-sm btn-ghost"
           onClick={() => {
-            if (window.confirm('确定清空全部单人记录？此操作不可恢复。')) {
+            if (window.confirm(copy.clearRecordsConfirm)) {
               void soloStore.clearAll().then(() => navigate('/library'));
             }
           }}
         >
-          清空记录
+          {copy.clearRecords}
         </button>
         <span className="muted">{format(copy.questions, { n: turns.filter((t) => t.status === 'succeeded' && t.kind === 'ask').length })}</span>
       </footer>
@@ -348,12 +348,12 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
 }
 
 function TurnCard({ turn }: { turn: TurnRow }) {
-  const { language } = useLanguage();
+  const { copy, language } = useLanguage();
   return (
     <div className={`turn turn-${turn.kind}`}>
       <p className="turn-text">{turn.text}</p>
-      {turn.status === 'sending' && <p className="muted turn-status">Jev 正在判断…</p>}
-      {turn.status === 'failed' && <p className="error-text turn-status">本次判断失败，可重试</p>}
+      {turn.status === 'sending' && <p className="muted turn-status">{copy.judging}</p>}
+      {turn.status === 'failed' && <p className="error-text turn-status">{copy.failed}</p>}
       {turn.status === 'succeeded' && turn.kind === 'ask' && turn.result && (
         <p className="turn-result">
           <span className={`verdict-badge verdict-${turn.result}`}>{displayVerdict(turn.result, language)}</span>

@@ -17,7 +17,7 @@ export function ResetPasswordPage() {
 
   const submit = async () => {
     if (password !== confirm) {
-      setError('两次输入的密码不一致');
+      setError(copy.passwordMismatch);
       return;
     }
     setBusy(true);
@@ -25,7 +25,7 @@ export function ResetPasswordPage() {
     const { error: resetError } = await authClient.resetPassword({ newPassword: password, token });
     setBusy(false);
     if (resetError) {
-      setError(resetError.message ?? '重置失败：链接可能已过期，请重新申请');
+      setError(resetError.message ?? copy.resetFail);
       return;
     }
     navigate('/login?reset=1', { replace: true });
@@ -37,18 +37,18 @@ export function ResetPasswordPage() {
         <h1 className="brand">{copy.brand}</h1>
       </header>
       <section className="panel stack">
-        <h2>设置新密码</h2>
+        <h2>{copy.resetPasswordTitle}</h2>
         {!token ? (
           <>
-            <p className="error-text">重置链接无效，请重新申请。</p>
+            <p className="error-text">{copy.resetPasswordInvalid}</p>
             <button className="btn btn-primary" onClick={() => navigate('/forgot-password')}>
-              重新申请
+              {copy.reapply}
             </button>
           </>
         ) : (
           <>
             <label className="field-label" htmlFor="password-rp">
-              新密码
+              {copy.newPassword}
               <input
                 id="password-rp"
                 className="field"
@@ -56,11 +56,11 @@ export function ResetPasswordPage() {
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="至少 8 位"
+                placeholder={copy.minChars}
               />
             </label>
             <label className="field-label" htmlFor="confirm-rp">
-              确认新密码
+              {copy.confirmNewPassword}
               <input
                 id="confirm-rp"
                 className="field"
@@ -68,7 +68,7 @@ export function ResetPasswordPage() {
                 autoComplete="new-password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                placeholder="再输入一次"
+                placeholder={copy.confirmNewPasswordPlaceholder}
               />
             </label>
             <button
@@ -76,7 +76,7 @@ export function ResetPasswordPage() {
               disabled={busy || password.length < 8 || confirm.length < 8}
               onClick={() => void submit()}
             >
-              重置密码
+              {copy.resetPassword}
             </button>
           </>
         )}

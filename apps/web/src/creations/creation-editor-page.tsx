@@ -15,7 +15,7 @@ function emptyDraft(language: 'zh' | 'en'): CreationDraft {
 }
 
 export function CreationEditorPage({ session }: { session: Session | null }) {
-  const { puzzleId } = useParams(); const { language } = useLanguage(); const text = creationCopy(language);
+  const { puzzleId } = useParams(); const { language, copy } = useLanguage(); const text = creationCopy(language);
   const query = useQuery({ queryKey: ['creation', session?.user.id, puzzleId], enabled: !!session && !!puzzleId,
     queryFn: async () => creationDetailSchema.parse(await api(`/creations/${puzzleId}`)), retry: false, refetchOnWindowFocus: false,
     refetchInterval: (query) => ['submitted', 'checking', 'pending_review'].includes(query.state.data?.status ?? '') ? 5000 : false,
@@ -98,7 +98,7 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
       <fieldset disabled={!editable || busy}>
         <section className="creation-section"><h2>{text.story}</h2>
           <Field label={text.title}><input className="field" required maxLength={60} value={draft.title} onChange={(event) => change('title', event.target.value)} /></Field>
-          <div className="creation-fields"><Field label={text.language}><select className="field" value={draft.language} onChange={(event) => change('language', event.target.value as 'zh' | 'en')}><option value="zh">中文</option><option value="en">English</option></select></Field>
+          <div className="creation-fields"><Field label={text.language}><select className="field" value={draft.language} onChange={(event) => change('language', event.target.value as 'zh' | 'en')}><option value="zh">{copy.languageZh}</option><option value="en">{copy.languageEn}</option></select></Field>
             <Field label={text.difficulty}><select className="field" value={draft.difficulty} onChange={(event) => change('difficulty', event.target.value as CreationDraft['difficulty'])}><option value="easy">{text.easy}</option><option value="medium">{text.medium}</option><option value="hard">{text.hard}</option></select></Field></div>
           <Field label={text.surface}><textarea className="field" rows={5} maxLength={2000} value={draft.surface} onChange={(event) => change('surface', event.target.value)} /></Field>
         </section>

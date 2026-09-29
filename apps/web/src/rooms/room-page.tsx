@@ -5,9 +5,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { api, ApiError } from '../api/client.js';
+import { api, ApiError, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
-import { displayVerdict, verdictDetail, format, t } from '@jev/i18n';
+import { displayVerdict, format, t } from '@jev/i18n';
 import { useRoomSync } from './use-room-sync.js';
 import { useRoomOutbox } from './use-room-outbox.js';
 import type { InputMode } from './room-local.js';
@@ -59,12 +59,12 @@ export function RoomPage({ session }: { session: Session | null }) {
         }
         return result;
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : '操作失败，请重试');
+        setError(translateApiError(err, language, copy.confirm /* 操作失败 fallback */));
       } finally {
         setBusy(false);
       }
     },
-    [busy, status, outbox.submit, state?.controlVersion, roomId],
+    [busy, status, outbox.submit, state?.controlVersion, roomId, copy.confirm],
   );
 
   // 选题回跳：/rooms/:id?selectPuzzle=xxx
@@ -136,8 +136,8 @@ export function RoomPage({ session }: { session: Session | null }) {
   if (kicked) {
     return (
       <main className="shell">
-        <p className="error-text">你已不在该房间。</p>
-        {text && <textarea className="field" aria-label="保留的草稿" readOnly value={text} />}
+        <p className="error-text">{copy.kickedFromRoom}</p>
+        {text && <textarea className="field" aria-label={copy.draftKept} readOnly value={text} />}
         <button className="btn" onClick={() => navigate('/')}>{copy.back}</button>
       </main>
     );
@@ -145,7 +145,7 @@ export function RoomPage({ session }: { session: Session | null }) {
   if (!session) {
     return (
       <main className="shell">
-        <p className="muted">查看房间需要先登录。</p>
+        <p className="muted">{copy.needLoginForRoom}</p>
         <button className="btn btn-primary" onClick={() => navigate(`/login?next=/rooms/${roomId}`)}>{copy.login}</button>
       </main>
     );
@@ -153,8 +153,8 @@ export function RoomPage({ session }: { session: Session | null }) {
   if (!state) {
     return (
       <main className="shell page-loading">
-        <p className="muted">{status === 'auth_required' ? '登录已过期，请重新登录' : status === 'offline' ? copy.offline : '加载中…'}</p>
-        {status === 'auth_required' && <a className="btn" href={`/login?next=/rooms/${roomId}`}>重新登录</a>}
+        <p className="muted">{status === 'auth_required' ? copy.authExpired : status === 'offline' ? copy.offline : copy.loadingRound}</p>
+        {status === 'auth_required' && <a className="btn" href={`/login?next=/rooms/${roomId}`}>{copy.reconnect}</a>}
       </main>
     );
   }
@@ -165,33 +165,33 @@ export function RoomPage({ session }: { session: Session | null }) {
     <main className="shell room-shell">
       <header className="topbar">
         <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>{copy.back}</button>
-        <h1 className="brand brand-sm">{round ? displayedTitle ?? (language === 'zh' ? '加载中…' : 'Loading…') : copy.waitingRoom}</h1>
+        <h1 className="brand brand-sm">{round ? displayedTitle ?? copy.loadingRound : copy.waitingRoom}</h1>
         <button className="btn btn-ghost btn-sm" onClick={() => setManagementOpen((open) => !open)} aria-expanded={managementOpen}>
-          {language === 'zh' ? '玩家' : 'Players'} {memberCount}/{state.capacity}
+          {format(language === 'zh' ? copy.playersCount : copy.playersCountEn, { n: memberCount, cap: state.capacity })}
         </button>
       </header>
 
-      {showConnection && status !== 'ready' && <p className="offline-banner" role="status">{status === 'auth_required' ? '登录已过期，请重新登录' : status === 'offline' ? '网络已断开，草稿已保留' : '正在恢复连接…'}{status === 'auth_required' && <a href={`/login?next=/rooms/${roomId}`}>重新登录</a>}</p>}
+      {showConnection && status !== 'ready' && <p className="offline-banner" role="status">{status === 'auth_required' ? copy.authExpired : status === 'offline' ? copy.networkKeptDraft : copy.reconnecting}{status === 'auth_required' && <a href={`/login?next=/rooms/${roomId}`}>{copy.reconnect}</a>}</p>}
       {outbox.storageError && <p className="error-text" role="alert">{outbox.storageError}</p>}
-      {translatedPuzzle.isError && <p className="error-text" role="alert">{language === 'zh' ? '该题的中文版本暂不可用' : 'The English version is unavailable'}</p>}
+      {translatedPuzzle.isError && <p className="error-text" role="alert">{language === 'zh' ? copy.translatedFail : copy.translatedFailEn}</p>}
       {error && <p className="error-text" role="alert">{error}</p>}
       {outbox.local?.pending.filter((p) => !['ask', 'solve', 'discussion'].includes(p.input.type) && p.status !== 'sent').map((p) => <div key={p.input.clientRequestId} role="status">
-        <p>{p.status === 'rejected' ? p.error : p.status === 'sending' ? '操作提交中…' : '正在确认操作结果'}</p>
-        {p.status === 'confirming' && <button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>继续确认</button>}
+        <p>{p.status === 'rejected' ? p.error : p.status === 'sending' ? copy.operationSubmitting : copy.confirming}</p>
+        {p.status === 'confirming' && <button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>{copy.keepConfirming}</button>}
       </div>)}
-      {managementOpen && <section className="panel stack" aria-label={language === 'zh' ? '玩家管理' : 'Player management'}>
-        <h2>{language === 'zh' ? '房间成员' : 'Room members'}</h2>
+      {managementOpen && <section className="panel stack" aria-label={copy.membersManagement}>
+        <h2>{copy.membersHeader}</h2>
         <MemberList state={state} me={me} isHost={isHost && state.roomStatus !== 'closed'} onKick={(userId) => void run('kick', { userId })} onTransfer={(userId) => void run('transfer_host', { userId })} />
         {isHost && state.roomStatus !== 'closed' && <div className="hint-row">
           <button className="btn" disabled={busy} onClick={() => void copyInvite()}>{copy.invite}</button>
-          <button className="btn" disabled={busy} onClick={() => void run('rotate_invite')}>{language === 'zh' ? '重置邀请链接' : 'Reset invite link'}</button>
+          <button className="btn" disabled={busy} onClick={() => void run('rotate_invite')}>{language === 'zh' ? copy.resettingInvite : copy.resetInviteEn}</button>
         </div>}
       </section>}
       {inviteCopied && <p className="accent">{copy.inviteCopied}</p>}
 
       {state.roomStatus === 'closed' && !answered && (
         <section className="panel stack">
-          <p className="muted">房间已结束，历史记录保留可查。</p>
+          <p className="muted">{copy.roomClosedHint}</p>
           <div className="hint-row">
             {isHost && (
               <button className="btn btn-primary" onClick={() => navigate(`/library?mode=select&followup=${roomId}&lang=${language}`)}>
@@ -225,7 +225,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                 <button className="btn" onClick={() => void copyInvite()}>{copy.invite}</button>
                 {isHost && (
                   <button className="btn" onClick={() => void run('rotate_invite')} disabled={busy}>
-                    重置邀请链接
+                    {language === 'zh' ? copy.resettingInvite : copy.resetInviteEn}
                   </button>
                 )}
                 <button
@@ -242,7 +242,7 @@ export function RoomPage({ session }: { session: Session | null }) {
           </div>
           {puzzles.data && isHost && (
             <p className="muted">
-              题库有 {puzzles.data.items.length} 道题，去「选题」挑一碗汤。
+              {format(copy.puzzleLibraryHint, { n: puzzles.data.items.length })}
             </p>
           )}
         </section>
@@ -263,7 +263,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                   <p className="turn-text">
                     <strong>{turn.nickname}</strong>：{turn.text}
                   </p>
-                  {turn.userId === me && <span className="muted">已发送</span>}
+                  {turn.userId === me && <span className="muted">{copy.sentMark}</span>}
                   {turn.status === 'queued' && <p className="muted turn-status">{copy.queued}</p>}
                   {turn.status === 'processing' && <p className="muted turn-status">{copy.judging}</p>}
                   {turn.status === 'failed' && <p className="error-text turn-status">{copy.failed}</p>}
@@ -281,7 +281,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                   <p className="turn-text">
                     <strong>{d.nickname}</strong>：{d.text}
                   </p>
-                  {d.userId === me && <span className="muted">已发送</span>}
+                  {d.userId === me && <span className="muted">{copy.sentMark}</span>}
                 </div>
               ))}
             {outbox.local?.pending.filter((p) => {
@@ -290,12 +290,12 @@ export function RoomPage({ session }: { session: Session | null }) {
                 && !state.discussions.some((d) => d.clientRequestId === p.input.clientRequestId || d.eventId === p.result?.discussionId);
             }).map((p) => <div className="turn" key={p.input.clientRequestId} data-pending-id={p.input.clientRequestId}>
               <p className="turn-text">{String(p.input.payload?.text ?? '')}</p>
-              <p className="muted" role="status">{p.status === 'sent' ? '已发送' : p.status === 'sending' ? '发送中…' : p.status === 'confirming' ? '正在确认发送结果' : `未发送：${p.error ?? ''}`}</p>
-              {p.status === 'confirming' && <button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>继续确认</button>}
+              <p className="muted" role="status">{p.status === 'sent' ? copy.sentMark : p.status === 'sending' ? copy.sendingMark : p.status === 'confirming' ? copy.confirming : format(copy.notSent, { n: p.error ?? '' })}</p>
+              {p.status === 'confirming' && <button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>{copy.keepConfirming}</button>}
             </div>)}
             <div ref={chatBottomRef} />
           </section>
-          {newMessages && <button className="btn btn-sm" onClick={() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); atBottom.current = true; setNewMessages(false); }}>有新消息 ↓</button>}
+          {newMessages && <button className="btn btn-sm" onClick={() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); atBottom.current = true; setNewMessages(false); }}>{copy.newMessages} ↓</button>}
 
           <HintCapsule hints={round.hints.filter(Boolean)} />
 
@@ -320,7 +320,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                   maxLength={inputMode === 'ask' ? 500 : inputMode === 'discussion' ? 1000 : 1500}
                   disabled={!outbox.local}
                   value={text}
-                  placeholder={inputMode === 'ask' ? copy.askPlaceholder : inputMode === 'discussion' ? '和大家讨论…' : copy.solvePlaceholder}
+                  placeholder={inputMode === 'ask' ? copy.askPlaceholder : inputMode === 'discussion' ? copy.discussPlaceholder : copy.solvePlaceholder}
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -392,7 +392,7 @@ export function RoomPage({ session }: { session: Session | null }) {
       )}
 
       <button className="btn btn-sm btn-ghost lang-float" onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}>
-        {language === 'zh' ? 'EN' : '中文'}
+        {language === 'zh' ? copy.languageSwitchToEn : copy.languageSwitchToZh}
       </button>
       <span hidden>{t('zh').brand}</span>
     </main>
@@ -420,7 +420,7 @@ export function MemberList({
           <span className={`presence-dot ${m.online ? 'online' : ''}`} aria-hidden />
           <span>
             {m.nickname}
-            {m.userId === me ? '（我）' : ''}
+            {m.userId === me ? copy.meTab : ''}
           </span>
           {m.isHost && <span className="verdict-badge verdict-solved">{copy.host}</span>}
           {isHost && !m.isHost && (
@@ -440,7 +440,7 @@ export function MemberList({
 }
 
 function AnswerBlock({ roundId }: { roundId: string }) {
-  const { language } = useLanguage();
+  const { copy, language } = useLanguage();
   const [answer, setAnswer] = useState<string | null>(null);
   const [hints, setHints] = useState<string[]>([]);
   const [error, setError] = useState(false);
@@ -454,8 +454,8 @@ function AnswerBlock({ roundId }: { roundId: string }) {
       .catch(() => setError(true));
   }, [roundId]);
 
-  if (error) return <p className="muted">汤底加载失败。</p>;
-  if (!answer) return <p className="muted">加载中…</p>;
+  if (error) return <p className="muted">{copy.answerLoadFail}</p>;
+  if (!answer) return <p className="muted">{copy.loadingRound}</p>;
   return (
     <div className="stack">
       <h3>{t(language).answer}</h3>
@@ -473,5 +473,3 @@ function AnswerBlock({ roundId }: { roundId: string }) {
     </div>
   );
 }
-
-void verdictDetail;

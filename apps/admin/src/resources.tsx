@@ -3,44 +3,50 @@ import { List, Datagrid, TextField, useRecordContext, useNotify, useRefresh, But
 import { useEffect, useState } from 'react';
 import { Card, CardContent, Typography } from '@mui/material';
 import { adminAction } from './data-provider.js';
+import { copy } from './copy.js';
+import { useLanguage } from './language.js';
 
 // ---------- 用户 ----------
 
-export const UserList = () => (
-  <List perPage={25}>
-    <Datagrid bulkActionButtons={false}>
-      <TextField source="nickname" label="昵称" />
-      <TextField source="email" label="邮箱" />
-      <TextField source="status" label="状态" />
-      <UserActionsField />
-    </Datagrid>
-  </List>
-);
+export function UserList() {
+  const { language } = useLanguage(); const c = copy(language);
+  return (
+    <List perPage={25}>
+      <Datagrid bulkActionButtons={false}>
+        <TextField source="nickname" label={c.nicknameCol} />
+        <TextField source="email" label={c.emailCol} />
+        <TextField source="status" label={c.statusCol} />
+        <UserActionsField />
+      </Datagrid>
+    </List>
+  );
+}
 
 function UserActionsField() {
   const record = useRecordContext() as { userId?: string; status?: string } | undefined;
   const notify = useNotify();
   const refresh = useRefresh();
+  const { language } = useLanguage(); const c = copy(language);
   if (!record) return null;
   const act = (path: string, body: Record<string, unknown>) =>
     void adminAction(path, body)
       .then(() => {
-        notify('已完成');
+        notify(c.done);
         refresh();
       })
       .catch((error: Error) => notify(error.message, { type: 'error' }));
   return (
     <>
       {record.status === 'active' ? (
-        <Button label="停用" onClick={() => act(`/users/${record.userId}/suspend`, { reason: window.prompt('停用理由') ?? '' })} />
+        <Button label={c.suspend} onClick={() => act(`/users/${record.userId}/suspend`, { reason: window.prompt(c.promptReasonSuspend) ?? '' })} />
       ) : (
-        <Button label="恢复" onClick={() => act(`/users/${record.userId}/unsuspend`, { reason: window.prompt('恢复理由') ?? '' })} />
+        <Button label={c.unsuspend} onClick={() => act(`/users/${record.userId}/unsuspend`, { reason: window.prompt(c.promptReasonUnsuspend) ?? '' })} />
       )}
       <Button
-        label="测试赞助"
+        label={c.testSponsor}
         onClick={() => {
-          const months = Number(window.prompt('发放几个月的测试赞助？') ?? '0');
-          if (months > 0) act(`/users/${record.userId}/test-grant`, { months, reason: '测试赞助授权' });
+          const months = Number(window.prompt(c.promptTestSponsor) ?? '0');
+          if (months > 0) act(`/users/${record.userId}/test-grant`, { months, reason: c.testSponsor });
         }}
       />
     </>
@@ -51,30 +57,34 @@ export const TestGrantButton = () => null;
 
 // ---------- 房间 ----------
 
-export const RoomList = () => (
-  <List perPage={25}>
-    <Datagrid bulkActionButtons={false}>
-      <TextField source="roomId" label="房间" />
-      <TextField source="status" label="状态" />
-      <TextField source="memberCount" label="成员" />
-      <TextField source="closeReason" label="关闭原因" />
-      <RoomActionsField />
-    </Datagrid>
-  </List>
-);
+export function RoomList() {
+  const { language } = useLanguage(); const c = copy(language);
+  return (
+    <List perPage={25}>
+      <Datagrid bulkActionButtons={false}>
+        <TextField source="roomId" label={c.roomIdCol} />
+        <TextField source="status" label={c.statusCol} />
+        <TextField source="memberCount" label={c.memberCol} />
+        <TextField source="closeReason" label={c.closeReasonCol} />
+        <RoomActionsField />
+      </Datagrid>
+    </List>
+  );
+}
 
 function RoomActionsField() {
   const record = useRecordContext() as { roomId?: string; status?: string } | undefined;
   const notify = useNotify();
   const refresh = useRefresh();
+  const { language } = useLanguage(); const c = copy(language);
   if (!record || record.status === 'closed') return null;
   return (
     <Button
-      label="强制关闭"
+      label={c.forceClose}
       onClick={() =>
-        void adminAction(`/rooms/${record.roomId}/force-close`, { reason: window.prompt('强制关闭理由') ?? '' })
+        void adminAction(`/rooms/${record.roomId}/force-close`, { reason: window.prompt(c.promptForceClose) ?? '' })
           .then(() => {
-            notify('已关闭');
+            notify(c.forceCloseDone);
             refresh();
           })
           .catch((error: Error) => notify(error.message, { type: 'error' }))
@@ -87,30 +97,34 @@ export const ForceCloseButton = () => null;
 
 // ---------- 举报 ----------
 
-export const ReportList = () => (
-  <List perPage={25}>
-    <Datagrid bulkActionButtons={false}>
-      <TextField source="objectType" label="对象" />
-      <TextField source="reason" label="原因" />
-      <TextField source="status" label="状态" />
-      <TextField source="detail" label="详情" />
-      <ResolveField />
-    </Datagrid>
-  </List>
-);
+export function ReportList() {
+  const { language } = useLanguage(); const c = copy(language);
+  return (
+    <List perPage={25}>
+      <Datagrid bulkActionButtons={false}>
+        <TextField source="objectType" label={c.objectCol} />
+        <TextField source="reason" label={c.reasonCol} />
+        <TextField source="status" label={c.statusCol} />
+        <TextField source="detail" label={c.detailCol} />
+        <ResolveField />
+      </Datagrid>
+    </List>
+  );
+}
 
 function ResolveField() {
   const record = useRecordContext() as { id?: string; status?: string } | undefined;
   const notify = useNotify();
   const refresh = useRefresh();
+  const { language } = useLanguage(); const c = copy(language);
   if (!record || record.status === 'resolved') return null;
   return (
     <Button
-      label="标记处理"
+      label={c.markResolved}
       onClick={() =>
-        void adminAction(`/reports/${record.id}/resolve`, { reason: window.prompt('处理结论') ?? '' })
+        void adminAction(`/reports/${record.id}/resolve`, { reason: window.prompt(c.promptResolve) ?? '' })
           .then(() => {
-            notify('已处理');
+            notify(c.resolveDone);
             refresh();
           })
           .catch((error: Error) => notify(error.message, { type: 'error' }))
@@ -123,30 +137,34 @@ export const ResolveButton = () => null;
 
 // ---------- 订单 ----------
 
-export const OrderList = () => (
-  <List perPage={25}>
-    <Datagrid bulkActionButtons={false}>
-      <TextField source="orderId" label="订单" />
-      <TextField source="status" label="状态" />
-      <TextField source="amountMinor" label="金额（分）" />
-      <TextField source="channel" label="渠道" />
-      <RefundField />
-    </Datagrid>
-  </List>
-);
+export function OrderList() {
+  const { language } = useLanguage(); const c = copy(language);
+  return (
+    <List perPage={25}>
+      <Datagrid bulkActionButtons={false}>
+        <TextField source="orderId" label={c.orderIdCol} />
+        <TextField source="status" label={c.statusCol} />
+        <TextField source="amountMinor" label={c.amountCol} />
+        <TextField source="channel" label={c.channelCol} />
+        <RefundField />
+      </Datagrid>
+    </List>
+  );
+}
 
 function RefundField() {
   const record = useRecordContext() as { orderId?: string; status?: string } | undefined;
   const notify = useNotify();
   const refresh = useRefresh();
+  const { language } = useLanguage(); const c = copy(language);
   if (!record || record.status !== 'paid') return null;
   return (
     <Button
-      label="审核退款"
+      label={c.reviewRefund}
       onClick={() =>
-        void adminAction(`/orders/${record.orderId}/refund`, { reason: window.prompt('退款理由') ?? '' })
+        void adminAction(`/orders/${record.orderId}/refund`, { reason: window.prompt(c.promptRefund) ?? '' })
           .then(() => {
-            notify('已登记退款并冻结授权');
+            notify(c.refundDone);
             refresh();
           })
           .catch((error: Error) => notify(error.message, { type: 'error' }))
@@ -161,6 +179,7 @@ export const RefundButton = () => null;
 
 export function Dashboard() {
   const [data, setData] = useState<Record<string, unknown> | null>(null);
+  const { language } = useLanguage(); const c = copy(language);
   useEffect(() => {
     void fetch('/api/v1/admin/overview', { credentials: 'include' })
       .then((r) => r.json())
@@ -169,9 +188,23 @@ export function Dashboard() {
   return (
     <Card>
       <CardContent>
-        <Typography variant="h5">运营总览</Typography>
+        <Typography variant="h5">{c.dashboardTitle}</Typography>
         <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(data, null, 2)}</pre>
       </CardContent>
     </Card>
+  );
+}
+
+// ---------- 顶部语言切换 ----------
+
+export function LangSwitch() {
+  const { language, setLanguage } = useLanguage(); const c = copy(language);
+  return (
+    <button
+      style={{ position: 'fixed', bottom: 16, right: 16, padding: '6px 12px', borderRadius: 6, border: '1px solid #ccc', background: '#fff', cursor: 'pointer', zIndex: 1000 }}
+      onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
+    >
+      {c.switchTo}
+    </button>
   );
 }

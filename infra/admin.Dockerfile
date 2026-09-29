@@ -6,11 +6,14 @@ RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY apps/admin/package.json apps/admin/
+COPY packages/i18n/package.json packages/i18n/
 
 # BuildKit cache mount：与 api/web/jobs 共享同一份 pnpm store
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store,sharing=locked \
     --mount=type=cache,id=pnpm-meta,target=/root/.cache/node/corepack,sharing=locked \
     pnpm install --frozen-lockfile --filter @jev/admin...
+
+COPY packages/i18n ./packages/i18n
 
 COPY tsconfig.base.json /app/tsconfig.base.json
 COPY apps/admin ./apps/admin

@@ -15,7 +15,8 @@
     "@mui/material": "^7.3.11",
     "@mui/icons-material": "^7.3.11",
     "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0"
+    "@emotion/styled": "^11.14.0",
+    "@jev/i18n": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.1.8",

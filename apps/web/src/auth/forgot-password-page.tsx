@@ -22,7 +22,7 @@ export function ForgotPasswordPage() {
     });
     setBusy(false);
     if (resetError) {
-      setError(resetError.message ?? '重置邮件发送失败，请稍后再试');
+      setError(resetError.message ?? copy.sendCodeFail);
       return;
     }
     setSent(true);
@@ -34,17 +34,17 @@ export function ForgotPasswordPage() {
         <h1 className="brand">{copy.brand}</h1>
       </header>
       <section className="panel stack">
-        <h2>找回密码</h2>
+        <h2>{copy.forgotPasswordTitle}</h2>
         {sent ? (
           <>
-            <p className="muted">重置邮件已发送，请到邮箱里点击链接设置新密码（1 小时内有效）。</p>
+            <p className="muted">{copy.resetEmailSent}</p>
             <button className="btn btn-primary" onClick={() => navigate('/login')}>
-              返回登录
+              {copy.backToLogin}
             </button>
           </>
         ) : (
           <>
-            <p className="muted">输入注册邮箱，我们会发送重置密码的链接。</p>
+            <p className="muted">{copy.forgotPasswordPrompt}</p>
             <label className="field-label" htmlFor="email-fp">
               Email
               <input
@@ -54,7 +54,7 @@ export function ForgotPasswordPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder={copy.emailPlaceholder}
               />
             </label>
             <button
@@ -62,10 +62,10 @@ export function ForgotPasswordPage() {
               disabled={busy || !email.includes('@')}
               onClick={() => void submit()}
             >
-              发送重置邮件
+              {copy.sendResetEmail}
             </button>
             <p className="muted" style={{ textAlign: 'center' }}>
-              想起密码了？<a href="/login">去登录</a>
+              {copy.rememberPassword}<a href="/login">{copy.goLogin}</a>
             </p>
           </>
         )}

@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api } from '../api/client.js';
+import { api, translateApiError } from '../api/client.js';
 import { createRoom } from '../rooms/create-room.js';
 import { useLanguage } from '../state/language.js';
 import type { Session } from '../session.js';
@@ -28,7 +28,7 @@ export function HomePage({ session }: { session: Session | null }) {
         <h1 className="brand">{copy.brand}</h1>
         <div className="topbar-actions">
           <button className="btn btn-ghost btn-sm" onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}>
-            {language === 'zh' ? 'EN' : '中文'}
+            {language === 'zh' ? copy.languageSwitchToEn : copy.languageSwitchToZh}
           </button>
           {session ? (
             <button className="btn btn-ghost btn-sm" onClick={() => navigate('/me')}>
@@ -61,11 +61,11 @@ export function HomePage({ session }: { session: Session | null }) {
                 setCreateError(null);
                 createRoom()
                   .then((room) => navigate(`/rooms/${room.roomId}`))
-                  .catch((err: unknown) => setCreateError(err instanceof Error ? err.message : '开房失败，请稍后再试'))
+                  .catch((err: unknown) => setCreateError(translateApiError(err, language, copy.createRoomFail)))
                   .finally(() => setCreating(false));
               }}
             >
-              {creating ? '正在创建…' : entitlement.data?.openRoomId ? '回到我的房间' : copy.multi}
+              {creating ? copy.creating : entitlement.data?.openRoomId ? copy.backToMyRoom : copy.multi}
             </button>
           ) : (
             <button className="btn btn-lg" onClick={() => navigate('/login?next=%2Flibrary%3Fmode%3Dselect')}>

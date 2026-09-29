@@ -2,8 +2,9 @@
 import { useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { api, ApiError } from '../api/client.js';
+import { api, ApiError, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
+import { format } from '@jev/i18n';
 import type { Session } from '../session.js';
 
 interface InvitePreview {
@@ -17,7 +18,7 @@ interface InvitePreview {
 
 export function InvitePage({ session }: { session: Session | null }) {
   const { token } = useParams();
-  const { copy } = useLanguage();
+  const { copy, language } = useLanguage();
   const navigate = useNavigate();
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,17 +45,17 @@ export function InvitePage({ session }: { session: Session | null }) {
       const result = await api<{ roomId: string; rejoined: boolean }>('/rooms/join', { method: 'POST', body: { token } });
       navigate(`/rooms/${result.roomId}`, { replace: true });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : '加入失败，请稍后再试');
+      setError(translateApiError(err, language, copy.invitePreviewFail));
     } finally {
       setJoining(false);
     }
   };
 
-  if (preview.isPending) return <main className="shell page-loading">加载中…</main>;
+  if (preview.isPending) return <main className="shell page-loading">{copy.loadingRound}</main>;
   if (preview.isError || !preview.data) {
     return (
       <main className="shell">
-        <p className="error-text">邀请无效或已失效。</p>
+        <p className="error-text">{copy.inviteInvalid}</p>
         <button className="btn" onClick={() => navigate('/')}>{copy.back}</button>
       </main>
     );
@@ -69,18 +70,18 @@ export function InvitePage({ session }: { session: Session | null }) {
       <section className="panel stack">
         <h2>{copy.waitingRoom}</h2>
         <p>
-          {info.hostNickname} 的房间 · {info.memberCount}/{info.capacity} 人
+          {format(copy.roomOf, { name: info.hostNickname, n: info.memberCount, cap: info.capacity })}
         </p>
-        {info.currentPuzzleTitle && <p className="muted">正在推理：{info.currentPuzzleTitle}</p>}
+        {info.currentPuzzleTitle && <p className="muted">{format(copy.playingRoom, { title: info.currentPuzzleTitle })}</p>}
         {info.status === 'closed' ? (
-          <p className="error-text">房间已关闭。</p>
+          <p className="error-text">{copy.roomClosedHint}</p>
         ) : session ? (
           <button className="btn btn-primary" disabled={joining} onClick={() => void join()}>
-            {joining ? '加入中…' : '加入房间'}
+            {joining ? copy.joining : copy.joinRoom}
           </button>
         ) : (
           <button className="btn btn-primary" onClick={() => navigate(`/login?next=${encodeURIComponent(`/invite/${token}`)}`)}>
-            {copy.login} 并加入
+            {copy.loginAndJoin}
           </button>
         )}
         {error && <p className="error-text" role="alert">{error}</p>}

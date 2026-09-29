@@ -9,7 +9,9 @@ async function adminFetch(path: string, options: RequestInit = {}): Promise<unkn
   });
   const payload = (await response.json().catch(() => null)) as { data?: unknown; error?: { message: string } } | null;
   if (!response.ok) {
-    throw new Error(payload?.error?.message ?? `请求失败：${response.status}`);
+    const lang = (typeof window !== 'undefined' && (localStorage.getItem('jev.language') === 'en' || new URLSearchParams(location.search).get('lang') === 'en')) ? 'en' : 'zh';
+    const localized = lang === 'zh' ? `请求失败：${response.status}` : `Request failed: ${response.status}`;
+    throw new Error(payload?.error?.message ?? localized);
   }
   return payload?.data;
 }
@@ -40,19 +42,19 @@ const baseProvider: DataProvider = {
   },
   getManyReference: async () => ({ data: [], total: 0 }),
   create: async () => {
-    throw new Error('后台不直接创建业务记录');
+    throw new Error('Admin does not create business records directly.');
   },
   update: async () => {
-    throw new Error('后台通过专门操作执行变更');
+    throw new Error('Admin changes go through dedicated action endpoints.');
   },
   updateMany: async () => {
-    throw new Error('后台通过专门操作执行变更');
+    throw new Error('Admin changes go through dedicated action endpoints.');
   },
   delete: async () => {
-    throw new Error('后台不提供物理删除');
+    throw new Error('Admin does not provide hard delete.');
   },
   deleteMany: async () => {
-    throw new Error('后台不提供物理删除');
+    throw new Error('Admin does not provide hard delete.');
   },
 };
 

@@ -1,7 +1,7 @@
 /** 题库：筛选、最新发布/受欢迎排序、署名与赞踩计数、单人开始或房主选题（11-VOTES-AND-AUTHORSHIP.md §3/§5）。 */
 import { useNavigate, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../api/client.js';
+import { api, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
 import { soloStore } from '../solo/local-store.js';
 import { useEffect, useState } from 'react';
@@ -56,7 +56,7 @@ export function LibraryPage({ session }: { session: Session | null }) {
           body: { sourceRoomId: followupRoomId, puzzleId: puzzle.id, language },
         })
           .then((result) => navigate(`/rooms/${result.targetRoomId}`))
-          .catch((err: unknown) => setFollowupError(err instanceof Error ? err.message : '创建新房失败，请稍后再试'));
+          .catch((err: unknown) => setFollowupError(translateApiError(err, language, copy.createRoomFail)));
         return;
       }
       if (roomId) {
@@ -83,16 +83,16 @@ export function LibraryPage({ session }: { session: Session | null }) {
       </header>
       <p className="muted library-intro">{copy.tagline}</p>
       {/* 排序：最新发布 / 最受欢迎（得分 = 赞 − 踩）；零票作品显示 0 */}
-      <div className="mode-tabs" role="tablist" aria-label="排序">
+      <div className="mode-tabs" role="tablist" aria-label={copy.sort}>
         <button className={`mode-tab ${sort === 'latest' ? 'active' : ''}`} role="tab" aria-selected={sort === 'latest'} onClick={() => setSort('latest')}>
-          最新发布
+          {copy.sortLatest}
         </button>
         <button className={`mode-tab ${sort === 'popular' ? 'active' : ''}`} role="tab" aria-selected={sort === 'popular'} onClick={() => setSort('popular')}>
-          最受欢迎
+          {copy.sortPopular}
         </button>
       </div>
-      {isLoading && <p className="muted">加载中…</p>}
-      {error && <p className="error-text">题库加载失败，请刷新重试。</p>}
+      {isLoading && <p className="muted">{copy.libraryLoading}</p>}
+      {error && <p className="error-text">{copy.libraryLoadFail}</p>}
       {followupError && <p className="error-text" role="alert">{followupError}</p>}
       <div className="puzzle-grid">
         {data?.items.map((puzzle) => (
@@ -101,11 +101,11 @@ export function LibraryPage({ session }: { session: Session | null }) {
             <p className="puzzle-surface">{puzzle.surface}</p>
             <footer className="puzzle-card-footer">
               <span className="muted">
-                {playedIds.has(puzzle.id) ? `已玩 · ` : ''}
+                {playedIds.has(puzzle.id) ? copy.played : ''}
                 {puzzle.difficulty ?? ''}
               </span>
               <AuthorLabel mode={puzzle.authorDisplay.mode} name={puzzle.authorDisplay.name} />
-              <span className="muted" aria-label="赞踩计数">
+              <span className="muted" aria-label={copy.voteGroup}>
                 👍 {puzzle.upCount} · 👎 {puzzle.downCount}
               </span>
               <button className="btn btn-sm btn-primary" onClick={() => onPick(puzzle)}>
@@ -116,7 +116,7 @@ export function LibraryPage({ session }: { session: Session | null }) {
         ))}
       </div>
       {!session && mode === 'select' && (
-        <p className="muted">开房间需要先登录。</p>
+        <p className="muted">{copy.libraryNeedLogin}</p>
       )}
     </main>
   );

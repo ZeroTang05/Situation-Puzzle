@@ -12,8 +12,8 @@ export function HintCapsule({ hints, total = 3 }: { hints: string[]; total?: num
     <div className="hint-capsule-head">
       <strong>💡 {copy.hint} {current + 1}/{total}</strong>
       <div>
-        <button className="btn btn-sm btn-ghost" aria-label={language === 'zh' ? '上一条提示' : 'Previous hint'} disabled={current === 0} onClick={() => setIndex(current - 1)}>←</button>
-        <button className="btn btn-sm btn-ghost" aria-label={language === 'zh' ? '下一条提示' : 'Next hint'} disabled={current === hints.length - 1} onClick={() => setIndex(current + 1)}>→</button>
+        <button className="btn btn-sm btn-ghost" aria-label={copy.hintPrev} disabled={current === 0} onClick={() => setIndex(current - 1)}>←</button>
+        <button className="btn btn-sm btn-ghost" aria-label={copy.hintNext} disabled={current === hints.length - 1} onClick={() => setIndex(current + 1)}>→</button>
       </div>
     </div>
     <p>{hints[current]}</p>
