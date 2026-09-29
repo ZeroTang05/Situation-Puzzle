@@ -11,6 +11,8 @@ import {
   auditLogs,
   jevCalls,
   orders,
+  moderationReviews,
+  puzzleTestCases,
   puzzleRights,
   puzzleVersions,
   puzzles,
@@ -34,6 +36,7 @@ import { z } from 'zod';
 
 const reasonSchema = z.object({ reason: z.string().min(2).max(500) });
 const approveSchema = reasonSchema.extend({ scope: z.enum(['language', 'revision']).default('language') });
+const rightsReviewSchema = reasonSchema.extend({ expectedVersionId: z.uuid() });
 const grantSchema = z.object({ months: z.number().int().min(1).max(12), reason: z.string().min(2).max(500) });
 
 @Controller('admin')
@@ -56,7 +59,7 @@ export class AdminController {
   @Get('puzzles')
   @RequireRoles('admin', 'moderator')
   async listPuzzles(@Query('status') status?: string) {
-    const conditions = [eq(puzzles.unavailable, false)];
+    const conditions = [];
     if (status) conditions.push(eq(puzzleVersions.moderationStatus, status as never));
     const rows = await app().db.db
       .select({
@@ -67,6 +70,7 @@ export class AdminController {
         title: puzzleVersions.title,
         surface: puzzleVersions.surface,
         status: puzzleVersions.moderationStatus,
+        unavailable: puzzles.unavailable,
         authorUserId: puzzles.authorUserId,
         /** 作者归属与公开署名：审核人员可核验（11-VOTES-AND-AUTHORSHIP.md §5） */
         authorDisplayMode: puzzles.authorDisplayMode,
@@ -98,7 +102,9 @@ export class AdminController {
     const versions = await app().db.db.select().from(puzzleVersions)
       .where(and(eq(puzzleVersions.puzzleId, rows[0]!.puzzleId), eq(puzzleVersions.versionNo, rows[0]!.versionNo)))
       .orderBy(asc(puzzleVersions.language));
-    return { version: rows[0], versions, rights: rights[0] ?? null };
+    const testCases = await app().db.db.select().from(puzzleTestCases).where(inArray(puzzleTestCases.versionId, versions.map((version) => version.id)));
+    const reviews = await app().db.db.select().from(moderationReviews).where(inArray(moderationReviews.versionId, versions.map((version) => version.id))).orderBy(desc(moderationReviews.createdAt));
+    return { version: rows[0], versions, testCases, reviews, rights: rights[0] ?? null };
   }
 
   /** 批准当前语言或明确选定的同版全部语言；发布与逐语言审计在同一事务完成。 */
@@ -112,6 +118,8 @@ export class AdminController {
       // 先锁作品，再按固定顺序锁同版语言，串行处理同一作品的发布操作。
       const [puzzle] = await tx.select().from(puzzles).where(eq(puzzles.id, version.puzzleId)).for('update').limit(1);
       if (!puzzle) throw new DomainError('NOT_FOUND', '作品不存在');
+      const [latest] = await tx.select({ versionNo: puzzleVersions.versionNo }).from(puzzleVersions).where(eq(puzzleVersions.puzzleId, version.puzzleId)).orderBy(desc(puzzleVersions.versionNo)).limit(1);
+      if (!latest || latest.versionNo !== version.versionNo) throw new DomainError('STATE_CONFLICT', '作者已有更新版本，请审核最新版本');
       const versions = await tx.select().from(puzzleVersions)
         .where(and(eq(puzzleVersions.puzzleId, version.puzzleId), eq(puzzleVersions.versionNo, version.versionNo)))
         .orderBy(asc(puzzleVersions.language), asc(puzzleVersions.id)).for('update');
@@ -129,7 +137,7 @@ export class AdminController {
       // 同版补发语言保留现有发布指针；切换版号时使用本次批准的版本。
       const publishedId = versions.some((candidate) => candidate.id === puzzle.currentPublishedVersionId)
         ? puzzle.currentPublishedVersionId! : id;
-      await tx.update(puzzles).set({ currentPublishedVersionId: publishedId, updatedAt: new Date() }).where(eq(puzzles.id, version.puzzleId));
+      await tx.update(puzzles).set({ currentPublishedVersionId: publishedId, unavailable: false, updatedAt: new Date() }).where(eq(puzzles.id, version.puzzleId));
       // 署名申请随发布批准一并生效（docs/rebuild/11-VOTES-AND-AUTHORSHIP.md §4）
       if (puzzle?.authorPendingName) {
         await tx
@@ -141,6 +149,7 @@ export class AdminController {
         operatorUserId: operator.userId, action: 'puzzle.approve', objectType: 'puzzle_version', objectId: candidate.id, reason: body.reason,
         afterSummary: { scope: body.scope, versionNo: version.versionNo, language: candidate.language, moderationStatus: 'published' },
       })));
+      await tx.insert(moderationReviews).values(affected.map((candidate) => ({ versionId: candidate.id, stage: 'human', conclusion: 'published', reason: body.reason, operatorUserId: operator.userId })));
       return { puzzleId: version.puzzleId, publishedLanguages: selected.map((candidate) => candidate.language) };
     });
     return result;
@@ -150,11 +159,39 @@ export class AdminController {
   @RequireRoles('admin', 'moderator')
   async reject(@CurrentUser() operator: SessionUser, @Param('id') id: string, @Body(new ZodValidationPipe(reasonSchema)) body: z.infer<typeof reasonSchema>) {
     const db = app().db;
-    const [version] = await db.db.select().from(puzzleVersions).where(eq(puzzleVersions.id, id)).limit(1);
-    if (!version) throw new DomainError('NOT_FOUND', '版本不存在');
-    await db.db.update(puzzleVersions).set({ moderationStatus: 'changes_requested' }).where(eq(puzzleVersions.id, id));
-    await this.audit(operator, 'puzzle.reject', 'puzzle_version', id, body.reason);
-    return { ok: true };
+    return db.tx(async (tx) => {
+      const [version] = await tx.select().from(puzzleVersions).where(eq(puzzleVersions.id, id)).limit(1);
+      if (!version) throw new DomainError('NOT_FOUND', '版本不存在');
+      await tx.select().from(puzzles).where(eq(puzzles.id, version.puzzleId)).for('update');
+      const [rejected] = await tx.update(puzzleVersions).set({ moderationStatus: 'changes_requested' }).where(and(eq(puzzleVersions.id, id), eq(puzzleVersions.moderationStatus, 'pending_review'))).returning();
+      if (!rejected) throw new DomainError('STATE_CONFLICT', '只有待人工审核版本可以退回');
+      await tx.insert(moderationReviews).values({ versionId: id, stage: 'human', conclusion: 'changes_requested', reason: body.reason, operatorUserId: operator.userId });
+      await tx.insert(auditLogs).values({ operatorUserId: operator.userId, action: 'puzzle.reject', objectType: 'puzzle_version', objectId: id, reason: body.reason });
+      return { ok: true };
+    });
+  }
+
+  /** 授权单独审核，与内容批准在同一作品锁下串行执行。 */
+  @Post('puzzles/:id/rights/:decision')
+  @RequireRoles('admin', 'moderator')
+  async reviewRights(@CurrentUser() operator: SessionUser, @Param('id') id: string, @Param('decision') decision: string, @Body(new ZodValidationPipe(rightsReviewSchema)) body: z.infer<typeof rightsReviewSchema>) {
+    if (decision !== 'approve' && decision !== 'reject') throw new DomainError('VALIDATION_FAILED', '授权审核动作只能是 approve 或 reject');
+    return app().db.tx(async (tx) => {
+      const [puzzle] = await tx.select().from(puzzles).where(eq(puzzles.id, id)).for('update').limit(1);
+      if (!puzzle) throw new DomainError('NOT_FOUND', '作品不存在');
+      const [rights] = await tx.select().from(puzzleRights).where(eq(puzzleRights.puzzleId, id)).for('update').limit(1);
+      if (!rights) throw new DomainError('NOT_FOUND', '授权记录缺失');
+      if (puzzle.source === 'community' && (!rights.agreedAt || !rights.licenseBasis.trim())) throw new DomainError('STATE_CONFLICT', '作者尚未提交完整授权声明');
+      const [version] = await tx.select().from(puzzleVersions).where(eq(puzzleVersions.puzzleId, id)).orderBy(desc(puzzleVersions.versionNo)).limit(1);
+      const [reviewed] = await tx.select().from(puzzleVersions).where(and(eq(puzzleVersions.id, body.expectedVersionId), eq(puzzleVersions.puzzleId, id))).limit(1);
+      if (!version || !reviewed || reviewed.versionNo !== version.versionNo) throw new DomainError('STATE_CONFLICT', '作者已有更新版本，请重新载入授权材料');
+      if (!['pending_review', 'published'].includes(reviewed.moderationStatus)) throw new DomainError('STATE_CONFLICT', '请在投稿进入人工审核后审核授权');
+      const status = decision === 'approve' ? 'approved' as const : 'rejected' as const;
+      await tx.update(puzzleRights).set({ status, confirmedBy: operator.userId, confirmedAt: new Date() }).where(eq(puzzleRights.id, rights.id));
+      await tx.insert(moderationReviews).values({ versionId: reviewed.id, stage: 'rights', conclusion: status, reason: body.reason, operatorUserId: operator.userId });
+      await tx.insert(auditLogs).values({ operatorUserId: operator.userId, action: `puzzle.rights.${decision}`, objectType: 'puzzle_rights', objectId: rights.id, reason: body.reason, afterSummary: { status } });
+      return { status };
+    });
   }
 
   /** 署名审核：批准待审展示名（匿名→署名或改名立即公开）；拒绝则维持此前公开状态。 */

@@ -54,6 +54,7 @@ services:
       # 对外完整地址（即 better-auth 校验 Origin 用的那个；接 Nginx 后改 https://<域名>）
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:${WEB_HOST_PORT:-18081}}
       PORT: 8080
+      TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-172.16.0.0/12}
     # api 不外暴：所有 API/WS 流量经 web 容器内反代走 api:8080
     expose:
       - '8080'

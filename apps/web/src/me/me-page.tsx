@@ -8,6 +8,7 @@ import { useLanguage } from '../state/language.js';
 import { soloStore } from '../solo/local-store.js';
 import { clearRoomLocal } from '../rooms/room-local.js';
 import type { Session } from '../session.js';
+import { creationCopy } from '../creations/copy.js';
 
 interface MeResponse {
   userId: string;
@@ -27,7 +28,7 @@ interface HistoryResponse {
 }
 
 export function MePage({ session }: { session: Session | null }) {
-  const { copy } = useLanguage();
+  const { copy, language } = useLanguage();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [localCount, setLocalCount] = useState<number | null>(null);
@@ -76,6 +77,7 @@ export function MePage({ session }: { session: Session | null }) {
         <h1 className="brand brand-sm">{copy.me}</h1>
       </header>
 
+      <button className="btn btn-primary" onClick={() => navigate('/creations')}>{creationCopy(language).works}</button>
       <section className="panel stack">
         {editingNickname ? (
           <>

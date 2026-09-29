@@ -14,6 +14,8 @@ const envSchema = z.object({
   /** 单人凭证签名密钥 */
   SOLO_TOKEN_SECRET: z.string().min(16, '缺少 SOLO_TOKEN_SECRET'),
   PUBLIC_BASE_URL: z.string().default('http://localhost:5173'),
+  /** 仅信任列出的代理地址/CIDR；留空表示 API 直接接受浏览器连接。 */
+  TRUSTED_PROXY_CIDRS: z.string().default(''),
 
   // 邮件（Email OTP 必需）：通道由 MAIL_TRANSPORT 显式选择，配置缺失启动失败
   MAIL_TRANSPORT: z.enum(['resend', 'smtp']).default('resend'),

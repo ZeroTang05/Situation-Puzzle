@@ -5,17 +5,18 @@
  *    任一环节失败都不会建立账号；邮箱先验证能确保 mailer 出错时立即可见。
  *  - Admin 通过 next=/admin 反代由 web 端 login 走完登录回到后台，保持单一口令 + cookie。
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { authClient } from '../api/auth-client.js';
 import { useLanguage } from '../state/language.js';
+import { otpCooldownKey, readOtpDeadline, remainingOtpSeconds, sendOtpCode, OtpSendError } from './otp-cooldown.js';
 
 type Mode = 'signin' | 'signup';
 type Method = 'password' | 'otp';
 type Stage = 'email' | 'code';
 
 export function LoginPage() {
-  const { copy } = useLanguage();
+  const { copy, language } = useLanguage();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const next = params.get('next') ?? '/';
@@ -34,26 +35,51 @@ export function LoginPage() {
   // 从重置页跳回时提示用新密码登录（/login?reset=1）
   const [notice, setNotice] = useState<string | null>(params.get('reset') ? '密码已重置，请用新密码登录' : null);
   const [error, setError] = useState<string | null>(null);
+  const sendingCode = useRef(false);
+  const [sendUntil, setSendUntil] = useState(() => readOtpDeadline(localStorage));
+  const [now, setNow] = useState(Date.now);
+  const sendWait = remainingOtpSeconds(sendUntil, now);
+  const sendLabel = sendWait ? (language === 'en' ? `Retry in ${sendWait}s` : `${sendWait} 秒后重试`) : (language === 'en' ? 'Send code' : stage === 'code' ? '重新发送验证码' : '发送验证码');
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    const sync = (event: StorageEvent) => { if (event.key === otpCooldownKey) setSendUntil(readOtpDeadline(localStorage)); };
+    window.addEventListener('storage', sync);
+    return () => { window.clearInterval(interval); window.removeEventListener('storage', sync); };
+  }, []);
+  const rememberWait = (seconds: number) => {
+    if (!seconds) return;
+    const deadline = Date.now() + seconds * 1000;
+    localStorage.setItem(otpCooldownKey, String(deadline));
+    setSendUntil(deadline); setNow(Date.now());
+  };
 
   // ---------- 验证码发送 ----------
   const sendCode = async (type: 'sign-in' | 'email-verification') => {
+    if (sendingCode.current || busy || remainingOtpSeconds(sendUntil, Date.now()) > 0) return;
+    sendingCode.current = true;
     setBusy(true);
     setError(null);
-    const { error: sendError } = await authClient.emailOtp.sendVerificationOtp({ email, type });
-    setBusy(false);
-    if (sendError) {
-      setError(sendError.message ?? '验证码发送失败，请稍后再试');
-      return;
+    try {
+      // sign-in 用途支持尚未注册的邮箱；注册只检查验证码，之后再建账号。
+      const seconds = await sendOtpCode(email.trim().toLowerCase(), 'sign-in');
+      rememberWait(seconds);
+      setStage('code');
+      setNotice(type === 'sign-in' ? copy.codeSent : '验证码已发送（请查收用于注册）');
+    } catch (error) {
+      if (error instanceof OtpSendError) rememberWait(error.retryAfterSeconds);
+      else rememberWait(60); // 网络中断时发送结果未知，等待期间仍可验证已有验证码。
+      setError(error instanceof Error ? error.message : '验证码发送失败，请稍后重试。');
+    } finally {
+      sendingCode.current = false;
+      setBusy(false);
     }
-    setStage('code');
-    setNotice(type === 'sign-in' ? copy.codeSent : '验证码已发送（请查收用于注册）');
   };
 
   // 登录 OTP：单一提交即可登录
   const verifyOtpForSignIn = async () => {
     setBusy(true);
     setError(null);
-    const { error: verifyError } = await authClient.signIn.emailOtp({ email, otp: code });
+    const { error: verifyError } = await authClient.signIn.emailOtp({ email: email.trim().toLowerCase(), otp: code });
     setBusy(false);
     if (verifyError) {
       setError(verifyError.message ?? '验证码不正确');
@@ -62,20 +88,15 @@ export function LoginPage() {
     navigate(next, { replace: true });
   };
 
-  // 注册 OTP：仅校验 OTP 本身是否正确，不直接登录。
-  // Better-Auth 没有 public 的 "校验 OTP 不登录" 接口；通过调用 signIn.emailOtp
-  // 让他帮我们测一致性，对于未注册邮箱（预期）会返回 USER_NOT_FOUND，此时视为
-  // 「OTP 已验证」，让用户继续填密码完成注册。
+  // 注册只检查 OTP，验证通过后不存在的账号返回稳定 USER_NOT_FOUND 错误码。
   const verifyOtpForSignup = async () => {
     setBusy(true);
     setError(null);
-    const { error: verifyError } = await authClient.signIn.emailOtp({ email, otp: code });
+    const { error: verifyError } = await authClient.emailOtp.checkVerificationOtp({ email: email.trim().toLowerCase(), otp: code, type: 'sign-in' });
     setBusy(false);
     if (verifyError) {
-      const status = (verifyError as { status?: number }).status;
       const msg = verifyError.message ?? '';
-      const looksLikeUserMissing = status === 404 || msg.toLowerCase().includes('not found') || msg.includes('不存在');
-      if (looksLikeUserMissing) {
+      if (verifyError.code === 'USER_NOT_FOUND') {
         // 邮箱尚未注册 → OTP 视为有效（这一步只能确认 OTP 一致性；最终注册由 sign-up 写库）
         setSignupOtpVerified(true);
         setNotice('邮箱已验证，请设置密码完成注册');
@@ -92,7 +113,7 @@ export function LoginPage() {
   const passwordSignIn = async () => {
     setBusy(true);
     setError(null);
-    const { error: pwError } = await authClient.signIn.email({ email, password });
+    const { error: pwError } = await authClient.signIn.email({ email: email.trim().toLowerCase(), password });
     setBusy(false);
     if (pwError) {
       setError(pwError.message ?? '邮箱或密码不正确；首次登录请使用验证码。');
@@ -111,7 +132,7 @@ export function LoginPage() {
     setError(null);
     // 昵称留空就直接注册：服务端会给「用户+随机编号」的默认昵称（不回退邮箱前缀）
     const { error: signErr } = await authClient.signUp.email({
-      email,
+      email: email.trim().toLowerCase(),
       password,
       name: name.trim(),
     });
@@ -122,7 +143,7 @@ export function LoginPage() {
     }
     // 注册完成 → 自动登录
     setBusy(true);
-    const { error: signInErr } = await authClient.signIn.email({ email, password });
+    const { error: signInErr } = await authClient.signIn.email({ email: email.trim().toLowerCase(), password });
     setBusy(false);
     if (signInErr) {
       setMode('signin');
@@ -232,7 +253,7 @@ export function LoginPage() {
               </div>
             )}
 
-            {method === 'otp' && stage === 'email' && (
+            {method === 'otp' && (
               <div className="stack">
                 <label className="field-label" htmlFor="email-otp">
                   Email
@@ -248,17 +269,17 @@ export function LoginPage() {
                 </label>
                 <button
                   className="btn btn-primary"
-                  disabled={busy || !email.includes('@')}
+                  disabled={busy || sendWait > 0 || !email.includes('@')}
                   onClick={() => void sendCode('sign-in')}
                 >
-                  发送验证码
+                  {sendLabel}
                 </button>
               </div>
             )}
 
-            {method === 'otp' && stage === 'code' && (
+            {method === 'otp' && (
               <div className="stack">
-                <p className="muted">{notice ?? '验证码已发送'}</p>
+                {notice && <p className="muted">{notice}</p>}
                 <label className="field-label" htmlFor="code-otp">
                   验证码
                   <input
@@ -277,9 +298,6 @@ export function LoginPage() {
                   onClick={() => void verifyOtpForSignIn()}
                 >
                   登录
-                </button>
-                <button className="btn" disabled={busy} onClick={() => setStage('email')}>
-                  换邮箱
                 </button>
               </div>
             )}
@@ -325,14 +343,14 @@ export function LoginPage() {
               <button
                 type="button"
                 className="btn"
-                disabled={busy || !email.includes('@')}
+                disabled={busy || sendWait > 0 || !email.includes('@')}
                 onClick={() => void sendCode('email-verification')}
               >
-                {stage === 'code' ? '重新发送验证码' : '发送验证码'}
+                {sendLabel}
               </button>
             )}
 
-            {!signupOtpVerified && stage === 'code' && (
+            {!signupOtpVerified && (
               <>
                 <label className="field-label" htmlFor="code-su">
                   验证码

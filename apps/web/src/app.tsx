@@ -1,4 +1,4 @@
-/** 路由结构：单人 / 题库 / 房间 / 邀请 / 我的 / 登录。 */
+/** 路由结构：单人 / 题库 / 房间 / 邀请 / 创作中心 / 我的 / 登录。 */
 import { Navigate, Route, Routes } from 'react-router';
 import { HomePage } from './lobby/home-page.js';
 import { LibraryPage } from './catalog/library-page.js';
@@ -10,6 +10,9 @@ import { LoginPage } from './auth/login-page.js';
 import { ForgotPasswordPage } from './auth/forgot-password-page.js';
 import { ResetPasswordPage } from './auth/reset-password-page.js';
 import { useSession } from './api/auth-client.js';
+import { CreationListPage } from './creations/creation-list-page.js';
+import { CreationEditorPage } from './creations/creation-editor-page.js';
+import { CreationPreviewPage } from './creations/creation-preview-page.js';
 
 export function App() {
   const { data: session, isPending } = useSession();
@@ -26,6 +29,10 @@ export function App() {
       <Route path="/rooms/:roomId" element={<RoomPage session={session ?? null} />} />
       <Route path="/invite/:token" element={<InvitePage session={session ?? null} />} />
       <Route path="/me" element={<MePage session={session ?? null} />} />
+      <Route path="/creations" element={<CreationListPage session={session ?? null} />} />
+      <Route path="/creations/new" element={<CreationEditorPage session={session ?? null} />} />
+      <Route path="/creations/:puzzleId" element={<CreationEditorPage session={session ?? null} />} />
+      <Route path="/creations/:puzzleId/preview" element={<CreationPreviewPage session={session ?? null} />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />

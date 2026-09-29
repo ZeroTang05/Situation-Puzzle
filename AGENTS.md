@@ -29,7 +29,7 @@ docs/rebuild/        产品与架构设计文档（01~09）
 
 ```
 pnpm typecheck          # 全部工作区 tsc --noEmit
-pnpm test               # domain + jev 单测
+pnpm test               # domain + jev + web + api 全量单测，不含数据库集成和端到端测试
 pnpm dev:api            # API :8080（需 .env.local，缺配置直接启动失败）
 pnpm dev:jobs           # 任务进程
 pnpm dev:web            # 玩家端 :5173（Vite 代理 /api/v1 与 /ws）

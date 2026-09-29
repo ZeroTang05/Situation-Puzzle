@@ -14,7 +14,7 @@
  */
 import { Pool } from 'pg';
 import PgBoss from 'pg-boss';
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '@jev/database/schema';
 import {
@@ -33,6 +33,7 @@ import {
   turns,
   jevCalls,
   moderationReviews,
+  puzzleTestCases,
 } from '@jev/database';
 import { JevClient, jevConfigFromEnv, isInfraFailure, type JevAttemptRecord } from '@jev/jev';
 import { loadEnv } from './env.js';
@@ -75,11 +76,14 @@ class JobsApp {
     await this.boss.start();
 
     const jevConfig = jevConfigFromEnv(this.env as unknown as NodeJS.ProcessEnv);
+    this.jevModel = jevConfig.model;
+    this.jevPromptVersion = jevConfig.promptVersion;
     this.jev = new JevClient(jevConfig, (record) => void this.recordAttempt(record, jevConfig.model, jevConfig.promptVersion));
 
     await this.boss.createQueue('dispatch-room');
     await this.boss.createQueue('process-turn');
-    await this.boss.createQueue('review-puzzle');
+    await this.boss.createQueue('review-puzzle', { name: 'review-puzzle', retryLimit: 3, retryDelay: 60, expireInSeconds: 600 });
+    await this.boss.updateQueue('review-puzzle', { name: 'review-puzzle', retryLimit: 3, retryDelay: 60, expireInSeconds: 600 });
     await this.boss.createQueue('maintenance');
 
     await this.boss.work('dispatch-room', { pollingIntervalSeconds: 1 }, (jobs) => this.dispatchRoom(jobs[0]!.data as DispatchPayload));
@@ -92,10 +96,11 @@ class JobsApp {
   }
 
   /** 每次真实 Jev 尝试写 jev_calls（多人审计与成本统计）。 */
-  private async recordAttempt(record: JevAttemptRecord, model: string, promptVersion: string): Promise<void> {
+  private async recordAttempt(record: JevAttemptRecord, model: string, promptVersion: string, reviewVersionId?: string): Promise<void> {
     try {
       await this.db.insert(jevCalls).values({
-        turnId: this.currentTurnId,
+        turnId: reviewVersionId ? null : this.currentTurnId,
+        reviewVersionId: reviewVersionId ?? null,
         model,
         promptVersion,
         attempt: record.attempt,
@@ -316,40 +321,57 @@ class JobsApp {
 
   private async reviewPuzzle(payload: ReviewPayload): Promise<void> {
     const db = this.db;
-    const [version] = await db.select().from(puzzleVersions).where(eq(puzzleVersions.id, payload.versionId)).limit(1);
-    if (!version || version.moderationStatus !== 'submitted') return;
+    const [target] = await db.select().from(puzzleVersions).where(eq(puzzleVersions.id, payload.versionId)).limit(1);
+    if (!target) return;
+    // 与作者撤回共用作品锁；提交后的内容固定，外部检查在事务外运行。
+    const version = await db.transaction(async (tx) => {
+      await tx.select().from(puzzles).where(eq(puzzles.id, target.puzzleId)).for('update');
+      const [latest] = await tx.select({ versionNo: puzzleVersions.versionNo }).from(puzzleVersions).where(eq(puzzleVersions.puzzleId, target.puzzleId)).orderBy(desc(puzzleVersions.versionNo)).limit(1);
+      const [current] = await tx.select().from(puzzleVersions).where(eq(puzzleVersions.id, target.id)).for('update').limit(1);
+      if (!latest || !current || latest.versionNo !== current.versionNo || !['submitted', 'checking'].includes(current.moderationStatus)) return null;
+      await tx.update(puzzleVersions).set({ moderationStatus: 'checking' }).where(eq(puzzleVersions.id, current.id));
+      return current;
+    });
+    if (!version) return;
+    const reviewConfig = { ...jevConfigFromEnv(this.env as unknown as NodeJS.ProcessEnv), language: version.language as 'zh' | 'en' };
+    const reviewer = new JevClient(reviewConfig, (record) => void this.recordAttempt(record, record.model, record.promptVersion, version.id));
     try {
-      const verdict = await this.jev.review({
+      const verdict = await reviewer.review({
         title: version.title,
         surface: version.surface,
         answer: version.answer,
         hints: version.hints,
       });
-      const conclusion = verdict;
+      const cases = await db.select().from(puzzleTestCases).where(eq(puzzleTestCases.versionId, version.id)).orderBy(asc(puzzleTestCases.createdAt), asc(puzzleTestCases.id));
+      const failures: string[] = [];
+      for (const [index, item] of cases.entries()) {
+        const content = { title: version.title, surface: version.surface, answer: version.answer, coreFacts: version.coreFacts };
+        const result = item.kind === 'ask' ? await reviewer.ask({ ...content, question: item.input }) : await reviewer.solve({ ...content, solution: item.input });
+        if (result.result !== item.expected) failures.push(`标准用例 ${index + 1}：预期 ${item.expected}，实际 ${result.result}`);
+      }
+      const conclusion = verdict === 'review_reject' || failures.length ? 'changes_requested' : 'pending_review';
       await db.transaction(async (tx) => {
+        await tx.select().from(puzzles).where(eq(puzzles.id, version.puzzleId)).for('update');
+        const [current] = await tx.select().from(puzzleVersions).where(eq(puzzleVersions.id, version.id)).for('update').limit(1);
+        if (current?.moderationStatus !== 'checking') return;
         await tx.insert(moderationReviews).values({
           versionId: version.id,
           stage: 'machine',
           conclusion,
+          reason: failures.length ? failures.join('\n') : verdict === 'review_reject' ? '内容检查未通过' : verdict === 'review_uncertain' ? '内容检查无法确定，待人工复核' : '内容及标准用例检查通过，待人工审核',
           modelVersion: `${this.jevModel}@${this.jevPromptVersion}`,
         });
-        // 机器通过 → 待人工审核；不通过 → 退回修改（附机器理由）
-        if (conclusion === 'review_pass') {
-          await tx.update(puzzleVersions).set({ moderationStatus: 'pending_review' }).where(eq(puzzleVersions.id, version.id));
-        } else {
-          await tx.update(puzzleVersions).set({ moderationStatus: 'changes_requested' }).where(eq(puzzleVersions.id, version.id));
-          await tx.insert(moderationReviews).values({
-            versionId: version.id,
-            stage: 'machine',
-            conclusion: 'changes_requested',
-            reason: conclusion === 'review_reject' ? '内容检查未通过' : '内容检查无法确定，需人工复核',
-          });
-        }
+        await tx.update(puzzleVersions).set({ moderationStatus: conclusion }).where(eq(puzzleVersions.id, version.id));
       });
     } catch (error) {
-      // 机器检查失败停在 submitted，可重试；不把接口失败当拒稿
-      console.error('[jobs] 投稿机器检查失败，稍后重试', error);
-      await this.boss.send('review-puzzle', payload, { startAfter: 60 });
+      console.error('[jobs] 投稿机器检查失败', error);
+      await db.transaction(async (tx) => {
+        await tx.select().from(puzzles).where(eq(puzzles.id, version.puzzleId)).for('update');
+        const [failed] = await tx.update(puzzleVersions).set({ moderationStatus: 'submitted' }).where(and(eq(puzzleVersions.id, version.id), eq(puzzleVersions.moderationStatus, 'checking'))).returning({ id: puzzleVersions.id });
+        if (failed) await tx.insert(moderationReviews).values({ versionId: version.id, stage: 'machine', conclusion: 'check_failed', reason: '自动检查服务失败，可等待任务重试或撤回后重新提交。' });
+      });
+      // 交由持久任务的有限重试处理，失败不会误判为拒稿。
+      throw error;
     }
   }
 
@@ -401,6 +423,8 @@ class JobsApp {
 
       // 3. presence 清理：超过 45 秒无心跳的行
       await db.execute(sql`delete from presence where last_seen_at < now() - interval '45 seconds'`);
+      // 发送额度只读取最近一小时；过期记录保留一天后清理。
+      await db.execute(sql`delete from otp_send_reservations where reserved_at < now() - interval '1 day'`);
 
       // 4. 账本一致性兜底：负余额由 CHECK 保护，这里只做异常告警
       const [negative] = await db

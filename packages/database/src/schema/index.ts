@@ -3,3 +3,4 @@ export * from './auth';
 export * from './content';
 export * from './rooms';
 export * from './billing';
+export * from './otp';

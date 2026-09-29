@@ -1,6 +1,29 @@
 /* 玩家端布局：移动优先，深海色系；正文 16px，触控区域 ≥44px（PRD §6）。 */
 @import '@jev/ui/styles.css';
 
+/* 创作中心复用游玩页的深海配色，分组表单在手机上单列展示。 */
+.creation-shell { max-width: 880px; }
+.creation-editor fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+.creation-section, .creation-card, .creation-row, .creation-empty { margin: 16px 0; padding: 20px; border: 1px solid rgba(115, 191, 220, .22); border-radius: 16px; background: rgba(9, 39, 62, .7); }
+.creation-section h2, .creation-card h2 { margin: 0 0 16px; font-size: 20px; }
+.creation-field { display: grid; gap: 8px; margin-bottom: 18px; }
+.creation-field textarea { width: 100%; resize: vertical; }
+.creation-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.creation-fields > * { min-width: 0; }
+.creation-case { margin: 16px 0; padding: 16px; border: 1px solid rgba(115, 191, 220, .2); border-radius: 12px; }
+.creation-check { display: flex; align-items: flex-start; gap: 10px; line-height: 1.7; margin: 12px 0; }
+.creation-check input { width: 20px; height: 20px; flex-shrink: 0; margin-top: 4px; }
+.creation-license { padding: 16px; border-radius: 12px; background: rgba(10, 60, 78, .7); }
+.creation-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 16px 0; }
+.creation-shell .btn { min-height: 44px; }
+.creation-status { display: inline-block; padding: 5px 10px; border-radius: 20px; background: rgba(115, 191, 220, .15); font-size: 14px; }
+.creation-status.status-published { color: #9ae6bd; }
+.creation-status.status-changes_requested { color: #f3bf8d; }
+.creation-review { border-top: 1px solid rgba(115, 191, 220, .2); padding: 14px 0; }
+.creation-review p, .creation-error { white-space: pre-wrap; overflow-wrap: anywhere; }
+.creation-editor fieldset:disabled .field { opacity: .8; }
+@media (max-width: 540px) { .creation-fields { grid-template-columns: 1fr; gap: 0; } .creation-section, .creation-card { padding: 16px; } }
+
 .shell {
   width: min(100%, 480px);
   min-height: 100dvh;

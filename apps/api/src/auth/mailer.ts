@@ -9,6 +9,20 @@
 import { Resend } from 'resend';
 import nodemailer, { type Transporter } from 'nodemailer';
 
+/** rejected 表示服务明确未接受邮件；unknown 表示可能已经接受，额度应保留。 */
+export class MailDeliveryError extends Error {
+  constructor(message: string, public readonly outcome: 'rejected' | 'unknown', cause?: unknown) {
+    super(message, { cause });
+  }
+}
+
+/** SMTP 的拒绝响应和发送前连接/认证失败可以确定未投递。 */
+export function smtpDeliveryOutcome(error: unknown): 'rejected' | 'unknown' {
+  const detail = error as { responseCode?: number; command?: string; code?: string } | null;
+  if (detail && ((detail.responseCode !== undefined && detail.responseCode >= 400 && detail.responseCode < 600) || detail.command === 'CONN' || detail.command === 'AUTH' || detail.code === 'EAUTH')) return 'rejected';
+  return 'unknown';
+}
+
 /** 品牌名：邮件里的发件方称呼（AI 主持人角色仍叫 Jev） */
 const BRAND_ZH = 'AI海龟汤';
 const BRAND_EN = 'AI Situation Puzzles';
@@ -71,7 +85,9 @@ export function createResendMailer(options: { apiKey: string; from: string }): M
         html: content.html,
       });
       if (response.error) {
-        throw new Error(`Resend 发信失败（${response.error.name}）：${response.error.message}`);
+        const status = response.error.statusCode;
+        const rejected = status !== null && status >= 400 && status < 500 && status !== 408 && status !== 409;
+        throw new MailDeliveryError(`Resend 发信失败（${response.error.name}）：${response.error.message}`, rejected ? 'rejected' : 'unknown');
       }
     },
 
@@ -109,7 +125,11 @@ export function createSmtpMailer(options: {
   return {
     async sendVerificationCode(to, code, language) {
       const content = codeMailContent(code, language);
-      await transport.sendMail({ from: options.from, to, subject: content.subject, text: content.text, html: content.html });
+      try {
+        await transport.sendMail({ from: options.from, to, subject: content.subject, text: content.text, html: content.html });
+      } catch (error) {
+        throw new MailDeliveryError('SMTP 验证码邮件发送失败', smtpDeliveryOutcome(error), error);
+      }
     },
 
     async sendPasswordReset(to, url, language) {

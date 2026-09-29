@@ -6,6 +6,7 @@
  * - 注册钩子：新用户初始化 profile + 免费开房账户 + 赞助账户（每用户一次，唯一约束兜底）
  */
 import { betterAuth } from 'better-auth';
+import { APIError, createAuthMiddleware, isAPIError } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { emailOTP, genericOAuth } from 'better-auth/plugins';
 import { randomInt } from 'node:crypto';
@@ -20,7 +21,10 @@ import {
 } from '@jev/database';
 import type { DbHandle } from '@jev/database';
 import type { Env } from '../env.js';
-import type { Mailer } from './mailer.js';
+import { MailDeliveryError, type Mailer } from './mailer.js';
+import { OtpSendQuota, otpLimitMessage } from './otp-send-quota.js';
+import { otpRequestContext } from './otp-request-context.js';
+import { z } from 'zod';
 
 export interface AuthDeps {
   env: Env;
@@ -50,6 +54,8 @@ function linuxdoAvatar(profile: Record<string, unknown>): string | undefined {
 
 export function createAuth({ env, db, mailer }: AuthDeps) {
   const baseURL = new URL('/api/v1/auth', env.PUBLIC_BASE_URL).toString();
+  const quota = new OtpSendQuota(db.pool);
+  const otpSendPaths = new Set(['/email-otp/send-verification-otp', '/email-otp/request-password-reset', '/forget-password/email-otp', '/email-otp/request-email-change']);
 
   return betterAuth({
     appName: 'Jev',
@@ -88,13 +94,24 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
       : {},
     plugins: [
       emailOTP({
-        // 验证码 5 分钟有效、6 位；同邮箱 60 秒限发由 better-auth rateLimit 承担
+        // 验证码 5 分钟有效、6 位；发送额度在前置钩子里由 PostgreSQL 管理。
         otpLength: 6,
         expiresIn: 300,
-        // 插件默认 3 次/分钟过于收紧（多人同时登录会误伤），提到 10 次/分钟
-        rateLimit: { window: 60, max: 10 },
         sendVerificationOTP: async ({ email, otp }) => {
-          await mailer.sendVerificationCode(email, otp, env.JEV_LANGUAGE);
+          const request = otpRequestContext.getStore();
+          if (!request?.reservation || request.reservation.email !== email) throw new APIError('INTERNAL_SERVER_ERROR', { message: '验证码发送缺少额度预占' });
+          request.delivery = 'unknown';
+          try {
+            await mailer.sendVerificationCode(email, otp, env.JEV_LANGUAGE);
+            request.delivery = 'accepted';
+          } catch (error) {
+            console.error('[auth] 验证码邮件发送失败', error);
+            if (error instanceof MailDeliveryError && error.outcome === 'rejected') {
+              request.delivery = 'rejected';
+              await quota.release(request.reservation.id);
+            }
+            throw new APIError('SERVICE_UNAVAILABLE', { code: 'OTP_SEND_FAILED', message: request.delivery === 'rejected' ? '验证码发送失败，请稍后重试。' : '邮件发送结果暂未确认，请检查收件箱，60 秒后可重试。', retryAfterSeconds: request.delivery === 'rejected' ? 0 : 60 });
+          }
         },
       }),
       // LINUX DO OAuth（connect.linux.do，对接参数参考 GoWith）：无 OIDC discovery，
@@ -140,8 +157,38 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
     },
     advanced: {
       useSecureCookies: env.NODE_ENV === 'production',
+      ipAddress: { ipAddressHeaders: ['x-jev-client-ip'] },
     },
-    rateLimit: { enabled: true, window: 60, max: 20 },
+    rateLimit: { enabled: true, window: 60, max: 20, customRules: Object.fromEntries([...otpSendPaths].map((path) => [path, false])) },
+    hooks: {
+      /** 在生成新验证码前预占；登录和注册按相同邮箱/IP 共用额度。 */
+      before: createAuthMiddleware(async (ctx) => {
+        if (!ctx.path || !otpSendPaths.has(ctx.path)) return;
+        const request = otpRequestContext.getStore();
+        if (!request) throw new APIError('SERVICE_UNAVAILABLE', { message: '验证码请求缺少客户端地址' });
+        const emailField = ctx.path === '/email-otp/request-email-change' ? 'newEmail' : 'email';
+        const parsed = z.email().safeParse(typeof ctx.body?.[emailField] === 'string' ? ctx.body[emailField].toLowerCase() : undefined);
+        if (!parsed.success) throw new APIError('BAD_REQUEST', { code: 'INVALID_EMAIL', message: '邮箱格式不正确' });
+        if (ctx.path === '/email-otp/send-verification-otp' && !['sign-in', 'email-verification', 'forget-password'].includes(ctx.body.type)) throw new APIError('BAD_REQUEST', { message: '验证码用途无效' });
+        ctx.body[emailField] = parsed.data;
+        const reserved = await quota.reserve(parsed.data, request.ip);
+        if ('retryAfterSeconds' in reserved) {
+          ctx.setHeader('Retry-After', String(reserved.retryAfterSeconds));
+          throw new APIError('TOO_MANY_REQUESTS', { code: 'OTP_SEND_RATE_LIMITED', message: otpLimitMessage(reserved.retryAfterSeconds), retryAfterSeconds: reserved.retryAfterSeconds, limitScope: reserved.scope });
+        }
+        request.reservation = { id: reserved.id, email: parsed.data };
+      }),
+      /** 未实际进入邮件发送的请求退回额度；邮件接受后保持原始计数。 */
+      after: createAuthMiddleware(async (ctx) => {
+        if (!ctx.path || !otpSendPaths.has(ctx.path)) return;
+        const request = otpRequestContext.getStore();
+        if (!request?.reservation) return;
+        if (request.delivery === 'not_started') await quota.release(request.reservation.id);
+        const retryAfterSeconds = request.delivery === 'accepted' || request.delivery === 'unknown' ? 60 : 0;
+        ctx.setHeader('Retry-After', String(retryAfterSeconds));
+        if (!isAPIError(ctx.context.returned)) return ctx.json({ success: true, retryAfterSeconds });
+      }),
+    },
     user: {
       // 昵称默认取邮箱前缀；玩家可在「我的」里改
     },

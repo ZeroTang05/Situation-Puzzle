@@ -1,5 +1,5 @@
 /** 题库与投稿审核：列表、详情、批准 / 退回 / 下架、署名审核（docs/rebuild/11-VOTES-AND-AUTHORSHIP.md §5）。 */
-import { List, Datagrid, TextField, NumberField, Show, SimpleShowLayout, useRecordContext, useNotify, useRefresh, Button } from 'react-admin';
+import { List, Datagrid, TextField, NumberField, BooleanField, Show, SimpleShowLayout, useRecordContext, useNotify, useRefresh, Button } from 'react-admin';
 import { adminAction } from './data-provider.js';
 
 export const PuzzleList = () => (
@@ -9,6 +9,7 @@ export const PuzzleList = () => (
       <TextField source="language" label="语言" />
       <NumberField source="versionNo" label="版号" />
       <TextField source="status" label="状态" />
+      <BooleanField source="unavailable" label="已停用" />
       <TextField source="rightsStatus" label="授权" />
       {/* 真实投票计数只读展示；后台不能手填（11-VOTES-AND-AUTHORSHIP.md §5） */}
       <NumberField source="upCount" label="赞" />
@@ -89,10 +90,43 @@ export const VersionDetail = () => (
       <TextField source="answer" label="汤底" />
       <TextField source="status" label="状态" />
       <SameRevisionReview />
+      <RightsReview />
+      <AuthorMaterials />
       <PuzzleActionsField />
     </SimpleShowLayout>
   </Show>
 );
+
+/** 授权依据和明确同意单独审核，通过后才能发布内容。 */
+function RightsReview() {
+  const record = useRecordContext() as { puzzleId: string; versionId: string; status: string; rights?: { status: string; licenseBasis: string; sourceUrl: string | null; agreementVersion: string; agreedAt: string | null } } | undefined;
+  const notify = useNotify(); const refresh = useRefresh();
+  if (!record?.rights) return null;
+  const rights = record.rights;
+  const decide = (decision: 'approve' | 'reject') => {
+    const reason = window.prompt('请输入授权审核理由');
+    if (reason === null) return;
+    void adminAction(`/puzzles/${record.puzzleId}/rights/${decision}`, { reason, expectedVersionId: record.versionId })
+      .then(() => { notify('授权审核已保存'); refresh(); })
+      .catch((error: Error) => notify(error.message, { type: 'error' }));
+  };
+  return <section><h3>作品授权</h3><p>状态：{rights.status}</p><p>{rights.licenseBasis}</p>
+    {rights.sourceUrl && <a href={rights.sourceUrl} target="_blank" rel="noreferrer">查看来源</a>}
+    <p>授权文本版本：{rights.agreementVersion} · 同意时间：{rights.agreedAt ? new Date(rights.agreedAt).toLocaleString() : '尚未同意'}</p>
+    <Button label="批准授权" disabled={!rights.agreedAt || !['pending_review', 'published'].includes(record.status)} onClick={() => decide('approve')} />
+    <Button label="拒绝授权" disabled={!['pending_review', 'published'].includes(record.status)} onClick={() => decide('reject')} />
+  </section>;
+}
+
+/** 审核员可核对作者提交的事实、因果关系和标准判题用例。 */
+function AuthorMaterials() {
+  const record = useRecordContext() as { coreFacts?: string[]; causalChain?: string; testCases?: Array<{ id: string; versionId: string; input: string; expected: string; reason: string | null; criticality: string }>; reviews?: Array<{ id: string; stage: string; conclusion: string; reason: string | null; createdAt: string }> } | undefined;
+  if (!record) return null;
+  return <section><h3>审核材料</h3><ul>{record.coreFacts?.map((fact, index) => <li key={index}>{fact}</li>)}</ul><p>{record.causalChain}</p>
+    {record.testCases?.map((item) => <article key={item.id}><p>{item.input}</p><p>预期判定：{item.expected} · {item.criticality === 'critical' ? '关键用例' : '普通用例'}</p><p>{item.reason}</p></article>)}
+    <h3>检查与审核记录</h3>{record.reviews?.map((review) => <article key={review.id}><p>{review.stage} · {review.conclusion}</p><p style={{ whiteSpace: 'pre-wrap' }}>{review.reason}</p><small>{new Date(review.createdAt).toLocaleString()}</small></article>)}
+  </section>;
+}
 
 /** 同版多语言内容在批准前一起展示，批量操作明确带上审核范围。 */
 function SameRevisionReview() {

@@ -28,8 +28,8 @@ const baseProvider: DataProvider = {
   },
   getOne: async (resource, params) => {
     if (resource === 'puzzles') {
-      const detail = await adminFetch(`/puzzle-versions/${String(params.id)}`) as { version: Record<string, unknown>; versions: Record<string, unknown>[]; rights: unknown };
-      return { data: { ...detail.version, id: detail.version.id, versionId: detail.version.id, status: detail.version.moderationStatus, versions: detail.versions, rights: detail.rights } } as never;
+      const detail = await adminFetch(`/puzzle-versions/${String(params.id)}`) as { version: Record<string, unknown>; versions: Record<string, unknown>[]; rights: unknown; testCases: unknown; reviews: unknown };
+      return { data: { ...detail.version, id: detail.version.id, versionId: detail.version.id, status: detail.version.moderationStatus, versions: detail.versions, rights: detail.rights, testCases: detail.testCases, reviews: detail.reviews } } as never;
     }
     const data = await adminFetch(`/${resource}/${String(params.id)}`);
     return { data } as never;

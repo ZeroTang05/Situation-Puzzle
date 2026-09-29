@@ -24,12 +24,14 @@ import {
   soloSolveRequestSchema,
 } from '@jev/contracts';
 import { z } from 'zod';
+import { previewContentHash } from '../creations/preview-content.js';
 
 interface SoloTokenPayload {
   purpose: 'solo' | 'solo_preview';
   pv: string; // puzzle version id
   lang: 'zh' | 'en';
   cfg: string; // 判题配置版本
+  contentHash?: string;
 }
 
 const ISSUER = 'jev-solo';
@@ -150,6 +152,9 @@ export class SoloController {
       .limit(1);
     const version = rows[0];
     if (!version) throw new DomainError('CONTENT_UNAVAILABLE', '题目已被停用');
+    if (payload.purpose === 'solo_preview' && payload.contentHash !== previewContentHash(version)) {
+      throw new DomainError('STATE_CONFLICT', '草稿已修改，请重新进入试题');
+    }
     return version;
   }
 

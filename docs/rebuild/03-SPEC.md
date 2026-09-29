@@ -168,7 +168,9 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 | `GET /rounds/:id/history` | 本局有阅读权的参与者查询问答与讨论分页 |
 | `GET /rounds/:id/answer` | 仅正常揭晓或破解结束后，有权参与者获取固定版本答案 |
 | `POST /creations`、`PATCH /creations/:id` | 作者保存自己的草稿，使用版本条件避免覆盖 |
+| `GET /creations`、`GET /creations/:id` | 作者查看作品反馈、最新草稿、版本记录及审核理由；完整正文只返回给本人 |
 | `POST /creations/:id/submit`、`POST /creations/:id/withdraw` | 提交不可变审核版本或撤回 |
+| `POST /creations/:id/revise` | 退回、已发布或下架版本复制为新草稿，旧版本内容保持固定 |
 | `POST /creations/:id/test-session` | 校验作者后签发私有试题凭证，单人试题对话仅本地保存 |
 | `GET /sponsorship`、`GET /sponsor-products` | 当前赞助有效期、免费开房余量、600/2000 分商品 |
 | `POST /orders`、`GET /orders/:id` | 创建赞助订单、仅本人查单；服务端计价 |
@@ -177,6 +179,7 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 | `POST /reports` | 登录用户提交举报 |
 | `GET /ratings/:puzzleId`、`PUT /ratings/:puzzleId`、`DELETE /ratings/:puzzleId` | 查询本人选择、设置赞/踩、取消投票；登录后可用，禁止作者自投；具体契约见 11-VOTES-AND-AUTHORSHIP.md |
 | `/admin/*` | 角色守卫与审计；具体操作见运营文档 |
+| `POST /admin/puzzles/:id/rights/:decision` | 审核员单独批准或拒绝作品授权；记录理由、审核人和时间 |
 | `GET /admin/puzzles` | 审核人员查看每个作品最新版号的各语言记录，可按审核状态筛选 |
 | `GET /admin/puzzle-versions/:id` | 审核人员读取当前语言记录、同版全部语言内容及作品授权信息 |
 | `POST /admin/puzzle-versions/:id/approve` | 审核人员填写理由并选择批准当前语言或同版全部语言；原子发布并逐语言审计，详见运营文档 |
@@ -205,6 +208,8 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 关键错误码：`ROOM_FULL`、`ROUND_ENDED`、`SPONSORSHIP_REQUIRED`、`FREE_ROOMS_EXHAUSTED`、`TURN_PENDING`、`QUEUE_FULL`、`STATE_CONFLICT`、`IDEMPOTENCY_CONFLICT`、`JEV_UNAVAILABLE`、`CONTENT_UNAVAILABLE`。分别使用 409 状态冲突、403 权限不足、429 频率限制、503 外部服务不可用等合适 HTTP 状态，客户端按稳定错误码翻译。单人永远不返回赞助要求或免费次数耗尽。
 
 ## 7. 一致性、任务与实时发送
+
+创作写接口使用 `expectedVersionId`（已保存版本编号）及 `expectedUpdatedAt`（作品更新时间）；创建草稿无需这两个条件。提交另需 `agreementAccepted: true` 和当前 `agreementVersion`（授权文本版本）。授权审核携带审核员正在查看的 `expectedVersionId`，作者已有新版本时拒绝旧审核操作。
 
 游戏命令、状态修改、事件追加、所需任务创建必须在同一个 PostgreSQL 事务中提交。使用 pg-boss 官方事务适配；M0 验证 Drizzle 事务与队列写入确实共享连接。禁止提交业务后再以无持久记录的异步调用创建任务。
 

@@ -18,6 +18,7 @@ interface JevLocalDB extends DBSchema {
       surface: string;
       configVersion: string;
       token: string;
+      previewDigest?: string;
       startedAt: number;
       status: 'active' | 'solved' | 'revealed' | 'abandoned';
       hintsUnlocked: number[];
@@ -100,6 +101,7 @@ export const soloStore = {
     surface: string;
     token: string;
     configVersion: string;
+    previewDigest?: string;
   }): Promise<SoloSessionRow> {
     const db = await getDB();
     const session: SoloSessionRow = {

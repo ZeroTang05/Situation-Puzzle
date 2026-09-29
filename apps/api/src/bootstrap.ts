@@ -16,6 +16,7 @@ import type { DbHandle } from '@jev/database';
 import type { Mailer } from './auth/mailer.js';
 import type { BetterAuthInstance } from './auth/auth.types.js';
 import { defaultNickname } from './auth/auth.instance.js';
+import { otpHttpContext } from './auth/otp-http-context.js';
 import type { JevConfig } from '@jev/jev';
 import { type AppContext, type QueueHandle, setAppContext } from './context.js';
 
@@ -66,8 +67,10 @@ export async function createAppContext(input: BootstrapInput): Promise<AppContex
 
   const server = express();
   server.disable('x-powered-by');
+  const trustedProxies = input.env.TRUSTED_PROXY_CIDRS.split(',').map((value) => value.trim()).filter(Boolean);
+  server.set('trust proxy', trustedProxies.length ? trustedProxies : false);
   // better-auth 处理 /api/v1/auth/*：必须拿到未经 JSON 解析的原始流
-  server.use('/api/v1/auth', toNodeHandler(input.auth.handler));
+  server.use('/api/v1/auth', otpHttpContext(server.get('trust proxy fn')), toNodeHandler(input.auth.handler));
   server.use(express.json({ limit: '256kb' }));
   // 支付回调需要原始请求体验签
   server.use('/api/v1/payments', express.raw({ type: '*/*', limit: '256kb' }));

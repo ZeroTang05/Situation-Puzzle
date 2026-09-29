@@ -6,6 +6,7 @@ import { api } from '../api/client.js';
 import { createRoom } from '../rooms/create-room.js';
 import { useLanguage } from '../state/language.js';
 import type { Session } from '../session.js';
+import { creationCopy } from '../creations/copy.js';
 
 export function HomePage({ session }: { session: Session | null }) {
   const { copy, language, setLanguage } = useLanguage();
@@ -73,6 +74,9 @@ export function HomePage({ session }: { session: Session | null }) {
           )}
           <button className="btn btn-ghost" onClick={() => navigate('/library')}>
             {copy.library}
+          </button>
+          <button className="btn btn-ghost" onClick={() => navigate('/creations')}>
+            {creationCopy(language).works}
           </button>
         </div>
       </section>
