@@ -1,351 +1,255 @@
-/**
- * 实时网关：标准 WebSocket（/ws），订阅房间事件、快照握手、心跳与断线恢复
- * （docs/rebuild/04-ROOM-JEV.md §5）。
- *
- * 连接流程：HTTP 票据 → ws 连接 → 5 秒内 auth 帧 → subscribe + lastSeq →
- * 服务端补事件 → sync.ready 后开放写操作。数据库事件表承担可靠发送：
- * NOTIFY 只是唤醒，5 秒扫描兜底；客户端按 seq 去重补齐。
- */
+/** 实时网关：协议心跳、批量进度查询、串行补齐与可撤销订阅。 */
 import { Logger } from '@nestjs/common';
 import { jwtVerify } from 'jose';
-import { WebSocketServer as WsServer, type WebSocket } from 'ws';
-import type { Server as HttpServer } from 'node:http';
-import { and, asc, eq, gt, inArray } from 'drizzle-orm';
-import { presence, roomEvents, roomMembers, rooms } from '@jev/database';
-import { roomEventSchema, wsClientFrameSchema } from '@jev/contracts';
+import { WebSocketServer, type WebSocket } from 'ws';
+import type { Server } from 'node:http';
+import { and, asc, eq, gt, inArray, lte } from 'drizzle-orm';
+import { presence, profiles, roomEvents, roomMembers, rooms, session } from '@jev/database';
+import { wsClientFrameSchema } from '@jev/contracts';
 import { app } from '../context.js';
 import { consumeJti } from './realtime.controller.js';
 
-interface Subscription {
-  roomId: string;
-  /** 最后连续应用的序号 */
-  lastSeq: number;
-  /** 快照握手期间暂停直发，改为缓冲 */
-  syncing: boolean;
-}
-
+interface Subscription { roomId: string; lastSeq: number }
 interface ClientState {
   userId: string | null;
+  sessionId: string | null;
   subscriptions: Map<string, Subscription>;
   lastPongAt: number;
-  alive: boolean;
+  lastPingAt: number;
+  lastActiveAt: number;
+  connectedAt: number;
+  queue: Promise<void>;
+  scheduled: boolean;
 }
 
-/**
- * 说明：不走 @nestjs/platform-ws 的 WsAdapter——tsx(esbuild) 环境下适配器与
- * Nest 生命周期挂载不稳定；这里直接用标准 ws 库挂 upgrade 事件，协议不变。
- */
 export class RealtimeGateway {
   private readonly logger = new Logger('RealtimeGateway');
-  private clients = new WeakMap<WebSocket, ClientState>();
+  private readonly clients = new Map<WebSocket, ClientState>();
+  private readonly wss = new WebSocketServer({ noServer: true });
   private ticker: NodeJS.Timeout | null = null;
   private listenClient: import('pg').PoolClient | null = null;
-  private readonly wss = new WsServer({ noServer: true });
+  private ticking = false;
+  private stopping = false;
+  private lastHeartbeatAt = 0;
 
-  /** 挂到已监听的 http server：upgrade 到 /ws 的连接交由 ws 服务器处理。 */
-  attach(httpServer: HttpServer): void {
-    httpServer.on('upgrade', (request, socket, head) => {
-      const pathname = new URL(request.url ?? '/', 'ws://localhost').pathname;
-      if (pathname !== '/ws') {
-        socket.destroy();
-        return;
-      }
-      this.wss.handleUpgrade(request, socket, head, (ws) => {
-        this.wss.emit('connection', ws, request);
-      });
+  attach(server: Server): void {
+    server.on('upgrade', (request, socket, head) => {
+      if (new URL(request.url ?? '/', 'http://localhost').pathname !== '/ws') { socket.destroy(); return; }
+      this.wss.handleUpgrade(request, socket, head, (ws) => this.wss.emit('connection', ws));
     });
-    this.wss.on('connection', (ws: WebSocket) => this.handleConnection(ws));
-    this.ticker = setInterval(() => void this.tick(), 5000);
-    void this.startListen();
+    this.wss.on('connection', (socket) => this.connect(socket));
+    this.ticker = setInterval(() => { void this.tick(); }, 5_000);
+    void this.listen();
   }
 
   async shutdown(): Promise<void> {
+    this.stopping = true;
     if (this.ticker) clearInterval(this.ticker);
-    this.listenClient?.release();
+    for (const socket of this.clients.keys()) socket.terminate();
+    if (this.listenClient) {
+      await this.listenClient.query('UNLISTEN jev_room_events');
+      this.listenClient.release();
+      this.listenClient = null;
+    }
     await new Promise<void>((resolve) => this.wss.close(() => resolve()));
   }
 
-  /** 监听事务提交通知：仅作为唤醒信号，扫描是正确性兜底。 */
-  private async startListen(): Promise<void> {
+  /** NOTIFY 即时唤醒；周期查询仍从数据库持久事件恢复遗漏。 */
+  private async listen(): Promise<void> {
     try {
-      const client = await app().db.pool.connect();
-      client.on('notification', (msg) => {
-        if (msg.channel === 'jev_room_events' && msg.payload) {
-          void this.broadcastRoom(msg.payload);
+      const connection = await app().db.pool.connect();
+      if (this.stopping) { connection.release(); return; }
+      this.listenClient = connection;
+      connection.on('notification', (message) => {
+        if (message.channel !== 'jev_room_events' || !message.payload) return;
+        for (const [socket, state] of this.clients) {
+          if (state.subscriptions.has(message.payload)) this.scheduleDelivery(socket, state);
         }
       });
-      await client.query('LISTEN jev_room_events');
-      this.listenClient = client;
-    } catch (error) {
-      this.logger.error('LISTEN 建立失败，退化为纯扫描模式', error);
-    }
+      connection.on('error', (error) => this.logger.error('实时数据库通知连接错误', error));
+      await connection.query('LISTEN jev_room_events');
+    } catch (error) { this.logger.error('实时数据库通知建立失败', error); }
   }
 
-  handleConnection(client: WebSocket): void {
-    this.clients.set(client, { userId: null, subscriptions: new Map(), lastPongAt: Date.now(), alive: true });
-    // 5 秒鉴权时限（docs/rebuild/04-ROOM-JEV.md §5）：超时未发 auth 帧直接关闭，防未认证连接堆积
-    const authTimer = setTimeout(() => {
-      const state = this.clients.get(client);
-      if (state && !state.userId) {
-        client.close();
-      }
-    }, 5_000);
-    authTimer.unref();
-    client.on('close', () => clearTimeout(authTimer));
-    client.on('pong', () => {
-      const state = this.clients.get(client);
-      if (state) state.lastPongAt = Date.now();
-    });
-    client.on('message', (raw) => {
-      void this.onMessage(client, raw.toString());
-    });
-  }
-
-  handleDisconnect(client: WebSocket): void {
-    const state = this.clients.get(client);
-    if (!state) return;
-    void this.clearPresence(state);
-    this.clients.delete(client);
-  }
-
-  /** 每 5 秒：心跳帧广播高水位 + 补发遗漏事件 + 踢掉超时连接 + 复核成员资格。 */
-  private async tick(): Promise<void> {
+  private connect(socket: WebSocket): void {
     const now = Date.now();
-    for (const [client, state] of this.clientEntries()) {
-      if (!state.alive || now - state.lastPongAt > 45_000) {
-        client.terminate();
-        continue;
-      }
-      // 每次补发前复核成员资格：被踢/退出/封禁的连接立即失去订阅（R06）
-      for (const roomId of [...state.subscriptions.keys()]) {
-        const [member] = await app().db.db
-          .select({ id: roomMembers.id })
-          .from(roomMembers)
-          .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.userId, state.userId!), eq(roomMembers.status, 'joined')))
-          .limit(1);
-        if (!member) {
-          this.dropSubscription(client, state, roomId);
-        }
-      }
-      if (state.userId && state.subscriptions.size > 0) {
-        try {
-          const watermarks = await this.watermarksOf([...state.subscriptions.keys()]);
-          this.send(client, { type: 'heartbeat', watermarks });
-          for (const sub of state.subscriptions.values()) {
-            const watermark = watermarks.find((w) => w.roomId === sub.roomId)?.seq ?? 0;
-            if (!sub.syncing && watermark > sub.lastSeq) {
-              await this.deliverEvents(client, sub);
-            }
-          }
-        } catch (error) {
-          this.logger.warn('心跳补发失败', error);
-        }
-      }
-    }
-  }
-
-  /** 断开某用户在某房间的订阅：无其他订阅则直接断开连接（踢人即时生效）。 */
-  dropUserFromRoom(userId: string, roomId: string): void {
-    for (const [client, state] of this.clientEntries()) {
-      if (state.userId !== userId) continue;
-      this.dropSubscription(client, state, roomId);
-    }
-  }
-
-  /** 移除单个连接上某房间的订阅；连接没有任何订阅时关闭（保留无意义且占用鉴权时限）。 */
-  private dropSubscription(client: WebSocket, state: ClientState, roomId: string): void {
-    if (!state.subscriptions.has(roomId)) return;
-    state.subscriptions.delete(roomId);
-    this.send(client, { type: 'error', code: 'FORBIDDEN', message: '你已不在该房间' });
-    if (state.subscriptions.size === 0) {
-      client.close();
-    }
-  }
-
-  private clientEntries(): Array<[WebSocket, ClientState]> {
-    // WeakMap 不可枚举：活跃连接清单由 server.clients 维护
-    const entries: Array<[WebSocket, ClientState]> = [];
-    this.wss.clients.forEach((client) => {
-      const state = this.clients.get(client);
-      if (state) entries.push([client, state]);
+    const state: ClientState = { userId: null, sessionId: null, subscriptions: new Map(), lastPongAt: now, lastPingAt: 0, lastActiveAt: 0, connectedAt: now, queue: Promise.resolve(), scheduled: false };
+    this.clients.set(socket, state);
+    const authTimer = setTimeout(() => { if (!state.userId) socket.close(4401, 'auth_timeout'); }, 5_000);
+    socket.on('pong', () => { state.lastPongAt = Date.now(); });
+    socket.on('message', (raw) => {
+      state.lastPongAt = Date.now();
+      this.enqueue(socket, state, () => this.onMessage(socket, state, raw.toString()));
     });
-    return entries;
+    socket.on('error', (error) => this.logger.warn(`实时连接错误: ${error.message}`));
+    socket.on('close', (code) => {
+      clearTimeout(authTimer);
+      this.clients.delete(socket);
+      this.logger.log(JSON.stringify({ event: 'ws.closed', code, durationMs: Date.now() - state.connectedAt }));
+      void this.updatePresence(state.userId).catch((error: unknown) => this.logger.error('在线状态清理失败', error));
+    });
   }
 
-  private async onMessage(client: WebSocket, raw: string): Promise<void> {
-    const state = this.clients.get(client);
-    if (!state) return;
-    state.lastPongAt = Date.now();
-
-    const parsed = wsClientFrameSchema.safeParse((() => {
-      try {
-        return JSON.parse(raw);
-      } catch {
-        return { type: 'unknown' };
-      }
-    })());
-    if (!parsed.success) {
-      this.send(client, { type: 'error', code: 'VALIDATION_FAILED', message: '帧格式不合法' });
-      return;
-    }
-    const frame = parsed.data;
-
-    if (frame.type === 'auth') {
-      const userId = await this.verifyTicket(frame.ticket);
-      if (!userId) {
-        this.send(client, { type: 'error', code: 'UNAUTHORIZED', message: '票据无效或已过期' });
-        client.close();
-        return;
-      }
-      state.userId = userId;
-      this.send(client, { type: 'ack', userId });
-      return;
-    }
-
-    if (!state.userId) {
-      this.send(client, { type: 'error', code: 'UNAUTHORIZED', message: '请先完成鉴权' });
-      return;
-    }
-
-    if (frame.type === 'ping') {
-      this.send(client, { type: 'ack' });
-      // 应用层 ping 顺带刷新 presence（每 15 秒一次，来自客户端）
-      await app().db.db.update(presence).set({ lastSeenAt: new Date() }).where(eq(presence.userId, state.userId));
-      return;
-    }
-
-    if (frame.type === 'subscribe') {
-      await this.subscribe(client, state, frame.roomId, frame.lastSeq);
-      return;
-    }
-
-    if (frame.type === 'unsubscribe') {
-      state.subscriptions.delete(frame.roomId);
-      this.send(client, { type: 'ack', requestId: frame.roomId });
-    }
+  /** 单连接任务串行，防止补齐与订阅同时改写游标。 */
+  private enqueue(socket: WebSocket, state: ClientState, action: () => Promise<void>): void {
+    state.queue = state.queue.then(async () => {
+      if (socket.readyState === 1 && this.clients.get(socket) === state) await action();
+    }).catch((error: unknown) => {
+      this.logger.error('实时操作失败', error);
+      socket.close(1011, 'operation_failed');
+    });
   }
 
-  /** 订阅：核验成员资格 → 快照握手（补事件到当前高水位 → sync.ready）。 */
-  private async subscribe(client: WebSocket, state: ClientState, roomId: string, lastSeq: number): Promise<void> {
-    const userId = state.userId!;
-    const db = app().db;
+  private scheduleDelivery(socket: WebSocket, state: ClientState): void {
+    if (state.scheduled) return;
+    state.scheduled = true;
+    this.enqueue(socket, state, async () => {
+      state.scheduled = false;
+      for (const sub of [...state.subscriptions.values()]) {
+        if (await this.authorized(socket, state, sub.roomId)) await this.deliver(socket, state, sub);
+      }
+    });
+  }
 
-    // 成员资格在每次订阅与发送前核实
-    const membership = await db.db
-      .select({ id: roomMembers.id })
-      .from(roomMembers)
-      .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.userId, userId), eq(roomMembers.status, 'joined')))
-      .limit(1);
-    if (membership.length === 0) {
-      this.send(client, { type: 'error', code: 'FORBIDDEN', message: '你不在这个房间里' });
-      return;
+  /** 会话失效和成员撤权后，旧连接立即失去后续读取权限。 */
+  private async authorized(socket: WebSocket, state: ClientState, roomId: string): Promise<boolean> {
+    if (!state.userId || !state.sessionId) return false;
+    const [identity] = await app().db.db.select({ status: profiles.status }).from(session)
+      .innerJoin(profiles, eq(profiles.userId, session.userId))
+      .where(and(eq(session.id, state.sessionId), eq(session.userId, state.userId), gt(session.expiresAt, new Date()))).limit(1);
+    if (!identity) { this.reject(socket, 'UNAUTHORIZED', '登录已过期', 4401); return false; }
+    if (identity.status !== 'active') { this.reject(socket, 'FORBIDDEN', '账号已停用', 4403); return false; }
+    const [member] = await app().db.db.select({ status: roomMembers.status }).from(roomMembers)
+      .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.userId, state.userId))).limit(1);
+    if (!member || member.status !== 'joined') {
+      state.subscriptions.delete(roomId);
+      this.reject(socket, 'FORBIDDEN', '你已不在该房间', 4403);
+      return false;
     }
+    return true;
+  }
 
-    const sub: Subscription = { roomId, lastSeq, syncing: true };
-    state.subscriptions.set(roomId, sub);
-    await db.db
-      .insert(presence)
-      .values({ userId, roomId, lastSeenAt: new Date() })
-      .onConflictDoUpdate({ target: presence.userId, set: { roomId, lastSeenAt: new Date() } });
-
+  private async tick(): Promise<void> {
+    if (this.ticking || this.stopping) return;
+    this.ticking = true;
     try {
-      const [room] = await db.db.select({ lastSeq: rooms.lastSeq }).from(rooms).where(eq(rooms.id, roomId)).limit(1);
-      if (!room) {
-        this.send(client, { type: 'error', code: 'NOT_FOUND', message: '房间不存在' });
-        return;
+      const now = Date.now();
+      for (const [socket, state] of this.clients) {
+        if (now - state.lastPongAt > 60_000) { this.logger.log('ws heartbeat_timeout'); socket.terminate(); continue; }
+        if (socket.readyState === 1 && now - state.lastPingAt >= 20_000) { socket.ping(); state.lastPingAt = now; }
       }
-      await this.deliverEvents(client, sub, room.lastSeq);
-      sub.syncing = false;
-      this.send(client, { type: 'sync.ready', roomId, watermark: sub.lastSeq });
-    } catch (error) {
-      sub.syncing = false;
-      this.logger.warn('订阅握手失败', error);
-      this.send(client, { type: 'error', code: 'INTERNAL', message: '同步失败，请重试' });
+      if (now - this.lastHeartbeatAt < 15_000) return;
+      this.lastHeartbeatAt = now;
+      const ids = [...new Set([...this.clients.values()].flatMap((s) => [...s.subscriptions.keys()]))];
+      if (!ids.length) return;
+      const db = app().db.db;
+      const [watermarks, members, identities] = await Promise.all([
+        db.select({ roomId: rooms.id, seq: rooms.lastSeq }).from(rooms).where(inArray(rooms.id, ids)),
+        db.select().from(roomMembers).where(inArray(roomMembers.roomId, ids)),
+        db.select({ id: session.id, status: profiles.status }).from(session).innerJoin(profiles, eq(profiles.userId, session.userId))
+          .where(and(inArray(session.id, [...this.clients.values()].flatMap((s) => s.sessionId ? [s.sessionId] : [])), gt(session.expiresAt, new Date()))),
+      ]);
+      const allowed = new Set(members.filter((m) => m.status === 'joined').map((m) => `${m.roomId}:${m.userId}`));
+      const identityMap = new Map(identities.map((i) => [i.id, i.status]));
+      for (const [socket, state] of this.clients) {
+        if (!state.userId || !state.subscriptions.size) continue;
+        const identity = identityMap.get(state.sessionId ?? '');
+        if (!identity) { this.reject(socket, 'UNAUTHORIZED', '登录已过期', 4401); continue; }
+        if (identity !== 'active' || [...state.subscriptions.keys()].some((id) => !allowed.has(`${id}:${state.userId}`))) {
+          this.reject(socket, 'FORBIDDEN', '访问权限已失效', 4403); continue;
+        }
+        const own = watermarks.filter((w) => state.subscriptions.has(w.roomId));
+        this.send(socket, { type: 'heartbeat', watermarks: own });
+        if (own.some((w) => w.seq > state.subscriptions.get(w.roomId)!.lastSeq)) this.scheduleDelivery(socket, state);
+      }
+    } catch (error) { this.logger.error('实时巡检失败', error); }
+    finally { this.ticking = false; }
+  }
+
+  private async onMessage(socket: WebSocket, state: ClientState, raw: string): Promise<void> {
+    let data: unknown;
+    try { data = JSON.parse(raw); } catch { this.reject(socket, 'VALIDATION_FAILED', '消息格式错误', 1007); return; }
+    const parsed = wsClientFrameSchema.safeParse(data);
+    if (!parsed.success) { this.reject(socket, 'VALIDATION_FAILED', '消息格式错误', 1007); return; }
+    const frame = parsed.data;
+    if (frame.type === 'auth') {
+      if (state.userId) { this.reject(socket, 'UNAUTHORIZED', '连接已验证身份', 4401); return; }
+      try {
+        const secret = new TextEncoder().encode(app().env.REALTIME_TICKET_SECRET ?? app().env.AUTH_SECRET + ':rt');
+        const { payload } = await jwtVerify(frame.ticket, secret);
+        if (payload.purpose !== 'realtime' || !payload.sub || !payload.jti || typeof payload.sessionId !== 'string' || !consumeJti(payload.jti)) throw new Error('invalid_ticket');
+        state.userId = payload.sub;
+        state.sessionId = payload.sessionId;
+        this.send(socket, { type: 'ack', userId: state.userId });
+      } catch { this.reject(socket, 'UNAUTHORIZED', '票据无效或过期', 4401); }
+      return;
+    }
+    if (!state.userId) { this.reject(socket, 'UNAUTHORIZED', '请先登录', 4401); return; }
+    if (frame.type === 'ping') {
+      state.lastActiveAt = frame.visible === false ? 0 : Date.now();
+      await this.updatePresence(state.userId);
+      this.send(socket, { type: 'ack' });
+      return;
+    }
+    if (frame.type === 'unsubscribe') { state.subscriptions.delete(frame.roomId); await this.updatePresence(state.userId); return; }
+    if (frame.type === 'subscribe') {
+      if (!await this.authorized(socket, state, frame.roomId)) return;
+      const sub = { roomId: frame.roomId, lastSeq: frame.lastSeq };
+      state.subscriptions.set(frame.roomId, sub);
+      if (await this.deliver(socket, state, sub)) this.send(socket, { type: 'sync.ready', roomId: sub.roomId, watermark: sub.lastSeq });
     }
   }
 
-  /** 从数据库补发 seq > sub.lastSeq 的事件，推进游标；禁止跳号。 */
-  private async deliverEvents(client: WebSocket, sub: Subscription, upTo?: number): Promise<void> {
-    const db = app().db;
-    for (let guard = 0; guard < 50; guard++) {
-      const rows = await db.db
-        .select()
-        .from(roomEvents)
-        .where(and(eq(roomEvents.roomId, sub.roomId), gt(roomEvents.seq, sub.lastSeq)))
-        .orderBy(asc(roomEvents.seq))
-        .limit(100);
-      if (rows.length === 0) return;
+  /** 固定高水位、顺序分页；发现缺口明确要求快照，不跳过序号。 */
+  private async deliver(socket: WebSocket, state: ClientState, sub: Subscription): Promise<boolean> {
+    const db = app().db.db;
+    const [room] = await db.select({ seq: rooms.lastSeq }).from(rooms).where(eq(rooms.id, sub.roomId)).limit(1);
+    if (!room || sub.lastSeq > room.seq || room.seq - sub.lastSeq > 1000) { this.resnapshot(socket, state, sub); return false; }
+    const from = sub.lastSeq;
+    while (sub.lastSeq < room.seq && socket.readyState === 1) {
+      if (state.subscriptions.get(sub.roomId) !== sub || !await this.authorized(socket, state, sub.roomId)) return false;
+      const rows = await db.select().from(roomEvents)
+        .where(and(eq(roomEvents.roomId, sub.roomId), gt(roomEvents.seq, sub.lastSeq), lte(roomEvents.seq, room.seq))).orderBy(asc(roomEvents.seq)).limit(100);
+      if (!rows.length) { this.resnapshot(socket, state, sub); return false; }
       for (const row of rows) {
-        if (upTo !== undefined && row.seq > upTo) return;
-        this.send(client, {
-          schemaVersion: 1,
-          eventId: row.eventId,
-          roomId: row.roomId,
-          roundId: row.roundId,
-          seq: row.seq,
-          type: row.type,
-          occurredAt: row.createdAt.toISOString(),
-          payload: row.payload,
-        });
+        if (row.seq !== sub.lastSeq + 1) { this.resnapshot(socket, state, sub); return false; }
+        if (socket.readyState !== 1 || state.subscriptions.get(sub.roomId) !== sub) return false;
+        this.send(socket, { schemaVersion: 1, eventId: row.eventId, roomId: row.roomId, roundId: row.roundId, seq: row.seq, type: row.type, occurredAt: row.createdAt.toISOString(), payload: row.payload });
         sub.lastSeq = row.seq;
       }
-      if (rows.length < 100) return;
+    }
+    if (sub.lastSeq > from) this.logger.debug(JSON.stringify({ event: 'ws.replayed', count: sub.lastSeq - from }));
+    return socket.readyState === 1;
+  }
+
+  private resnapshot(socket: WebSocket, state: ClientState, sub: Subscription): void {
+    state.subscriptions.delete(sub.roomId);
+    this.send(socket, { type: 'error', code: 'RESYNC_REQUIRED', requestId: sub.roomId, message: '请重新同步房间' });
+  }
+
+  dropUserFromRoom(userId: string, roomId: string): void {
+    for (const [socket, state] of this.clients) if (state.userId === userId && state.subscriptions.has(roomId)) {
+      state.subscriptions.delete(roomId);
+      this.reject(socket, 'FORBIDDEN', '你已不在该房间', 4403);
     }
   }
 
-  /** NOTIFY 唤醒：给该房间所有非同步中的订阅者补发。 */
-  private async broadcastRoom(roomId: string): Promise<void> {
-    for (const [client, state] of this.clientEntries()) {
-      const sub = state.subscriptions.get(roomId);
-      if (!sub || sub.syncing) continue;
-      try {
-        await this.deliverEvents(client, sub);
-      } catch (error) {
-        this.logger.warn('广播失败', error);
-      }
-    }
+  /** 多标签页聚合活动，关闭一页不抹掉另一页的在线状态。 */
+  private async updatePresence(userId: string | null): Promise<void> {
+    if (!userId || this.stopping) return;
+    const active = [...this.clients.values()].filter((s) => s.userId === userId && s.subscriptions.size && s.lastActiveAt > Date.now() - 60_000)
+      .sort((a, b) => b.lastActiveAt - a.lastActiveAt)[0];
+    if (!active) { await app().db.db.delete(presence).where(eq(presence.userId, userId)); return; }
+    const roomId = [...active.subscriptions.keys()][0]!;
+    await app().db.db.insert(presence).values({ userId, roomId, lastSeenAt: new Date(active.lastActiveAt) })
+      .onConflictDoUpdate({ target: presence.userId, set: { roomId, lastSeenAt: new Date(active.lastActiveAt) } });
   }
 
-  private async watermarksOf(roomIds: string[]): Promise<Array<{ roomId: string; seq: number }>> {
-    if (roomIds.length === 0) return [];
-    const rows = await app().db.db
-      .select({ roomId: rooms.id, seq: rooms.lastSeq })
-      .from(rooms)
-      .where(inArray(rooms.id, roomIds));
-    return rows.map((r) => ({ roomId: r.roomId, seq: r.seq }));
+  private reject(socket: WebSocket, code: string, message: string, closeCode: number): void {
+    this.send(socket, { type: 'error', code, message });
+    socket.close(closeCode, code);
   }
-
-  private async verifyTicket(ticket: string): Promise<string | null> {
-    try {
-      const secret = new TextEncoder().encode(app().env.REALTIME_TICKET_SECRET ?? app().env.AUTH_SECRET + ':rt');
-      const result = await jwtVerify(ticket, secret);
-      const payload = result.payload as { purpose?: string; jti?: string };
-      if (payload.purpose !== 'realtime' || !payload.jti || !consumeJti(payload.jti)) return null;
-      return result.payload.sub ?? null;
-    } catch {
-      return null;
-    }
-  }
-
-  private async clearPresence(state: ClientState): Promise<void> {
-    if (!state.userId) return;
-    try {
-      // 同用户可能还有其他连接（多标签页）：只要不剩本房连接就清 presence
-      let remaining = false;
-      for (const [, other] of this.clientEntries()) {
-        if (other !== state && other.userId === state.userId) remaining = true;
-      }
-      if (!remaining) {
-        await app().db.db.delete(presence).where(eq(presence.userId, state.userId));
-      }
-    } catch (error) {
-      this.logger.warn('presence 清理失败', error);
-    }
-  }
-
-  private send(client: WebSocket, frame: unknown): void {
-    if (client.readyState === 1) {
-      client.send(JSON.stringify(frame));
-    }
+  private send(socket: WebSocket, frame: unknown): void {
+    if (socket.readyState === 1) socket.send(JSON.stringify(frame));
   }
 }

@@ -21,7 +21,7 @@ export const wsClientFrameSchema = z.discriminatedUnion('type', [
     lastSeq: z.number().int().nonnegative(),
   }),
   z.object({ type: z.literal('unsubscribe'), roomId: z.string() }),
-  z.object({ type: z.literal('ping') }),
+  z.object({ type: z.literal('ping'), visible: z.boolean().optional() }),
 ]);
 
 export type WsClientFrame = z.infer<typeof wsClientFrameSchema>;
@@ -89,6 +89,7 @@ export const roomEventPayloadSchemas = {
     /** 结束原因不含汤底；汤底通过 /rounds/:id/answer 获取 */
   }),
   'turn.accepted': z.object({
+    clientRequestId: z.string(),
     turnId: z.string(),
     userId: z.string(),
     nickname,
@@ -100,7 +101,7 @@ export const roomEventPayloadSchemas = {
   'turn.failed': z.object({ turnId: z.string(), reason: z.string(), retryable: z.boolean() }),
   'turn.cancelled': z.object({ turnId: z.string() }),
   'hint.revealed': z.object({ roundId: z.string(), index: z.number().int(), text: z.string() }),
-  'discussion.created': z.object({ userId: z.string(), nickname, text: z.string().max(1000) }),
+  'discussion.created': z.object({ clientRequestId: z.string(), userId: z.string(), nickname, text: z.string().max(1000) }),
 } as const;
 
 export const roomEventTypeSchema = z.enum(Object.keys(roomEventPayloadSchemas) as [keyof typeof roomEventPayloadSchemas]);

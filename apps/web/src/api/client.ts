@@ -22,6 +22,8 @@ interface RequestOptions {
   /** 单人接口必须 omit */
   credentials?: 'omit' | 'include';
   idempotencyKey?: string;
+  signal?: AbortSignal;
+  timeoutMs?: number;
 }
 
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -32,6 +34,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   const response = await fetch(`/api/v1${path}`, {
     method: options.method ?? 'GET',
     headers,
+    signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(options.timeoutMs ?? 60_000)]) : AbortSignal.timeout(options.timeoutMs ?? 60_000),
     credentials: options.credentials ?? 'include',
     ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
   });

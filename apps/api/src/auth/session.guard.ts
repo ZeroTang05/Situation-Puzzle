@@ -62,6 +62,7 @@ export class SessionGuard implements CanActivate {
       status: profile.status,
     };
     request.sessionUser = sessionUser;
+    request.authSessionId = authResult.session.id;
     return true;
   }
 }

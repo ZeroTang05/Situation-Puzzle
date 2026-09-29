@@ -231,12 +231,20 @@ export const roomCommandRequestSchema = z.object({
 });
 
 export const roomCommandResponseSchema = z.object({
+  clientRequestId: z.string().uuid(),
+  discussionId: z.string().uuid().optional(),
+  inviteToken: z.string().optional(),
   status: z.enum(['accepted', 'duplicate']),
   /** ask/solve 返回问答编号与受理事件序号 */
   turnId: z.string().uuid().optional(),
   acceptedSeq: z.number().optional(),
   controlVersion: z.number().int(),
 });
+
+export const roomCommandLookupSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('accepted'), result: roomCommandResponseSchema }),
+  z.object({ status: z.literal('not_found') }),
+]);
 
 // ---------- 快照与事件补齐 ----------
 
@@ -285,6 +293,8 @@ export const roomSnapshotSchema = z.object({
     .nullable(),
   members: z.array(snapshotMemberSchema),
   turns: z.array(snapshotTurnSchema),
+  discussions: z.array(z.object({ eventId: z.string(), seq: z.number(), clientRequestId: z.string().optional(), userId: z.string(), nickname: z.string(), text: z.string(), at: z.number() })),
+  followupTargetRoomId: z.string().nullable(),
   /** 快照对应的最后事件序号 */
   lastSeq: z.number(),
 });

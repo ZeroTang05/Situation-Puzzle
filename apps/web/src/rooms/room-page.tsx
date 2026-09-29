@@ -9,6 +9,8 @@ import { api, ApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
 import { displayVerdict, verdictDetail, format, t } from '@jev/i18n';
 import { useRoomSync } from './use-room-sync.js';
+import { useRoomOutbox } from './use-room-outbox.js';
+import type { InputMode } from './room-local.js';
 import { VoteButtons } from '../catalog/vote-buttons.js';
 import type { Session } from '../session.js';
 
@@ -23,49 +25,75 @@ export function RoomPage({ session }: { session: Session | null }) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const me = session?.user.id ?? null;
-  const { state, status, kicked, sendCommand, refresh } = useRoomSync(roomId ?? '', me !== null);
+  const { state, status, kicked, sendCommand } = useRoomSync(roomId ?? '', me);
+  const outbox = useRoomOutbox(me, roomId ?? '', state, status, sendCommand);
 
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<'qa' | 'discuss'>('qa');
-  const [inputMode, setInputMode] = useState<'ask' | 'solve'>('ask');
-  const [text, setText] = useState('');
+  const tab = outbox.local?.tab ?? 'qa';
+  const inputMode = outbox.local?.mode ?? 'ask';
+  const text = outbox.local?.drafts[inputMode] ?? '';
+  const setTab = (next: 'qa' | 'discuss') => { void outbox.update((value) => ({ ...value, tab: next, mode: next === 'discuss' ? 'discussion' : value.mode === 'discussion' ? 'ask' : value.mode })).catch(() => undefined); };
+  const setInputMode = (next: InputMode) => { void outbox.update((value) => ({ ...value, mode: next, tab: next === 'discussion' ? 'discuss' : 'qa' })).catch(() => undefined); };
+  const setText = (next: string) => { void outbox.update((value) => ({ ...value, drafts: { ...value.drafts, [inputMode]: next } })).catch(() => undefined); };
   const [inviteCopied, setInviteCopied] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const atBottom = useRef(true);
+  const [newMessages, setNewMessages] = useState(false);
+  const [showConnection, setShowConnection] = useState(false);
+  const pendingCurrent = outbox.local?.pending.some((p) => p.input.type === inputMode && (p.status === 'sending' || p.status === 'confirming')) ?? false;
 
   const run = useCallback(
     async (type: string, payload?: Record<string, unknown>, roundId?: string) => {
-      if (busy) return;
+      if (busy || status !== 'ready') return;
       setBusy(true);
       setError(null);
       try {
-        const result = await sendCommand({ type, ...(payload !== undefined ? { payload } : {}), ...(roundId !== undefined ? { roundId } : {}) });
-        if (result.inviteToken) {
+        const result = await outbox.submit({ type, ...(payload !== undefined ? { payload } : {}), ...(roundId !== undefined ? { roundId } : {}), expectedControlVersion: state?.controlVersion ?? 0 });
+        if (result?.inviteToken) {
           await navigator.clipboard.writeText(`${location.origin}/invite/${result.inviteToken}`).catch(() => undefined);
           setInviteCopied(true);
         }
+        return result;
       } catch (err) {
         setError(err instanceof ApiError ? err.message : '操作失败，请重试');
       } finally {
         setBusy(false);
       }
     },
-    [busy, sendCommand],
+    [busy, status, outbox.submit, state?.controlVersion],
   );
 
   // 选题回跳：/rooms/:id?selectPuzzle=xxx
   useEffect(() => {
     const selectPuzzle = params.get('selectPuzzle');
-    if (!selectPuzzle || !state || !me || state.hostUserId !== me) return;
-    void run('select_puzzle', { puzzleId: selectPuzzle, language }).then(() => {
-      setParams({}, { replace: true });
+    if (!selectPuzzle || !state || !me || state.hostUserId !== me || status !== 'ready') return;
+    void run('select_puzzle', { puzzleId: selectPuzzle, language }).then((result) => {
+      if (result) setParams({}, { replace: true });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params, state?.hostUserId]);
+  }, [params, state?.hostUserId, status]);
 
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    if (atBottom.current) chatBottomRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+    else setNewMessages(true);
   }, [state?.turns.length, state?.discussions.length]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      atBottom.current = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 180;
+      if (atBottom.current) setNewMessages(false);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (status === 'ready') { setShowConnection(false); return; }
+    if (status === 'offline' || status === 'auth_required' || status === 'forbidden') { setShowConnection(true); return; }
+    const timer = setTimeout(() => setShowConnection(true), 2000);
+    return () => clearTimeout(timer);
+  }, [status]);
 
   // 被移出房间：实时订阅已被服务端断开，页面回到首页
   useEffect(() => {
@@ -85,10 +113,8 @@ export function RoomPage({ session }: { session: Session | null }) {
   });
 
   const send = async () => {
-    if (!state?.round || !text.trim() || busy) return;
-    const type = inputMode === 'ask' ? 'ask' : 'solve';
-    await run(type, { text: text.trim() }, state.round.roundId);
-    setText('');
+    if (!state?.round || !text.trim() || busy || pendingCurrent || status !== 'ready') return;
+    await run(inputMode, { text: text.trim() }, state.round.roundId);
   };
 
   const inviteLink = useMemo(() => {
@@ -109,6 +135,7 @@ export function RoomPage({ session }: { session: Session | null }) {
     return (
       <main className="shell">
         <p className="error-text">你已不在该房间。</p>
+        {text && <textarea className="field" aria-label="保留的草稿" readOnly value={text} />}
         <button className="btn" onClick={() => navigate('/')}>{copy.back}</button>
       </main>
     );
@@ -141,7 +168,8 @@ export function RoomPage({ session }: { session: Session | null }) {
         </span>
       </header>
 
-      {status !== 'ready' && <p className="offline-banner">{copy.offline}</p>}
+      {showConnection && status !== 'ready' && <p className="offline-banner" role="status">{status === 'auth_required' ? '登录已过期，请重新登录' : status === 'offline' ? '网络已断开，草稿已保留' : '正在恢复连接…'}{status === 'auth_required' && <a href={`/login?next=/rooms/${roomId}`}>重新登录</a>}</p>}
+      {outbox.storageError && <p className="error-text" role="alert">{outbox.storageError}</p>}
       {error && <p className="error-text" role="alert">{error}</p>}
       {inviteCopied && <p className="accent">{copy.inviteCopied}</p>}
 
@@ -187,7 +215,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                 <button
                   className="btn btn-danger"
                   onClick={() => {
-                    if (window.confirm(copy.closeRoomConfirm)) void run('close_room').then(() => navigate('/'));
+                    if (window.confirm(copy.closeRoomConfirm)) void run('close_room').then((result) => { if (result) navigate('/'); });
                   }}
                 >
                   {copy.closeRoom}
@@ -232,10 +260,11 @@ export function RoomPage({ session }: { session: Session | null }) {
           <section className="chat" aria-live="polite">
             {tab === 'qa' &&
               state.turns.map((turn) => (
-                <div key={turn.turnId} className={`turn turn-${turn.kind}`}>
+                <div key={turn.turnId} data-message-id={turn.turnId} className={`turn turn-${turn.kind}`}>
                   <p className="turn-text">
                     <strong>{turn.nickname}</strong>：{turn.text}
                   </p>
+                  {turn.userId === me && <span className="muted">已发送</span>}
                   {turn.status === 'queued' && <p className="muted turn-status">{copy.queued}</p>}
                   {turn.status === 'processing' && <p className="muted turn-status">{copy.judging}</p>}
                   {turn.status === 'failed' && <p className="error-text turn-status">{copy.failed}</p>}
@@ -248,14 +277,25 @@ export function RoomPage({ session }: { session: Session | null }) {
               ))}
             {tab === 'discuss' &&
               state.discussions.map((d) => (
-                <div key={d.eventId} className="turn turn-ask">
+                <div key={d.eventId} data-message-id={d.eventId} className="turn turn-ask">
                   <p className="turn-text">
                     <strong>{d.nickname}</strong>：{d.text}
                   </p>
+                  {d.userId === me && <span className="muted">已发送</span>}
                 </div>
               ))}
+            {outbox.local?.pending.filter((p) => {
+              if (!['ask', 'solve', 'discussion'].includes(p.input.type) || (tab === 'discuss') !== (p.input.type === 'discussion')) return false;
+              return !state.turns.some((t) => t.clientRequestId === p.input.clientRequestId || t.turnId === p.result?.turnId)
+                && !state.discussions.some((d) => d.clientRequestId === p.input.clientRequestId || d.eventId === p.result?.discussionId);
+            }).map((p) => <div className="turn" key={p.input.clientRequestId} data-pending-id={p.input.clientRequestId}>
+              <p className="turn-text">{String(p.input.payload?.text ?? '')}</p>
+              <p className="muted" role="status">{p.status === 'sent' ? '已发送' : p.status === 'sending' ? '发送中…' : p.status === 'confirming' ? '正在确认发送结果' : `未发送：${p.error ?? ''}`}</p>
+              {p.status === 'confirming' && <button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>继续确认</button>}
+            </div>)}
             <div ref={chatBottomRef} />
           </section>
+          {newMessages && <button className="btn btn-sm" onClick={() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); atBottom.current = true; setNewMessages(false); }}>有新消息 ↓</button>}
 
           {/* ---------- 操作行 ---------- */}
           {round.status === 'active' && (
@@ -275,18 +315,19 @@ export function RoomPage({ session }: { session: Session | null }) {
                 <textarea
                   className="field composer-input"
                   rows={2}
-                  maxLength={inputMode === 'ask' ? 500 : 1500}
+                  maxLength={inputMode === 'ask' ? 500 : inputMode === 'discussion' ? 1000 : 1500}
+                  disabled={!outbox.local}
                   value={text}
-                  placeholder={inputMode === 'ask' ? copy.askPlaceholder : copy.solvePlaceholder}
+                  placeholder={inputMode === 'ask' ? copy.askPlaceholder : inputMode === 'discussion' ? '和大家讨论…' : copy.solvePlaceholder}
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
+                    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                       e.preventDefault();
                       void send();
                     }
                   }}
                 />
-                <button className="btn btn-primary" disabled={busy || !text.trim()} onClick={() => void send()}>
+                <button className="btn btn-primary" disabled={busy || pendingCurrent || status !== 'ready' || !outbox.local || !text.trim()} onClick={() => void send()}>
                   {busy ? copy.submitting : copy.send}
                 </button>
               </div>
@@ -314,7 +355,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                     </button>
                   </>
                 )}
-                <button className="btn btn-sm btn-ghost" onClick={() => void run('leave').then(() => navigate('/'))}>
+                <button className="btn btn-sm btn-ghost" onClick={() => void run('leave').then((result) => { if (result) navigate('/'); })}>
                   {copy.leave}
                 </button>
               </div>

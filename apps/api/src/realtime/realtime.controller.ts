@@ -1,5 +1,5 @@
 /** 实时票据：当前会话换取 30 秒一次性票据，票据不放 URL。 */
-import { Controller, Post } from '@nestjs/common';
+import { Controller, Post, Req } from '@nestjs/common';
 import { SignJWT } from 'jose';
 import { randomUUID } from 'node:crypto';
 import { UseGuards } from '@nestjs/common';
@@ -16,10 +16,10 @@ const usedJti = new Set<string>();
 @UseGuards(SessionGuard)
 export class RealtimeController {
   @Post('tickets')
-  async ticket(@CurrentUser() user: SessionUser): Promise<z.infer<typeof realtimeTicketResponseSchema>> {
+  async ticket(@CurrentUser() user: SessionUser, @Req() request: { authSessionId: string }): Promise<z.infer<typeof realtimeTicketResponseSchema>> {
     const jti = randomUUID();
     const secret = new TextEncoder().encode(app().env.REALTIME_TICKET_SECRET ?? app().env.AUTH_SECRET + ':rt');
-    const ticket = await new SignJWT({ purpose: 'realtime', jti })
+    const ticket = await new SignJWT({ purpose: 'realtime', jti, sessionId: request.authSessionId })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(user.userId)
       .setIssuedAt()

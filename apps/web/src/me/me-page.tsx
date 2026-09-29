@@ -6,6 +6,7 @@ import { api } from '../api/client.js';
 import { authClient } from '../api/auth-client.js';
 import { useLanguage } from '../state/language.js';
 import { soloStore } from '../solo/local-store.js';
+import { clearRoomLocal } from '../rooms/room-local.js';
 import type { Session } from '../session.js';
 
 interface MeResponse {
@@ -132,7 +133,7 @@ export function MePage({ session }: { session: Session | null }) {
         <button
           className="btn btn-ghost"
           onClick={() =>
-            void authClient.signOut().then(() => {
+            void clearRoomLocal(session.user.id).then(() => authClient.signOut()).then(() => {
               queryClient.clear();
               navigate('/');
             })

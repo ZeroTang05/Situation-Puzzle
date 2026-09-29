@@ -450,6 +450,8 @@ export class RoomsService {
   async snapshot(user: SessionUser, roomId: string) {
     const db = this.db;
     return db.tx(async (tx) => {
+      // 数据与 lastSeq 来自同一数据库视图，避免读到新序号但缺少对应内容。
+      await tx.execute(sql`set transaction isolation level repeatable read`);
       const [room] = await tx.select().from(rooms).where(eq(rooms.id, roomId)).limit(1);
       if (!room) throw new DomainError('NOT_FOUND', '房间不存在');
 
@@ -530,7 +532,13 @@ export class RoomsService {
         : [];
       const nicknameMap = await this.nicknamesOf(tx, [...memberIds, ...turnRows.map((t) => t.userId)]);
 
+      const discussions = await tx.select().from(roomEvents)
+        .where(and(eq(roomEvents.roomId, roomId), eq(roomEvents.type, 'discussion.created'))).orderBy(asc(roomEvents.seq));
+      const [followup] = await tx.select().from(roomFollowups).where(eq(roomFollowups.sourceRoomId, roomId)).limit(1);
+
       return {
+        discussions: discussions.map((event) => ({ eventId: event.eventId, seq: event.seq, ...event.payload, at: event.createdAt.getTime() })),
+        followupTargetRoomId: followup?.targetRoomId ?? null,
         roomId: room.id,
         roomStatus: room.status,
         hostUserId: room.hostUserId,

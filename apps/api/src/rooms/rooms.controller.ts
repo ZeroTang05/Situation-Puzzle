@@ -76,6 +76,11 @@ export class RoomsController {
   }
 
   /** 房间命令：服务端逐项检查身份、局、状态和队列容量。 */
+  @Get('rooms/:id/commands/:clientRequestId')
+  async commandResult(@CurrentUser() user: SessionUser, @Param('id') id: string, @Param('clientRequestId') clientRequestId: string) {
+    return this.commandsService.lookup(user, id, clientRequestId);
+  }
+
   @HttpCode(HttpStatus.ACCEPTED)
   @Post('rooms/:id/commands')
   async command(

@@ -49,6 +49,8 @@ export interface CommandInput {
 }
 
 export interface CommandResult {
+  clientRequestId: string;
+  discussionId?: string;
   status: 'accepted' | 'duplicate';
   turnId?: string;
   acceptedSeq?: number;
@@ -60,6 +62,16 @@ export interface CommandResult {
 export class CommandsService {
   private get db() {
     return app().db;
+  }
+
+  /** 只查询本人命令；未知结果不等于旧请求不会提交，重投必须沿用原编号。 */
+  async lookup(user: SessionUser, roomId: string, clientRequestId: string) {
+    const [member] = await this.db.db.select().from(roomMembers)
+      .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.userId, user.userId))).limit(1);
+    if (!member || member.status === 'kicked') throw new DomainError('FORBIDDEN', '没有该房间的阅读权限');
+    const [command] = await this.db.db.select().from(commands)
+      .where(and(eq(commands.roomId, roomId), eq(commands.userId, user.userId), eq(commands.clientRequestId, clientRequestId))).limit(1);
+    return command?.result ? { status: 'accepted' as const, result: command.result } : { status: 'not_found' as const };
   }
 
   async handle(user: SessionUser, roomId: string, input: CommandInput): Promise<CommandResult> {
@@ -86,9 +98,11 @@ export class CommandsService {
           .from(commands)
           .where(and(eq(commands.userId, user.userId), eq(commands.clientRequestId, input.clientRequestId)))
           .limit(1);
-        if (existing && existing.payloadDigest === digest) {
+        if (existing && existing.roomId === roomId && existing.payloadDigest === digest) {
+          const [reader] = await tx.select().from(roomMembers).where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.userId, user.userId))).limit(1);
+          if (!reader || reader.status === 'kicked') throw new DomainError('FORBIDDEN', '没有该房间的阅读权限');
           const prior = (existing.result ?? {}) as Partial<CommandResult>;
-          return { status: 'duplicate' as const, controlVersion: 0, ...prior };
+          return { controlVersion: 0, ...prior, clientRequestId: input.clientRequestId, status: 'duplicate' as const };
         }
         throw new DomainError('IDEMPOTENCY_CONFLICT', '请求编号已被其他内容使用');
       }
@@ -138,6 +152,8 @@ export class CommandsService {
       }
 
       const commandResult: CommandResult = {
+        clientRequestId: input.clientRequestId,
+        ...(outcome.discussionId !== undefined ? { discussionId: outcome.discussionId } : {}),
         status: 'accepted',
         ...(outcome.turnId !== undefined ? { turnId: outcome.turnId } : {}),
         ...(outcome.acceptedSeq !== undefined ? { acceptedSeq: outcome.acceptedSeq } : {}),
@@ -169,6 +185,7 @@ export class CommandsService {
       input: CommandInput;
     },
   ): Promise<{
+    discussionId?: string;
     controlCommand: boolean;
     turnId?: string;
     acceptedSeq?: number;
@@ -287,6 +304,7 @@ export class CommandsService {
           type: 'turn.accepted',
           payload: {
             turnId,
+            clientRequestId: input.clientRequestId,
             userId: user.userId,
             nickname: user.nickname,
             kind: input.type === 'ask' ? 'ask' : 'solve',
@@ -336,13 +354,13 @@ export class CommandsService {
         if ((recent?.count ?? 0) >= DISCUSSION_RATE_PER_MINUTE) {
           throw new DomainError('RATE_LIMITED', '发言太频繁了，稍等片刻。');
         }
-        await appendEvent(tx, {
+        const event = await appendEvent(tx, {
           roomId: room.id,
           roundId: round.id,
           type: 'discussion.created',
-          payload: { userId: user.userId, nickname: user.nickname, text },
+          payload: { clientRequestId: input.clientRequestId, userId: user.userId, nickname: user.nickname, text },
         });
-        return { controlCommand: false };
+        return { controlCommand: false, discussionId: event.eventId, acceptedSeq: event.seq };
       }
 
       case 'reveal_hint': {

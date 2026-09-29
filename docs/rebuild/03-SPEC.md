@@ -159,6 +159,7 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 | `GET /rooms/:id/snapshot` | 当前有权成员获取一致快照与 `lastSeq` |
 | `GET /rooms/:id/events?afterSeq=...` | 当前成员补齐本房自创建以来的公开事件；超出保留范围返回 410 要求快照，被踢与封禁后拒绝 |
 | `POST /rooms/:id/commands` | 见下表；服务端逐项检查身份、局、状态和队列容量 |
+| `GET /rooms/:id/commands/:clientRequestId` | 当前账号查询本人命令是否已提交及原结果；用于发送超时确认，校验本房权限，禁止公共缓存；详细契约见 12-CONNECTION-EXPERIENCE.md |
 | `POST /realtime/tickets` | 当前会话换取 30 秒一次性实时鉴权票据 |
 | `GET /rounds/:id/history` | 本局有阅读权的参与者查询问答与讨论分页 |
 | `GET /rounds/:id/answer` | 仅正常揭晓或破解结束后，有权参与者获取固定版本答案 |
