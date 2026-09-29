@@ -130,7 +130,7 @@ if (publish) {
     const versions = await db.select().from(puzzleVersions).where(eq(puzzleVersions.puzzleId, right.puzzleId));
     const zhVersion = versions.find((v) => v.language === 'zh');
     if (!zhVersion) continue;
-    await db.update(puzzleVersions).set({ moderationStatus: 'published' }).where(eq(puzzleVersions.id, zhVersion.id));
+    await db.update(puzzleVersions).set({ moderationStatus: 'published' }).where(and(eq(puzzleVersions.puzzleId, right.puzzleId), eq(puzzleVersions.versionNo, zhVersion.versionNo)));
     await db
       .update(puzzles)
       .set({ currentPublishedVersionId: zhVersion.id, updatedAt: new Date() })

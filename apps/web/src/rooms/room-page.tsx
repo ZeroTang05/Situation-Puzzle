@@ -2,7 +2,7 @@
  * 房间页：等待室（成员/选题/邀请）与游戏区（成对问答、讨论、提示、还原），
  * 结算展示汤底与统计。所有写操作走 HTTP 命令；状态由 useRoomSync 权威同步。
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api, ApiError } from '../api/client.js';
@@ -11,6 +11,8 @@ import { displayVerdict, verdictDetail, format, t } from '@jev/i18n';
 import { useRoomSync } from './use-room-sync.js';
 import { useRoomOutbox } from './use-room-outbox.js';
 import type { InputMode } from './room-local.js';
+import { HintCapsule } from '../game/hint-capsule.js';
+import { inviteUrl, confidenceLabel } from '../game/game-display.js';
 import { VoteButtons } from '../catalog/vote-buttons.js';
 import type { Session } from '../session.js';
 
@@ -33,9 +35,9 @@ export function RoomPage({ session }: { session: Session | null }) {
   const tab = outbox.local?.tab ?? 'qa';
   const inputMode = outbox.local?.mode ?? 'ask';
   const text = outbox.local?.drafts[inputMode] ?? '';
-  const setTab = (next: 'qa' | 'discuss') => { void outbox.update((value) => ({ ...value, tab: next, mode: next === 'discuss' ? 'discussion' : value.mode === 'discussion' ? 'ask' : value.mode })).catch(() => undefined); };
   const setInputMode = (next: InputMode) => { void outbox.update((value) => ({ ...value, mode: next, tab: next === 'discussion' ? 'discuss' : 'qa' })).catch(() => undefined); };
   const setText = (next: string) => { void outbox.update((value) => ({ ...value, drafts: { ...value.drafts, [inputMode]: next } })).catch(() => undefined); };
+  const [managementOpen, setManagementOpen] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
@@ -51,7 +53,8 @@ export function RoomPage({ session }: { session: Session | null }) {
       try {
         const result = await outbox.submit({ type, ...(payload !== undefined ? { payload } : {}), ...(roundId !== undefined ? { roundId } : {}), expectedControlVersion: state?.controlVersion ?? 0 });
         if (result?.inviteToken) {
-          await navigator.clipboard.writeText(`${location.origin}/invite/${result.inviteToken}`).catch(() => undefined);
+          localStorage.setItem(`jev.invite.${roomId}`, result.inviteToken);
+          await navigator.clipboard.writeText(inviteUrl(location.origin, result.inviteToken));
           setInviteCopied(true);
         }
         return result;
@@ -61,7 +64,7 @@ export function RoomPage({ session }: { session: Session | null }) {
         setBusy(false);
       }
     },
-    [busy, status, outbox.submit, state?.controlVersion],
+    [busy, status, outbox.submit, state?.controlVersion, roomId],
   );
 
   // 选题回跳：/rooms/:id?selectPuzzle=xxx
@@ -96,6 +99,14 @@ export function RoomPage({ session }: { session: Session | null }) {
   }, [status]);
 
   const round = state?.round ?? null;
+  const translatedPuzzle = useQuery({
+    queryKey: ['room-puzzle', round?.puzzleId, language],
+    queryFn: () => api<{ title: string; surface: string }>(`/puzzles/${round!.puzzleId}?language=${language}`),
+    enabled: !!round && round.language !== language,
+    retry: false,
+  });
+  const displayedTitle = round?.language === language ? round.title : translatedPuzzle.data?.title;
+  const displayedSurface = round?.language === language ? round.surface : translatedPuzzle.data?.surface;
   const isHost = state !== null && me !== null && state.hostUserId === me;
   const memberCount = state?.members.length ?? 0;
 
@@ -110,18 +121,16 @@ export function RoomPage({ session }: { session: Session | null }) {
     await run(inputMode, { text: text.trim() }, state.round.roundId);
   };
 
-  const inviteLink = useMemo(() => {
-    // 邀请令牌只在建房响应出现；从本页发起复制由「邀请」按钮重新 rotate 前使用本地缓存
-    return localStorage.getItem(`jev.invite.${roomId}`);
-  }, [roomId]);
-
+  // 每次读取最新令牌，重置邀请后立即使用新链接。
   const copyInvite = async () => {
-    if (!inviteLink) {
-      setError('请从建房页面复制邀请链接，或重置邀请生成新链接。');
-      return;
+    try {
+      const token = localStorage.getItem(`jev.invite.${roomId}`);
+      if (!token) { await run('rotate_invite'); return; }
+      await navigator.clipboard.writeText(inviteUrl(location.origin, token));
+      setInviteCopied(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     }
-    await navigator.clipboard.writeText(`${location.origin}${inviteLink}`);
-    setInviteCopied(true);
   };
 
   if (kicked) {
@@ -156,19 +165,28 @@ export function RoomPage({ session }: { session: Session | null }) {
     <main className="shell room-shell">
       <header className="topbar">
         <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>{copy.back}</button>
-        <h1 className="brand brand-sm">{round ? round.title : copy.waitingRoom}</h1>
-        <span className="muted">
-          {memberCount}/{state.capacity}
-        </span>
+        <h1 className="brand brand-sm">{round ? displayedTitle ?? (language === 'zh' ? '加载中…' : 'Loading…') : copy.waitingRoom}</h1>
+        <button className="btn btn-ghost btn-sm" onClick={() => setManagementOpen((open) => !open)} aria-expanded={managementOpen}>
+          {language === 'zh' ? '玩家' : 'Players'} {memberCount}/{state.capacity}
+        </button>
       </header>
 
       {showConnection && status !== 'ready' && <p className="offline-banner" role="status">{status === 'auth_required' ? '登录已过期，请重新登录' : status === 'offline' ? '网络已断开，草稿已保留' : '正在恢复连接…'}{status === 'auth_required' && <a href={`/login?next=/rooms/${roomId}`}>重新登录</a>}</p>}
       {outbox.storageError && <p className="error-text" role="alert">{outbox.storageError}</p>}
+      {translatedPuzzle.isError && <p className="error-text" role="alert">{language === 'zh' ? '该题的中文版本暂不可用' : 'The English version is unavailable'}</p>}
       {error && <p className="error-text" role="alert">{error}</p>}
       {outbox.local?.pending.filter((p) => !['ask', 'solve', 'discussion'].includes(p.input.type) && p.status !== 'sent').map((p) => <div key={p.input.clientRequestId} role="status">
         <p>{p.status === 'rejected' ? p.error : p.status === 'sending' ? '操作提交中…' : '正在确认操作结果'}</p>
         {p.status === 'confirming' && <button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>继续确认</button>}
       </div>)}
+      {managementOpen && <section className="panel stack" aria-label={language === 'zh' ? '玩家管理' : 'Player management'}>
+        <h2>{language === 'zh' ? '房间成员' : 'Room members'}</h2>
+        <MemberList state={state} me={me} isHost={isHost && state.roomStatus !== 'closed'} onKick={(userId) => void run('kick', { userId })} onTransfer={(userId) => void run('transfer_host', { userId })} />
+        {isHost && state.roomStatus !== 'closed' && <div className="hint-row">
+          <button className="btn" disabled={busy} onClick={() => void copyInvite()}>{copy.invite}</button>
+          <button className="btn" disabled={busy} onClick={() => void run('rotate_invite')}>{language === 'zh' ? '重置邀请链接' : 'Reset invite link'}</button>
+        </div>}
+      </section>}
       {inviteCopied && <p className="accent">{copy.inviteCopied}</p>}
 
       {state.roomStatus === 'closed' && !answered && (
@@ -235,25 +253,8 @@ export function RoomPage({ session }: { session: Session | null }) {
         <>
           <section className="hero-card">
             <p className="accent">{format(copy.roundNo, { n: round.roundNo })}</p>
-            <p className="story">{round.surface}</p>
+            <p className="story">{displayedSurface}</p>
           </section>
-
-          {round.hints.length > 0 && (
-            <section className="hint-float" aria-label={copy.hint}>
-              {round.hints.filter(Boolean).map((hint, i) => (
-                <p key={i}>💡 {hint}</p>
-              ))}
-            </section>
-          )}
-
-          <div className="mode-tabs" role="tablist">
-            <button className={`mode-tab ${tab === 'qa' ? 'active' : ''}`} role="tab" aria-selected={tab === 'qa'} onClick={() => setTab('qa')}>
-              问答
-            </button>
-            <button className={`mode-tab ${tab === 'discuss' ? 'active' : ''}`} role="tab" aria-selected={tab === 'discuss'} onClick={() => setTab('discuss')}>
-              讨论
-            </button>
-          </div>
 
           <section className="chat" aria-live="polite">
             {tab === 'qa' &&
@@ -269,6 +270,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                   {turn.status === 'succeeded' && turn.result && (
                     <p className="turn-result">
                       <span className={`verdict-badge verdict-${turn.result}`}>{displayVerdict(turn.result, language)}</span>
+                      <small className="confidence">{confidenceLabel(turn.confidence, language)}</small>
                     </p>
                   )}
                 </div>
@@ -295,6 +297,8 @@ export function RoomPage({ session }: { session: Session | null }) {
           </section>
           {newMessages && <button className="btn btn-sm" onClick={() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); atBottom.current = true; setNewMessages(false); }}>有新消息 ↓</button>}
 
+          <HintCapsule hints={round.hints.filter(Boolean)} />
+
           {/* ---------- 操作行 ---------- */}
           {round.status === 'active' && (
             <footer className="composer">
@@ -305,7 +309,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                 <button className={`mode-tab ${inputMode === 'solve' ? 'active' : ''}`} role="tab" aria-selected={inputMode === 'solve'} onClick={() => setInputMode('solve')}>
                   {copy.solve}
                 </button>
-                <button className="mode-tab" onClick={() => setTab('discuss')}>
+                <button className={`mode-tab ${inputMode === 'discussion' ? 'active' : ''}`} role="tab" aria-selected={inputMode === 'discussion'} onClick={() => setInputMode('discussion')}>
                   {copy.discuss}
                 </button>
               </div>
@@ -333,7 +337,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                 {isHost && (
                   <>
                     <button className="btn btn-sm" disabled={busy || round.hintsRevealed >= 3} onClick={() => void run('reveal_hint', undefined, round.roundId)}>
-                      {copy.hint} +1
+                      {copy.hint} {round.hintsRevealed}/3
                     </button>
                     <button
                       className="btn btn-sm btn-danger"
@@ -395,7 +399,7 @@ export function RoomPage({ session }: { session: Session | null }) {
   );
 }
 
-function MemberList({
+export function MemberList({
   state,
   me,
   isHost,

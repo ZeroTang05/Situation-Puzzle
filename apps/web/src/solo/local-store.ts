@@ -3,6 +3,7 @@
  * 会话、问答、进度、草稿全部保存在 IndexedDB；本地 ID 不发送到服务端。
  * 发送流程：先写 sending 状态 → 请求模型 → 拿结果用 localTurnId 回写。
  */
+import { latestSessionInLanguage } from './session-selection.js';
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 
 interface JevLocalDB extends DBSchema {
@@ -34,6 +35,7 @@ interface JevLocalDB extends DBSchema {
       text: string;
       status: 'sending' | 'succeeded' | 'failed';
       result: string | null;
+      confidence?: number;
       createdAt: number;
       failNote?: string;
     };
@@ -126,10 +128,10 @@ export const soloStore = {
     return db.get('solo_sessions', localSessionId);
   },
 
-  async latestSessionForPuzzle(puzzleId: string): Promise<SoloSessionRow | undefined> {
+  async latestSessionForPuzzle(puzzleId: string, language: 'zh' | 'en'): Promise<SoloSessionRow | undefined> {
     const db = await getDB();
     const rows = await db.getAllFromIndex('solo_sessions', 'by-puzzle', puzzleId);
-    return rows.sort((a, b) => b.startedAt - a.startedAt)[0];
+    return latestSessionInLanguage(rows, language);
   },
 
   async listSessions(limit = 50): Promise<SoloSessionRow[]> {
@@ -164,7 +166,7 @@ export const soloStore = {
 
   async finishTurn(
     localTurnId: string,
-    patch: { status: 'succeeded' | 'failed'; result?: string | null; failNote?: string },
+    patch: { status: 'succeeded' | 'failed'; result?: string | null; confidence?: number; failNote?: string },
   ): Promise<void> {
     const db = await getDB();
     const turn = await db.get('solo_turns', localTurnId);
@@ -173,6 +175,7 @@ export const soloStore = {
       ...turn,
       status: patch.status,
       result: patch.result ?? null,
+      ...(patch.confidence !== undefined ? { confidence: patch.confidence } : {}),
       ...(patch.failNote !== undefined ? { failNote: patch.failNote } : {}),
     });
   },

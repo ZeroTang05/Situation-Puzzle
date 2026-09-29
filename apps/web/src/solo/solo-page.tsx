@@ -9,6 +9,8 @@ import { useLanguage } from '../state/language.js';
 import { displayVerdict, verdictDetail, format } from '@jev/i18n';
 import { soloStore, type SoloSessionRow } from './local-store.js';
 import type { Session } from '../session.js';
+import { HintCapsule } from '../game/hint-capsule.js';
+import { confidenceLabel } from '../game/game-display.js';
 import { VoteButtons } from '../catalog/vote-buttons.js';
 
 type InputMode = 'ask' | 'solve';
@@ -19,6 +21,7 @@ interface TurnRow {
   text: string;
   status: 'sending' | 'succeeded' | 'failed';
   result: string | null;
+  confidence?: number;
 }
 
 export function SoloPage({ session: authSession }: { session: Session | null }) {
@@ -28,6 +31,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
 
   const [session, setSession] = useState<SoloSessionRow | null>(null);
   const [turns, setTurns] = useState<TurnRow[]>([]);
+  const [hintBusy, setHintBusy] = useState(false);
   const [inputMode, setInputMode] = useState<InputMode>('ask');
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -56,7 +60,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
     if (!puzzleId) return;
     void (async () => {
       try {
-        const existing = await soloStore.latestSessionForPuzzle(puzzleId);
+        const existing = await soloStore.latestSessionForPuzzle(puzzleId, language);
         if (existing && existing.status === 'active') {
           setSession(existing);
           setTurns((await soloStore.listTurns(existing.localSessionId)) as TurnRow[]);
@@ -119,12 +123,12 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
       // 2. 请求模型（单人并发限制在服务端；繁忙时本地保留输入）
       const result =
         inputMode === 'ask'
-          ? await api<{ result: string }>('/solo/judge', { method: 'POST', body: { token: session.token, question: submittedText }, credentials: 'omit' })
-          : await api<{ result: string; answer?: string }>('/solo/solve', { method: 'POST', body: { token: session.token, solution: submittedText }, credentials: 'omit' });
+          ? await api<{ result: string; confidence: number }>('/solo/judge', { method: 'POST', body: { token: session.token, question: submittedText }, credentials: 'omit' })
+          : await api<{ result: string; confidence: number; answer?: string }>('/solo/solve', { method: 'POST', body: { token: session.token, solution: submittedText }, credentials: 'omit' });
 
       // 3. 回写结果
-      await soloStore.finishTurn(localTurnId, { status: 'succeeded', result: result.result });
-      setTurns((prev) => prev.map((t) => (t.localTurnId === localTurnId ? { ...t, status: 'succeeded', result: result.result } : t)));
+      await soloStore.finishTurn(localTurnId, { status: 'succeeded', result: result.result, confidence: result.confidence });
+      setTurns((prev) => prev.map((t) => (t.localTurnId === localTurnId ? { ...t, status: 'succeeded', result: result.result, confidence: result.confidence } : t)));
 
       if (inputMode === 'solve' && result.result === 'solved') {
         const answer = (result as { answer?: string }).answer ?? null;
@@ -151,7 +155,8 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
   };
 
   const unlockHint = async (index: number) => {
-    if (!session || session.hintsUnlocked.includes(index)) return;
+    if (!session || hintBusy || session.hintsUnlocked.includes(index)) return;
+    setHintBusy(true);
     try {
       const { text: hint } = await api<{ text: string }>('/solo/hints', {
         method: 'POST',
@@ -162,12 +167,14 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
       await soloStore.updateSession(session.localSessionId, { hintsUnlocked: unlocked });
       setSession({ ...session, hintsUnlocked: unlocked });
       // 提示以本地记录展示
-      await soloStore.addTurn({ localSessionId: session.localSessionId, kind: 'ask', text: `${copy.hint} ${index + 1}: ${hint}` }).then(async (id) => {
+      await soloStore.addTurn({ localSessionId: session.localSessionId, kind: 'ask', text: hint }).then(async (id) => {
         await soloStore.finishTurn(id, { status: 'succeeded', result: 'hint' });
         setTurns((await soloStore.listTurns(session.localSessionId)) as TurnRow[]);
       });
     } catch {
       setError('提示获取失败，请稍后再试');
+    } finally {
+      setHintBusy(false);
     }
   };
 
@@ -237,7 +244,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
           <span className="avatar">🐢</span>
           <p>{language === 'zh' ? '我是 Jev，这碗汤的主持人。大胆提问，我只回答「是、否、无关」。' : 'I am Jev, your host. Ask anything — I will answer Yes, No or Irrelevant.'}</p>
         </div>
-        {turns.map((turn) => (
+        {turns.filter((turn) => turn.result !== 'hint').map((turn) => (
           <TurnCard key={turn.localTurnId} turn={turn} />
         ))}
         <div ref={bottomRef} />
@@ -268,15 +275,11 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
         </section>
       )}
 
+      <HintCapsule hints={turns.filter((turn) => turn.result === 'hint').map((turn) => turn.text)} />
       <section className="hint-row" role="group" aria-label={copy.hint}>
-        {[0, 1, 2].slice(0, 3).map((index) => {
-          const unlocked = session.hintsUnlocked.includes(index);
-          return (
-            <button key={index} className={`btn btn-sm ${unlocked ? '' : 'btn-ghost'}`} disabled={solved && !unlocked} onClick={() => void unlockHint(index)}>
-              {copy.hint} {index + 1}
-            </button>
-          );
-        })}
+        <button className="btn btn-sm" disabled={hintBusy || session.status !== 'active' || session.hintsUnlocked.length >= 3} onClick={() => void unlockHint(session.hintsUnlocked.length)}>
+          {copy.hint} {session.hintsUnlocked.length}/3
+        </button>
         {!session.revealedAnswer && (
           <button
             className="btn btn-sm btn-ghost"
@@ -346,13 +349,6 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
 
 function TurnCard({ turn }: { turn: TurnRow }) {
   const { language } = useLanguage();
-  if (turn.result === 'hint') {
-    return (
-      <div className="hint-float">
-        <p>{turn.text}</p>
-      </div>
-    );
-  }
   return (
     <div className={`turn turn-${turn.kind}`}>
       <p className="turn-text">{turn.text}</p>
@@ -361,11 +357,13 @@ function TurnCard({ turn }: { turn: TurnRow }) {
       {turn.status === 'succeeded' && turn.kind === 'ask' && turn.result && (
         <p className="turn-result">
           <span className={`verdict-badge verdict-${turn.result}`}>{displayVerdict(turn.result, language)}</span>
+          <small className="confidence">{confidenceLabel(turn.confidence, language)}</small>
         </p>
       )}
       {turn.status === 'succeeded' && turn.kind === 'solve' && turn.result && (
         <p className="turn-result">
           <span className={`verdict-badge verdict-${turn.result}`}>{displayVerdict(turn.result, language)}</span>
+          <small className="confidence">{confidenceLabel(turn.confidence, language)}</small>
           <span className="muted">{verdictDetail(turn.result, language)}</span>
         </p>
       )}

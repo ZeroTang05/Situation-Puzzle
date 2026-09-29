@@ -262,7 +262,7 @@ class JobsApp {
         .set({ status: 'succeeded', result, confidence, completedAt: now })
         .where(eq(turns.id, turn.id));
       await tx.update(rounds).set({ effectiveVerdicts: sql`${rounds.effectiveVerdicts} + 1` }).where(eq(rounds.id, round.id));
-      await appendEvent(tx, { roomId: room.id, roundId: round.id, type: 'turn.completed', payload: { turnId: turn.id, result } });
+      await appendEvent(tx, { roomId: room.id, roundId: round.id, type: 'turn.completed', payload: { turnId: turn.id, result, confidence: Number(confidence) } });
 
       // 房间首次有效判定：免费预留正式消费（同一事务）
       await consumeEntitlementIfFreeTx(tx, room.id);

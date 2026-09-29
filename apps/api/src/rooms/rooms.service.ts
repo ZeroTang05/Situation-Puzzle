@@ -561,6 +561,7 @@ export class RoomsService {
           text: t.text,
           status: t.status,
           result: t.result,
+          confidence: t.confidence === null ? null : Number(t.confidence),
         })),
         lastSeq: room.lastSeq,
       };

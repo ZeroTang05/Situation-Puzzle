@@ -191,11 +191,15 @@ check('房主实时看到客人提问', true);
 const completedFrame = await waitForTurnResult(guestRealtime, turnId, 'turn.completed (真实 Jev)');
 check('真实 Jev 判定返回（turn.completed）', completedFrame.type === 'turn.completed', completedFrame.type);
 check('判定是稳定枚举', ['yes', 'no', 'irrelevant', 'uncertain'].includes(completedFrame.payload.result), completedFrame.payload.result);
+check('实时判定携带真实置信度', typeof completedFrame.payload.confidence === 'number' && completedFrame.payload.confidence >= 0 && completedFrame.payload.confidence <= 1);
+const confidenceSnapshot = dataOf(await http(`/rooms/${roomId}/snapshot`, { cookie: guestCookie }));
+check('刷新快照保留同一置信度', confidenceSnapshot.turns.find((turn) => turn.turnId === turnId)?.confidence === completedFrame.payload.confidence);
 await hostRealtime.waitFor((f) => f.type === 'turn.completed' && f.payload?.turnId === turnId, 'host sees completed');
 check('两端收到同一条判定的同一编号', true);
 
 const calls = await query('select status, choice, confidence, error_class from jev_calls where turn_id = $1 order by attempt', [turnId]);
 check('jev_calls 落库（真实调用记录）', calls.length >= 1 && calls[0].status === 'ok', JSON.stringify(calls));
+check('公开置信度与模型调用记录一致', Number(calls.at(-1)?.confidence) === completedFrame.payload.confidence);
 
 const afterFirst = await query('select consumed, reserved from free_room_accounts where user_id = $1', [hostMe.userId]);
 check('首次有效判定消费免费次数（reserved 1→0, consumed 0→1）', afterFirst[0]?.consumed === 1 && afterFirst[0]?.reserved === 0, JSON.stringify(afterFirst[0]));

@@ -1,7 +1,7 @@
 /** 邀请落地页：展示房间信息，登录后加入。 */
 import { useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
 import type { Session } from '../session.js';
@@ -28,12 +28,13 @@ export function InvitePage({ session }: { session: Session | null }) {
     retry: false,
   });
 
-  // 已登录且之前确认过：自动回房
+  const attempted = useRef<string | null>(null);
+  // 登录返回后直接提交加入命令，只有成功获得成员身份才跳转房间。
   useEffect(() => {
-    if (session && preview.data && sessionStorage.getItem(`jev.joined.${token}`) === '1') {
-      navigate(`/rooms/${preview.data.roomId}`, { replace: true });
-    }
-  }, [session, preview.data, token, navigate]);
+    if (!session || !token || !preview.data || preview.data.status === 'closed' || attempted.current === token) return;
+    attempted.current = token;
+    void join();
+  }, [session, token, preview.data]);
 
   const join = async () => {
     if (!preview.data) return;
@@ -41,8 +42,7 @@ export function InvitePage({ session }: { session: Session | null }) {
     setError(null);
     try {
       const result = await api<{ roomId: string; rejoined: boolean }>('/rooms/join', { method: 'POST', body: { token } });
-      sessionStorage.setItem(`jev.joined.${token}`, '1');
-      navigate(`/rooms/${result.roomId}`);
+      navigate(`/rooms/${result.roomId}`, { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : '加入失败，请稍后再试');
     } finally {

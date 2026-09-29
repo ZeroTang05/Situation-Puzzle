@@ -71,6 +71,7 @@ export const soloJudgeRequestSchema = z.object({
 
 export const soloJudgeResponseSchema = z.object({
   result: z.enum(['yes', 'no', 'irrelevant', 'uncertain']),
+  confidence: z.number().min(0).max(1),
 });
 
 export const soloSolveRequestSchema = z.object({
@@ -80,6 +81,7 @@ export const soloSolveRequestSchema = z.object({
 
 export const soloSolveResponseSchema = z.object({
   result: z.enum(['solved', 'close', 'not_yet', 'uncertain']),
+  confidence: z.number().min(0).max(1),
   /** 破解成功时一并下发汤底 */
   answer: z.string().optional(),
 });

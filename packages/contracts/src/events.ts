@@ -97,7 +97,7 @@ export const roomEventPayloadSchemas = {
     text: z.string(),
   }),
   'turn.started': z.object({ turnId: z.string() }),
-  'turn.completed': z.object({ turnId: z.string(), result: z.string() }),
+  'turn.completed': z.object({ turnId: z.string(), result: z.string(), confidence: z.number().min(0).max(1) }),
   'turn.failed': z.object({ turnId: z.string(), reason: z.string(), retryable: z.boolean() }),
   'turn.cancelled': z.object({ turnId: z.string() }),
   'hint.revealed': z.object({ roundId: z.string(), index: z.number().int(), text: z.string() }),

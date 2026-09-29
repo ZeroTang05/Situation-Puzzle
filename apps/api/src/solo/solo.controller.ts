@@ -184,6 +184,7 @@ export class SoloController {
     const solved = verdict.result === 'solved';
     return {
       result: verdict.result,
+      confidence: verdict.confidence,
       ...(solved ? { answer: version.answer } : {}),
     };
   }
@@ -205,7 +206,7 @@ export class SoloController {
     } finally {
       this.gate.release();
     }
-    return { result: verdict.result };
+    return { result: verdict.result, confidence: verdict.confidence };
   }
 
   /** 提示按序号取得：单人由浏览器掌握解锁进度，服务端只提供内容。 */

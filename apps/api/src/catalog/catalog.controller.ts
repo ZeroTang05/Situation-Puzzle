@@ -13,6 +13,7 @@ import { app } from '../context.js';
 import { Public } from '../common/public.js';
 import { ZodValidationPipe } from '../common/http.js';
 import { z } from 'zod';
+import { publishedLanguageJoin } from './published-language.js';
 
 const listQuerySchema = z.object({
   language: z.enum(['zh', 'en']).default('zh'),
@@ -115,7 +116,7 @@ export class CatalogController {
       .from(puzzles)
       .innerJoin(
         puzzleVersions,
-        and(eq(puzzleVersions.puzzleId, puzzles.id), eq(puzzleVersions.id, puzzles.currentPublishedVersionId)),
+        publishedLanguageJoin(),
       )
       .leftJoin(agg, eq(agg.puzzleId, puzzles.id))
       .where(and(...conditions))
@@ -177,7 +178,7 @@ export class CatalogController {
       .from(puzzles)
       .innerJoin(
         puzzleVersions,
-        and(eq(puzzleVersions.puzzleId, puzzles.id), eq(puzzleVersions.id, puzzles.currentPublishedVersionId)),
+        publishedLanguageJoin(),
       )
       .leftJoin(agg, eq(agg.puzzleId, puzzles.id))
       .where(

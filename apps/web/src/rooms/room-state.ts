@@ -18,6 +18,7 @@ export interface RoomTurn {
   text: string;
   status: 'queued' | 'processing' | 'succeeded' | 'failed' | 'cancelled';
   result: string | null;
+  confidence?: number | null;
 }
 
 export interface RoomMember {
@@ -137,7 +138,7 @@ export function applyEvent(state: RoomState, event: RoomEvent): RoomState {
       const status = event.type === 'turn.started' ? 'processing' : event.type === 'turn.completed' ? 'succeeded' : event.type === 'turn.failed' ? 'failed' : 'cancelled';
       return {
         ...state,
-        turns: state.turns.map((t) => (t.turnId === p.turnId ? { ...t, status, result: p.result ? String(p.result) : t.result } : t)),
+        turns: state.turns.map((t) => (t.turnId === p.turnId ? { ...t, status, result: p.result ? String(p.result) : t.result, ...(typeof p.confidence === 'number' ? { confidence: p.confidence } : {}) } : t)),
       };
     }
     case 'hint.revealed': {
