@@ -44,7 +44,7 @@ HTTP 命令示例：
 }
 ```
 
-`clientRequestId` 在用户点击发送时生成并保存在本地待确认项中，网络重发沿用它；`roundId` 与 roomId 防止旧页面把问题发到新房。服务端不接受客户端提供的 userId、汤底、判题结果或收费来源。HTTP 响应或相应持久事件证明服务端提交后，页面才显示“已发送”；超时进入“正在确认发送结果”，查询本人命令后决定是否重投同一请求。模型排队和结果使用独立状态。
+`clientRequestId` 在用户点击发送时生成并保存在本地待确认项中，网络重发沿用它；`roundId` 与 roomId 防止旧页面把问题发到新房。服务端不接受客户端提供的 userId、汤底、判题结果或收费来源。HTTP 响应或相应持久事件证明服务端提交后，将本人消息合并为正式记录，正常发送不显示状态文字；超时进入“正在确认发送结果”，查询本人命令后决定是否重投同一请求。模型排队和结果使用独立状态。
 
 受理事务步骤：
 
@@ -117,7 +117,7 @@ sequenceDiagram
 
 该示例表达“第 42 条房间事件把一个指定问题的结果更新为是”。玩家不会看到另一条漂浮在聊天末尾、无法辨认对应问题的回答。
 
-事件最小集合：room.member_joined / member_left / member_kicked / host_changed / closed；round.started / ended；turn.accepted / started / completed / failed / cancelled；hint.revealed；discussion.created。所有事件使用对应 Schema 校验。金额、赞助有效期、免费余量通过个人接口读取，不广播给房间其他成员。
+事件最小集合：room.puzzle_selected / member_joined / member_left / member_kicked / host_changed / closed；round.started / ended；turn.accepted / started / completed / failed / cancelled；hint.revealed；discussion.created。所有事件使用对应 Schema 校验。金额、赞助有效期、免费余量通过个人接口读取，不广播给房间其他成员。
 
 ### 首次进入与重新快照
 
@@ -185,3 +185,5 @@ sequenceDiagram
 初始发布目标：人工确认的明确事实用例准确率 ≥95%；关键汤底泄露测试零泄露；重复提问抽样判定一致率 ≥95%；错误还原的误判成功数单独审核。以上均为待测门槛，不声称当前模型已达标。未达标先修改题目或规则，再重测受影响范围。
 
 每次模型、提示词或阈值调整先运行回归用例，再开放新局使用新配置；进行中局保留原配置。后台按题目版本汇总争议、错误类型和模型成本，形成后续内容修订依据。
+
+等待室选题命令在同一事务内保存选题并写入 `room.puzzle_selected`（选题事件），携带题目编号、标题和语言。房间快照的 `selectedPuzzle`（当前选题）返回相同公开字段，未选题时为 null。客户端用此结果展示选题按钮，支持实时更新、重新选择和刷新恢复；这些字段不含汤底。

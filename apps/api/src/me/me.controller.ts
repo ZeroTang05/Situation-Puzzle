@@ -1,5 +1,5 @@
 /** 当前账号：身份、赞助有效期、免费开房余量、多人历史。 */
-import { Body, Controller, Get, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Query } from '@nestjs/common';
 import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import {
   freeRoomAccounts,
@@ -16,7 +16,7 @@ import {
 import { freeRoomsRemaining, hasActiveSponsorship, hasLifetimeGrant } from '@jev/domain';
 import { app } from '../context.js';
 import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http.js';
-import { meResponseSchema, nicknameUpdateRequestSchema } from '@jev/contracts';
+import { meResponseSchema, nicknameUpdateRequestSchema, roomHistoryQuerySchema } from '@jev/contracts';
 import { z } from 'zod';
 
 @Controller('me')
@@ -93,7 +93,7 @@ export class MeController {
 
   /** 多人历史：按成员关系查房间，含每局的题目与结局 */
   @Get('history')
-  async history(@CurrentUser() user: SessionUser) {
+  async history(@CurrentUser() user: SessionUser, @Query(new ZodValidationPipe(roomHistoryQuerySchema)) query: z.infer<typeof roomHistoryQuerySchema>) {
     const context = app();
     const memberRows = await context.db.db
       .select({
@@ -107,10 +107,12 @@ export class MeController {
       .from(roomMembers)
       .innerJoin(rooms, eq(rooms.id, roomMembers.roomId))
       .where(eq(roomMembers.userId, user.userId))
-      .orderBy(desc(rooms.createdAt))
-      .limit(50);
+      .orderBy(desc(rooms.createdAt), desc(rooms.id))
+      .limit(query.limit + 1)
+      .offset((query.page - 1) * query.limit);
 
-    const roomIds = memberRows.map((r) => r.roomId);
+    const pageRooms = memberRows.slice(0, query.limit);
+    const roomIds = pageRooms.map((r) => r.roomId);
     const roundsRows = roomIds.length
       ? await context.db.db.select().from(rounds).where(inArray(rounds.roomId, roomIds))
       : [];
@@ -127,7 +129,8 @@ export class MeController {
     const titleById = new Map(versions.map((v) => [v.versionId, v.title]));
 
     return {
-      rooms: memberRows.map((room) => ({
+      hasMore: memberRows.length > query.limit,
+      rooms: pageRooms.map((room) => ({
         ...room,
         rounds: roundsRows
           .filter((r) => r.roomId === room.roomId)

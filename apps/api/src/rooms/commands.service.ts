@@ -214,6 +214,12 @@ export class CommandsService {
           .update(rooms)
           .set({ selectedPuzzleVersionId: version.puzzle_versions.id, lastActivityAt: new Date() })
           .where(eq(rooms.id, room.id));
+        await appendEvent(tx, {
+          roomId: room.id,
+          roundId: null,
+          type: 'room.puzzle_selected',
+          payload: { puzzleId, title: version.puzzle_versions.title, language: version.puzzle_versions.language },
+        });
         return { controlCommand: true };
       }
 

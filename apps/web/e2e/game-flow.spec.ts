@@ -128,9 +128,13 @@ test('游玩中邀请、登录直达、玩家管理、提示翻阅和置信度',
     await page.getByRole('button', { name: '下一条提示' }).click();
     await expect(page.locator('.hint-capsule')).toContainText('2/3');
     const english = await getData(context.request, `/puzzles/${puzzle.id}?language=en`);
+    await expect(page.getByRole('button', { name: 'EN', exact: true })).toHaveCount(0);
+    await page.goto('/');
     await page.getByRole('button', { name: 'EN', exact: true }).click();
+    await page.goto(`/rooms/${created.roomId}`);
     await expect(page.locator('.brand-sm')).toHaveText(english.title);
     await expect(page.locator('.story')).toHaveText(english.surface);
+    await page.getByRole('button', { name: /^Players/ }).click();
     await page.getByRole('region', { name: 'Player management' }).locator('.member-row').filter({ hasText: '客人测试' }).getByRole('button', { name: 'Remove', exact: true }).click();
     await expect(guestPage.getByText('你已不在该房间。')).toBeVisible();
   } finally {
@@ -233,6 +237,7 @@ for (const viewport of [{ width: 390, height: 740 }, { width: 1440, height: 900 
     await expect(page.locator('.brand-sm')).toHaveText(puzzle.title);
     await expectCenteredTitle(page);
     await expect(page.locator('.host-intro')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'EN', exact: true })).toHaveCount(0);
     await expect(page.locator('.story-card')).toHaveCSS('background-image', /story-sea/);
     await expect(page.locator('.solo-story')).toHaveCSS('scrollbar-width', 'thin');
     await page.locator('.composer-input').focus();
@@ -256,3 +261,57 @@ for (const viewport of [{ width: 390, height: 740 }, { width: 1440, height: 900 
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
   });
 }
+
+test('等待室确认选题后显示题名，支持重选和刷新恢复', async ({ page, context }) => {
+  await register(context, '选题房主');
+  const catalog = await getData(context.request, '/puzzles?language=zh&limit=2');
+  expect(catalog.items).toHaveLength(2);
+  const response = await context.request.post('/api/v1/rooms', { data: { capacity: 8 } });
+  expect(response.ok()).toBe(true);
+  const room = (await response.json()).data;
+  try {
+    await page.goto(`/rooms/${room.roomId}?lang=zh`);
+    await expect(page.getByRole('button', { name: '开始本局', exact: true })).toBeDisabled();
+    for (const puzzle of catalog.items) {
+      await page.locator('.puzzle-selection').click();
+      await page.locator('.puzzle-card').filter({ hasText: puzzle.title }).getByRole('button', { name: '选题', exact: true }).click();
+      await expect(page.locator('.puzzle-selection strong')).toHaveText(puzzle.title);
+      await expect(page.locator('.puzzle-selection')).toContainText('重新选题');
+      await expect(page.getByRole('button', { name: '开始本局', exact: true })).toBeEnabled();
+      await page.reload();
+      await expect(page.locator('.puzzle-selection strong')).toHaveText(puzzle.title);
+    }
+    await expect(page.locator('.member-name-self')).toHaveText('选题房主');
+    await expect(page.locator('body')).toHaveCSS('background-image', 'none');
+    await expect(page.locator('main')).toHaveCSS('background-image', 'none');
+  } finally {
+    await command(context.request, room.roomId, 'close_room');
+  }
+});
+
+test('我的房间历史每页五间，翻页不重复；语言切换仅在首页', async ({ page, context }) => {
+  await register(context, '历史分页测试');
+  for (let index = 0; index < 6; index += 1) {
+    const response = await context.request.post('/api/v1/rooms', { data: { capacity: 8 } });
+    expect(response.ok()).toBe(true);
+    await command(context.request, (await response.json()).data.roomId, 'close_room');
+  }
+  const first = await getData(context.request, '/me/history?page=1&limit=5');
+  const second = await getData(context.request, '/me/history?page=2&limit=5');
+  expect(first.rooms).toHaveLength(5);
+  expect(first.hasMore).toBe(true);
+  expect(second.rooms).toHaveLength(1);
+  expect(second.hasMore).toBe(false);
+  expect(first.rooms.map((room: { roomId: string }) => room.roomId)).not.toContain(second.rooms[0].roomId);
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'EN', exact: true })).toBeVisible();
+  await page.goto('/me');
+  await expect(page.getByRole('button', { name: 'EN', exact: true })).toHaveCount(0);
+  const history = page.locator('section').filter({ has: page.getByRole('heading', { name: '多人历史' }) });
+  await expect(history.locator('article')).toHaveCount(5);
+  await history.getByRole('button', { name: '下一页' }).click();
+  await expect(history.locator('article')).toHaveCount(1);
+  await expect(history.getByRole('button', { name: '下一页' })).toBeDisabled();
+  await history.getByRole('button', { name: '上一页' }).click();
+  await expect(history.locator('article')).toHaveCount(5);
+});

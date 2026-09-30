@@ -19,6 +19,7 @@ interface MeResponse {
 }
 
 interface HistoryResponse {
+  hasMore: boolean;
   rooms: Array<{
     roomId: string;
     roomStatus: string;
@@ -36,9 +37,10 @@ export function MePage({ session }: { session: Session | null }) {
   const [nicknameDraft, setNicknameDraft] = useState('');
   const [nicknameError, setNicknameError] = useState<string | null>(null);
   const [savingNickname, setSavingNickname] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
 
   const me = useQuery({ queryKey: ['me'], queryFn: () => api<MeResponse>('/me'), enabled: session !== null, retry: false });
-  const history = useQuery({ queryKey: ['me-history'], queryFn: () => api<HistoryResponse>('/me/history'), enabled: session !== null, retry: false });
+  const history = useQuery({ queryKey: ['me-history', session?.user.id, historyPage], queryFn: () => api<HistoryResponse>(`/me/history?page=${historyPage}&limit=5`), enabled: session !== null, retry: false });
 
   const saveNickname = async () => {
     setSavingNickname(true);
@@ -142,6 +144,8 @@ export function MePage({ session }: { session: Session | null }) {
 
       <section className="panel stack">
         <h3>{copy.history}</h3>
+        {history.isPending && <p className="muted">{copy.loadingRound}</p>}
+        {history.isError && <p className="error-text" role="alert">{copy.historyLoadFail}</p>}
         {history.data?.rooms.length === 0 && <p className="muted">{copy.noRoomHistory}</p>}
         {history.data?.rooms.map((room) => (
           <article key={room.roomId} className="stack-sm">
@@ -155,6 +159,11 @@ export function MePage({ session }: { session: Session | null }) {
             ))}
           </article>
         ))}
+        {(historyPage > 1 || history.data?.hasMore) && <nav className="history-pagination" aria-label={copy.history}>
+          <button className="btn btn-sm" disabled={historyPage === 1 || history.isFetching} onClick={() => setHistoryPage((page) => page - 1)}>{copy.previousPage}</button>
+          <span>{format(copy.pageNumber, { n: historyPage })}</span>
+          <button className="btn btn-sm" disabled={!history.data?.hasMore || history.isFetching} onClick={() => setHistoryPage((page) => page + 1)}>{copy.nextPage}</button>
+        </nav>}
       </section>
 
     </main>

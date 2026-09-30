@@ -288,12 +288,21 @@ export const snapshotTurnSchema = z.object({
   result: z.string().nullable(),
 });
 
+export const roomSelectedPuzzleSchema = z.object({ puzzleId: z.string(), title: z.string(), language: languageSchema });
+
+/** 房间历史每页有明确上限，避免个人页一次展示所有记录。 */
+export const roomHistoryQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).max(100_000).default(1),
+  limit: z.coerce.number().int().min(1).max(20).default(5),
+});
+
 export const roomSnapshotSchema = z.object({
   roomId: z.string(),
   roomStatus: z.enum(['waiting', 'playing', 'closed']),
   hostUserId: z.string(),
   controlVersion: z.number().int(),
   capacity: z.number().int(),
+  selectedPuzzle: roomSelectedPuzzleSchema.nullable(),
   /** 当前局（无则为 null：等待室状态） */
   round: z
     .object({

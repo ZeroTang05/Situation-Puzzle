@@ -58,6 +58,7 @@ export interface RoomState {
   hostUserId: string;
   controlVersion: number;
   capacity: number;
+  selectedPuzzle: { puzzleId: string; title: string; language: 'zh' | 'en' } | null;
   round: RoomRound | null;
   members: RoomMember[];
   turns: RoomTurn[];
@@ -71,6 +72,10 @@ export interface RoomState {
 export function applyEvent(state: RoomState, event: RoomEvent): RoomState {
   const p = event.payload as Record<string, unknown>;
   switch (event.type) {
+    case 'room.puzzle_selected': {
+      const selection = (event as RoomEvent<'room.puzzle_selected'>).payload;
+      return { ...state, selectedPuzzle: selection };
+    }
     case 'room.member_joined':
     case 'room.member_unrestricted': {
       if (state.members.some((m) => m.userId === p.userId)) return state;
@@ -185,6 +190,7 @@ export async function fetchSnapshot(roomId: string, signal?: AbortSignal): Promi
     hostUserId: string;
     controlVersion: number;
     capacity: number;
+    selectedPuzzle: RoomState['selectedPuzzle'];
     round: RoomRound | null;
     members: RoomMember[];
     turns: RoomTurn[];
@@ -199,6 +205,7 @@ export async function fetchSnapshot(roomId: string, signal?: AbortSignal): Promi
       hostUserId: snap.hostUserId,
       controlVersion: snap.controlVersion,
       capacity: snap.capacity,
+      selectedPuzzle: snap.selectedPuzzle,
       round: snap.round,
       members: snap.members,
       turns: snap.turns,

@@ -7,7 +7,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api, ApiError, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
-import { displayVerdict, format, t } from '@jev/i18n';
+import { displayVerdict, format } from '@jev/i18n';
 import { useRoomSync } from './use-room-sync.js';
 import { useRoomOutbox } from './use-room-outbox.js';
 import type { InputMode } from './room-local.js';
@@ -16,6 +16,8 @@ import { GameHeader } from '../game/game-header.js';
 import { inviteUrl, confidenceLabel } from '../game/game-display.js';
 import { VoteButtons } from '../catalog/vote-buttons.js';
 import type { Session } from '../session.js';
+import { PuzzleSelection } from './puzzle-selection.js';
+import { MessageDelivery } from './message-delivery.js';
 
 interface PuzzleItem {
   id: string;
@@ -24,7 +26,7 @@ interface PuzzleItem {
 
 export function RoomPage({ session }: { session: Session | null }) {
   const { roomId } = useParams();
-  const { copy, language, setLanguage } = useLanguage();
+  const { copy, language } = useLanguage();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const me = session?.user.id ?? null;
@@ -217,10 +219,8 @@ export function RoomPage({ session }: { session: Session | null }) {
           <div className="stack">
             {isHost && (
               <>
-                <a className="btn" href={`/library?mode=select&roomId=${roomId}&lang=${language}`}>
-                  {copy.selectPuzzle}
-                </a>
-                <button className="btn btn-primary" disabled={busy || !state.roomStatus} onClick={() => void run('start_round')}>
+                <PuzzleSelection title={state.selectedPuzzle?.title ?? null} href={`/library?mode=select&roomId=${roomId}&lang=${language}`} />
+                <button className="btn btn-primary" disabled={busy || !state.selectedPuzzle} onClick={() => void run('start_round')}>
                   {copy.startRound}
                 </button>
                 <button className="btn" onClick={() => void copyInvite()}>{copy.invite}</button>
@@ -240,6 +240,7 @@ export function RoomPage({ session }: { session: Session | null }) {
               </>
             )}
             {!isHost && <p className="muted">{copy.hintLocked}</p>}
+            {!isHost && state.selectedPuzzle && <p>{copy.currentPuzzle}：{state.selectedPuzzle.title}</p>}
           </div>
           {puzzles.data && isHost && (
             <p className="muted">
@@ -264,7 +265,6 @@ export function RoomPage({ session }: { session: Session | null }) {
                   <p className="turn-text">
                     <strong>{turn.nickname}</strong>：{turn.text}
                   </p>
-                  {turn.userId === me && <span className="muted">{copy.sentMark}</span>}
                   {turn.status === 'queued' && <p className="muted turn-status">{copy.queued}</p>}
                   {turn.status === 'processing' && <p className="muted turn-status">{copy.judging}</p>}
                   {turn.status === 'failed' && <p className="error-text turn-status">{copy.failed}</p>}
@@ -282,7 +282,6 @@ export function RoomPage({ session }: { session: Session | null }) {
                   <p className="turn-text">
                     <strong>{d.nickname}</strong>：{d.text}
                   </p>
-                  {d.userId === me && <span className="muted">{copy.sentMark}</span>}
                 </div>
               ))}
             {outbox.local?.pending.filter((p) => {
@@ -291,7 +290,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                 && !state.discussions.some((d) => d.clientRequestId === p.input.clientRequestId || d.eventId === p.result?.discussionId);
             }).map((p) => <div className="turn" key={p.input.clientRequestId} data-pending-id={p.input.clientRequestId}>
               <p className="turn-text">{String(p.input.payload?.text ?? '')}</p>
-              <p className="muted" role="status">{p.status === 'sent' ? copy.sentMark : p.status === 'sending' ? copy.sendingMark : p.status === 'confirming' ? copy.confirming : format(copy.notSent, { n: p.error ?? '' })}</p>
+              <MessageDelivery status={p.status} {...(p.error !== undefined ? { error: p.error } : {})} />
               {p.status === 'confirming' && <button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>{copy.keepConfirming}</button>}
             </div>)}
             <div ref={chatBottomRef} />
@@ -392,10 +391,6 @@ export function RoomPage({ session }: { session: Session | null }) {
         </section>
       )}
 
-      <button className="btn btn-sm btn-ghost lang-float" onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}>
-        {language === 'zh' ? copy.languageSwitchToEn : copy.languageSwitchToZh}
-      </button>
-      <span hidden>{t('zh').brand}</span>
     </main>
   );
 }
@@ -419,10 +414,7 @@ export function MemberList({
       {state.members.map((m) => (
         <li key={m.userId} className="member-row">
           <span className={`presence-dot ${m.online ? 'online' : ''}`} aria-hidden />
-          <span>
-            {m.nickname}
-            {m.userId === me ? copy.meTab : ''}
-          </span>
+          <span className={`member-name${m.userId === me ? ' member-name-self' : ''}`}>{m.nickname}</span>
           {m.isHost && <span className="verdict-badge verdict-solved">{copy.host}</span>}
           {isHost && !m.isHost && (
             <span className="member-actions">
@@ -441,7 +433,7 @@ export function MemberList({
 }
 
 function AnswerBlock({ roundId }: { roundId: string }) {
-  const { copy, language } = useLanguage();
+  const { copy } = useLanguage();
   const [answer, setAnswer] = useState<string | null>(null);
   const [hints, setHints] = useState<string[]>([]);
   const [error, setError] = useState(false);
@@ -459,11 +451,11 @@ function AnswerBlock({ roundId }: { roundId: string }) {
   if (!answer) return <p className="muted">{copy.loadingRound}</p>;
   return (
     <div className="stack">
-      <h3>{t(language).answer}</h3>
+      <h3>{copy.answer}</h3>
       <p>{answer}</p>
       {hints.length > 0 && (
         <details>
-          <summary className="muted">{t(language).hint}（{hints.length}）</summary>
+          <summary className="muted">{copy.hint}（{hints.length}）</summary>
           {hints.map((h, i) => (
             <p key={i} className="muted">
               {i + 1}. {h}

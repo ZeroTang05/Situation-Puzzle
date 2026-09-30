@@ -427,6 +427,11 @@ export class RoomsService {
         : [];
       const onlineSet = new Set(onlineRows.map((r) => r.userId));
 
+      const [selectedVersion] = room.selectedPuzzleVersionId
+        ? await tx.select({ puzzleId: puzzleVersions.puzzleId, title: puzzleVersions.title, language: puzzleVersions.language })
+            .from(puzzleVersions).where(eq(puzzleVersions.id, room.selectedPuzzleVersionId)).limit(1)
+        : [];
+
       // 最新一局（含已结束的最后一局：结算页用）
       const [round] = await tx.select().from(rounds).where(eq(rounds.roomId, roomId)).orderBy(desc(rounds.roundNo)).limit(1);
 
@@ -492,6 +497,7 @@ export class RoomsService {
         hostUserId: room.hostUserId,
         controlVersion: room.controlVersion,
         capacity: room.capacity,
+        selectedPuzzle: selectedVersion ?? null,
         round: roundInfo,
         members: memberRows.map((m) => ({
           userId: m.userId,

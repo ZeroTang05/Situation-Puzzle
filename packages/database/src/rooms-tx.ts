@@ -25,6 +25,7 @@ export type RoomEventType =
   | 'room.member_unrestricted'
   | 'room.host_changed'
   | 'room.invite_rotated'
+  | 'room.puzzle_selected'
   | 'room.followup_created'
   | 'room.closed'
   | 'round.started'

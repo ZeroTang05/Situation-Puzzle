@@ -22,5 +22,7 @@ describe('玩家管理', () => {
     expect(markup).toContain('玩家乙');
     expect(markup).not.toContain('移除');
     expect(markup).not.toContain('转让');
+    expect(markup).toContain('class="member-name member-name-self">玩家乙</span>');
+    expect(markup).not.toContain('玩家乙我');
   });
 });

@@ -66,6 +66,7 @@ export const roomEventPayloadSchemas = {
   'room.member_unrestricted': z.object({ userId: z.string() }),
   'room.host_changed': z.object({ userId: z.string(), nickname }),
   'room.invite_rotated': z.object({}),
+  'room.puzzle_selected': z.object({ puzzleId: z.string(), title: z.string(), language: z.enum(['zh', 'en']) }),
   'room.followup_created': z.object({
     /** 续玩新房：旧房成员由此进入（docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md） */
     targetRoomId: z.string(),

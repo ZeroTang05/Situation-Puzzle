@@ -152,7 +152,7 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 | 方法与路径 | 行为与权限 |
 | --- | --- |
 | `/auth/*` | Better Auth 认证路由；验证码、Google 回调、会话遵循认证库契约 |
-| `GET /me`、`GET /me/history` | 当前账号与个人参与历史 |
+| `GET /me`、`GET /me/history` | 当前账号与个人参与历史；历史支持 page（页码）和 limit（每页数量），默认第 1 页、每页 5 间，最多 20 间；返回 hasMore（是否还有下一页） |
 | `GET /puzzles`、`GET /puzzles/:id` | 仅公开题面与检索元数据，无答案和隐藏提示 |
 | `POST /solo/sessions` | 匿名获取固定题目版本的无状态签名凭证，不落会话表 |
 | `POST /solo/judge`、`POST /solo/solve` | 匿名单人判断，内存处理，不存正文和逐次调用记录 |

@@ -1,6 +1,9 @@
 /* 玩家端布局：移动优先，深海色系；正文 16px，触控区域 ≥44px（PRD §6）。 */
 @import '@jev/ui/styles.css';
 
+/* 页面统一使用纯色背景，加载期间沿用相同样式。 */
+html, body { background: var(--bg); }
+
 /* 创作中心复用游玩页的深海配色，分组表单在手机上单列展示。 */
 .creation-shell { max-width: 880px; }
 .creation-editor fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
@@ -29,7 +32,7 @@
   min-height: 100dvh;
   margin: 0 auto;
   padding: 0 14px calc(24px + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, rgba(8, 49, 79, 0.94), #010b18 31%, #03152b);
+  background: var(--bg);
 }
 
 .shell.narrow {
@@ -518,11 +521,11 @@
   margin: 12px 0;
 }
 
-.lang-float {
-  position: fixed;
-  right: 12px;
-  bottom: calc(12px + env(safe-area-inset-bottom));
-}
+.member-name-self { color: #ffc078; }
+.puzzle-selection { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; text-decoration: none; }
+.puzzle-selection strong { color: var(--ink); overflow-wrap: anywhere; }
+.puzzle-selection small { color: var(--muted); font-size: 13px; }
+.history-pagination { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
 .error-text {
   color: var(--danger);
