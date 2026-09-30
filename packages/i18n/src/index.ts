@@ -442,7 +442,7 @@ export const copy = {
     hintPlaceholder: 'Optional — change later in "Me"',
     reveal: 'Reveal answer',
     revealConfirm: 'Revealing the answer ends this round for everyone. Continue?',
-    endRound: 'End round',
+    endRound: 'End',
     endRoundConfirm: 'End this round without the answer. Others will only see why it ended. Continue?',
     nextPuzzle: 'Play next puzzle',
     changePuzzle: 'New puzzle',
