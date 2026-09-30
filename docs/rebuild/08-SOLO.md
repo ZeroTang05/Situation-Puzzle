@@ -34,12 +34,19 @@ sequenceDiagram
 
 单人不能通过多人创建接口实现；否则会留下服务器对话和消费路径。两种模式分别提供 `SoloSessionController`（单人页面控制器）和 `RoomSessionController`（多人页面控制器），共用纯展示组件，避免一个复杂组件到处判断模式。
 
+### 游玩页面
+
+单人页铺满可见屏幕，汤面和对话各自滚动；输入框保持一行，聚焦高亮绘制在边框内。顶部左右操作区等宽，题目按页面中心对齐。右上角“换一题”随机选择当前语言的另一道已发布题目，排除当前作品；请求期间禁止重复点击。题库没有其他可用作品时保留当前题目并提示。题目切换后按作品独立恢复本地会话和草稿。
+
+单人页删除主持人介绍；提示、还原答案、看汤底并排放在输入框上方。提示卡标题、图标和翻页按钮压缩为一行。单人和房间页共用居中顶部栏、提示卡片及低对比海底图片背景；背景随容器比例裁切，汤面使用深海配色的细滚动条。
+
 ## 3. 单人 HTTP 契约
 
 普通单人请求使用 `credentials: omit`（不携带账号 Cookie），不加载账号认证中间件。服务端仍忽略主动附带的 Cookie/Authorization，不将其写日志。接口只接受允许的字段，多余历史、身份或客户端答案字段直接拒绝。
 
 | 路径 | 请求 | 返回 |
 | --- | --- | --- |
+| `GET /api/v1/puzzles/random` | language、可选 exclude（排除作品 ID） | 同语言已发布的另一作品 puzzleId；无可用题目时返回 404 |
 | `POST /api/v1/solo/sessions` | puzzleId、language，可带恢复所需的 versionId | 公开汤面、固定版本、无状态签名凭证 |
 | `POST /api/v1/solo/judge` | 凭证、当前 question（最多 500 字） | yes/no/irrelevant/uncertain |
 | `POST /api/v1/solo/solve` | 凭证、当前 solution（最多 1,500 字） | solved/close/not_yet/uncertain；成功时含汤底 |

@@ -12,6 +12,7 @@ import { useRoomSync } from './use-room-sync.js';
 import { useRoomOutbox } from './use-room-outbox.js';
 import type { InputMode } from './room-local.js';
 import { HintCapsule } from '../game/hint-capsule.js';
+import { GameHeader } from '../game/game-header.js';
 import { inviteUrl, confidenceLabel } from '../game/game-display.js';
 import { VoteButtons } from '../catalog/vote-buttons.js';
 import type { Session } from '../session.js';
@@ -163,13 +164,13 @@ export function RoomPage({ session }: { session: Session | null }) {
 
   return (
     <main className="shell room-shell">
-      <header className="topbar">
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>{copy.back}</button>
-        <h1 className="brand brand-sm">{round ? displayedTitle ?? copy.loadingRound : copy.waitingRoom}</h1>
-        <button className="btn btn-ghost btn-sm" onClick={() => setManagementOpen((open) => !open)} aria-expanded={managementOpen}>
+      <GameHeader
+        title={round ? displayedTitle ?? copy.loadingRound : copy.waitingRoom}
+        back={<button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>{copy.back}</button>}
+        action={<button className="btn btn-ghost btn-sm" onClick={() => setManagementOpen((open) => !open)} aria-expanded={managementOpen}>
           {format(language === 'zh' ? copy.playersCount : copy.playersCountEn, { n: memberCount, cap: state.capacity })}
-        </button>
-      </header>
+        </button>}
+      />
 
       {showConnection && status !== 'ready' && <p className="offline-banner" role="status">{status === 'auth_required' ? copy.authExpired : status === 'offline' ? copy.networkKeptDraft : copy.reconnecting}{status === 'auth_required' && <a href={`/login?next=/rooms/${roomId}`}>{copy.reconnect}</a>}</p>}
       {outbox.storageError && <p className="error-text" role="alert">{outbox.storageError}</p>}
@@ -251,7 +252,7 @@ export function RoomPage({ session }: { session: Session | null }) {
       {/* ---------- 游戏区 ---------- */}
       {round && (
         <>
-          <section className="hero-card">
+          <section className="story-card game-scroll">
             <p className="accent">{format(copy.roundNo, { n: round.roundNo })}</p>
             <p className="story">{displayedSurface}</p>
           </section>

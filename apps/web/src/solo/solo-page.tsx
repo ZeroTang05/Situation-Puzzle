@@ -13,6 +13,8 @@ import { HintCapsule } from '../game/hint-capsule.js';
 import { confidenceLabel } from '../game/game-display.js';
 import { VoteButtons } from '../catalog/vote-buttons.js';
 import { canRateSoloPuzzle } from './rating-visibility.js';
+import { randomPuzzleResponseSchema } from '@jev/contracts';
+import { GameHeader } from '../game/game-header.js';
 
 type InputMode = 'ask' | 'solve';
 
@@ -33,6 +35,8 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
   const [session, setSession] = useState<SoloSessionRow | null>(null);
   const [turns, setTurns] = useState<TurnRow[]>([]);
   const [hintBusy, setHintBusy] = useState(false);
+  const [changingPuzzle, setChangingPuzzle] = useState(false);
+  const [revealing, setRevealing] = useState(false);
   const [inputMode, setInputMode] = useState<InputMode>('ask');
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -40,11 +44,13 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
   const [storageWarning, setStorageWarning] = useState(false);
   const [publicStats, setPublicStats] = useState<{ upCount: number; downCount: number } | null>(null);
   const chatRef = useRef<HTMLElement>(null);
+  const randomRequestRef = useRef<AbortController | null>(null);
 
   // 公开计数与署名（题目详情）：未登录也能看；投票组件内部再取本人选择
   useEffect(() => {
     if (!puzzleId) return;
     let cancelled = false;
+    setPublicStats(null);
     void api<{ upCount: number; downCount: number }>(`/puzzles/${puzzleId}`)
       .then((detail) => {
         if (!cancelled) setPublicStats({ upCount: detail.upCount, downCount: detail.downCount });
@@ -58,13 +64,21 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
   // 开局：向服务端取固定版本与凭证（无会话、不写服务端表）
   useEffect(() => {
     if (!puzzleId) return;
+    let cancelled = false;
+    setSession(null);
+    setTurns([]);
+    setText('');
+    setInputMode('ask');
+    setError(null);
     void (async () => {
       try {
         const existing = await soloStore.latestSessionForPuzzle(puzzleId, language);
         if (existing && existing.status === 'active') {
-          setSession(existing);
-          setTurns((await soloStore.listTurns(existing.localSessionId)) as TurnRow[]);
+          const savedTurns = (await soloStore.listTurns(existing.localSessionId)) as TurnRow[];
           const draft = await soloStore.loadDraft(existing.localSessionId);
+          if (cancelled) return;
+          setSession(existing);
+          setTurns(savedTurns);
           if (draft) {
             setInputMode(draft.inputMode);
             setText(draft.text);
@@ -76,6 +90,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
           body: { puzzleId, language },
           credentials: 'omit',
         });
+        if (cancelled) return;
         const row = await soloStore.createSession({
           puzzleId,
           versionId: created.versionId,
@@ -85,12 +100,17 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
           token: created.token,
           configVersion: created.configVersion,
         });
+        if (cancelled) return;
         setSession(row);
         setTurns([]);
       } catch (err) {
-        setError(translateApiError(err, language, copy.soloLoadFail));
+        if (!cancelled) setError(translateApiError(err, language, copy.soloLoadFail));
       }
     })();
+    return () => {
+      cancelled = true;
+      randomRequestRef.current?.abort();
+    };
   }, [puzzleId, language, copy.soloLoadFail]);
 
   useEffect(() => {
@@ -106,7 +126,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
   );
 
   const submit = async () => {
-    if (!session || !text.trim() || sending) return;
+    if (!session || !text.trim() || sending || changingPuzzle) return;
     setStorageWarning(false);
     setSending(true);
     setError(null);
@@ -159,7 +179,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
   };
 
   const unlockHint = async (index: number) => {
-    if (!session || hintBusy || session.hintsUnlocked.includes(index)) return;
+    if (!session || hintBusy || changingPuzzle || session.hintsUnlocked.includes(index)) return;
     setHintBusy(true);
     try {
       const { text: hint } = await api<{ text: string }>('/solo/hints', {
@@ -183,7 +203,8 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
   };
 
   const reveal = async () => {
-    if (!session || session.revealedAnswer) return;
+    if (!session || session.revealedAnswer || revealing || changingPuzzle) return;
+    setRevealing(true);
     try {
       const { answer } = await api<{ answer: string }>('/solo/reveal', {
         method: 'POST',
@@ -195,6 +216,28 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
       await soloStore.bumpProgress(session.puzzleId, { revealed: true });
     } catch {
       setError(copy.revealFail);
+    } finally {
+      setRevealing(false);
+    }
+  };
+
+  /** 服务端从完整已发布题库随机选题；切换后本地记录按题目独立恢复。 */
+  const changePuzzle = async () => {
+    if (!session || changingPuzzle || sending || hintBusy || revealing) return;
+    setChangingPuzzle(true);
+    setError(null);
+    const controller = new AbortController();
+    randomRequestRef.current = controller;
+    try {
+      const query = new URLSearchParams({ language, exclude: session.puzzleId });
+      const selected = randomPuzzleResponseSchema.parse(await api(`/puzzles/random?${query}`, { credentials: 'omit', signal: controller.signal }));
+      navigate(`/solo/${selected.puzzleId}?lang=${language}`);
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      setError(err instanceof ApiError && err.code === 'NOT_FOUND' ? copy.noOtherPuzzle : translateApiError(err, language, copy.changePuzzleFail));
+    } finally {
+      if (randomRequestRef.current === controller) randomRequestRef.current = null;
+      setChangingPuzzle(false);
     }
   };
 
@@ -215,20 +258,17 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
 
   return (
     <main className="shell solo-shell">
-      <header className="topbar">
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/library')}>{copy.back}</button>
-        <h1 className="brand brand-sm">{session.title}</h1>
-      </header>
+      <GameHeader
+        title={session.title}
+        back={<button className="btn btn-ghost btn-sm" onClick={() => navigate('/library')}>{copy.back}</button>}
+        action={<button className="btn btn-ghost btn-sm" disabled={changingPuzzle || sending || hintBusy || revealing} onClick={() => void changePuzzle()}>{changingPuzzle ? copy.changingPuzzle : copy.changePuzzle}</button>}
+      />
 
-      <section className="hero-card solo-story">
+      <section className="story-card solo-story game-scroll">
         <p className="story">{session.surface}</p>
       </section>
 
-      <section className="chat solo-chat" ref={chatRef} aria-live="polite">
-        <div className="host-intro">
-          <span className="avatar">🐢</span>
-          <p>{copy.jevIntro}</p>
-        </div>
+      <section className="chat solo-chat game-scroll" ref={chatRef} aria-live="polite">
         {turns.filter((turn) => turn.result !== 'hint').map((turn) => (
           <TurnCard key={turn.localTurnId} turn={turn} />
         ))}
@@ -255,21 +295,21 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
         )}
       </section>
 
-      <div className="solo-bottom">
+      <div className="solo-bottom game-scroll">
         {storageWarning && <p className="error-text">{copy.storageNotSaved}</p>}
         {error && <p className="error-text" role="alert">{error}</p>}
         <HintCapsule hints={turns.filter((turn) => turn.result === 'hint').map((turn) => turn.text)} />
         <section className="solo-action-row" role="group" aria-label={copy.hint}>
-          <button className="btn btn-sm" disabled={hintBusy || session.status !== 'active' || session.hintsUnlocked.length >= 3} onClick={() => void unlockHint(session.hintsUnlocked.length)}>
+          <button className="btn btn-sm" disabled={changingPuzzle || hintBusy || session.status !== 'active' || session.hintsUnlocked.length >= 3} onClick={() => void unlockHint(session.hintsUnlocked.length)}>
             {copy.hint} {session.hintsUnlocked.length}/3
           </button>
-          <button className="btn btn-sm" aria-pressed={inputMode === 'solve'} disabled={sending || solved || Boolean(session.revealedAnswer)} onClick={() => {
+          <button className="btn btn-sm" aria-pressed={inputMode === 'solve'} disabled={changingPuzzle || sending || solved || Boolean(session.revealedAnswer)} onClick={() => {
             const next = inputMode === 'solve' ? 'ask' : 'solve';
             setInputMode(next);
             setText('');
             persistDraft(next, '');
           }}>{copy.solve}</button>
-          <button className="btn btn-sm" disabled={sending || Boolean(session.revealedAnswer)} onClick={() => {
+          <button className="btn btn-sm" disabled={changingPuzzle || sending || revealing || Boolean(session.revealedAnswer)} onClick={() => {
             if (window.confirm(copy.revealConfirm)) void reveal();
           }}>{copy.soloViewAnswer}</button>
         </section>
@@ -295,7 +335,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
                   }
                 }}
               />
-              <button className="btn btn-primary" disabled={sending || !text.trim()} onClick={() => void submit()}>
+              <button className="btn btn-primary" disabled={changingPuzzle || sending || !text.trim()} onClick={() => void submit()}>
                 {sending ? copy.submitting : copy.send}
               </button>
             </div>

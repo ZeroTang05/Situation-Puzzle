@@ -26,6 +26,16 @@ export function dataEnvelope<T>(data: T, requestId: string) {
 
 // ---------- 题库 ----------
 
+/** 随机换题只从当前语言的已发布作品中选择，可排除正在玩的作品。 */
+export const randomPuzzleQuerySchema = z.object({
+  language: languageSchema.default('zh'),
+  exclude: z.string().uuid().optional(),
+});
+
+export const randomPuzzleResponseSchema = z.object({
+  puzzleId: z.string().uuid(),
+});
+
 export const puzzleListItemSchema = z.object({
   id: z.string(),
   legacyId: z.string().nullable(),

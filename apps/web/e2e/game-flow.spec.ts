@@ -33,6 +33,16 @@ async function ask(page: Page) {
   await expect(page.locator('.confidence').last()).toContainText(/置信度 \d+%/, { timeout: 70_000 });
 }
 
+/** 检查标题对齐页面中线，避免左右操作的文字宽度挤偏标题。 */
+async function expectCenteredTitle(page: Page) {
+  const offset = await page.locator('.game-topbar .brand').evaluate((title) => {
+    const shell = title.closest('main')!.getBoundingClientRect();
+    const heading = title.getBoundingClientRect();
+    return Math.abs((heading.left + heading.right) / 2 - (shell.left + shell.right) / 2);
+  });
+  expect(offset).toBeLessThanOrEqual(1);
+}
+
 test('题库卡片展示已玩角标、固定票数布局，并用所选题目开房', async ({ page, context }) => {
   await register(context, '题库卡片测试');
   const catalog = await getData(context.request, '/puzzles?language=zh&limit=1');
@@ -73,6 +83,8 @@ test('游玩中邀请、登录直达、玩家管理、提示翻阅和置信度',
     await command(context.request, created.roomId, 'select_puzzle', { puzzleId: puzzle.id, language: 'zh' });
     await command(context.request, created.roomId, 'start_round');
     await page.goto(`/rooms/${created.roomId}?lang=zh`);
+    await expectCenteredTitle(page);
+    await expect(page.locator('.story-card')).toHaveCSS('background-image', /story-sea/);
     await page.evaluate(({ roomId, token }) => localStorage.setItem(`jev.invite.${roomId}`, token), { roomId: created.roomId, token: created.inviteToken });
     await page.getByRole('button', { name: /^玩家/ }).click();
     const management = page.getByRole('region', { name: '玩家管理' });
@@ -107,6 +119,7 @@ test('游玩中邀请、登录直达、玩家管理、提示翻阅和置信度',
 
     await page.getByRole('button', { name: '提示 0/3', exact: true }).click();
     await expect(page.locator('.hint-capsule')).toContainText('1/3');
+    expect(await page.locator('.hint-capsule-head').evaluate((head) => head.getBoundingClientRect().height)).toBeLessThanOrEqual(20);
     const firstHint = await page.locator('.hint-capsule p').innerText();
     await page.getByRole('button', { name: '提示 1/3', exact: true }).click();
     await expect(page.locator('.hint-capsule')).toContainText('2/3');
@@ -195,7 +208,7 @@ test('单人主界面只在揭晓后展示评价，操作区固定在屏幕内',
   const puzzle = catalog.items[0];
   expect(puzzle).toBeDefined();
   await page.goto(`/solo/${puzzle.id}?lang=zh`);
-  await expect(page.locator('.host-intro')).toBeVisible();
+  await expect(page.locator('.host-intro')).toHaveCount(0);
   await expect(page.getByRole('group', { name: '题目投票' })).toHaveCount(0);
   await expect(page.locator('.topbar').getByRole('button', { name: '汤底' })).toHaveCount(0);
   await expect(page.locator('.solo-action-row button')).toHaveCount(3);
@@ -209,3 +222,37 @@ test('单人主界面只在揭晓后展示评价，操作区固定在屏幕内',
   await expect(page.getByRole('group', { name: '题目投票' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
 });
+
+for (const viewport of [{ width: 390, height: 740 }, { width: 1440, height: 900 }]) {
+  test(`单人布局 ${viewport.width}px：标题居中、紧凑提示、完整聚焦边框与随机换题`, async ({ page, context }) => {
+    await page.setViewportSize(viewport);
+    const catalog = await getData(context.request, '/puzzles?language=zh&limit=1');
+    const puzzle = catalog.items[0];
+    expect(puzzle).toBeDefined();
+    await page.goto(`/solo/${puzzle.id}?lang=zh`);
+    await expect(page.locator('.brand-sm')).toHaveText(puzzle.title);
+    await expectCenteredTitle(page);
+    await expect(page.locator('.host-intro')).toHaveCount(0);
+    await expect(page.locator('.story-card')).toHaveCSS('background-image', /story-sea/);
+    await expect(page.locator('.solo-story')).toHaveCSS('scrollbar-width', 'thin');
+    await page.locator('.composer-input').focus();
+    await expect(page.locator('.composer-input')).toHaveCSS('outline-offset', '-2px');
+    await page.getByRole('button', { name: '提示 0/3', exact: true }).click();
+    expect(await page.locator('.hint-capsule-head').evaluate((head) => head.getBoundingClientRect().height)).toBeLessThanOrEqual(20);
+    for (const button of await page.locator('.hint-capsule-nav button').all()) {
+      expect(await button.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThanOrEqual(20);
+    }
+    const nextResponse = page.waitForResponse((response) => response.url().includes('/puzzles/random?') && response.request().method() === 'GET');
+    await page.getByRole('button', { name: '换一题', exact: true }).click();
+    const response = await nextResponse;
+    expect(response.ok(), await response.text()).toBe(true);
+    const selected = (await response.json()).data;
+    expect(selected.puzzleId).not.toBe(puzzle.id);
+    await expect(page).toHaveURL(new RegExp(`/solo/${selected.puzzleId}\\?lang=zh$`));
+    const detail = await getData(context.request, `/puzzles/${selected.puzzleId}?language=zh`);
+    await expect(page.locator('.brand-sm')).toHaveText(detail.title);
+    await expect(page.locator('.hint-capsule')).toHaveCount(0);
+    await expectCenteredTitle(page);
+    expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
+  });
+}

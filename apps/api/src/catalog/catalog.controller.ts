@@ -6,7 +6,8 @@
  * 内部 authorUserId 不出现在任何公开响应里。
  */
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import { and, asc, eq, isNotNull, lt, or, sql, desc } from 'drizzle-orm';
+import { and, asc, eq, isNotNull, lt, ne, or, sql, desc } from 'drizzle-orm';
+import { randomPuzzleQuerySchema } from '@jev/contracts';
 import { puzzles, puzzleVersions, ratings } from '@jev/database';
 import { DomainError } from '@jev/domain';
 import { app } from '../context.js';
@@ -148,6 +149,23 @@ export class CatalogController {
       })),
       nextCursor,
     };
+  }
+
+  /** 随机选取可游玩的当前语言作品，排除当前题目；与题库列表共用发布条件。 */
+  @Public()
+  @Get('random')
+  async random(@Query(new ZodValidationPipe(randomPuzzleQuerySchema)) query: z.infer<typeof randomPuzzleQuerySchema>) {
+    const conditions = [eq(puzzles.unavailable, false), eq(puzzleVersions.language, query.language)];
+    if (query.exclude) conditions.push(ne(puzzles.id, query.exclude));
+    const [selected] = await app().db.db
+      .select({ puzzleId: puzzles.id })
+      .from(puzzles)
+      .innerJoin(puzzleVersions, publishedLanguageJoin())
+      .where(and(...conditions))
+      .orderBy(sql`random()`)
+      .limit(1);
+    if (!selected) throw new DomainError('NOT_FOUND', '暂无其他可游玩的题目');
+    return selected;
   }
 
   /** 公开详情：公开题面与元数据、投票总数、公开署名；汤底与提示不在响应里。 */

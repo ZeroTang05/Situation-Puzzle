@@ -244,6 +244,38 @@
 
 /* ---------- 游戏共用 ---------- */
 
+/* 两侧同宽，返回和右侧操作的文字长度不会挤偏题目。 */
+.game-topbar {
+  display: grid;
+  grid-template-columns: minmax(84px, 1fr) minmax(0, 4fr) minmax(84px, 1fr);
+  gap: 4px;
+}
+.game-topbar .brand { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+.game-topbar-back, .game-topbar-action { display: flex; min-width: 0; }
+.game-topbar-action { justify-content: flex-end; }
+.game-topbar .btn { padding-inline: 6px; font-size: 13px; white-space: nowrap; }
+
+/* 生成的低对比海底图片按容器裁切，手机与宽屏共用同一张汤面背景。 */
+.story-card {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: min(30dvh, 220px);
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: url('./assets/story-sea.jpg') center 45% / cover;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.story-card .story { margin: 0; line-height: 1.5; }
+.story-card > .accent { margin: 0 0 3px; font-size: 12px; }
+
+/* 沿用 main 的细滚动条配色，透明轨道与深海背景融合。 */
+.game-scroll { scrollbar-width: thin; scrollbar-color: rgba(150, 186, 216, .35) transparent; }
+.game-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+.game-scroll::-webkit-scrollbar-track { background: transparent; }
+.game-scroll::-webkit-scrollbar-thumb { background: rgba(150, 186, 216, .35); border-radius: 2px; }
+
 .chat {
   display: flex;
   flex-direction: column;
@@ -304,8 +336,12 @@
   background: #162b39;
   color: var(--gold);
 }
-.hint-capsule-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
-.hint-capsule-head .btn { min-width: 34px; min-height: 30px; padding: 2px 6px; border-radius: 0; }
+.hint-capsule-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 18px; font-size: 13px; line-height: 18px; }
+.hint-capsule-head strong { display: inline-flex; align-items: center; gap: 4px; }
+.hint-icon { font-size: 12px; line-height: 1; }
+.hint-capsule-nav { display: flex; gap: 4px; }
+.hint-capsule-head .btn { min-width: 30px; min-height: 18px; height: 18px; padding: 0 6px; border-radius: 0; font-size: 13px; line-height: 16px; }
+.hint-capsule-head .btn:focus-visible { outline-offset: -2px; }
 .hint-capsule p { margin: 3px 0 0; line-height: 1.45; font-size: 13px; overflow-wrap: anywhere; }
 .confidence { color: var(--muted); font-size: 12px; }
 .turn-solve { align-self: flex-end; align-items: flex-end; }
@@ -324,16 +360,6 @@
 .hint-float p {
   margin: 0 0 4px;
 }
-
-.host-intro {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
-  align-items: start;
-  gap: 6px;
-  color: var(--muted);
-}
-
-.host-intro p { margin: 0; line-height: 1.5; }
 
 .avatar {
   display: grid;
@@ -358,9 +384,6 @@
 
 .solo-shell .topbar { flex: none; min-height: 52px; }
 .solo-shell .btn, .solo-shell .field, .solo-shell .panel, .solo-shell .hero-card, .solo-shell .turn .turn-text { border-radius: 0; }
-.solo-shell .brand { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
-.solo-story { flex: 0 1 auto; min-height: 0; max-height: min(30dvh, 220px); overflow-y: auto; padding: 12px; }
-.solo-story .story { margin: 0; position: relative; z-index: 1; line-height: 1.5; }
 .solo-chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; gap: 10px; padding: 10px 0; }
 .solo-chat .panel { border-radius: 4px; padding: 10px; }
 .solo-chat .panel p { margin: 4px 0; }
@@ -398,6 +421,9 @@
   min-height: 48px;
   max-height: 120px;
 }
+
+/* 高亮留在控件内部，底部滚动容器裁切时仍显示完整四边。 */
+.composer-input:focus-visible { outline-offset: -2px; border-color: var(--accent); }
 
 .hint-row {
   display: flex;
