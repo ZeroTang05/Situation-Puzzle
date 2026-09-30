@@ -5,8 +5,7 @@
  *  1. 同一局最多一个 processing 任务
  *  2. 同一局同一用户最多一个 queued/processing 任务
  *  3. 一个房间至多一局（docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md：一房一题）
- *  4. 同一创建者最多一个未关闭房间
- *  5. 一个源房间至多一条续玩记录（重复请求返回同一目标房）
+ *  4. 一个源房间至多一条续玩记录（重复请求返回同一目标房）
  */
 import { sql } from 'drizzle-orm';
 import {
@@ -21,6 +20,7 @@ import {
   timestamp,
   index,
   uniqueIndex,
+  primaryKey,
 } from 'drizzle-orm/pg-core';
 import { user } from './auth';
 import { puzzleVersions } from './content';
@@ -78,10 +78,6 @@ export const rooms = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   },
   (t) => [
-    // 不变量 4：一个创建者最多一个未关闭房间
-    uniqueIndex('rooms_one_open_per_creator_uq')
-      .on(t.creatorUserId)
-      .where(sql`status <> 'closed'`),
     uniqueIndex('rooms_invite_token_uq').on(t.inviteTokenHash),
     index('rooms_status_idx').on(t.status),
   ],
@@ -110,28 +106,15 @@ export const roomMembers = pgTable(
   ],
 );
 
-/** 每人最多一个进行中房间：user_id 主键即唯一约束；退出/关闭时删除行。 */
-export const activeRoomUsers = pgTable('active_room_users', {
-  userId: text('user_id')
-    .primaryKey()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  roomId: uuid('room_id')
-    .notNull()
-    .references(() => rooms.id, { onDelete: 'cascade' }),
-  joinedAt: timestamp('joined_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-});
-
-/** 在线状态：按用户聚合连接；心跳更新 last_seen_at，跨进程读取（房主转让、全员离线判定）。 */
+/** 在线状态按房间和用户记录；同一用户可同时订阅多个房间。 */
 export const presence = pgTable(
   'presence',
   {
-    userId: text('user_id')
-      .primaryKey()
-      .references(() => user.id, { onDelete: 'cascade' }),
-    roomId: uuid('room_id').references(() => rooms.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+    roomId: uuid('room_id').notNull().references(() => rooms.id, { onDelete: 'cascade' }),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   },
-  (t) => [index('presence_room_idx').on(t.roomId)],
+  (t) => [primaryKey({ columns: [t.roomId, t.userId] }), index('presence_room_idx').on(t.roomId)],
 );
 
 // ---------- 局 ----------
@@ -214,7 +197,7 @@ export const roomFollowups = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   },
   (t) => [
-    // 不变量 5：一个源房间至多一条续玩记录
+    // 不变量 4：一个源房间至多一条续玩记录
     uniqueIndex('room_followups_source_uq').on(t.sourceRoomId),
     index('room_followups_target_idx').on(t.targetRoomId),
   ],

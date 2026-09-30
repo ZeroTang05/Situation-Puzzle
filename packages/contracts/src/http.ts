@@ -166,9 +166,9 @@ export const roomFollowupRequestSchema = z.object({
 export const roomFollowupMemberSchema = z.object({
   userId: z.string(),
   nickname: z.string(),
-  /** false 时 reason 说明未迁入原因（in_other_room / room_full） */
+  /** false 时 reason 说明未迁入原因（room_full） */
   migrated: z.boolean(),
-  reason: z.enum(['in_other_room', 'room_full']).optional(),
+  reason: z.enum(['room_full']).optional(),
 });
 
 export const roomFollowupResponseSchema = z.object({

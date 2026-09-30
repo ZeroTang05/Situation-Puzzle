@@ -14,13 +14,20 @@ export function HomePage({ session }: { session: Session | null }) {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  // 已开未关闭的房间入口
+  // 开房额度与当前加入的房间分别读取，开房按钮始终创建新房。
   const entitlement = useQuery({
     queryKey: ['entitlement-preview'],
-    queryFn: () => api<{ openRoomId: string | null; sponsored: boolean; freeRemaining: number }>('/rooms/entitlement-preview'),
+    queryFn: () => api<{ sponsored: boolean; freeRemaining: number }>('/rooms/entitlement-preview'),
     enabled: session !== null,
     retry: false,
   });
+  const activeRooms = useQuery({
+    queryKey: ['me-active-rooms'],
+    queryFn: () => api<{ rooms: Array<{ roomId: string; createdAt: string; title: string | null }> }>('/me/active-rooms'),
+    enabled: session !== null,
+    retry: false,
+  });
+  const joinedRooms = activeRooms.data?.rooms ?? [];
 
   return (
     <main className="shell">
@@ -53,10 +60,6 @@ export function HomePage({ session }: { session: Session | null }) {
               className="btn btn-lg"
               disabled={creating}
               onClick={() => {
-                if (entitlement.data?.openRoomId) {
-                  navigate(`/rooms/${entitlement.data.openRoomId}`);
-                  return;
-                }
                 setCreating(true);
                 setCreateError(null);
                 createRoom()
@@ -65,7 +68,7 @@ export function HomePage({ session }: { session: Session | null }) {
                   .finally(() => setCreating(false));
               }}
             >
-              {creating ? copy.creating : entitlement.data?.openRoomId ? copy.backToMyRoom : copy.multi}
+              {creating ? copy.creating : copy.multi}
             </button>
           ) : (
             <button className="btn btn-lg" onClick={() => navigate('/login?next=%2Flibrary%3Fmode%3Dselect')}>
@@ -82,6 +85,17 @@ export function HomePage({ session }: { session: Session | null }) {
       </section>
 
       {createError && <p className="error-text" role="alert">{createError}</p>}
+
+      {joinedRooms.length > 0 && (
+        <section className="panel stack" aria-label={copy.activeRooms}>
+          <h2>{copy.activeRooms}</h2>
+          {joinedRooms.map((room) => (
+            <button key={room.roomId} className="btn" onClick={() => navigate(`/rooms/${room.roomId}`)}>
+              {room.title ?? new Date(room.createdAt).toLocaleString()}
+            </button>
+          ))}
+        </section>
+      )}
 
       {session && entitlement.data && (
         <section className="panel entitlement-row">

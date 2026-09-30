@@ -36,6 +36,13 @@
       "when": 1790698292724,
       "tag": "0004_creation_origin",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790749274294,
+      "tag": "0005_multi_room_membership",
+      "breakpoints": true
     }
   ]
 }

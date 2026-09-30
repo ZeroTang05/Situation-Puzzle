@@ -66,7 +66,7 @@ Google、LINUX DO 授权和邮件都需在目标服务器及目标用户网络�
 
 `free_room_accounts` 保存用户 total=10、consumed、reserved；`room_entitlements` 保存房间、创建者、来源 sponsorship/free/test、赞助授权 ID、状态。`room_credit_ledger` 追加记录预留、消费、释放、退回，`(room_id, action)` 唯一。
 
-创建房间事务：锁用户赞助账户及免费开房账户 → 检查当前赞助授权 → 有授权则记录 sponsorship 来源；无授权则验证 `10-consumed-reserved > 0` 并预留一个免费机会 → 创建房间、成员、开房授权和事件并提交。已有自己创建的未关闭房间时返回该房间入口；服务端禁止一个用户重复占用多个空房预留。
+创建房间事务：锁用户赞助账户及免费开房账户 → 检查当前赞助授权 → 有授权则记录 sponsorship 来源；无授权则验证 `10-consumed-reserved > 0` 并预留一个免费机会 → 创建房间、成员、开房授权和事件并提交。每次成功创建都会产生独立房间及授权；用户可同时持有多个房间。空房预留分别占用免费余量，避免并发创建超额。
 
 本房开局只固定一道题和主持配置，不再检查新的赞助周期、不重复预留次数。第一次有效判题事务：若来源 free 且状态 reserved，reserved 减一、consumed 加一并写唯一消费流水。后续问题不改本房计数；下一题创建独立新房并单独授权。
 

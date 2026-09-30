@@ -8,6 +8,7 @@ import { presence, profiles, roomEvents, roomMembers, rooms, session } from '@je
 import { wsClientFrameSchema } from '@jev/contracts';
 import { app } from '../context.js';
 import { consumeJti } from './realtime.controller.js';
+import { activeRoomsForUser } from './presence-state.js';
 
 interface Subscription { roomId: string; lastSeq: number }
 interface ClientState {
@@ -25,6 +26,7 @@ interface ClientState {
 export class RealtimeGateway {
   private readonly logger = new Logger('RealtimeGateway');
   private readonly clients = new Map<WebSocket, ClientState>();
+  private readonly presenceRooms = new Map<string, Set<string>>();
   private readonly wss = new WebSocketServer({ noServer: true });
   private ticker: NodeJS.Timeout | null = null;
   private listenClient: import('pg').PoolClient | null = null;
@@ -234,15 +236,22 @@ export class RealtimeGateway {
     }
   }
 
-  /** 多标签页聚合活动，关闭一页不抹掉另一页的在线状态。 */
+  /** 按房间汇总各标签页的活动，给每个已订阅房间保留独立在线记录。 */
   private async updatePresence(userId: string | null): Promise<void> {
     if (!userId || this.stopping) return;
-    const active = [...this.clients.values()].filter((s) => s.userId === userId && s.subscriptions.size && s.lastActiveAt > Date.now() - 60_000)
-      .sort((a, b) => b.lastActiveAt - a.lastActiveAt)[0];
-    if (!active) { await app().db.db.delete(presence).where(eq(presence.userId, userId)); return; }
-    const roomId = [...active.subscriptions.keys()][0]!;
-    await app().db.db.insert(presence).values({ userId, roomId, lastSeenAt: new Date(active.lastActiveAt) })
-      .onConflictDoUpdate({ target: presence.userId, set: { roomId, lastSeenAt: new Date(active.lastActiveAt) } });
+    const activeByRoom = activeRoomsForUser(this.clients.values(), userId, Date.now());
+    const db = app().db.db;
+    const previousRooms = this.presenceRooms.get(userId) ?? new Set<string>();
+    for (const roomId of previousRooms) {
+      if (activeByRoom.has(roomId)) continue;
+      await db.delete(presence).where(and(eq(presence.userId, userId), eq(presence.roomId, roomId)));
+    }
+    for (const [roomId, lastActiveAt] of activeByRoom) {
+      await db.insert(presence).values({ userId, roomId, lastSeenAt: new Date(lastActiveAt) })
+        .onConflictDoUpdate({ target: [presence.roomId, presence.userId], set: { lastSeenAt: new Date(lastActiveAt) } });
+    }
+    if (activeByRoom.size) this.presenceRooms.set(userId, new Set(activeByRoom.keys()));
+    else this.presenceRooms.delete(userId);
   }
 
   private reject(socket: WebSocket, code: string, message: string, closeCode: number): void {

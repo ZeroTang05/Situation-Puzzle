@@ -33,6 +33,33 @@ async function ask(page: Page) {
   await expect(page.locator('.confidence').last()).toContainText(/置信度 \d+%/, { timeout: 70_000 });
 }
 
+test('题库卡片展示已玩角标、固定票数布局，并用所选题目开房', async ({ page, context }) => {
+  await register(context, '题库卡片测试');
+  const catalog = await getData(context.request, '/puzzles?language=zh&limit=1');
+  const puzzle = catalog.items[0];
+  expect(puzzle).toBeDefined();
+  await page.goto(`/solo/${puzzle.id}?lang=zh`);
+  await expect(page.locator('.brand-sm')).toHaveText(puzzle.title);
+  await page.goto('/library?lang=zh');
+  const card = page.locator('.puzzle-card').filter({ hasText: puzzle.title }).first();
+  await expect(card).toBeVisible();
+  await expect(page.locator('.library-intro')).toHaveCount(0);
+  await expect(card.locator('.puzzle-played')).toHaveText('已玩');
+  await expect(card.locator('.puzzle-card-author')).toBeVisible();
+  await expect(card.locator('.puzzle-card-votes > span')).toHaveCount(2);
+  await expect(card.getByRole('button', { name: '单人游玩' })).toBeVisible();
+  await card.getByRole('button', { name: '一键开房间' }).click();
+  await expect(page).toHaveURL(/\/rooms\/[0-9a-f-]+/);
+  const roomId = new URL(page.url()).pathname.split('/').at(-1)!;
+  try {
+    await expect.poll(async () => (await getData(context.request, `/rooms/${roomId}/snapshot`)).controlVersion).toBeGreaterThan(0);
+    await command(context.request, roomId, 'start_round');
+    expect((await getData(context.request, `/rooms/${roomId}/snapshot`)).round.puzzleId).toBe(puzzle.id);
+  } finally {
+    await command(context.request, roomId, 'close_room');
+  }
+});
+
 test('游玩中邀请、登录直达、玩家管理、提示翻阅和置信度', async ({ page, context, browser }) => {
   await register(context, '房主测试');
   const catalog = await getData(context.request, '/puzzles?language=zh&limit=1');
@@ -99,6 +126,43 @@ test('游玩中邀请、登录直达、玩家管理、提示翻阅和置信度',
   }
 });
 
+test('同一用户可同时创建和加入多个房间，退出一间不影响另一间', async ({ page, context, browser }) => {
+  await register(context, '多房房主');
+  const guest = await browser.newContext({ baseURL: test.info().project.use.baseURL });
+  const created: Array<{ roomId: string; inviteToken: string }> = [];
+  let guestCreated: { roomId: string } | null = null;
+  try {
+    await register(guest, '多房成员');
+    for (let index = 0; index < 2; index += 1) {
+      const response = await context.request.post('/api/v1/rooms', { data: { capacity: 8 } });
+      expect(response.ok(), await response.text()).toBe(true);
+      created.push((await response.json()).data);
+    }
+    expect(created[0]!.roomId).not.toBe(created[1]!.roomId);
+    expect((await getData(context.request, '/rooms/entitlement-preview')).freeRemaining).toBe(8);
+    for (const room of created) {
+      const response = await guest.request.post('/api/v1/rooms/join', { data: { token: room.inviteToken } });
+      expect(response.ok(), await response.text()).toBe(true);
+      expect((await response.json()).data.roomId).toBe(room.roomId);
+      expect((await getData(guest.request, `/rooms/${room.roomId}/snapshot`)).members).toHaveLength(2);
+    }
+    const thirdResponse = await guest.request.post('/api/v1/rooms', { data: { capacity: 8 } });
+    expect(thirdResponse.ok(), await thirdResponse.text()).toBe(true);
+    guestCreated = (await thirdResponse.json()).data;
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: '开房间', exact: true })).toBeVisible();
+    await expect(page.getByRole('region', { name: '进行中的房间' }).getByRole('button')).toHaveCount(2);
+    expect((await getData(guest.request, '/me/active-rooms')).rooms).toHaveLength(3);
+    await command(guest.request, created[0]!.roomId, 'leave');
+    expect((await getData(guest.request, `/rooms/${created[1]!.roomId}/snapshot`)).members).toHaveLength(2);
+    await command(guest.request, created[1]!.roomId, 'leave');
+  } finally {
+    if (guestCreated) await command(guest.request, guestCreated.roomId, 'close_room');
+    for (const room of created) await command(context.request, room.roomId, 'close_room');
+    await guest.close();
+  }
+});
+
 test('单人提示回看、置信度刷新恢复和中英文独立记录', async ({ page, context }) => {
   const zh = await getData(context.request, '/puzzles?language=zh&limit=1');
   const puzzle = zh.items[0];
@@ -123,4 +187,25 @@ test('单人提示回看、置信度刷新恢复和中英文独立记录', async
   await expect(page.locator('.chat .turn')).toHaveCount(0);
   await page.goto(`/solo/${puzzle.id}?lang=zh`);
   await expect(page.locator('.confidence').last()).toContainText(/置信度 \d+%/);
+});
+
+test('单人主界面只在揭晓后展示评价，操作区固定在屏幕内', async ({ page, context }) => {
+  await page.setViewportSize({ width: 390, height: 740 });
+  const catalog = await getData(context.request, '/puzzles?language=zh&limit=1');
+  const puzzle = catalog.items[0];
+  expect(puzzle).toBeDefined();
+  await page.goto(`/solo/${puzzle.id}?lang=zh`);
+  await expect(page.locator('.host-intro')).toBeVisible();
+  await expect(page.getByRole('group', { name: '题目投票' })).toHaveCount(0);
+  await expect(page.locator('.topbar').getByRole('button', { name: '汤底' })).toHaveCount(0);
+  await expect(page.locator('.solo-action-row button')).toHaveCount(3);
+  await expect(page.locator('.solo-action-row')).toContainText('看汤底');
+  await expect(page.locator('.solo-tools')).toHaveCount(0);
+  await expect(page.locator('.solo-composer textarea')).toHaveAttribute('rows', '1');
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: '看汤底' }).click();
+  await expect(page.locator('.answer-panel')).toBeVisible();
+  await expect(page.getByRole('group', { name: '题目投票' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
 });

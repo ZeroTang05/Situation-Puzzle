@@ -6,12 +6,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { api, ApiError, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
-import { displayVerdict, verdictDetail, format } from '@jev/i18n';
+import { displayVerdict, verdictDetail } from '@jev/i18n';
 import { soloStore, type SoloSessionRow } from './local-store.js';
 import type { Session } from '../session.js';
 import { HintCapsule } from '../game/hint-capsule.js';
 import { confidenceLabel } from '../game/game-display.js';
 import { VoteButtons } from '../catalog/vote-buttons.js';
+import { canRateSoloPuzzle } from './rating-visibility.js';
 
 type InputMode = 'ask' | 'solve';
 
@@ -37,9 +38,8 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [storageWarning, setStorageWarning] = useState(false);
-  const [showAnswer, setShowAnswer] = useState(false);
   const [publicStats, setPublicStats] = useState<{ upCount: number; downCount: number } | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const chatRef = useRef<HTMLElement>(null);
 
   // 公开计数与署名（题目详情）：未登录也能看；投票组件内部再取本人选择
   useEffect(() => {
@@ -94,8 +94,9 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
   }, [puzzleId, language, copy.soloLoadFail]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [turns.length]);
+    const chat = chatRef.current;
+    if (chat) chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
+  }, [turns.length, session?.revealedAnswer]);
 
   const persistDraft = useCallback(
     (mode: InputMode, value: string) => {
@@ -134,8 +135,11 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
         const answer = (result as { answer?: string }).answer ?? null;
         await soloStore.updateSession(session.localSessionId, { status: 'solved', revealedAnswer: answer });
         setSession((prev) => (prev ? { ...prev, status: 'solved', revealedAnswer: answer } : prev));
-        setShowAnswer(true);
         await soloStore.bumpProgress(session.puzzleId, { solved: true });
+      } else if (inputMode === 'solve') {
+        // 一次还原完成后回到普通提问；未答对时仍可继续推理。
+        setInputMode('ask');
+        await soloStore.saveDraft(session.localSessionId, 'ask', '');
       }
     } catch (err) {
       const note = translateApiError(err, language, copy.networkError);
@@ -188,22 +192,10 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
       });
       await soloStore.updateSession(session.localSessionId, { status: 'revealed', revealedAnswer: answer });
       setSession({ ...session, status: 'revealed', revealedAnswer: answer });
-      setShowAnswer(true);
       await soloStore.bumpProgress(session.puzzleId, { revealed: true });
     } catch {
       setError(copy.revealFail);
     }
-  };
-
-  const exportAndClear = async () => {
-    const json = await soloStore.exportAll();
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `jev-solo-records-${Date.now()}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
   };
 
   if (error && !session) {
@@ -219,27 +211,20 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
   if (!session) return <main className="shell page-loading">{copy.loadingRound}</main>;
 
   const solved = session.status === 'solved';
+  const canRate = canRateSoloPuzzle(session.revealedAnswer, turns);
 
   return (
-    <main className="shell">
+    <main className="shell solo-shell">
       <header className="topbar">
         <button className="btn btn-ghost btn-sm" onClick={() => navigate('/library')}>{copy.back}</button>
         <h1 className="brand brand-sm">{session.title}</h1>
-        <button className="btn btn-ghost btn-sm" onClick={() => setShowAnswer((v) => !v)}>
-          {copy.answer}
-        </button>
       </header>
 
-      <section className="hero-card">
+      <section className="hero-card solo-story">
         <p className="story">{session.surface}</p>
-        {publicStats && (
-          <div className="hint-row">
-            <VoteButtons puzzleId={puzzleId!} session={authSession} initialUp={publicStats.upCount} initialDown={publicStats.downCount} />
-          </div>
-        )}
       </section>
 
-      <section className="chat" aria-live="polite">
+      <section className="chat solo-chat" ref={chatRef} aria-live="polite">
         <div className="host-intro">
           <span className="avatar">🐢</span>
           <p>{copy.jevIntro}</p>
@@ -247,102 +232,76 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
         {turns.filter((turn) => turn.result !== 'hint').map((turn) => (
           <TurnCard key={turn.localTurnId} turn={turn} />
         ))}
-        <div ref={bottomRef} />
-      </section>
+        {solved && (
+          <section className="panel verdict-panel">
+            <p className="verdict-badge verdict-solved">{displayVerdict('solved', language)}</p>
+            <p>{verdictDetail('solved', language)}</p>
+          </section>
+        )}
 
-      {storageWarning && <p className="error-text">{copy.storageNotSaved}</p>}
-      {error && <p className="error-text" role="alert">{error}</p>}
+        {session.revealedAnswer && (
+          <section className="panel answer-panel">
+            <h3>{copy.answer}</h3>
+            <p>{session.revealedAnswer}</p>
+          </section>
+        )}
 
-      {solved && (
-        <section className="panel verdict-panel">
-          <p className="verdict-badge verdict-solved">{displayVerdict('solved', language)}</p>
-          <p>{verdictDetail('solved', language)}</p>
-        </section>
-      )}
-
-      {(showAnswer || session.revealedAnswer) && session.revealedAnswer && (
-        <section className="panel answer-panel">
-          <h3>{copy.answer}</h3>
-          <p>{session.revealedAnswer}</p>
-        </section>
-      )}
-
-      {/* 结算投票：单人各账号独立，不改变他人选择（11-VOTES-AND-AUTHORSHIP.md §5） */}
-      {(solved || session.revealedAnswer) && publicStats && (
-        <section className="panel">
-          <p className="muted">{copy.rateYourPuzzle}</p>
-          <VoteButtons puzzleId={puzzleId!} session={authSession} initialUp={publicStats.upCount} initialDown={publicStats.downCount} />
-        </section>
-      )}
-
-      <HintCapsule hints={turns.filter((turn) => turn.result === 'hint').map((turn) => turn.text)} />
-      <section className="hint-row" role="group" aria-label={copy.hint}>
-        <button className="btn btn-sm" disabled={hintBusy || session.status !== 'active' || session.hintsUnlocked.length >= 3} onClick={() => void unlockHint(session.hintsUnlocked.length)}>
-          {copy.hint} {session.hintsUnlocked.length}/3
-        </button>
-        {!session.revealedAnswer && (
-          <button
-            className="btn btn-sm btn-ghost"
-            onClick={() => {
-              if (window.confirm(copy.revealConfirm)) void reveal();
-            }}
-          >
-            {copy.reveal}
-          </button>
+        {/* 首次提交还原或公布汤底后才开放评价。 */}
+        {canRate && publicStats && (
+          <section className="panel">
+            <p className="muted">{copy.rateYourPuzzle}</p>
+            <VoteButtons puzzleId={puzzleId!} session={authSession} initialUp={publicStats.upCount} initialDown={publicStats.downCount} />
+          </section>
         )}
       </section>
 
-      {!solved && !session.revealedAnswer && (
-        <footer className="composer">
-          <div className="mode-tabs" role="tablist">
-            <button className={`mode-tab ${inputMode === 'ask' ? 'active' : ''}`} role="tab" aria-selected={inputMode === 'ask'} onClick={() => setInputMode('ask')}>
-              {copy.ask}
-            </button>
-            <button className={`mode-tab ${inputMode === 'solve' ? 'active' : ''}`} role="tab" aria-selected={inputMode === 'solve'} onClick={() => setInputMode('solve')}>
-              {copy.solve}
-            </button>
-          </div>
-          <div className="composer-row">
-            <textarea
-              className="field composer-input"
-              rows={2}
-              maxLength={inputMode === 'ask' ? 500 : 1500}
-              value={text}
-              placeholder={inputMode === 'ask' ? copy.askPlaceholder : copy.solvePlaceholder}
-              onChange={(e) => {
-                setText(e.target.value);
-                persistDraft(inputMode, e.target.value);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  void submit();
-                }
-              }}
-            />
-            <button className="btn btn-primary" disabled={sending || !text.trim()} onClick={() => void submit()}>
-              {sending ? copy.submitting : copy.send}
-            </button>
-          </div>
-        </footer>
-      )}
+      <div className="solo-bottom">
+        {storageWarning && <p className="error-text">{copy.storageNotSaved}</p>}
+        {error && <p className="error-text" role="alert">{error}</p>}
+        <HintCapsule hints={turns.filter((turn) => turn.result === 'hint').map((turn) => turn.text)} />
+        <section className="solo-action-row" role="group" aria-label={copy.hint}>
+          <button className="btn btn-sm" disabled={hintBusy || session.status !== 'active' || session.hintsUnlocked.length >= 3} onClick={() => void unlockHint(session.hintsUnlocked.length)}>
+            {copy.hint} {session.hintsUnlocked.length}/3
+          </button>
+          <button className="btn btn-sm" aria-pressed={inputMode === 'solve'} disabled={sending || solved || Boolean(session.revealedAnswer)} onClick={() => {
+            const next = inputMode === 'solve' ? 'ask' : 'solve';
+            setInputMode(next);
+            setText('');
+            persistDraft(next, '');
+          }}>{copy.solve}</button>
+          <button className="btn btn-sm" disabled={sending || Boolean(session.revealedAnswer)} onClick={() => {
+            if (window.confirm(copy.revealConfirm)) void reveal();
+          }}>{copy.soloViewAnswer}</button>
+        </section>
 
-      <footer className="solo-tools">
-        <button className="btn btn-sm btn-ghost" onClick={() => void exportAndClear()}>
-          {copy.exportRecords}
-        </button>
-        <button
-          className="btn btn-sm btn-ghost"
-          onClick={() => {
-            if (window.confirm(copy.clearRecordsConfirm)) {
-              void soloStore.clearAll().then(() => navigate('/library'));
-            }
-          }}
-        >
-          {copy.clearRecords}
-        </button>
-        <span className="muted">{format(copy.questions, { n: turns.filter((t) => t.status === 'succeeded' && t.kind === 'ask').length })}</span>
-      </footer>
+        {!solved && !session.revealedAnswer && (
+          <footer className="composer solo-composer">
+            <div className="composer-row">
+              <textarea
+                className="field composer-input"
+                aria-label={inputMode === 'ask' ? copy.ask : copy.solve}
+                rows={1}
+                maxLength={inputMode === 'ask' ? 500 : 1500}
+                value={text}
+                placeholder={inputMode === 'ask' ? copy.askPlaceholder : copy.solvePlaceholder}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  persistDraft(inputMode, e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    void submit();
+                  }
+                }}
+              />
+              <button className="btn btn-primary" disabled={sending || !text.trim()} onClick={() => void submit()}>
+                {sending ? copy.submitting : copy.send}
+              </button>
+            </div>
+          </footer>
+        )}
+      </div>
     </main>
   );
 }

@@ -1,11 +1,10 @@
-/** 「我的」：账号、赞助有效期、免费开房余量、多人历史、订单、单人本地记录管理。 */
+/** 「我的」：账号、赞助有效期、免费开房余量、多人历史与订单。 */
 import { useNavigate } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api, translateApiError } from '../api/client.js';
 import { authClient } from '../api/auth-client.js';
 import { useLanguage } from '../state/language.js';
-import { soloStore } from '../solo/local-store.js';
 import { clearRoomLocal } from '../rooms/room-local.js';
 import { format } from '@jev/i18n';
 import type { Session } from '../session.js';
@@ -32,7 +31,6 @@ export function MePage({ session }: { session: Session | null }) {
   const { copy, language } = useLanguage();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [localCount, setLocalCount] = useState<number | null>(null);
   // 昵称修改：允许重名，保存后让 /me 重新拉取
   const [editingNickname, setEditingNickname] = useState(false);
   const [nicknameDraft, setNicknameDraft] = useState('');
@@ -56,10 +54,6 @@ export function MePage({ session }: { session: Session | null }) {
       setSavingNickname(false);
     }
   };
-
-  useEffect(() => {
-    void soloStore.listSessions().then((rows) => setLocalCount(rows.length));
-  }, []);
 
   if (!session) {
     return (
@@ -163,32 +157,6 @@ export function MePage({ session }: { session: Session | null }) {
         ))}
       </section>
 
-      <section className="panel stack">
-        <h3>{copy.soloRecords}</h3>
-        <p className="muted">{format(copy.soloOnlyBrowser, { n: localCount ?? 0 })}</p>
-        <button
-          className="btn btn-sm btn-ghost"
-          onClick={() =>
-            void soloStore.exportAll().then((json) => {
-              const blob = new Blob([json], { type: 'application/json' });
-              const link = document.createElement('a');
-              link.href = URL.createObjectURL(blob);
-              link.download = `jev-solo-records-${Date.now()}.json`;
-              link.click();
-            })
-          }
-        >
-          {copy.exportRecords}
-        </button>
-        <button
-          className="btn btn-sm btn-ghost"
-          onClick={() => {
-            if (window.confirm(copy.clearRecordsConfirm)) void soloStore.clearAll();
-          }}
-        >
-          {copy.clearRecords}
-        </button>
-      </section>
     </main>
   );
 }

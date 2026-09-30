@@ -6,7 +6,6 @@ import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
-  activeRoomUsers,
   archiveRoomTx,
   auditLogs,
   jevCalls,

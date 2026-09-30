@@ -1,8 +1,8 @@
 /** 房间 HTTP 接口：建房、邀请、加入、快照、命令、事件补齐、历史、答案。 */
 import { Body, Controller, Get, HttpCode, Inject, Param, Post, Query, HttpStatus } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common';
-import { and, eq, sql } from 'drizzle-orm';
-import { activeRoomUsers, freeRoomAccounts, roomEntitlements, rooms, sponsorGrants } from '@jev/database';
+import { eq } from 'drizzle-orm';
+import { freeRoomAccounts, sponsorGrants } from '@jev/database';
 import { hasActiveSponsorship } from '@jev/domain';
 import { app } from '../context.js';
 import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http.js';
@@ -113,25 +113,18 @@ export class RoomsController {
     return this.roomsService.roundAnswer(user, id);
   }
 
-  /** 当前可开房状态：供「开房间」按钮预判（权威判定仍在建房事务内）。openRoomId 含自己创建与被迁入的房间。 */
+  /** 当前可开房额度：权威判定仍在建房事务内。 */
   @Get('rooms/entitlement-preview')
   async entitlementPreview(@CurrentUser() user: SessionUser) {
     const context = app();
-    const [grants, freeRows, openRoom] = await Promise.all([
+    const [grants, freeRows] = await Promise.all([
       context.db.db.select().from(sponsorGrants).where(eq(sponsorGrants.userId, user.userId)),
       context.db.db.select().from(freeRoomAccounts).where(eq(freeRoomAccounts.userId, user.userId)).limit(1),
-      context.db.db
-        .select({ id: activeRoomUsers.roomId })
-        .from(activeRoomUsers)
-        .innerJoin(rooms, eq(rooms.id, activeRoomUsers.roomId))
-        .where(and(eq(activeRoomUsers.userId, user.userId), sql`${rooms.status} <> 'closed'`))
-        .limit(1),
     ]);
     const free = freeRows[0];
     return {
       sponsored: hasActiveSponsorship(grants, new Date()),
       freeRemaining: free ? free.total - free.consumed - free.reserved : 0,
-      openRoomId: openRoom[0]?.id ?? null,
     };
   }
 }

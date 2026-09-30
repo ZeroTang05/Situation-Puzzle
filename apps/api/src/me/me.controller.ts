@@ -1,6 +1,6 @@
 /** 当前账号：身份、赞助有效期、免费开房余量、多人历史。 */
 import { Body, Controller, Get, Patch } from '@nestjs/common';
-import { desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import {
   freeRoomAccounts,
   orders,
@@ -75,6 +75,20 @@ export class MeController {
       .set({ nickname: body.nickname, updatedAt: new Date() })
       .where(eq(profiles.userId, user.userId));
     return { nickname: body.nickname };
+  }
+
+  /** 当前可进入的房间：成员资格逐房间查询，不受历史分页限制。 */
+  @Get('active-rooms')
+  async activeRooms(@CurrentUser() user: SessionUser) {
+    const rows = await app().db.db
+      .select({ roomId: rooms.id, createdAt: rooms.createdAt, title: puzzleVersions.title })
+      .from(roomMembers)
+      .innerJoin(rooms, eq(rooms.id, roomMembers.roomId))
+      .leftJoin(rounds, and(eq(rounds.roomId, rooms.id), eq(rounds.status, 'active')))
+      .leftJoin(puzzleVersions, eq(puzzleVersions.id, rounds.puzzleVersionId))
+      .where(and(eq(roomMembers.userId, user.userId), eq(roomMembers.status, 'joined'), ne(rooms.status, 'closed')))
+      .orderBy(desc(rooms.createdAt));
+    return { rooms: rows };
   }
 
   /** 多人历史：按成员关系查房间，含每局的题目与结局 */

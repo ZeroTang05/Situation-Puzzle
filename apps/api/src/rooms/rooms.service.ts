@@ -6,7 +6,6 @@ import { Injectable } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import { and, asc, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 import {
-  activeRoomUsers,
   appendEvent,
   earliestSeqTx,
   notifyRoomChange,
@@ -56,35 +55,15 @@ export class RoomsService {
   }
 
   /**
-   * 创建等待室：同一创建者已有未关闭房间时直接返回原房间入口。
+   * 创建独立等待室：每次成功请求都会占用一份开房授权。
    * 授权判定：先赞助后免费；免费来源在创建事务中预留一次机会。
    */
   async createRoom(
     user: SessionUser,
     capacity: number,
-  ): Promise<{ roomId: string; inviteToken: string | null; existing: boolean }> {
+  ): Promise<{ roomId: string; inviteToken: string }> {
     const db = this.db;
     const now = new Date();
-
-    const existing = await db.db
-      .select({ id: rooms.id })
-      .from(rooms)
-      .where(and(eq(rooms.creatorUserId, user.userId), sql`status <> 'closed'`))
-      .limit(1);
-    if (existing.length > 0) {
-      return { roomId: existing[0]!.id, inviteToken: null, existing: true };
-    }
-
-    // 每人最多一个进行中房间：已被迁入/加入某个活动房间时返回该房入口（10-ROOM-LIFECYCLE-REVISION §一.3）
-    const [activeRow] = await db.db
-      .select({ roomId: activeRoomUsers.roomId })
-      .from(activeRoomUsers)
-      .innerJoin(rooms, eq(rooms.id, activeRoomUsers.roomId))
-      .where(and(eq(activeRoomUsers.userId, user.userId), sql`${rooms.status} <> 'closed'`))
-      .limit(1);
-    if (activeRow) {
-      return { roomId: activeRow.roomId, inviteToken: null, existing: true };
-    }
 
     const inviteToken = randomBytes(16).toString('hex');
     const created = await db.tx(async (tx) => {
@@ -93,7 +72,7 @@ export class RoomsService {
     });
 
     await notifyRoomChange(db.pool, created.roomId);
-    return { roomId: created.roomId, inviteToken, existing: false };
+    return { roomId: created.roomId, inviteToken };
   }
 
   /**
@@ -124,7 +103,6 @@ export class RoomsService {
     const roomId = inserted[0]!.id;
 
     await tx.insert(roomMembers).values({ roomId, userId: user.userId, status: 'joined' });
-    await tx.insert(activeRoomUsers).values({ userId: user.userId, roomId });
 
     const entitlement = await tx
       .insert(roomEntitlements)
@@ -164,7 +142,7 @@ export class RoomsService {
     targetRoomId: string;
     existing: boolean;
     inviteToken?: string;
-    members: Array<{ userId: string; nickname: string; migrated: boolean; reason?: 'in_other_room' | 'room_full' }>;
+    members: Array<{ userId: string; nickname: string; migrated: boolean; reason?: 'room_full' }>;
   }> {
     const db = this.db;
     const now = new Date();
@@ -187,14 +165,6 @@ export class RoomsService {
           inviteToken: null as string | null,
         };
       }
-
-      // 房主归档当前房之前不能有另一个未归档房间，否则新房创建会撞唯一约束
-      const [otherOpen] = await tx
-        .select({ id: rooms.id })
-        .from(rooms)
-        .where(and(eq(rooms.creatorUserId, user.userId), sql`status <> 'closed'`))
-        .limit(1);
-      if (otherOpen) throw new DomainError('STATE_CONFLICT', '你还有一个未结束的房间，先归档它再发起下一题');
 
       // 新题版本：published + 语言可用
       const [version] = await tx
@@ -222,7 +192,7 @@ export class RoomsService {
         now,
       });
 
-      // 一键迁移：原房 joined 成员；已加入其他房间的跳过并注明原因
+      // 一键迁入原房仍在场的成员；成员可同时留在其他房间。
       const sourceMembers = await tx
         .select({ userId: roomMembers.userId })
         .from(roomMembers)
@@ -243,19 +213,7 @@ export class RoomsService {
           memberResults.push({ userId: member.userId, nickname, migrated: false, reason: 'room_full' });
           continue;
         }
-        const [otherActive] = await tx
-          .select({ roomId: activeRoomUsers.roomId })
-          .from(activeRoomUsers)
-          .where(eq(activeRoomUsers.userId, member.userId))
-          .limit(1);
-        if (otherActive && otherActive.roomId !== targetRoomId) {
-          memberResults.push({ userId: member.userId, nickname, migrated: false, reason: 'in_other_room' });
-          continue;
-        }
         await tx.insert(roomMembers).values({ roomId: targetRoomId, userId: member.userId, status: 'joined' });
-        if (!otherActive) {
-          await tx.insert(activeRoomUsers).values({ userId: member.userId, roomId: targetRoomId });
-        }
         memberCount += 1;
         memberResults.push({ userId: member.userId, nickname, migrated: true });
       }
@@ -326,7 +284,7 @@ export class RoomsService {
       targetRoomId: result.targetRoomId,
       existing: result.existing,
       ...(result.inviteToken ? { inviteToken: result.inviteToken } : {}),
-      members: result.memberResults as Array<{ userId: string; nickname: string; migrated: boolean; reason?: 'in_other_room' | 'room_full' }>,
+      members: result.memberResults as Array<{ userId: string; nickname: string; migrated: boolean; reason?: 'room_full' }>,
     };
   }
 
@@ -384,11 +342,6 @@ export class RoomsService {
       if (!room) throw new DomainError('NOT_FOUND', '邀请无效或已失效');
       if (room.status === 'closed') throw new DomainError('ROOM_CLOSED', '房间已关闭');
 
-      const [active] = await tx.select().from(activeRoomUsers).where(eq(activeRoomUsers.userId, user.userId)).limit(1);
-      if (active && active.roomId !== room.id) {
-        throw new DomainError('ALREADY_IN_ROOM', '你已在一个房间里，先退出再加入新的。');
-      }
-
       const [member] = await tx
         .select()
         .from(roomMembers)
@@ -404,21 +357,18 @@ export class RoomsService {
         return { roomId: room.id, rejoined: true };
       }
 
+      const [countRow] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(roomMembers)
+        .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.status, 'joined')));
+      if ((countRow?.count ?? 0) >= room.capacity) throw new DomainError('ROOM_FULL', '房间已经满了。');
+
       if (member) {
         // left → 重入
         await tx.update(roomMembers).set({ status: 'joined', leftAt: null }).where(eq(roomMembers.id, member.id));
         rejoined = true;
       } else {
-        const [countRow] = await tx
-          .select({ count: sql<number>`count(*)::int` })
-          .from(roomMembers)
-          .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.status, 'joined')));
-        if ((countRow?.count ?? 0) >= room.capacity) throw new DomainError('ROOM_FULL', '房间已经满了。');
         await tx.insert(roomMembers).values({ roomId: room.id, userId: user.userId, status: 'joined' });
-      }
-
-      if (!active) {
-        await tx.insert(activeRoomUsers).values({ userId: user.userId, roomId: room.id });
       }
 
       // 进行中的局：新成员成为本局参与者
@@ -430,8 +380,6 @@ export class RoomsService {
       if (currentRound) {
         await tx.insert(roundParticipants).values({ roundId: currentRound.id, userId: user.userId }).onConflictDoNothing();
       }
-
-      await tx.update(presence).set({ roomId: room.id, lastSeenAt: new Date() }).where(eq(presence.userId, user.userId));
 
       await appendEvent(tx, {
         roomId: room.id,
@@ -475,7 +423,7 @@ export class RoomsService {
         ? await tx
             .select({ userId: presence.userId })
             .from(presence)
-            .where(and(inArray(presence.userId, memberIds), gt(presence.lastSeenAt, new Date(Date.now() - ONLINE_WINDOW_MS))))
+            .where(and(eq(presence.roomId, roomId), inArray(presence.userId, memberIds), gt(presence.lastSeenAt, new Date(Date.now() - ONLINE_WINDOW_MS))))
         : [];
       const onlineSet = new Set(onlineRows.map((r) => r.userId));
 

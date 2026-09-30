@@ -4,7 +4,6 @@
  */
 import { and, eq, inArray, sql, min } from 'drizzle-orm';
 import {
-  activeRoomUsers,
   freeRoomAccounts,
   roomCreditLedger,
   roomEntitlements,
@@ -203,6 +202,5 @@ export async function archiveRoomTx(
   }
   await releaseEntitlementIfReservedTx(tx, roomId);
   await tx.update(rooms).set({ status: 'closed', closedAt: now, closeReason: reason }).where(eq(rooms.id, roomId));
-  await tx.delete(activeRoomUsers).where(eq(activeRoomUsers.roomId, roomId));
   await appendEvent(tx, { roomId, roundId, type: 'room.closed', payload: { reason } });
 }

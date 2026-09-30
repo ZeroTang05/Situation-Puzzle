@@ -8,7 +8,6 @@ import { Injectable } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import {
-  activeRoomUsers,
   appendEvent,
   archiveRoomTx,
   notifyRoomChange,
@@ -118,13 +117,6 @@ export class CommandsService {
         .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.userId, user.userId)))
         .limit(1);
       if (!member || member.status !== 'joined') throw new DomainError('FORBIDDEN', '你不在这个房间里');
-
-      const [activeRoom] = await tx
-        .select()
-        .from(activeRoomUsers)
-        .where(and(eq(activeRoomUsers.userId, user.userId), eq(activeRoomUsers.roomId, roomId)))
-        .limit(1);
-      if (!activeRoom) throw new DomainError('STATE_CONFLICT', '会话与房间状态不一致，请刷新');
 
       // 3. 当前局（可能不存在：等待室）
       const [round] = await tx
@@ -472,7 +464,7 @@ export class CommandsService {
         const [targetPresence] = await tx
           .select()
           .from(presence)
-          .where(and(eq(presence.userId, userId), sql`last_seen_at > now() - interval '45 seconds'`))
+          .where(and(eq(presence.roomId, room.id), eq(presence.userId, userId), sql`last_seen_at > now() - interval '45 seconds'`))
           .limit(1);
         if (!targetPresence) throw new DomainError('STATE_CONFLICT', '目标成员不在线');
         const [targetMember] = await tx
@@ -526,7 +518,7 @@ export class CommandsService {
       .update(roomMembers)
       .set(kicked ? { status: 'kicked', kickedAt: now, leftAt: now } : { status: 'left', leftAt: now })
       .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, userId)));
-    await tx.delete(activeRoomUsers).where(eq(activeRoomUsers.userId, userId));
+    await tx.delete(presence).where(and(eq(presence.roomId, room.id), eq(presence.userId, userId)));
 
     // 进行中的局：被移除者撤销历史阅读权（主动离开保留）
     const [round] = await tx
@@ -576,7 +568,7 @@ export class CommandsService {
       .select({ userId: roomMembers.userId, joinedAt: roomMembers.joinedAt })
       .from(roomMembers)
       .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.status, 'joined')));
-    const online = await tx.select({ userId: presence.userId }).from(presence);
+    const online = await tx.select({ userId: presence.userId }).from(presence).where(eq(presence.roomId, roomId));
     const onlineSet = new Set(online.map((o) => o.userId));
     return pickHostSuccessor(
       members.map((m) => ({ ...m, status: 'joined' as const, online: onlineSet.has(m.userId) })),

@@ -142,10 +142,6 @@
 
 /* ---------- 题库 ---------- */
 
-.library-intro {
-  margin: 4px 0 12px;
-}
-
 .puzzle-grid {
   display: grid;
   gap: 12px;
@@ -160,12 +156,31 @@
 .puzzle-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+}
+
+.puzzle-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .puzzle-card h2 {
   margin: 0;
   font-size: 17px;
+  min-width: 0;
+}
+
+.puzzle-played {
+  flex: none;
+  border: 1px solid #eb9f52;
+  border-radius: 5px;
+  padding: 2px 6px;
+  color: #ffc078;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .puzzle-surface {
@@ -178,11 +193,53 @@
 }
 
 .puzzle-card-footer {
+  display: grid;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.puzzle-card-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.puzzle-card-author {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.puzzle-card-votes {
+  display: flex;
+  flex: none;
+  gap: 12px;
+  color: #b9cad8;
+  font-variant-numeric: tabular-nums;
+}
+
+.puzzle-card-votes > span {
+  width: 58px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.puzzle-card-actions {
+  display: flex;
+  justify-content: flex-end;
   gap: 8px;
-  margin-top: auto;
+}
+
+.puzzle-card-actions .btn {
+  min-width: 104px;
+  min-height: 44px;
 }
 
 /* ---------- 游戏共用 ---------- */
@@ -240,15 +297,16 @@
 /* 提示胶囊紧邻输入区，便于一边推理一边翻阅。 */
 .hint-capsule {
   width: 100%;
-  margin: 12px 0;
-  padding: 12px 18px;
+  margin: 4px 0;
+  padding: 7px 10px;
   border: 1px solid rgba(230, 192, 125, 0.4);
-  border-radius: 24px;
+  border-radius: 0;
   background: #162b39;
   color: var(--gold);
 }
-.hint-capsule-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.hint-capsule p { margin: 6px 0 0; line-height: 1.65; overflow-wrap: anywhere; }
+.hint-capsule-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+.hint-capsule-head .btn { min-width: 34px; min-height: 30px; padding: 2px 6px; border-radius: 0; }
+.hint-capsule p { margin: 3px 0 0; line-height: 1.45; font-size: 13px; overflow-wrap: anywhere; }
 .confidence { color: var(--muted); font-size: 12px; }
 .turn-solve { align-self: flex-end; align-items: flex-end; }
 
@@ -268,11 +326,14 @@
 }
 
 .host-intro {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: start;
+  gap: 6px;
   color: var(--muted);
 }
+
+.host-intro p { margin: 0; line-height: 1.5; }
 
 .avatar {
   display: grid;
@@ -284,6 +345,38 @@
   background: #10486d;
   font-size: 18px;
 }
+
+/* 单人页固定在可见屏幕内，题面与对话各自滚动，输入区始终可见。 */
+.solo-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
+.solo-shell .topbar { flex: none; min-height: 52px; }
+.solo-shell .btn, .solo-shell .field, .solo-shell .panel, .solo-shell .hero-card, .solo-shell .turn .turn-text { border-radius: 0; }
+.solo-shell .brand { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+.solo-story { flex: 0 1 auto; min-height: 0; max-height: min(30dvh, 220px); overflow-y: auto; padding: 12px; }
+.solo-story .story { margin: 0; position: relative; z-index: 1; line-height: 1.5; }
+.solo-chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; gap: 10px; padding: 10px 0; }
+.solo-chat .panel { border-radius: 4px; padding: 10px; }
+.solo-chat .panel p { margin: 4px 0; }
+.solo-chat .turn .turn-text { border-radius: 4px; padding: 8px 10px; }
+.solo-bottom { flex: none; max-height: 48dvh; overflow-y: auto; overscroll-behavior: contain; }
+.solo-bottom > .error-text { margin: 3px 0; font-size: 13px; }
+.solo-action-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; padding: 4px 0; }
+.solo-action-row .btn { min-width: 0; min-height: 38px; padding: 4px 2px; border-radius: 3px; font-size: 13px; line-height: 1.2; }
+.solo-action-row .btn:first-child { color: var(--gold); border-color: rgba(230, 192, 125, 0.5); }
+.solo-action-row .btn:nth-child(2) { color: var(--coral); border-color: rgba(255, 155, 120, 0.5); }
+.solo-action-row .btn:last-child { color: #a9c8ec; border-color: rgba(169, 200, 236, 0.5); }
+.solo-action-row .btn[aria-pressed='true'] { background: rgba(255, 155, 120, 0.15); }
+.solo-composer { position: static; padding: 4px 0 0; background: none; }
+.solo-composer .composer-row { align-items: stretch; gap: 5px; }
+.solo-composer .composer-input { flex: 1; min-width: 0; min-height: 44px; height: 44px; padding: 8px 10px; resize: none; border-radius: 3px; line-height: 1.35; }
+.solo-composer .btn { min-height: 44px; padding: 4px 12px; border-radius: 3px; }
 
 /* ---------- 输入区 ---------- */
 
@@ -430,13 +523,4 @@
   gap: 6px;
   font-size: 14px;
   color: var(--muted);
-}
-
-.solo-tools {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 0;
-  border-top: 1px solid var(--line);
-  margin-top: 12px;
 }

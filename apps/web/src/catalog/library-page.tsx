@@ -7,6 +7,8 @@ import { soloStore } from '../solo/local-store.js';
 import { useEffect, useState } from 'react';
 import type { Session } from '../session.js';
 import { AuthorLabel } from './vote-buttons.js';
+import { createRoom } from '../rooms/create-room.js';
+import { compactVoteCount } from './vote-count.js';
 
 interface PuzzleItem {
   id: string;
@@ -31,6 +33,7 @@ export function LibraryPage({ session }: { session: Session | null }) {
   const sort = params.get('sort') === 'popular' ? 'popular' : 'latest';
   const [playedIds, setPlayedIds] = useState<Set<string>>(new Set());
   const [followupError, setFollowupError] = useState<string | null>(null);
+  const [openingPuzzleId, setOpeningPuzzleId] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['puzzles', language, sort],
@@ -67,6 +70,37 @@ export function LibraryPage({ session }: { session: Session | null }) {
     navigate(`/solo/${puzzle.id}?lang=${language}`);
   };
 
+  /** 建房后交给房间页选择这道题；登录回跳保留题目与语言。 */
+  const openRoomWithPuzzle = async (puzzle: PuzzleItem) => {
+    const selection = `/library?mode=select&pick=${encodeURIComponent(puzzle.id)}&lang=${language}`;
+    if (!session) {
+      navigate(`/login?next=${encodeURIComponent(selection)}`);
+      return;
+    }
+    if (openingPuzzleId) return;
+    setOpeningPuzzleId(puzzle.id);
+    setFollowupError(null);
+    try {
+      const room = await createRoom();
+      navigate(`/rooms/${room.roomId}?selectPuzzle=${encodeURIComponent(puzzle.id)}&lang=${language}`);
+    } catch (err) {
+      setFollowupError(translateApiError(err, language, copy.createRoomFail));
+      setOpeningPuzzleId(null);
+    }
+  };
+
+  useEffect(() => {
+    const pick = params.get('pick');
+    if (!pick || !session || !data?.items.some((item) => item.id === pick)) return;
+    const puzzle = data.items.find((item) => item.id === pick)!;
+    const next = new URLSearchParams(params);
+    next.delete('pick');
+    setParams(next, { replace: true });
+    void openRoomWithPuzzle(puzzle);
+    // 登录回跳只处理一次，按钮仍由用户主动触发。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, session, params]);
+
   const setSort = (value: 'latest' | 'popular') => {
     const next = new URLSearchParams(params);
     next.set('sort', value);
@@ -81,7 +115,6 @@ export function LibraryPage({ session }: { session: Session | null }) {
         </button>
         <h1 className="brand">{copy.library}</h1>
       </header>
-      <p className="muted library-intro">{copy.tagline}</p>
       {/* 排序：最新发布 / 最受欢迎（得分 = 赞 − 踩）；零票作品显示 0 */}
       <div className="mode-tabs" role="tablist" aria-label={copy.sort}>
         <button className={`mode-tab ${sort === 'latest' ? 'active' : ''}`} role="tab" aria-selected={sort === 'latest'} onClick={() => setSort('latest')}>
@@ -97,20 +130,20 @@ export function LibraryPage({ session }: { session: Session | null }) {
       <div className="puzzle-grid">
         {data?.items.map((puzzle) => (
           <article key={puzzle.id} className="panel puzzle-card">
-            <h2>{puzzle.title}</h2>
+            <div className="puzzle-card-heading"><h2>{puzzle.title}</h2>{playedIds.has(puzzle.id) && <span className="puzzle-played">{copy.played}</span>}</div>
             <p className="puzzle-surface">{puzzle.surface}</p>
             <footer className="puzzle-card-footer">
-              <span className="muted">
-                {playedIds.has(puzzle.id) ? copy.played : ''}
-                {puzzle.difficulty ?? ''}
-              </span>
-              <AuthorLabel mode={puzzle.authorDisplay.mode} name={puzzle.authorDisplay.name} />
-              <span className="muted" aria-label={copy.voteGroup}>
-                👍 {puzzle.upCount} · 👎 {puzzle.downCount}
-              </span>
-              <button className="btn btn-sm btn-primary" onClick={() => onPick(puzzle)}>
-                {mode === 'select' ? copy.selectPuzzle : copy.solo}
-              </button>
+              <div className="puzzle-card-meta">
+                <span className="puzzle-card-author"><AuthorLabel mode={puzzle.authorDisplay.mode} name={puzzle.authorDisplay.name} /></span>
+                <span className="puzzle-card-votes" aria-label={copy.voteGroup}>
+                  <span aria-label={`${copy.voteUp} ${puzzle.upCount}`}>👍 {compactVoteCount(puzzle.upCount)}</span>
+                  <span aria-label={`${copy.voteDown} ${puzzle.downCount}`}>👎 {compactVoteCount(puzzle.downCount)}</span>
+                </span>
+              </div>
+              <div className="puzzle-card-actions">
+                <button className="btn btn-sm btn-primary" onClick={() => onPick(puzzle)}>{mode === 'select' ? copy.selectPuzzle : copy.solo}</button>
+                {mode !== 'select' && <button className="btn btn-sm" disabled={openingPuzzleId !== null} onClick={() => void openRoomWithPuzzle(puzzle)}>{openingPuzzleId === puzzle.id ? copy.creating : copy.catalogOpenRoom}</button>}
+              </div>
             </footer>
           </article>
         ))}
