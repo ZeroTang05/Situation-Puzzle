@@ -13,6 +13,7 @@ import { useRoomOutbox } from './use-room-outbox.js';
 import type { InputMode } from './room-local.js';
 import { HintCapsule } from '../game/hint-capsule.js';
 import { GameHeader } from '../game/game-header.js';
+import { ChatInput } from '../game/chat-input.js';
 import { inviteUrl, confidenceLabel } from '../game/game-display.js';
 import { VoteButtons } from '../catalog/vote-buttons.js';
 import type { Session } from '../session.js';
@@ -314,9 +315,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                 </button>
               </div>
               <div className="composer-row">
-                <textarea
-                  className="field composer-input"
-                  rows={2}
+                <ChatInput
                   maxLength={inputMode === 'ask' ? 500 : inputMode === 'discussion' ? 1000 : 1500}
                   disabled={!outbox.local}
                   value={text}

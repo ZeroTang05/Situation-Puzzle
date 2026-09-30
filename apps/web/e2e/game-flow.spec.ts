@@ -28,9 +28,19 @@ async function command(request: APIRequestContext, roomId: string, type: string,
 
 /** 从页面发起提问，等待真实 Jev 返回置信度。 */
 async function ask(page: Page) {
+  await expect(page.locator('.composer-input')).toHaveAttribute('rows', '1');
+  await expect(page.locator('.composer-input')).toHaveCSS('height', '44px');
   await page.locator('.composer-input').fill('故事里有人死亡吗？');
   await page.getByRole('button', { name: '发送', exact: true }).click();
   await expect(page.locator('.confidence').last()).toContainText(/置信度 \d+%/, { timeout: 70_000 });
+  await expect(page.locator('.turn-text').last()).toHaveCSS('border-radius', '4px');
+  await expect(page.locator('.turn-text').last()).toHaveCSS('padding', '5px 8px');
+  await expect(page.locator('.turn-result .verdict-badge').last()).toHaveCSS('border-radius', '4px');
+  await expect(page.locator('.turn-result .verdict-badge').last()).toHaveCSS('padding', '1px 6px');
+  for (const tab of await page.locator('.mode-tab').all()) {
+    await expect(tab).toHaveCSS('border-radius', '3px');
+    expect(await tab.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThanOrEqual(32);
+  }
 }
 
 /** 检查标题对齐页面中线，避免左右操作的文字宽度挤偏标题。 */
@@ -247,20 +257,46 @@ for (const viewport of [{ width: 390, height: 740 }, { width: 1440, height: 900 
     for (const button of await page.locator('.hint-capsule-nav button').all()) {
       expect(await button.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThanOrEqual(20);
     }
-    const nextResponse = page.waitForResponse((response) => response.url().includes('/puzzles/random?') && response.request().method() === 'GET');
+    const nextResponse = page.waitForResponse((response) => response.url().includes('/puzzles?') && response.request().method() === 'GET');
     await page.getByRole('button', { name: '换一题', exact: true }).click();
     const response = await nextResponse;
     expect(response.ok(), await response.text()).toBe(true);
-    const selected = (await response.json()).data;
-    expect(selected.puzzleId).not.toBe(puzzle.id);
-    await expect(page).toHaveURL(new RegExp(`/solo/${selected.puzzleId}\\?lang=zh$`));
-    const detail = await getData(context.request, `/puzzles/${selected.puzzleId}?language=zh`);
+    await expect(page).not.toHaveURL(new RegExp(`/solo/${puzzle.id}\\?lang=zh$`));
+    const selectedId = new URL(page.url()).pathname.split('/').at(-1)!;
+    const detail = await getData(context.request, `/puzzles/${selectedId}?language=zh`);
     await expect(page.locator('.brand-sm')).toHaveText(detail.title);
     await expect(page.locator('.hint-capsule')).toHaveCount(0);
     await expectCenteredTitle(page);
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
   });
 }
+
+test('换一题排除全部已玩作品，刷新后保留排除记录，全部玩过时停留原题', async ({ page, context }) => {
+  test.setTimeout(180_000);
+  const ids: string[] = [];
+  let cursor: string | null = null;
+  do {
+    const query = new URLSearchParams({ language: 'zh', limit: '100', sort: 'latest' });
+    if (cursor) query.set('cursor', cursor);
+    const catalog = await getData(context.request, `/puzzles?${query}`);
+    ids.push(...catalog.items.map((item: { id: string }) => item.id));
+    cursor = catalog.nextCursor;
+  } while (cursor !== null);
+  expect(ids.length).toBeGreaterThan(1);
+  const lastUnplayed = ids.at(-1)!;
+  for (const id of ids.slice(0, -1)) {
+    await page.goto(`/solo/${id}?lang=zh`);
+    await expect(page.locator('.composer-input')).toBeVisible();
+  }
+  await page.reload();
+  await expect(page.locator('.composer-input')).toBeVisible();
+  await page.getByRole('button', { name: '换一题', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/solo/${lastUnplayed}\\?lang=zh$`));
+  await expect(page.locator('.composer-input')).toBeVisible();
+  await page.getByRole('button', { name: '换一题', exact: true }).click();
+  await expect(page.locator('.error-text')).toContainText('当前语言的题目都已玩过，暂无新题。');
+  await expect(page).toHaveURL(new RegExp(`/solo/${lastUnplayed}\\?lang=zh$`));
+});
 
 test('等待室确认选题后显示题名，支持重选和刷新恢复', async ({ page, context }) => {
   await register(context, '选题房主');

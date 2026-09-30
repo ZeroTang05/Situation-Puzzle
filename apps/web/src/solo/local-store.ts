@@ -142,6 +142,12 @@ export const soloStore = {
     return rows.sort((a, b) => b.startedAt - a.startedAt).slice(0, limit);
   },
 
+  /** 随机换题读取全部已玩编号，不受历史列表显示数量限制。 */
+  async listPlayedPuzzleIds(): Promise<string[]> {
+    const db = await getDB();
+    return db.getAllKeys('solo_progress');
+  },
+
   async updateSession(localSessionId: string, patch: Partial<SoloSessionRow>): Promise<void> {
     const db = await getDB();
     const session = await db.get('solo_sessions', localSessionId);

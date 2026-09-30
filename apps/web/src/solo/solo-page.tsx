@@ -13,8 +13,9 @@ import { HintCapsule } from '../game/hint-capsule.js';
 import { confidenceLabel } from '../game/game-display.js';
 import { VoteButtons } from '../catalog/vote-buttons.js';
 import { canRateSoloPuzzle } from './rating-visibility.js';
-import { randomPuzzleResponseSchema } from '@jev/contracts';
+import { selectUnplayedPuzzle } from './unplayed-puzzle.js';
 import { GameHeader } from '../game/game-header.js';
+import { ChatInput } from '../game/chat-input.js';
 
 type InputMode = 'ask' | 'solve';
 
@@ -229,9 +230,24 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
     const controller = new AbortController();
     randomRequestRef.current = controller;
     try {
-      const query = new URLSearchParams({ language, exclude: session.puzzleId });
-      const selected = randomPuzzleResponseSchema.parse(await api(`/puzzles/random?${query}`, { credentials: 'omit', signal: controller.signal }));
-      navigate(`/solo/${selected.puzzleId}?lang=${language}`);
+      const playedIds = await soloStore.listPlayedPuzzleIds();
+      const puzzleIds: string[] = [];
+      let cursor: string | null = null;
+      // 按公开题库游标读取全部候选，避免只在第一页抽题；已玩记录不出浏览器。
+      do {
+        const query = new URLSearchParams({ language, limit: '100', sort: 'latest' });
+        if (cursor) query.set('cursor', cursor);
+        const page = await api<{ items: Array<{ id: string }>; nextCursor: string | null }>(`/puzzles?${query}`, { credentials: 'omit', signal: controller.signal });
+        puzzleIds.push(...page.items.map((item) => item.id));
+        cursor = page.nextCursor;
+      } while (cursor !== null);
+      if (controller.signal.aborted) return;
+      const selectedId = selectUnplayedPuzzle(puzzleIds, playedIds, session.puzzleId);
+      if (selectedId === null) {
+        setError(copy.noOtherPuzzle);
+        return;
+      }
+      navigate(`/solo/${selectedId}?lang=${language}`);
     } catch (err) {
       if (controller.signal.aborted) return;
       setError(err instanceof ApiError && err.code === 'NOT_FOUND' ? copy.noOtherPuzzle : translateApiError(err, language, copy.changePuzzleFail));
@@ -317,10 +333,8 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
         {!solved && !session.revealedAnswer && (
           <footer className="composer solo-composer">
             <div className="composer-row">
-              <textarea
-                className="field composer-input"
+              <ChatInput
                 aria-label={inputMode === 'ask' ? copy.ask : copy.solve}
-                rows={1}
                 maxLength={inputMode === 'ask' ? 500 : 1500}
                 value={text}
                 placeholder={inputMode === 'ask' ? copy.askPlaceholder : copy.solvePlaceholder}

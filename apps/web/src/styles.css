@@ -282,8 +282,8 @@ html, body { background: var(--bg); }
 .chat {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 20px 0;
+  gap: 10px;
+  padding: 10px 0;
   min-height: 24vh;
 }
 
@@ -301,11 +301,11 @@ html, body { background: var(--bg); }
 
 .turn .turn-text {
   margin: 0;
-  padding: 12px 16px;
-  border-radius: 20px 20px 4px 20px;
+  padding: 5px 8px;
+  border-radius: 4px;
   background: var(--panel);
   border: 1px solid var(--line);
-  line-height: 1.55;
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 
@@ -386,11 +386,10 @@ html, body { background: var(--bg); }
 }
 
 .solo-shell .topbar { flex: none; min-height: 52px; }
-.solo-shell .btn, .solo-shell .field, .solo-shell .panel, .solo-shell .hero-card, .solo-shell .turn .turn-text { border-radius: 0; }
+.solo-shell .btn, .solo-shell .field, .solo-shell .panel, .solo-shell .hero-card { border-radius: 0; }
 .solo-chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; gap: 10px; padding: 10px 0; }
 .solo-chat .panel { border-radius: 4px; padding: 10px; }
 .solo-chat .panel p { margin: 4px 0; }
-.solo-chat .turn .turn-text { border-radius: 4px; padding: 8px 10px; }
 .solo-bottom { flex: none; max-height: 48dvh; overflow-y: auto; overscroll-behavior: contain; }
 .solo-bottom > .error-text { margin: 3px 0; font-size: 13px; }
 .solo-action-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; padding: 4px 0; }
@@ -400,9 +399,6 @@ html, body { background: var(--bg); }
 .solo-action-row .btn:last-child { color: #a9c8ec; border-color: rgba(169, 200, 236, 0.5); }
 .solo-action-row .btn[aria-pressed='true'] { background: rgba(255, 155, 120, 0.15); }
 .solo-composer { position: static; padding: 4px 0 0; background: none; }
-.solo-composer .composer-row { align-items: stretch; gap: 5px; }
-.solo-composer .composer-input { flex: 1; min-width: 0; min-height: 44px; height: 44px; padding: 8px 10px; resize: none; border-radius: 3px; line-height: 1.35; }
-.solo-composer .btn { min-height: 44px; padding: 4px 12px; border-radius: 3px; }
 
 /* ---------- 输入区 ---------- */
 
@@ -416,14 +412,23 @@ html, body { background: var(--bg); }
 
 .composer-row {
   display: flex;
-  gap: 8px;
-  align-items: flex-end;
+  gap: 5px;
+  align-items: stretch;
 }
 
-.composer-input {
-  min-height: 48px;
-  max-height: 120px;
+/* 两种模式共用尺寸，textarea 的长内容在内部滚动。 */
+textarea.composer-input, .composer .composer-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  height: 44px;
+  padding: 8px 10px;
+  resize: none;
+  border-radius: 3px;
+  line-height: 1.35;
 }
+.composer-row .btn { min-height: 44px; padding: 4px 12px; border-radius: 3px; }
+.turn-result .verdict-badge { padding: 1px 6px; border-radius: 4px; line-height: 1.3; }
 
 /* 高亮留在控件内部，底部滚动容器裁切时仍显示完整四边。 */
 .composer-input:focus-visible { outline-offset: -2px; border-color: var(--accent); }
@@ -438,18 +443,20 @@ html, body { background: var(--bg); }
 .mode-tabs {
   display: flex;
   gap: 4px;
-  padding: 4px;
+  padding: 2px;
   border: 1px solid var(--line);
-  border-radius: 24px;
+  border-radius: 4px;
   background: var(--field);
-  margin-bottom: 8px;
+  margin-bottom: 5px;
 }
 
 .mode-tab {
   flex: 1;
-  min-height: 44px;
+  min-height: 30px;
+  padding: 3px 6px;
+  line-height: 1.3;
   border: 0;
-  border-radius: 20px;
+  border-radius: 3px;
   background: transparent;
   color: var(--muted);
   font-weight: 600;
