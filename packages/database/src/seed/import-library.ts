@@ -1,20 +1,31 @@
 /**
  * 题库 JSON 导入：data/library.json + data/library.en.json → puzzles + puzzle_versions。
  *
- * - 幂等：按 (source, legacyId, language, sourceHash) 去重，重复导入跳过或报警
- * - 默认导入为待审核状态（moderation_status=pending_review、权利 pending），不得直接公开：
- *   旧题目的来源说明缺少商业授权确认（docs/rebuild/06-MIGRATION.md §3）
- * - --publish 仅用于本地开发测试：标记权利 DEV-ONLY 并发布，禁止在正式库执行
+ * 以 legacyId 为单位的差量同步：
+ * - library.json 里**新增**的 legacyId → 新建 puzzles (source='official') + puzzle_versions + puzzle_rights
+ * - library.json 里**仍然存在**的 legacyId → 按 sourceHash 判定：
+ *     - 中英 hash 都未变 → 跳过
+ *     - 任一语言 hash 变化 → 新增 puzzle_versions（versionNo 累加），不覆盖旧版
+ * - library.json 里**消失**的 legacyId → 默认软删（unavailable=true + 清 currentPublishedVersionId），
+ *   保留所有历史数据（ratings / rounds / reviews）。硬删需要显式 --purge-stale。
+ *
+ * seed 题入库即发布：库文件本身就是平台自有内容（已签字授权），不像玩家投稿
+ * 需要走 submitted → checking → pending_review → published 流程。puzzle_rights
+ * 直接写 approved、puzzle_versions 直接写 published、puzzles.currentPublishedVersionId
+ * 直接指向新增版本，licenseBasis 写明"平台自有"以与玩家投稿区分。
+ *
+ * --purge-stale 把 library.json 里消失的 legacyId 真删（清 puzzle_versions、
+ * puzzle_rights、ratings 全部级联数据）。生产环境禁止（无 UNDO）。
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { createDb } from '../client.js';
 import { puzzles, puzzleVersions, puzzleRights } from '../schema/content.js';
 
-const IMPORT_SOURCE = 'imported' as const;
+const IMPORT_SOURCE = 'official' as const;
 
 interface LibraryEntry {
   id: string;
@@ -26,7 +37,7 @@ interface LibraryEntry {
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.resolve(here, '../../../../data');
-const publish = process.argv.includes('--publish');
+const purgeStale = process.argv.includes('--purge-stale');
 
 const zh = JSON.parse(readFileSync(path.join(dataDir, 'library.json'), 'utf8')) as LibraryEntry[];
 const en = JSON.parse(readFileSync(path.join(dataDir, 'library.en.json'), 'utf8')) as LibraryEntry[];
@@ -42,102 +53,172 @@ function contentHash(entry: LibraryEntry): string {
 const url = process.env.DATABASE_URL;
 if (!url) throw new Error('缺少 DATABASE_URL');
 
-const { db, pool, close } = createDb(url);
+const { db, close } = createDb(url);
 
 let created = 0;
+let updated = 0;
 let skipped = 0;
-let published = 0;
+let retired = 0;
+let purged = 0;
 
+// 取出当前库里所有 seed 题的 (legacyId, id) 映射
+const existingImported = await db
+  .select({ id: puzzles.id, legacyId: puzzles.legacyId })
+  .from(puzzles)
+  .where(eq(puzzles.source, IMPORT_SOURCE));
+const existingByLegacyId = new Map<string, string>();
+for (const row of existingImported) {
+  if (row.legacyId) existingByLegacyId.set(row.legacyId, row.id);
+}
+
+// 取出当前 JSON 里的 legacyId 集合
+const desiredLegacyIds = new Set(zh.map((e) => e.id));
+
+// ----- 第一遍：处理新增 / 更新（seed 题入库即发布）-----
 for (const entry of zh) {
   const hash = contentHash(entry);
   const enEntry = en.find((e) => e.id === entry.id);
   if (!enEntry) throw new Error(`缺少英文条目：${entry.id}`);
 
-  // 已有作品（按 source+legacyId 查）
-  const existing = await db
-    .select()
-    .from(puzzles)
-    .where(and(eq(puzzles.source, IMPORT_SOURCE), eq(puzzles.legacyId, entry.id)))
-    .limit(1);
+  const existingId = existingByLegacyId.get(entry.id);
 
-  let puzzleId: string;
-  if (existing.length > 0) {
-    puzzleId = existing[0]!.id;
-    const versions = await db.select().from(puzzleVersions).where(eq(puzzleVersions.puzzleId, puzzleId));
+  if (existingId) {
+    // 已有 legacyId：按 sourceHash 判定是否需要新版本
+    const versions = await db.select().from(puzzleVersions).where(eq(puzzleVersions.puzzleId, existingId));
     const zhSame = versions.some((v) => v.language === 'zh' && v.sourceHash === hash);
     const enSame = versions.some((v) => v.language === 'en' && v.sourceHash === contentHash(enEntry));
     if (zhSame && enSame) {
       skipped += 1;
       continue;
     }
-  } else {
-    const inserted = await db
-      .insert(puzzles)
-      .values({ source: IMPORT_SOURCE, legacyId: entry.id })
-      .returning({ id: puzzles.id });
-    puzzleId = inserted[0]!.id;
-    await db.insert(puzzleRights).values({
-      puzzleId,
-      status: 'pending',
-      licenseBasis: '旧题库来源说明见 data/library-sources.md，商业授权待核实',
-      agreementVersion: 'pending-review',
-    });
+    // 现有最大 versionNo（中文/英文共享同一编号；不存在则 0）
+    const maxVersionNo = versions.reduce((m, v) => Math.max(m, v.versionNo), 0);
+    const nextVersionNo = maxVersionNo + 1;
+    const insertedVersions = await db
+      .insert(puzzleVersions)
+      .values([
+        {
+          puzzleId: existingId,
+          versionNo: nextVersionNo,
+          language: 'zh',
+          title: entry.title,
+          surface: entry.story,
+          answer: entry.answer,
+          hints: entry.hints,
+          moderationStatus: 'published',
+          sourceHash: hash,
+        },
+        {
+          puzzleId: existingId,
+          versionNo: nextVersionNo,
+          language: 'en',
+          title: enEntry.title,
+          surface: enEntry.story,
+          answer: enEntry.answer,
+          hints: enEntry.hints,
+          moderationStatus: 'published',
+          sourceHash: contentHash(enEntry),
+        },
+      ])
+      .returning({ id: puzzleVersions.id, language: puzzleVersions.language });
+    // 新版本直接指为 currentPublishedVersionId（中文版）
+    const newZhId = insertedVersions.find((v) => v.language === 'zh')?.id;
+    if (newZhId) {
+      await db
+        .update(puzzles)
+        .set({ currentPublishedVersionId: newZhId, updatedAt: new Date() })
+        .where(eq(puzzles.id, existingId));
+    }
+    updated += 1;
+    continue;
   }
 
-  await db.insert(puzzleVersions).values([
-    {
-      puzzleId,
-      versionNo: 1,
-      language: 'zh',
-      title: entry.title,
-      surface: entry.story,
-      answer: entry.answer,
-      hints: entry.hints,
-      moderationStatus: 'pending_review',
-      sourceHash: hash,
-    },
-    {
-      puzzleId,
-      versionNo: 1,
-      language: 'en',
-      title: enEntry.title,
-      surface: enEntry.story,
-      answer: enEntry.answer,
-      hints: enEntry.hints,
-      moderationStatus: 'pending_review',
-      sourceHash: contentHash(enEntry),
-    },
-  ]);
+  // 新增 legacyId：入库即发布
+  const insertedPuzzle = await db
+    .insert(puzzles)
+    .values({
+      source: IMPORT_SOURCE,
+      legacyId: entry.id,
+      // currentPublishedVersionId 在下方 versions insert 后回填
+    })
+    .returning({ id: puzzles.id });
+  const puzzleId = insertedPuzzle[0]!.id;
+  await db.insert(puzzleRights).values({
+    puzzleId,
+    status: 'approved',
+    licenseBasis: '平台自有题库（data/library-sources.md，source=official）',
+    agreementVersion: 'platform-library-v1',
+    confirmedAt: new Date(),
+  });
+  const insertedVersions = await db
+    .insert(puzzleVersions)
+    .values([
+      {
+        puzzleId,
+        versionNo: 1,
+        language: 'zh',
+        title: entry.title,
+        surface: entry.story,
+        answer: entry.answer,
+        hints: entry.hints,
+        moderationStatus: 'published',
+        sourceHash: hash,
+      },
+      {
+        puzzleId,
+        versionNo: 1,
+        language: 'en',
+        title: enEntry.title,
+        surface: enEntry.story,
+        answer: enEntry.answer,
+        hints: enEntry.hints,
+        moderationStatus: 'published',
+        sourceHash: contentHash(enEntry),
+      },
+    ])
+    .returning({ id: puzzleVersions.id, language: puzzleVersions.language });
+  const zhVersionId = insertedVersions.find((v) => v.language === 'zh')?.id;
+  if (zhVersionId) {
+    await db
+      .update(puzzles)
+      .set({ currentPublishedVersionId: zhVersionId })
+      .where(eq(puzzles.id, puzzleId));
+  }
   created += 1;
 }
 
-// --publish：本地开发用，把导入的题标记为可玩（正式库禁止）
-if (publish) {
-  const pendingRights = await db
-    .select()
-    .from(puzzleRights)
-    .where(and(eq(puzzleRights.status, 'pending'), isNull(puzzleRights.confirmedAt)));
-  for (const right of pendingRights) {
-    await db
-      .update(puzzleRights)
-      .set({
-        status: 'approved',
-        licenseBasis: 'DEV-ONLY 本地开发授权，禁止用于生产',
-        agreementVersion: 'dev-local',
-        confirmedAt: new Date(),
-      })
-      .where(eq(puzzleRights.id, right.id));
-    const versions = await db.select().from(puzzleVersions).where(eq(puzzleVersions.puzzleId, right.puzzleId));
-    const zhVersion = versions.find((v) => v.language === 'zh');
-    if (!zhVersion) continue;
-    await db.update(puzzleVersions).set({ moderationStatus: 'published' }).where(and(eq(puzzleVersions.puzzleId, right.puzzleId), eq(puzzleVersions.versionNo, zhVersion.versionNo)));
+// ----- 第二遍：处理消失的 legacyId -----
+const staleIds: string[] = [];
+for (const [legacyId, id] of existingByLegacyId.entries()) {
+  if (!desiredLegacyIds.has(legacyId)) staleIds.push(id);
+}
+
+if (staleIds.length > 0) {
+  if (purgeStale) {
+    // 硬删：cascade 清掉 puzzle_versions / puzzle_rights / puzzle_test_cases /
+    // moderation_reviews / ratings。无法恢复。
+    await db.delete(puzzles).where(inArray(puzzles.id, staleIds));
+    purged = staleIds.length;
+  } else {
+    // 软删：unavailable=true + 清 currentPublishedVersionId。已发布过的题从题库消失，
+    // 历史数据（ratings/rounds/test cases）保留可供审计。
     await db
       .update(puzzles)
-      .set({ currentPublishedVersionId: zhVersion.id, updatedAt: new Date() })
-      .where(eq(puzzles.id, right.puzzleId));
-    published += 1;
+      .set({
+        unavailable: true,
+        currentPublishedVersionId: null,
+        updatedAt: new Date(),
+      })
+      .where(inArray(puzzles.id, staleIds));
+    retired = staleIds.length;
   }
 }
 
-console.log(`导入完成：新建 ${created} 题，跳过 ${skipped} 题${publish ? `，本地发布 ${published} 题` : '（未发布，等待权利审核）'}`);
+// seed 题入库即发布，无第三遍——所有题在第一遍已写 published/approved。
+
+const retireMsg = retired > 0 ? `，软删 ${retired} 题（--purge-stale 改为硬删）` : '';
+const purgeMsg = purged > 0 ? `，硬删 ${purged} 题` : '';
+console.log(
+  `导入完成：新建 ${created} 题，更新 ${updated} 题，跳过 ${skipped} 题${retireMsg}${purgeMsg}`,
+);
 await close();

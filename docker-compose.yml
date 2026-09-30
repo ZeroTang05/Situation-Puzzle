@@ -117,7 +117,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: ['sh', '-c', 'pnpm --dir packages/database run db:migrate && pnpm --dir packages/database run db:import-library -- --publish']
+    command: ['sh', '-c', 'pnpm --dir packages/database run db:migrate && pnpm --dir packages/database run db:import-library']
 
 volumes:
   postgres-data:

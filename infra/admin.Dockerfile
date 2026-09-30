@@ -8,6 +8,7 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY apps/admin/package.json apps/admin/
 COPY packages/contracts/package.json packages/contracts/
 COPY packages/i18n/package.json packages/i18n/
+COPY packages/ui/package.json packages/ui/
 
 # BuildKit cache mount：与 api/web/jobs 共享同一份 pnpm store
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store,sharing=locked \
@@ -18,6 +19,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store,sharin
 # 必须在镜像里有 contracts 的源码（admin 体积小，单独 COPY 比让 tsc 走兜底解析更稳）
 COPY packages/contracts ./packages/contracts
 COPY packages/i18n ./packages/i18n
+COPY packages/ui ./packages/ui
 
 COPY tsconfig.base.json /app/tsconfig.base.json
 COPY apps/admin ./apps/admin

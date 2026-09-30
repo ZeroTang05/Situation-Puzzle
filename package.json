@@ -13,7 +13,7 @@
     "build:web": "pnpm --dir apps/web build",
     "build:admin": "pnpm --dir apps/admin build",
     "db:migrate": "pnpm --dir packages/database db:migrate",
-    "db:seed": "pnpm --dir packages/database db:import-library -- --publish",
+    "db:seed": "pnpm --dir packages/database db:import-library",
     "smoke": "bash scripts/smoke-new-system.sh",
     "check:deps": "node scripts/check-deps.mjs",
     "e2e:multiplayer": "bash scripts/e2e-run.sh multiplayer",
