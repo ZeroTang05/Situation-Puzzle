@@ -9,6 +9,22 @@ html, body { background: var(--bg); }
 .creation-editor fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
 .creation-section, .creation-card, .creation-row, .creation-empty { margin: 16px 0; padding: 20px; border: 1px solid rgba(115, 191, 220, .22); border-radius: 16px; background: rgba(9, 39, 62, .7); }
 .creation-section h2, .creation-card h2 { margin: 0 0 16px; font-size: 20px; }
+.creation-title { flex: 1 1 auto; min-width: 0; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.creation-section-title { margin: 24px 4px 12px; font-size: 16px; font-weight: 600; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+.creation-list { display: flex; flex-direction: column; gap: 12px; }
+.creation-row { display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'head head' 'title title' 'stats actions' 'pending pending'; align-items: center; gap: 8px 12px; }
+.creation-row-head { grid-area: head; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.creation-row-meta { font-size: 13px; font-variant-numeric: tabular-nums; }
+.creation-row-title { grid-area: title; display: block; color: inherit; text-decoration: none; min-width: 0; }
+.creation-row-title h3 { margin: 0; font-size: 17px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.creation-row-title:hover h3 { color: #9ae6bd; }
+.creation-row-stats { grid-area: stats; margin: 0; display: flex; gap: 12px; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.creation-row-pending { grid-area: pending; margin: 0; font-size: 13px; color: #f3bf8d; }
+.creation-row-actions { grid-area: actions; display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.creation-row-actions .btn { min-height: 28px; padding: 2px 10px; font-size: 12px; }
+.creation-empty { text-align: center; padding: 32px 20px; }
+.creation-empty .btn { margin-top: 12px; }
+@media (max-width: 480px) { .creation-row { grid-template-areas: 'head' 'title' 'stats' 'pending' 'actions'; } .creation-row-actions { justify-content: flex-start; } }
 .creation-field { display: grid; gap: 8px; margin-bottom: 18px; }
 .creation-field textarea { width: 100%; resize: vertical; }
 .creation-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -19,9 +35,13 @@ html, body { background: var(--bg); }
 .creation-license { padding: 16px; border-radius: 12px; background: rgba(10, 60, 78, .7); }
 .creation-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 16px 0; }
 .creation-shell .btn { min-height: 44px; }
-.creation-status { display: inline-block; padding: 5px 10px; border-radius: 20px; background: rgba(115, 191, 220, .15); font-size: 14px; }
-.creation-status.status-published { color: #9ae6bd; }
-.creation-status.status-changes_requested { color: #f3bf8d; }
+.creation-status { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: rgba(115, 191, 220, .12); border: 1px solid rgba(115, 191, 220, .25); font-size: 12px; font-weight: 600; line-height: 1.3; color: var(--ink); }
+.creation-status.status-published { color: #9ae6bd; background: rgba(154, 230, 189, .12); border-color: rgba(154, 230, 189, .4); }
+.creation-status.status-changes_requested { color: #f3bf8d; background: rgba(243, 191, 141, .12); border-color: rgba(243, 191, 141, .4); }
+.creation-status.status-draft,
+.creation-status.status-submitted,
+.creation-status.status-checking,
+.creation-status.status-pending_review { color: var(--muted); }
 .creation-review { border-top: 1px solid rgba(115, 191, 220, .2); padding: 14px 0; }
 .creation-review p, .creation-error { white-space: pre-wrap; overflow-wrap: anywhere; }
 .creation-editor fieldset:disabled .field { opacity: .8; }
@@ -175,15 +195,23 @@ html, body { background: var(--bg); }
   min-width: 0;
 }
 
-.puzzle-played {
+/* 卡片右上角 badge 公共样式：已玩 + 难度统一大小、字重、内边距与背景 */
+.puzzle-played,
+.puzzle-card-difficulty {
+  display: inline-block;
   flex: none;
-  border: 1px solid #eb9f52;
   border-radius: 5px;
-  padding: 2px 6px;
-  color: #ffc078;
+  padding: 2px 7px;
   font-size: 12px;
   font-weight: 700;
   line-height: 1.3;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.puzzle-played {
+  border-color: #eb9f52;
+  color: #ffc078;
 }
 
 .puzzle-surface {
@@ -237,12 +265,14 @@ html, body { background: var(--bg); }
 .puzzle-card-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
 }
 
 .puzzle-card-actions .btn {
-  min-width: 104px;
-  min-height: 44px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 2px 8px;
+  font-size: 12px;
 }
 
 /* ---------- 游戏共用 ---------- */
@@ -472,7 +502,25 @@ textarea.composer-input, .composer .composer-input {
 .room-shell {
   display: flex;
   flex-direction: column;
+  position: relative;
 }
+
+/* 玩家管理面板：贴右上角悬浮卡片，宽度按内容走但不超过一半 shell；列表内部滚动 */
+.room-management {
+  position: absolute;
+  top: 56px;
+  right: 14px;
+  width: min(260px, calc(50% - 14px));
+  max-height: 50dvh;
+  overflow-y: auto;
+  padding: 10px 12px !important;
+  gap: 8px !important;
+  z-index: 4;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  background: rgba(9, 39, 62, 0.96);
+  border-radius: 12px;
+}
+.room-management > h2 { margin: 0; font-size: 13px; color: var(--muted); }
 
 /* 输入与操作区贴底，消息占满剩余高度并在内部滚动。 */
 .room-playing { height: 100dvh; min-height: 0; overflow: hidden; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
@@ -482,7 +530,6 @@ textarea.composer-input, .composer .composer-input {
 .room-playing > .composer { position: static; padding: 4px 0 0; background: var(--bg); }
 .room-playing .hint-row { padding: 4px 0 0; }
 .room-playing > .story-card { max-height: 20dvh; }
-.room-playing > .room-management { max-height: 25dvh; overflow-y: auto; }
 
 .offline-banner {
   position: sticky;
@@ -504,34 +551,55 @@ textarea.composer-input, .composer .composer-input {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .member-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 36px;
+  min-height: 28px;
+  padding: 2px 0;
+}
+
+.member-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
 }
 
 .member-actions {
   margin-left: auto;
   display: flex;
-  gap: 6px;
+  gap: 4px;
+  flex: none;
+}
+
+.member-actions .btn {
+  min-height: 22px;
+  padding: 0 6px;
+  font-size: 11px;
 }
 
 .presence-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--muted);
   opacity: 0.4;
+  flex: none;
 }
 
 .presence-dot.online {
   background: var(--ok);
   opacity: 1;
 }
+
+.room-management .hint-row { gap: 6px; padding: 4px 0 0; }
+.room-management .hint-row .btn { min-height: 28px; padding: 2px 8px; font-size: 12px; }
 
 .verdict-panel,
 .answer-panel {
@@ -572,14 +640,6 @@ textarea.composer-input, .composer .composer-input {
 }
 
 .puzzle-card-difficulty {
-  display: inline-block;
-  align-self: flex-start;
-  border-radius: 5px;
-  padding: 2px 8px;
-  font-size: 12px;
-  margin-bottom: 8px;
-  border: 1px solid var(--line);
-  background: var(--panel);
   color: var(--muted);
 }
 
@@ -596,4 +656,11 @@ textarea.composer-input, .composer .composer-input {
 .puzzle-card-difficulty-hard {
   border-color: #d96363;
   color: #d96363;
+}
+
+.puzzle-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
 }

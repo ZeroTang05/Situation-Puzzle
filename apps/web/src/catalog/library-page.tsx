@@ -161,13 +161,18 @@ export function LibraryPage({ session }: { session: Session | null }) {
       <div className="puzzle-grid">
         {data?.items.map((puzzle) => (
           <article key={puzzle.id} className="panel puzzle-card">
-            <div className="puzzle-card-heading"><h2>{puzzle.title}</h2>{playedIds.has(puzzle.id) && <span className="puzzle-played">{copy.played}</span>}</div>
+            <div className="puzzle-card-heading">
+              <h2>{puzzle.title}</h2>
+              <div className="puzzle-card-badges">
+                {playedIds.has(puzzle.id) && <span className="puzzle-played">{copy.played}</span>}
+                {puzzle.difficulty && (
+                  <span className={`puzzle-card-difficulty puzzle-card-difficulty-${puzzle.difficulty}`}>
+                    {puzzle.difficulty === 'easy' ? copy.easy : puzzle.difficulty === 'hard' ? copy.hard : copy.medium}
+                  </span>
+                )}
+              </div>
+            </div>
             <p className="puzzle-surface">{puzzle.surface}</p>
-            {puzzle.difficulty && (
-              <span className={`puzzle-card-difficulty puzzle-card-difficulty-${puzzle.difficulty}`}>
-                {puzzle.difficulty === 'easy' ? copy.easy : puzzle.difficulty === 'hard' ? copy.hard : copy.medium}
-              </span>
-            )}
             <footer className="puzzle-card-footer">
               <div className="puzzle-card-meta">
                 <span className="puzzle-card-author"><AuthorLabel mode={puzzle.authorDisplay.mode} name={puzzle.authorDisplay.name} /></span>
@@ -178,7 +183,7 @@ export function LibraryPage({ session }: { session: Session | null }) {
               </div>
               <div className="puzzle-card-actions">
                 <button className="btn btn-sm btn-primary" onClick={() => onPick(puzzle)}>{mode === 'select' ? copy.selectPuzzle : copy.solo}</button>
-                {mode !== 'select' && <button className="btn btn-sm" disabled={openingPuzzleId !== null} onClick={() => void openRoomWithPuzzle(puzzle)}>{openingPuzzleId === puzzle.id ? copy.creating : copy.catalogOpenRoom}</button>}
+                {mode !== 'select' && <button className="btn btn-sm btn-compact" disabled={openingPuzzleId !== null} onClick={() => void openRoomWithPuzzle(puzzle)}>{openingPuzzleId === puzzle.id ? copy.creating : copy.catalogOpenRoom}</button>}
               </div>
             </footer>
           </article>

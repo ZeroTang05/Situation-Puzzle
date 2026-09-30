@@ -68,7 +68,7 @@ test('题库卡片展示已玩角标、固定票数布局，并用所选题目�
   await expect(card.locator('.puzzle-card-author')).toBeVisible();
   await expect(card.locator('.puzzle-card-votes > span')).toHaveCount(2);
   await expect(card.getByRole('button', { name: '单人游玩' })).toBeVisible();
-  await card.getByRole('button', { name: '一键开房间' }).click();
+  await card.getByRole('button', { name: '开房间' }).click();
   await expect(page).toHaveURL(/\/rooms\/[0-9a-f-]+/);
   const roomId = new URL(page.url()).pathname.split('/').at(-1)!;
   try {

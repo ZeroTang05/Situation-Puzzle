@@ -251,7 +251,7 @@ export const copy = {
     libraryLoading: '加载中…',
     libraryLoadFail: '题库加载失败，请刷新重试。',
     played: '已玩',
-    catalogOpenRoom: '一键开房间',
+    catalogOpenRoom: '开房间',
     libraryNeedLogin: '开房间需要先登录。',
 
     // ----- solo -----
@@ -664,7 +664,7 @@ export const copy = {
     easy: 'Easy',
     medium: 'Medium',
     hard: 'Hard',
-    difficultyAll: 'All difficulties',
+    difficultyAll: 'All ',
     storyField: 'Puzzle',
     truthField: 'Answer and hints',
     materialsField: 'Review materials',

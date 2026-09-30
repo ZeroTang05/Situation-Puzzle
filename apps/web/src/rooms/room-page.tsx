@@ -292,11 +292,15 @@ export function RoomPage({ session }: { session: Session | null }) {
               if (!['ask', 'solve', 'discussion'].includes(p.input.type) || (tab === 'discuss') !== (p.input.type === 'discussion')) return false;
               return !state.turns.some((t) => t.clientRequestId === p.input.clientRequestId || t.turnId === p.result?.turnId)
                 && !state.discussions.some((d) => d.clientRequestId === p.input.clientRequestId || d.eventId === p.result?.discussionId);
-            }).map((p) => <div className="turn" key={p.input.clientRequestId} data-pending-id={p.input.clientRequestId}>
-              <p className="turn-text">{String(p.input.payload?.text ?? '')}</p>
-              <MessageDelivery status={p.status} {...(p.error !== undefined ? { error: p.error } : {})} />
-              {p.status === 'confirming' && <button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>{copy.keepConfirming}</button>}
-            </div>)}
+            }).map((p) => {
+              const kindClass = p.input.type === 'solve' ? 'turn-solve' : 'turn-ask';
+              const self = state.members.find((m) => m.userId === me);
+              return <div className={`turn ${kindClass}`} key={p.input.clientRequestId} data-pending-id={p.input.clientRequestId}>
+                <p className="turn-text">{self ? <><strong>{self.nickname}</strong>：</> : null}{String(p.input.payload?.text ?? '')}</p>
+                <MessageDelivery status={p.status} {...(p.error !== undefined ? { error: p.error } : {})} />
+                {p.status === 'confirming' && <button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>{copy.keepConfirming}</button>}
+              </div>;
+            })}
             <div ref={chatBottomRef} />
           </section>
           {newMessages && <button className="btn btn-sm" onClick={() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); atBottom.current = true; setNewMessages(false); }}>{copy.newMessages} ↓</button>}

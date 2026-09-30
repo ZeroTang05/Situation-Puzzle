@@ -12,17 +12,31 @@ export function CreationListPage({ session }: { session: Session | null }) {
   const query = useQuery({ queryKey: ['creations', session?.user.id], queryFn: () => api<{ items: CreationSummary[] }>('/creations'), enabled: !!session, retry: false });
   if (!session) return <Navigate to="/login?next=%2Fcreations" replace />;
   return <main className="shell creation-shell">
-    <header className="topbar"><Link className="btn btn-ghost btn-sm" to="/">{copy.back}</Link><h1 className="brand brand-sm">{text.center}</h1><Link className="btn btn-primary btn-sm" to="/creations/new">{text.create}</Link></header>
-    <h2>{text.works}</h2>
+    <header className="topbar">
+      <Link className="btn btn-ghost btn-sm" to="/">{copy.back}</Link>
+      <h1 className="brand brand-sm creation-title">{text.center}</h1>
+      <Link className="btn btn-primary btn-sm" to="/creations/new">{text.create}</Link>
+    </header>
+    <h2 className="creation-section-title">{text.works}</h2>
     {query.isPending && <p role="status">{text.loading}</p>}
     {query.error && <p className="error-text" role="alert">{query.error.message}</p>}
     {query.data?.items.length === 0 && <section className="creation-empty"><p>{text.empty}</p><Link className="btn btn-primary" to="/creations/new">{text.create}</Link></section>}
     <div className="creation-list">{query.data?.items.map((work) => <article key={work.puzzleId} className="creation-row">
-      <div><span className={`creation-status status-${work.status}`}>{creationStatusLabel(work.status, language)}</span><span className="muted">{text.version} {work.versionNo} · {work.language === 'en' ? copy.languageEn : copy.languageZh}</span></div>
-      <Link to={`/creations/${work.puzzleId}`}><h3>{work.title}</h3></Link>
-      <p className="muted">👍 {work.upCount}　👎 {work.downCount}　{text.feedback} {work.popularityScore}</p>
-      {work.pendingName && <p className="muted">{text.pendingName}：{work.pendingName}</p>}
-      <div className="hint-row"><Link className="btn btn-sm" to={`/creations/${work.puzzleId}`}>{text.edit}</Link>{work.published && <Link className="btn btn-sm btn-ghost" to={`/solo/${work.puzzleId}?lang=${work.publishedLanguage}`}>{text.public}</Link>}</div>
+      <header className="creation-row-head">
+        <span className={`creation-status status-${work.status}`}>{creationStatusLabel(work.status, language)}</span>
+        <span className="creation-row-meta muted">{text.version} {work.versionNo} · {work.language === 'en' ? copy.languageEn : copy.languageZh}</span>
+      </header>
+      <Link className="creation-row-title" to={`/creations/${work.puzzleId}`}><h3>{work.title}</h3></Link>
+      <p className="creation-row-stats muted">
+        <span>👍 {work.upCount}</span>
+        <span>👎 {work.downCount}</span>
+        <span>{text.feedback} {work.popularityScore}</span>
+      </p>
+      {work.pendingName && <p className="creation-row-pending muted">{text.pendingName}：{work.pendingName}</p>}
+      <footer className="creation-row-actions">
+        <Link className="btn btn-sm" to={`/creations/${work.puzzleId}`}>{text.edit}</Link>
+        {work.published && <Link className="btn btn-sm btn-ghost" to={`/solo/${work.puzzleId}?lang=${work.publishedLanguage}`}>{text.public}</Link>}
+      </footer>
     </article>)}</div>
   </main>;
 }
