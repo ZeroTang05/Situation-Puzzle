@@ -43,6 +43,13 @@
       "when": 1790749274294,
       "tag": "0005_multi_room_membership",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790766245843,
+      "tag": "0006_puzzle_difficulty_enum",
+      "breakpoints": true
     }
   ]
 }

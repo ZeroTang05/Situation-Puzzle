@@ -8,6 +8,9 @@ import { ERROR_CODES } from './errors.js';
 export const languageSchema = z.enum(['zh', 'en']);
 export type Language = z.infer<typeof languageSchema>;
 
+export const difficultySchema = z.enum(['easy', 'medium', 'hard']);
+export type Difficulty = z.infer<typeof difficultySchema>;
+
 // ---------- 通用信封 ----------
 
 export const errorBodySchema = z.object({
@@ -41,7 +44,7 @@ export const puzzleListItemSchema = z.object({
   legacyId: z.string().nullable(),
   title: z.string(),
   surface: z.string(),
-  difficulty: z.string().nullable(),
+  difficulty: difficultySchema.nullable(),
   durationMinutes: z.number().int().nullable(),
   contentWarnings: z.array(z.string()),
   language: languageSchema,
@@ -69,6 +72,7 @@ export const soloSessionResponseSchema = z.object({
   language: languageSchema,
   title: z.string(),
   surface: z.string(),
+  difficulty: difficultySchema.nullable(),
   hintsTotal: z.number().int(),
   /** 凭证绑定的判题配置版本：本地记录用于展示一致性 */
   configVersion: z.string(),

@@ -1,0 +1,2 @@
+CREATE TYPE "public"."puzzle_difficulty" AS ENUM('easy', 'medium', 'hard');--> statement-breakpoint
+ALTER TABLE "puzzle_versions" ALTER COLUMN "difficulty" SET DATA TYPE "public"."puzzle_difficulty" USING "difficulty"::"public"."puzzle_difficulty";

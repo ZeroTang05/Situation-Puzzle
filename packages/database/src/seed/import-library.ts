@@ -33,6 +33,7 @@ interface LibraryEntry {
   story: string;
   answer: string;
   hints: string[];
+  difficulty?: 'easy' | 'medium' | 'hard';
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -105,6 +106,7 @@ for (const entry of zh) {
           surface: entry.story,
           answer: entry.answer,
           hints: entry.hints,
+          difficulty: entry.difficulty ?? null,
           moderationStatus: 'published',
           sourceHash: hash,
         },
@@ -116,6 +118,7 @@ for (const entry of zh) {
           surface: enEntry.story,
           answer: enEntry.answer,
           hints: enEntry.hints,
+          difficulty: enEntry.difficulty ?? null,
           moderationStatus: 'published',
           sourceHash: contentHash(enEntry),
         },
@@ -161,6 +164,7 @@ for (const entry of zh) {
         surface: entry.story,
         answer: entry.answer,
         hints: entry.hints,
+        difficulty: entry.difficulty ?? null,
         moderationStatus: 'published',
         sourceHash: hash,
       },
@@ -172,6 +176,7 @@ for (const entry of zh) {
         surface: enEntry.story,
         answer: enEntry.answer,
         hints: enEntry.hints,
+        difficulty: enEntry.difficulty ?? null,
         moderationStatus: 'published',
         sourceHash: contentHash(enEntry),
       },

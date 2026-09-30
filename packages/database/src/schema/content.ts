@@ -47,6 +47,9 @@ export const voteValueEnum = pgEnum('vote_value', ['up', 'down']);
 
 export const authorDisplayModeEnum = pgEnum('author_display_mode', ['anonymous', 'signature']);
 
+/** 题目难度：题库题入库时直接指定；玩家草稿无难度（保持 null）。 */
+export const puzzleDifficultyEnum = pgEnum('puzzle_difficulty', ['easy', 'medium', 'hard']);
+
 // ---------- 身份扩展 ----------
 
 /** 业务档案：与 Better Auth 的 user 一对一；单人游玩完全不经过这里。 */
@@ -127,7 +130,7 @@ export const puzzleVersions = pgTable(
     coreFacts: jsonb('core_facts').$type<string[]>().notNull().default([]),
     /** 因果链描述 */
     causalChain: text('causal_chain'),
-    difficulty: text('difficulty'),
+    difficulty: puzzleDifficultyEnum('difficulty'),
     durationMinutes: integer('duration_minutes'),
     contentWarnings: jsonb('content_warnings').$type<string[]>().notNull().default([]),
     moderationStatus: moderationStatusEnum('moderation_status').notNull().default('draft'),

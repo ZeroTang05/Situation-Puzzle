@@ -1,5 +1,6 @@
 /** 作者私有作品契约；这些完整内容仅可经作者或审核员权限接口读取。 */
 import { z } from 'zod';
+import { difficultySchema } from './http.js';
 
 export const creationStatusSchema = z.enum(['draft', 'submitted', 'checking', 'pending_review', 'published', 'changes_requested', 'taken_down']);
 export const creationOriginSchema = z.enum(['original', 'repost']);
@@ -23,7 +24,7 @@ export const creationDraftSchema = z.object({
   answer: z.string().max(4000),
   hints: z.array(z.string().max(500)).max(3),
   language: z.enum(['zh', 'en']),
-  difficulty: z.enum(['easy', 'medium', 'hard']),
+  difficulty: difficultySchema,
   origin: creationOriginSchema,
   sourceUrl: z.union([z.literal(''), z.url().refine((url) => ['http:', 'https:'].includes(new URL(url).protocol))]),
   authorDisplay: z.discriminatedUnion('mode', [

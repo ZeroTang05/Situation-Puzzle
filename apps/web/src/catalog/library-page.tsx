@@ -15,7 +15,7 @@ interface PuzzleItem {
   legacyId: string | null;
   title: string;
   surface: string;
-  difficulty: string | null;
+  difficulty: 'easy' | 'medium' | 'hard' | null;
   durationMinutes: number | null;
   contentWarnings: string[];
   language: string;
@@ -31,13 +31,22 @@ export function LibraryPage({ session }: { session: Session | null }) {
   const [params, setParams] = useSearchParams();
   const mode = params.get('mode') === 'select' ? 'select' : 'solo';
   const sort = params.get('sort') === 'popular' ? 'popular' : 'latest';
+  const difficultyParam = params.get('difficulty');
+  const difficulty: 'easy' | 'medium' | 'hard' | null =
+    difficultyParam === 'easy' || difficultyParam === 'medium' || difficultyParam === 'hard'
+      ? difficultyParam
+      : null;
   const [playedIds, setPlayedIds] = useState<Set<string>>(new Set());
   const [followupError, setFollowupError] = useState<string | null>(null);
   const [openingPuzzleId, setOpeningPuzzleId] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['puzzles', language, sort],
-    queryFn: () => api<{ items: PuzzleItem[]; nextCursor: string | null }>(`/puzzles?language=${language}&limit=50&sort=${sort}`),
+    queryKey: ['puzzles', language, sort, difficulty],
+    queryFn: () => {
+      const qs = new URLSearchParams({ language, sort, limit: '50' });
+      if (difficulty) qs.set('difficulty', difficulty);
+      return api<{ items: PuzzleItem[]; nextCursor: string | null }>(`/puzzles?${qs.toString()}`);
+    },
   });
 
   // 本地已玩标记：单人历史不上传，只在浏览器提示本人
@@ -107,6 +116,13 @@ export function LibraryPage({ session }: { session: Session | null }) {
     setParams(next, { replace: true });
   };
 
+  const setDifficulty = (value: 'easy' | 'medium' | 'hard' | null) => {
+    const next = new URLSearchParams(params);
+    if (value === null) next.delete('difficulty');
+    else next.set('difficulty', value);
+    setParams(next, { replace: true });
+  };
+
   return (
     <main className="shell">
       <header className="topbar">
@@ -124,6 +140,21 @@ export function LibraryPage({ session }: { session: Session | null }) {
           {copy.sortPopular}
         </button>
       </div>
+      {/* 难度筛选：catalog 接口支持 difficulty=easy|medium|hard，空=全部 */}
+      <div className="mode-tabs" role="tablist" aria-label={copy.difficultyField}>
+        <button className={`mode-tab ${difficulty === null ? 'active' : ''}`} role="tab" aria-selected={difficulty === null} onClick={() => setDifficulty(null)}>
+          {copy.difficultyAll}
+        </button>
+        <button className={`mode-tab ${difficulty === 'easy' ? 'active' : ''}`} role="tab" aria-selected={difficulty === 'easy'} onClick={() => setDifficulty('easy')}>
+          {copy.easy}
+        </button>
+        <button className={`mode-tab ${difficulty === 'medium' ? 'active' : ''}`} role="tab" aria-selected={difficulty === 'medium'} onClick={() => setDifficulty('medium')}>
+          {copy.medium}
+        </button>
+        <button className={`mode-tab ${difficulty === 'hard' ? 'active' : ''}`} role="tab" aria-selected={difficulty === 'hard'} onClick={() => setDifficulty('hard')}>
+          {copy.hard}
+        </button>
+      </div>
       {isLoading && <p className="muted">{copy.libraryLoading}</p>}
       {error && <p className="error-text">{copy.libraryLoadFail}</p>}
       {followupError && <p className="error-text" role="alert">{followupError}</p>}
@@ -132,6 +163,11 @@ export function LibraryPage({ session }: { session: Session | null }) {
           <article key={puzzle.id} className="panel puzzle-card">
             <div className="puzzle-card-heading"><h2>{puzzle.title}</h2>{playedIds.has(puzzle.id) && <span className="puzzle-played">{copy.played}</span>}</div>
             <p className="puzzle-surface">{puzzle.surface}</p>
+            {puzzle.difficulty && (
+              <span className={`puzzle-card-difficulty puzzle-card-difficulty-${puzzle.difficulty}`}>
+                {puzzle.difficulty === 'easy' ? copy.easy : puzzle.difficulty === 'hard' ? copy.hard : copy.medium}
+              </span>
+            )}
             <footer className="puzzle-card-footer">
               <div className="puzzle-card-meta">
                 <span className="puzzle-card-author"><AuthorLabel mode={puzzle.authorDisplay.mode} name={puzzle.authorDisplay.name} /></span>

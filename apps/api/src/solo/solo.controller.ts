@@ -89,6 +89,7 @@ export class SoloController {
         title: puzzleVersions.title,
         surface: puzzleVersions.surface,
         hints: puzzleVersions.hints,
+        difficulty: puzzleVersions.difficulty,
         puzzleId: puzzles.id,
       })
       .from(puzzleVersions)
@@ -118,6 +119,7 @@ export class SoloController {
       language: body.language,
       title: version.title,
       surface: version.surface,
+      difficulty: version.difficulty,
       hintsTotal: version.hints.length,
       configVersion,
     };

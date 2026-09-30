@@ -7,7 +7,7 @@
  */
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { and, asc, eq, isNotNull, lt, ne, or, sql, desc } from 'drizzle-orm';
-import { randomPuzzleQuerySchema } from '@jev/contracts';
+import { randomPuzzleQuerySchema, difficultySchema } from '@jev/contracts';
 import { puzzles, puzzleVersions, ratings } from '@jev/database';
 import { DomainError } from '@jev/domain';
 import { app } from '../context.js';
@@ -18,7 +18,7 @@ import { publishedLanguageJoin } from './published-language.js';
 
 const listQuerySchema = z.object({
   language: z.enum(['zh', 'en']).default('zh'),
-  difficulty: z.string().optional(),
+  difficulty: difficultySchema.optional(),
   sort: z.enum(['latest', 'popular']).default('latest'),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),

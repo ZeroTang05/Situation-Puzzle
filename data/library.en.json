@@ -8,7 +8,8 @@
       "He and his wife were once stranded on an island, where she died.",
       "A fellow survivor served him meat described as seabird.",
       "After his rescue, that survivor admitted the meat had come from his wife."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-short-match",
@@ -19,7 +20,8 @@
       "He was in a descending hot-air balloon with other passengers.",
       "They discarded luggage and clothing to reduce the load.",
       "Unequal matches were used to draw lots for who must leave the basket."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-lighthouse",
@@ -30,7 +32,8 @@
       "His job involved guiding ships at night.",
       "Dangerous rocks lay in the nearby waters.",
       "The ship lost its navigational beacon when the light went out and struck the rocks."
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": "seed-classic-music-stopped",
@@ -41,7 +44,8 @@
       "She was performing high above the ground while blindfolded.",
       "She and the musicians used silence to signal arrival at the platform.",
       "She was on a tightrope without a safety net; the musicians stopped too early."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-iced-drinks",
@@ -52,7 +56,8 @@
       "The tea in the pot was safe; poison was in something added to the cups.",
       "The fast drinker left most of the ice behind before it melted.",
       "The slow drinker's melting ice released poison into the tea."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-rewound-tape",
@@ -63,7 +68,8 @@
       "This recorder could not rewind automatically.",
       "The fatal shot was recorded; afterward the victim could no longer operate the machine.",
       "Someone forced him to record a farewell and handled the tape after killing him."
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": "seed-classic-one-way-ticket",
@@ -74,7 +80,8 @@
       "The husband bought both travelers' tickets before departure.",
       "He told the seller that they planned to return together.",
       "Only he had a return ticket; his wife's was one-way."
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": "seed-classic-subway-pact",
@@ -85,7 +92,8 @@
       "They once survived a shipwreck and were stranded without food.",
       "The survivors agreed to sacrifice an arm each in turn to feed the others.",
       "Rescue arrived before the friend's turn; he fled afterward and refused to honor the pact."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-birthday-surprise",
@@ -96,7 +104,8 @@
       "His wife organized the gathering without telling him.",
       "At her invitation, friends and relatives had hidden inside.",
       "When the lights came on, he was dragging her body through the doorway."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-dark-motel",
@@ -107,7 +116,8 @@
       "He had gone to his car and forgotten his room number on returning.",
       "His wife was deaf and asleep in their room.",
       "The motel was full, and all the other guests turned on their lights to investigate the noise."
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": "seed-classic-unopened-pack",
@@ -118,7 +128,8 @@
       "An accident occurred during his descent after leaving an aircraft.",
       "The pack was meant to slow his fall through the air.",
       "Its parachute failed to deploy."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-sunken-cards",
@@ -129,7 +140,8 @@
       "The witness was a diver examining a wreck.",
       "The men were trapped in a flooding cabin with only one bullet.",
       "The game decided who could use the bullet to avoid drowning."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-bar-hiccups",
@@ -140,7 +152,8 @@
       "He wanted relief from a physical discomfort.",
       "The bartender noticed interruptions in his speech.",
       "The fright stopped the symptom."
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": "seed-classic-rainy-elevator",
@@ -151,7 +164,8 @@
       "Higher floors have higher buttons.",
       "His reach is limited by his height.",
       "Rain means he carries an umbrella."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-broken-fishbowl",
@@ -162,7 +176,8 @@
       "The dog toppled a glass container of water.",
       "The victims lived inside that container.",
       "Their breathing depended on oxygen in water."
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": "seed-classic-silent-phone-call",
@@ -173,7 +188,8 @@
       "Noise from the neighboring hotel room kept him awake.",
       "The person answering was making that noise.",
       "The ringing woke a snoring guest."
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": "seed-classic-night-watchman",
@@ -184,7 +200,8 @@
       "The dream happened during his shift.",
       "His duties required him to stay awake.",
       "The reward and dismissal concerned different actions."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-sawdust-cane",
@@ -195,7 +212,8 @@
       "He relied on touch because he was blind.",
       "His circus livelihood depended on his short stature.",
       "A rival had altered his wooden cane."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-tunnel-light",
@@ -206,7 +224,8 @@
       "He was returning from eye surgery.",
       "The carriage had no internal lighting.",
       "The glow came from a cigarette and proved his sight remained."
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": "seed-classic-melted-support",
@@ -217,7 +236,8 @@
       "A solid object had supported his weight.",
       "The room's warmth changed that object's state.",
       "The puddle is what remains of the support."
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": "seed-classic-fifty-three-cards",
@@ -228,7 +248,8 @@
       "The game used one deck with the jokers removed.",
       "The victim had concealed an extra card.",
       "The other gamblers discovered his cheating."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-mountain-cabin",
@@ -239,7 +260,8 @@
       "Their uniforms indicate that they worked here in the same profession.",
       "The cabin was part of a vehicle.",
       "A fatal impact preceded the fire."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-second-funeral",
@@ -250,7 +272,8 @@
       "She wants to see the stranger again.",
       "Her sister's death will cause another family gathering.",
       "She expects some of the same mourners to return."
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": "seed-classic-counting-floors",
@@ -261,7 +284,8 @@
       "He sees me as a witness he must silence.",
       "His finger follows the building's windows in sequence.",
       "He intends to visit the room he identifies."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-window-portraits",
@@ -272,7 +296,8 @@
       "Daylight enters where the faces appeared.",
       "The frames were part of the building.",
       "The faces belonged to watchers outside."
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": "seed-classic-fatal-ringtone",
@@ -283,7 +308,8 @@
       "She was hiding from an intruder.",
       "Her phone was with her, with its ringer on.",
       "The intruder located her by sound."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-five-in-rain",
@@ -294,7 +320,8 @@
       "Four people carry a large covered object.",
       "The fifth travels inside it.",
       "They are going to a funeral."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-bodies-in-well",
@@ -305,7 +332,8 @@
       "Someone visited the well after he left.",
       "That person knowingly concealed his crimes.",
       "His mother had been doing the cleanup."
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": "seed-classic-missing-bride",
@@ -316,7 +344,8 @@
       "She went to the attic during the game.",
       "Her hiding place was an old chest.",
       "The closed lid locked, with no release inside."
-    ]
+    ],
+    "difficulty": "medium"
   },
   {
     "id": "seed-classic-two-pills",
@@ -327,6 +356,7 @@
       "One of the kidnapper's claims about the pills is a lie.",
       "Both pills are harmless sugar pills.",
       "The hostage's water contains the poison."
-    ]
+    ],
+    "difficulty": "hard"
   }
 ]

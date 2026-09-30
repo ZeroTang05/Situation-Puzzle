@@ -570,3 +570,30 @@ textarea.composer-input, .composer .composer-input {
   font-size: 14px;
   color: var(--muted);
 }
+
+.puzzle-card-difficulty {
+  display: inline-block;
+  align-self: flex-start;
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+}
+
+.puzzle-card-difficulty-easy {
+  border-color: #5cc78a;
+  color: #5cc78a;
+}
+
+.puzzle-card-difficulty-medium {
+  border-color: #d0a648;
+  color: #d0a648;
+}
+
+.puzzle-card-difficulty-hard {
+  border-color: #d96363;
+  color: #d96363;
+}

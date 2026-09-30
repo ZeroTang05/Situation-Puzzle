@@ -16,6 +16,8 @@ interface JevLocalDB extends DBSchema {
       language: 'zh' | 'en';
       title: string;
       surface: string;
+      /** 题库题才有 difficulty，玩家自创草稿预览没有 */
+      difficulty?: 'easy' | 'medium' | 'hard' | null;
       configVersion: string;
       token: string;
       previewDigest?: string;
@@ -99,6 +101,7 @@ export const soloStore = {
     language: 'zh' | 'en';
     title: string;
     surface: string;
+    difficulty?: 'easy' | 'medium' | 'hard' | null;
     token: string;
     configVersion: string;
     previewDigest?: string;
