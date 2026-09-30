@@ -474,6 +474,16 @@ textarea.composer-input, .composer .composer-input {
   flex-direction: column;
 }
 
+/* 输入与操作区贴底，消息占满剩余高度并在内部滚动。 */
+.room-playing { height: 100dvh; min-height: 0; overflow: hidden; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+.room-playing > * { flex-shrink: 0; }
+.room-playing > .chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.room-playing > .chat > * { flex-shrink: 0; }
+.room-playing > .composer { position: static; padding: 4px 0 0; background: var(--bg); }
+.room-playing .hint-row { padding: 4px 0 0; }
+.room-playing > .story-card { max-height: 20dvh; }
+.room-playing > .room-management { max-height: 25dvh; overflow-y: auto; }
+
 .offline-banner {
   position: sticky;
   top: 0;

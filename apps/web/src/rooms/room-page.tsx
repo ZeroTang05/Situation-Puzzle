@@ -19,6 +19,7 @@ import { VoteButtons } from '../catalog/vote-buttons.js';
 import type { Session } from '../session.js';
 import { PuzzleSelection } from './puzzle-selection.js';
 import { MessageDelivery } from './message-delivery.js';
+import { RoomShell } from './room-shell.js';
 
 interface PuzzleItem {
   id: string;
@@ -166,7 +167,7 @@ export function RoomPage({ session }: { session: Session | null }) {
   const answered = round && (round.status === 'solved' || round.status === 'revealed');
 
   return (
-    <main className="shell room-shell">
+    <RoomShell playing={round?.status === 'active' && state.roomStatus === 'playing'}>
       <GameHeader
         title={round ? displayedTitle ?? copy.loadingRound : copy.waitingRoom}
         back={<button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>{copy.back}</button>}
@@ -183,7 +184,7 @@ export function RoomPage({ session }: { session: Session | null }) {
         <p>{p.status === 'rejected' ? p.error : p.status === 'sending' ? copy.operationSubmitting : copy.confirming}</p>
         {p.status === 'confirming' && <button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>{copy.keepConfirming}</button>}
       </div>)}
-      {managementOpen && <section className="panel stack" aria-label={copy.membersManagement}>
+      {managementOpen && <section className="panel stack room-management game-scroll" aria-label={copy.membersManagement}>
         <h2>{copy.membersHeader}</h2>
         <MemberList state={state} me={me} isHost={isHost && state.roomStatus !== 'closed'} onKick={(userId) => void run('kick', { userId })} onTransfer={(userId) => void run('transfer_host', { userId })} />
         {isHost && state.roomStatus !== 'closed' && <div className="hint-row">
@@ -259,7 +260,7 @@ export function RoomPage({ session }: { session: Session | null }) {
             <p className="story">{displayedSurface}</p>
           </section>
 
-          <section className="chat" aria-live="polite">
+          <section className="chat game-scroll" aria-live="polite">
             {tab === 'qa' &&
               state.turns.map((turn) => (
                 <div key={turn.turnId} data-message-id={turn.turnId} className={`turn turn-${turn.kind}`}>
@@ -390,7 +391,7 @@ export function RoomPage({ session }: { session: Session | null }) {
         </section>
       )}
 
-    </main>
+    </RoomShell>
   );
 }
 

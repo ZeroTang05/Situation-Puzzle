@@ -271,6 +271,42 @@ for (const viewport of [{ width: 390, height: 740 }, { width: 1440, height: 900 
   });
 }
 
+test('多人输入区在手机和宽屏贴底，短消息与长记录均只滚动对话区', async ({ page, context }) => {
+  await register(context, '贴底布局测试');
+  const catalog = await getData(context.request, '/puzzles?language=zh&limit=1');
+  const created = await context.request.post('/api/v1/rooms', { data: { capacity: 8 } });
+  expect(created.ok()).toBe(true);
+  const room = (await created.json()).data;
+  try {
+    await command(context.request, room.roomId, 'select_puzzle', { puzzleId: catalog.items[0].id, language: 'zh' });
+    await command(context.request, room.roomId, 'start_round');
+    await page.goto(`/rooms/${room.roomId}?lang=zh`);
+    await expect(page.locator('.composer-input')).toBeVisible();
+    for (const viewport of [{ width: 390, height: 740 }, { width: 1440, height: 900 }]) {
+      await page.setViewportSize(viewport);
+      for (const withManagement of [false, true]) {
+        if (withManagement) await page.getByRole('button', { name: /^玩家/ }).click();
+        const geometry = await page.locator('.composer').evaluate((footer) => ({ bottom: footer.getBoundingClientRect().bottom, height: window.innerHeight, pageHeight: document.documentElement.scrollHeight }));
+        expect(geometry.height - geometry.bottom).toBeGreaterThanOrEqual(0);
+        expect(geometry.height - geometry.bottom).toBeLessThanOrEqual(10);
+        expect(geometry.pageHeight).toBeLessThanOrEqual(geometry.height + 1);
+        if (withManagement) await page.getByRole('button', { name: /^玩家/ }).click();
+      }
+    }
+    await page.setViewportSize({ width: 390, height: 740 });
+    await page.getByRole('tab', { name: '和大家讨论' }).click();
+    for (let index = 0; index < 16; index += 1) {
+      await command(context.request, room.roomId, 'discussion', { text: `第 ${index + 1} 条讨论：${'用于检查内部滚动的长消息。'.repeat(12)}` });
+    }
+    await expect(page.locator('.chat .turn')).toHaveCount(16);
+    expect(await page.locator('.chat').evaluate((chat) => chat.scrollHeight > chat.clientHeight)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true);
+    await expect(page.locator('.composer-input')).toBeVisible();
+  } finally {
+    await command(context.request, room.roomId, 'close_room');
+  }
+});
+
 test('换一题排除全部已玩作品，刷新后保留排除记录，全部玩过时停留原题', async ({ page, context }) => {
   test.setTimeout(180_000);
   const ids: string[] = [];
