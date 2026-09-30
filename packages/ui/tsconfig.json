@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "noEmit": true, "types": ["node"] },
+  "compilerOptions": { "noEmit": true, "jsx": "react-jsx", "lib": ["ES2022", "DOM"], "types": ["node"] },
   "include": ["src", "drizzle.config.ts"]
 }

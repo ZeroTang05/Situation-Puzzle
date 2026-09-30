@@ -55,8 +55,11 @@ test('作者保存、私密试题、权限隔离、提交撤回与版本保留',
     await page.getByRole('link', { name: '回到编辑' }).click();
     await expect(page.getByRole('checkbox')).toHaveCount(0);
     await expect(page.getByText('审核材料', { exact: true })).toHaveCount(0);
-    page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: '提交审核', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: '取消', exact: true }).click();
+    expect((await detail(context.request, id)).status).toBe('draft');
+    await page.getByRole('button', { name: '提交审核', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: '确定', exact: true }).click();
     await expect.poll(async () => (await detail(context.request, id)).status).not.toBe('draft');
     const submitted = await detail(context.request, id);
     expect((await context.request.patch(`/api/v1/creations/${id}`, { data: { ...manuscript, ...condition(submitted) } })).status()).toBe(409);

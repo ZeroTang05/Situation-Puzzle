@@ -1,0 +1,11 @@
+/* 玩家端与管理端共用弹窗样式，不改变管理端其他组件的主题。 */
+.jev-dialog-overlay { position: fixed; inset: 0; z-index: 2000; background: rgb(0 8 18 / 75%); }
+.jev-dialog { box-sizing: border-box; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2001; width: min(400px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 20px; border: 1px solid #29465b; border-radius: 6px; background: #0b2030; color: #e0edf4; box-shadow: 0 12px 40px rgb(0 0 0 / 40%); font: 16px/1.5 system-ui, sans-serif; }
+.jev-dialog-title { margin: 0 0 10px; font-size: 18px; }
+.jev-dialog-description { margin: 0 0 18px; white-space: pre-wrap; overflow-wrap: anywhere; color: #b7cbd8; }
+.jev-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.jev-dialog-actions button { min-height: 40px; padding: 6px 16px; border: 1px solid #36546a; border-radius: 4px; cursor: pointer; font: inherit; }
+.jev-dialog-cancel { background: #0b2030; color: #b7cbd8; }
+.jev-dialog-confirm { background: #7ad4c4; color: #062029; font-weight: 600; }
+.jev-dialog-input { box-sizing: border-box; width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid #36546a; border-radius: 4px; background: #071724; color: #e0edf4; font: inherit; }
+.jev-dialog :focus-visible { outline: 2px solid #7ad4c4; outline-offset: 2px; }

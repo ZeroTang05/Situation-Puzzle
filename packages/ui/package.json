@@ -5,9 +5,11 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./styles.css": "./src/styles/theme.css"
+    "./styles.css": "./src/styles/theme.css",
+    "./dialog.css": "./src/styles/dialog.css"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "1.1.23",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

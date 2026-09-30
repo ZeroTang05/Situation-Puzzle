@@ -9,14 +9,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.1.0",
-    "react-admin": "^5.9.0",
-    "react-dom": "^19.1.0",
-    "@mui/material": "^7.3.11",
-    "@mui/icons-material": "^7.3.11",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
-    "@jev/i18n": "workspace:*"
+    "@jev/i18n": "workspace:*",
+    "@jev/ui": "workspace:*",
+    "@mui/icons-material": "^7.3.11",
+    "@mui/material": "^7.3.11",
+    "react": "^19.1.0",
+    "react-admin": "^5.9.0",
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "@types/react": "^19.1.8",

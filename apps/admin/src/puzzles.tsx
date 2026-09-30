@@ -1,4 +1,5 @@
 /** 题库与投稿审核：列表、详情、批准 / 退回 / 下架、署名审核（docs/rebuild/11-VOTES-AND-AUTHORSHIP.md §5）。 */
+import { useDialog } from '@jev/ui';
 import { List, Datagrid, TextField, NumberField, BooleanField, Show, SimpleShowLayout, useRecordContext, useNotify, useRefresh, Button } from 'react-admin';
 import { adminAction } from './data-provider.js';
 import { copy } from './copy.js';
@@ -53,6 +54,7 @@ function AuthorInternalField() {
 }
 
 function PuzzleActionsField() {
+  const dialog = useDialog();
   const record = useRecordContext() as
     | { versionId?: string; puzzleId?: string; status?: string; unavailable?: boolean; authorPendingName?: string | null }
     | undefined;
@@ -60,13 +62,16 @@ function PuzzleActionsField() {
   const refresh = useRefresh();
   const { language } = useLanguage(); const c = copy(language);
   if (!record) return null;
-  const act = (path: string) =>
-    void adminAction(path, { reason: window.prompt(c.promptReason) ?? '' })
+  const act = async (path: string) => {
+    const reason = await dialog.prompt(c.promptReason);
+    if (reason === null) return;
+    await adminAction(path, { reason })
       .then(() => {
         notify(c.done);
         refresh();
       })
       .catch((error: Error) => notify(error.message, { type: 'error' }));
+  };
 
   return (
     <>
@@ -128,6 +133,7 @@ function AuthorMaterials() {
 
 /** 同版多语言内容在批准前一起展示，批量操作明确带上审核范围。 */
 function SameRevisionReview() {
+  const dialog = useDialog();
   const record = useRecordContext() as { versionId: string; versions?: Array<{ id: string; language: string; title: string; surface: string; answer: string; hints: string[]; moderationStatus: string }> } | undefined;
   const notify = useNotify();
   const refresh = useRefresh();
@@ -135,8 +141,8 @@ function SameRevisionReview() {
   if (!record?.versions) return null;
   const ready = record.versions.every((version) => version.moderationStatus === 'pending_review' || version.moderationStatus === 'published');
   const pending = record.versions.some((version) => version.moderationStatus === 'pending_review');
-  const approveAll = () => {
-    const reason = window.prompt(c.promptRevision);
+  const approveAll = async () => {
+    const reason = await dialog.prompt(c.promptRevision);
     if (reason === null) return;
     void adminAction(`/puzzle-versions/${record.versionId}/approve`, { reason, scope: 'revision' })
       .then(() => { notify(c.revisionApproved); refresh(); })

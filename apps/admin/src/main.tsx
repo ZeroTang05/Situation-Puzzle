@@ -1,3 +1,6 @@
+import { DialogProvider } from '@jev/ui';
+import '@jev/ui/dialog.css';
+import { t } from '@jev/i18n';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Admin, Resource, ListGuesser } from 'react-admin';
@@ -32,11 +35,16 @@ function AdminShell() {
   );
 }
 
+function AdminDialogs() {
+  const { language } = useLanguage();
+  const labels = t(language);
+  return <DialogProvider confirmLabel={labels.confirm} cancelLabel={labels.cancel}><AdminShell /><LangSwitch /></DialogProvider>;
+}
+
 function App() {
   return (
     <LanguageProvider>
-      <AdminShell />
-      <LangSwitch />
+      <AdminDialogs />
     </LanguageProvider>
   );
 }

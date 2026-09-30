@@ -2,6 +2,7 @@
  * 单人游戏页（docs/rebuild/08-SOLO.md）：
  * 会话与问答只存浏览器 IndexedDB；刷新恢复；断网保留输入；服务端不存任何单人对话。
  */
+import { useDialog } from '@jev/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { api, ApiError, translateApiError } from '../api/client.js';
@@ -30,6 +31,7 @@ interface TurnRow {
 
 export function SoloPage({ session: authSession }: { session: Session | null }) {
   const { puzzleId } = useParams();
+  const dialog = useDialog();
   const { copy, language } = useLanguage();
   const navigate = useNavigate();
 
@@ -325,8 +327,8 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
             setText('');
             persistDraft(next, '');
           }}>{copy.solve}</button>
-          <button className="btn btn-sm" disabled={changingPuzzle || sending || revealing || Boolean(session.revealedAnswer)} onClick={() => {
-            if (window.confirm(copy.revealConfirm)) void reveal();
+          <button className="btn btn-sm" disabled={changingPuzzle || sending || revealing || Boolean(session.revealedAnswer)} onClick={async () => {
+            if (await dialog.confirm(copy.revealConfirm)) void reveal();
           }}>{copy.soloViewAnswer}</button>
         </section>
 

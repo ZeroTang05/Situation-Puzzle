@@ -1,4 +1,5 @@
 /** 用户、房间、举报、订单列表与处置动作；总览页。 */
+import { useDialog } from '@jev/ui';
 import { List, Datagrid, TextField, useRecordContext, useNotify, useRefresh, Button } from 'react-admin';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, Typography } from '@mui/material';
@@ -23,30 +24,38 @@ export function UserList() {
 }
 
 function UserActionsField() {
+  const dialog = useDialog();
   const record = useRecordContext() as { userId?: string; status?: string } | undefined;
   const notify = useNotify();
   const refresh = useRefresh();
   const { language } = useLanguage(); const c = copy(language);
   if (!record) return null;
-  const act = (path: string, body: Record<string, unknown>) =>
-    void adminAction(path, body)
+  const act = async (path: string, message: string) => {
+    const reason = await dialog.prompt(message);
+    if (reason === null) return;
+    await adminAction(path, { reason })
       .then(() => {
         notify(c.done);
         refresh();
       })
       .catch((error: Error) => notify(error.message, { type: 'error' }));
+  };
   return (
     <>
       {record.status === 'active' ? (
-        <Button label={c.suspend} onClick={() => act(`/users/${record.userId}/suspend`, { reason: window.prompt(c.promptReasonSuspend) ?? '' })} />
+        <Button label={c.suspend} onClick={() => act(`/users/${record.userId}/suspend`, c.promptReasonSuspend)} />
       ) : (
-        <Button label={c.unsuspend} onClick={() => act(`/users/${record.userId}/unsuspend`, { reason: window.prompt(c.promptReasonUnsuspend) ?? '' })} />
+        <Button label={c.unsuspend} onClick={() => act(`/users/${record.userId}/unsuspend`, c.promptReasonUnsuspend)} />
       )}
       <Button
         label={c.testSponsor}
-        onClick={() => {
-          const months = Number(window.prompt(c.promptTestSponsor) ?? '0');
-          if (months > 0) act(`/users/${record.userId}/test-grant`, { months, reason: c.testSponsor });
+        onClick={async () => {
+          const value = await dialog.prompt(c.promptTestSponsor);
+          if (value === null) return;
+          const months = Number(value);
+          if (months > 0) void adminAction(`/users/${record.userId}/test-grant`, { months, reason: c.testSponsor })
+            .then(() => { notify(c.done); refresh(); })
+            .catch((error: Error) => notify(error.message, { type: 'error' }));
         }}
       />
     </>
@@ -73,6 +82,7 @@ export function RoomList() {
 }
 
 function RoomActionsField() {
+  const dialog = useDialog();
   const record = useRecordContext() as { roomId?: string; status?: string } | undefined;
   const notify = useNotify();
   const refresh = useRefresh();
@@ -81,14 +91,16 @@ function RoomActionsField() {
   return (
     <Button
       label={c.forceClose}
-      onClick={() =>
-        void adminAction(`/rooms/${record.roomId}/force-close`, { reason: window.prompt(c.promptForceClose) ?? '' })
+      onClick={async () => {
+        const reason = await dialog.prompt(c.promptForceClose);
+        if (reason === null) return;
+        await adminAction(`/rooms/${record.roomId}/force-close`, { reason })
           .then(() => {
             notify(c.forceCloseDone);
             refresh();
           })
-          .catch((error: Error) => notify(error.message, { type: 'error' }))
-      }
+          .catch((error: Error) => notify(error.message, { type: 'error' }));
+      }}
     />
   );
 }
@@ -113,6 +125,7 @@ export function ReportList() {
 }
 
 function ResolveField() {
+  const dialog = useDialog();
   const record = useRecordContext() as { id?: string; status?: string } | undefined;
   const notify = useNotify();
   const refresh = useRefresh();
@@ -121,14 +134,16 @@ function ResolveField() {
   return (
     <Button
       label={c.markResolved}
-      onClick={() =>
-        void adminAction(`/reports/${record.id}/resolve`, { reason: window.prompt(c.promptResolve) ?? '' })
+      onClick={async () => {
+        const reason = await dialog.prompt(c.promptResolve);
+        if (reason === null) return;
+        await adminAction(`/reports/${record.id}/resolve`, { reason })
           .then(() => {
             notify(c.resolveDone);
             refresh();
           })
-          .catch((error: Error) => notify(error.message, { type: 'error' }))
-      }
+          .catch((error: Error) => notify(error.message, { type: 'error' }));
+      }}
     />
   );
 }
@@ -153,6 +168,7 @@ export function OrderList() {
 }
 
 function RefundField() {
+  const dialog = useDialog();
   const record = useRecordContext() as { orderId?: string; status?: string } | undefined;
   const notify = useNotify();
   const refresh = useRefresh();
@@ -161,14 +177,16 @@ function RefundField() {
   return (
     <Button
       label={c.reviewRefund}
-      onClick={() =>
-        void adminAction(`/orders/${record.orderId}/refund`, { reason: window.prompt(c.promptRefund) ?? '' })
+      onClick={async () => {
+        const reason = await dialog.prompt(c.promptRefund);
+        if (reason === null) return;
+        await adminAction(`/orders/${record.orderId}/refund`, { reason })
           .then(() => {
             notify(c.refundDone);
             refresh();
           })
-          .catch((error: Error) => notify(error.message, { type: 'error' }))
-      }
+          .catch((error: Error) => notify(error.message, { type: 'error' }));
+      }}
     />
   );
 }

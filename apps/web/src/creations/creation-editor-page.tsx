@@ -1,4 +1,5 @@
 /** 创作编辑页：分次保存草稿、提交 Jev 初审、版本编辑与审核反馈。 */
+import { useDialog } from '@jev/ui';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useBeforeUnload, useNavigate, useParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -27,6 +28,7 @@ export function CreationEditorPage({ session }: { session: Session | null }) {
 
 /** 表单与已保存版本分开，后台状态刷新只发生在只读审核阶段。 */
 function Editor({ session, detail }: { session: Session; detail: CreationDetail | undefined }) {
+  const dialog = useDialog();
   const { language, copy } = useLanguage(); const text = creationCopy(language); const navigate = useNavigate(); const client = useQueryClient();
   const [draft, setDraft] = useState<CreationDraft>(detail?.draft ?? emptyDraft(language));
   const [busy, setBusy] = useState(false); const [dirty, setDirty] = useState(false);
@@ -64,7 +66,7 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
   const submit = async () => {
     const parsed = creationCompleteSchema.safeParse(body);
     if (!parsed.success) { setError(parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('\n')); return; }
-    if (!window.confirm(text.submitConfirm)) return;
+    if (!(await dialog.confirm(text.submitConfirm))) return;
     setBusy(true); setError(null);
     try {
       const saved = await persist(); setDirty(false);
@@ -75,7 +77,7 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
     finally { setBusy(false); }
   };
   const revise = async (action: 'revise' | 'withdraw') => {
-    if (!detail || (action === 'withdraw' && !window.confirm(text.withdrawConfirm))) return;
+    if (!detail || (action === 'withdraw' && !(await dialog.confirm(text.withdrawConfirm)))) return;
     setBusy(true); setError(null);
     try { await api(`/creations/${detail.puzzleId}/${action}`, { method: 'POST', body: condition }); await refresh(detail.puzzleId); }
     catch (error) { setError(error instanceof Error ? error.message : String(error)); }
@@ -89,7 +91,7 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
   };
 
   return <main className="shell creation-shell">
-    <header className="topbar"><button className="btn btn-ghost btn-sm" onClick={() => { if (!dirty || window.confirm(text.leaveConfirm)) navigate('/creations'); }}>{text.works}</button><h1 className="brand brand-sm">{detail ? text.edit : text.create}</h1>{detail && <span className={`creation-status status-${detail.status}`}>{creationStatusLabel(detail.status, language)}</span>}</header>
+    <header className="topbar"><button className="btn btn-ghost btn-sm" onClick={async () => { if (!dirty || await dialog.confirm(text.leaveConfirm)) navigate('/creations'); }}>{text.works}</button><h1 className="brand brand-sm">{detail ? text.edit : text.create}</h1>{detail && <span className={`creation-status status-${detail.status}`}>{creationStatusLabel(detail.status, language)}</span>}</header>
     {detail && <p className="muted">{text.version} {detail.versionNo}</p>}
     <form onSubmit={(event) => { event.preventDefault(); void save(); }} className="creation-editor">
       <fieldset disabled={!editable || busy}>
@@ -121,7 +123,7 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
       </footer>
     </form>
     {detail && <section className="creation-section"><h2>{text.review}</h2>{detail.reviews.length === 0 && <p className="muted">{text.noReviews}</p>}{detail.reviews.map((review, index) => <article className="creation-review" key={`${review.versionId}:${index}`}><strong>{creationStatusLabel(review.conclusion, language)}</strong><p>{review.reason}</p><small className="muted">{new Date(review.createdAt).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US')}</small></article>)}<h3>{text.versions}</h3>{detail.versions.map((version) => <p className="muted" key={version.versionId}>{text.version} {version.versionNo} · {version.language} · {creationStatusLabel(version.status, language)}</p>)}
-      <button className="btn btn-sm btn-ghost" disabled={busy} onClick={() => { if (!dirty || window.confirm(text.leaveConfirm)) void client.invalidateQueries({ queryKey: ['creation', session.user.id, detail.puzzleId] }); }}>{text.refresh}</button>
+      <button className="btn btn-sm btn-ghost" disabled={busy} onClick={async () => { if (!dirty || await dialog.confirm(text.leaveConfirm)) void client.invalidateQueries({ queryKey: ['creation', session.user.id, detail.puzzleId] }); }}>{text.refresh}</button>
     </section>}
   </main>;
 }

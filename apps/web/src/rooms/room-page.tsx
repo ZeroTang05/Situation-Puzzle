@@ -2,6 +2,7 @@
  * 房间页：等待室（成员/选题/邀请）与游戏区（成对问答、讨论、提示、还原），
  * 结算展示汤底与统计。所有写操作走 HTTP 命令；状态由 useRoomSync 权威同步。
  */
+import { useDialog } from '@jev/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -28,6 +29,7 @@ interface PuzzleItem {
 
 export function RoomPage({ session }: { session: Session | null }) {
   const { roomId } = useParams();
+  const dialog = useDialog();
   const { copy, language } = useLanguage();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -233,8 +235,8 @@ export function RoomPage({ session }: { session: Session | null }) {
                 )}
                 <button
                   className="btn btn-danger"
-                  onClick={() => {
-                    if (window.confirm(copy.closeRoomConfirm)) void run('close_room').then((result) => { if (result) navigate('/'); });
+                  onClick={async () => {
+                    if (await dialog.confirm(copy.closeRoomConfirm)) void run('close_room').then((result) => { if (result) navigate('/'); });
                   }}
                 >
                   {copy.closeRoom}
@@ -341,16 +343,16 @@ export function RoomPage({ session }: { session: Session | null }) {
                     </button>
                     <button
                       className="btn btn-sm btn-danger"
-                      onClick={() => {
-                        if (window.confirm(copy.revealConfirm)) void run('reveal_answer', undefined, round.roundId);
+                      onClick={async () => {
+                        if (await dialog.confirm(copy.revealConfirm)) void run('reveal_answer', undefined, round.roundId);
                       }}
                     >
                       {copy.reveal}
                     </button>
                     <button
                       className="btn btn-sm btn-ghost"
-                      onClick={() => {
-                        if (window.confirm(copy.endRoundConfirm)) void run('end_round', undefined, round.roundId);
+                      onClick={async () => {
+                        if (await dialog.confirm(copy.endRoundConfirm)) void run('end_round', undefined, round.roundId);
                       }}
                     >
                       {copy.endRound}
