@@ -6,6 +6,7 @@ RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY apps/admin/package.json apps/admin/
+COPY packages/contracts/package.json packages/contracts/
 COPY packages/i18n/package.json packages/i18n/
 
 # BuildKit cache mount：与 api/web/jobs 共享同一份 pnpm store
@@ -13,6 +14,9 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store,sharin
     --mount=type=cache,id=pnpm-meta,target=/root/.cache/node/corepack,sharing=locked \
     pnpm install --frozen-lockfile --filter @jev/admin...
 
+# i18n 在 src/index.ts 里 `import type { ErrorCode } from '@jev/contracts'`，
+# 必须在镜像里有 contracts 的源码（admin 体积小，单独 COPY 比让 tsc 走兜底解析更稳）
+COPY packages/contracts ./packages/contracts
 COPY packages/i18n ./packages/i18n
 
 COPY tsconfig.base.json /app/tsconfig.base.json
