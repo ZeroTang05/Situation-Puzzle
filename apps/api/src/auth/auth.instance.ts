@@ -204,6 +204,21 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
           },
         },
       },
+      // 兜底：注册 + 登录都覆盖，防止清库/迁移后老用户数据缺失
+      session: {
+        create: {
+          before: async (sessionRow) => {
+            await db.db
+              .insert(freeRoomAccounts)
+              .values({ userId: sessionRow.userId })
+              .onConflictDoNothing();
+            await db.db
+              .insert(sponsorAccounts)
+              .values({ userId: sessionRow.userId })
+              .onConflictDoNothing();
+          },
+        },
+      },
     },
   });
 }

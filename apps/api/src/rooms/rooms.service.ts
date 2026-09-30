@@ -87,7 +87,7 @@ export class RoomsService {
     const grants = await tx.select().from(sponsorGrants).where(eq(sponsorGrants.userId, user.userId));
     const freeRows = await tx.select().from(freeRoomAccounts).where(eq(freeRoomAccounts.userId, user.userId)).for('update');
     const free = freeRows[0];
-    if (!free) throw new DomainError('UNAUTHORIZED', '账号未初始化免费次数账户');
+    if (!free) throw new DomainError('ACCOUNT_NOT_INITIALIZED', '账号未初始化免费次数账户');
 
     const { source, grantId } = resolveEntitlementSource(grants, free, now);
 

@@ -252,7 +252,7 @@ export function LoginPage() {
                   {copy.login}
                 </button>
                 <p className="muted" style={{ textAlign: 'center' }}>
-                  {copy.forgotPassword}？<a href="/forgot-password">{copy.goLogin}</a>
+                  {copy.forgotPassword}？<a href="/forgot-password">{copy.forgotPasswordLink}</a>
                 </p>
               </div>
             )}
