@@ -18,7 +18,7 @@ type Method = 'password' | 'otp';
 type Stage = 'email' | 'code';
 
 export function LoginPage() {
-  const { copy, language } = useLanguage();
+  const { copy, language, setLanguage } = useLanguage();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const next = params.get('next') ?? '/';
@@ -194,6 +194,14 @@ export function LoginPage() {
     <main className="shell narrow">
       <header className="topbar">
         <h1 className="brand">{copy.brand}</h1>
+        <button
+          type="button"
+          className="btn btn-sm btn-ghost lang-switch"
+          aria-label={copy.langSwitchAria}
+          onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
+        >
+          {language === 'zh' ? copy.languageSwitchToEn : copy.languageSwitchToZh}
+        </button>
       </header>
       <section className="panel stack">
         <h2>{headingTitle}</h2>
@@ -221,7 +229,7 @@ export function LoginPage() {
             {method === 'password' && (
               <div className="stack">
                 <label className="field-label" htmlFor="email-pw">
-                  Email
+                  {copy.emailField}
                   <input
                     id="email-pw"
                     className="field"
@@ -229,11 +237,10 @@ export function LoginPage() {
                     autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder={copy.emailPlaceholder}
                   />
                 </label>
                 <label className="field-label" htmlFor="password">
-                  Password
+                  {copy.password}
                   <input
                     id="password"
                     className="field"
@@ -241,7 +248,6 @@ export function LoginPage() {
                     autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder={copy.minChars}
                   />
                 </label>
                 <button
@@ -260,7 +266,7 @@ export function LoginPage() {
             {method === 'otp' && (
               <div className="stack">
                 <label className="field-label" htmlFor="email-otp">
-                  Email
+                  {copy.emailField}
                   <input
                     id="email-otp"
                     className="field"
@@ -268,7 +274,6 @@ export function LoginPage() {
                     autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder={copy.emailPlaceholder}
                   />
                 </label>
                 <button
@@ -293,7 +298,6 @@ export function LoginPage() {
                     autoComplete="one-time-code"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
-                    placeholder={copy.codePlaceholder}
                   />
                 </label>
                 <button
@@ -320,12 +324,11 @@ export function LoginPage() {
                 autoComplete="nickname"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={copy.nicknamePlaceholder}
               />
             </label>
 
             <label className="field-label" htmlFor="email-su">
-              Email
+              {copy.emailField}
               <input
                 id="email-su"
                 className="field"
@@ -339,7 +342,6 @@ export function LoginPage() {
                     setSignupOtpVerified(false);
                   }
                 }}
-                placeholder={copy.emailPlaceholder}
               />
             </label>
 
@@ -365,7 +367,6 @@ export function LoginPage() {
                     autoComplete="one-time-code"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
-                    placeholder={copy.codePlaceholder}
                   />
                 </label>
                 <button
@@ -382,7 +383,7 @@ export function LoginPage() {
               <>
                 <p className="ok-text">{copy.emailVerified}</p>
                 <label className="field-label" htmlFor="password-su">
-                  Password
+                  {copy.password}
                   <input
                     id="password-su"
                     className="field"
@@ -390,7 +391,6 @@ export function LoginPage() {
                     autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder={copy.minChars}
                   />
                 </label>
                 <button

@@ -7,6 +7,19 @@ import { authClient } from '../api/auth-client.js';
 import { useLanguage } from '../state/language.js';
 import { clearRoomLocal } from '../rooms/room-local.js';
 import { format } from '@jev/i18n';
+import type { Language } from '@jev/i18n';
+
+/** 把服务端 round.status 翻译成中文/英文用户文案；未识别值回退到原值便于排查。 */
+function roundStatusLabel(status: string, language: Language, copy: { roundStatusActive: string; roundStatusSolved: string; roundStatusRevealed: string; roundStatusAbandoned: string; roundStatusAborted: string }) {
+  switch (status) {
+    case 'active': return copy.roundStatusActive;
+    case 'solved': return copy.roundStatusSolved;
+    case 'revealed': return copy.roundStatusRevealed;
+    case 'abandoned': return copy.roundStatusAbandoned;
+    case 'aborted': return copy.roundStatusAborted;
+    default: return status;
+  }
+}
 import type { Session } from '../session.js';
 import { creationCopy } from '../creations/copy.js';
 
@@ -74,8 +87,15 @@ export function MePage({ session }: { session: Session | null }) {
         <h1 className="brand brand-sm">{copy.me}</h1>
       </header>
 
-      <button className="btn btn-primary" onClick={() => navigate('/creations')}>{creationCopy(language).works}</button>
       <section className="panel stack">
+        <div className="me-card-head">
+          {editingNickname ? (
+            <span className="muted">{copy.nickname}</span>
+          ) : (
+            <h2 style={{ margin: 0 }}>{me.data?.nickname ?? session.user.email}</h2>
+          )}
+          <button className="btn btn-primary btn-sm" onClick={() => navigate('/creations')}>{creationCopy(language).works}</button>
+        </div>
         {editingNickname ? (
           <>
             <label className="field-label" htmlFor="nickname">
@@ -105,8 +125,7 @@ export function MePage({ session }: { session: Session | null }) {
             </div>
           </>
         ) : (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <h2 style={{ margin: 0 }}>{me.data?.nickname ?? session.user.email}</h2>
+          <div className="me-card-meta">
             <button
               className="btn btn-sm btn-ghost"
               onClick={() => {
@@ -154,7 +173,7 @@ export function MePage({ session }: { session: Session | null }) {
             </button>
             {room.rounds.map((r) => (
               <p key={r.roundId} className="muted">
-                {format(copy.roundX, { n: r.roundNo })} {r.title ?? ''} · {r.status}
+                {format(copy.roundX, { n: r.roundNo })} {r.title ?? ''} · {roundStatusLabel(r.status, language, copy)}
               </p>
             ))}
           </article>

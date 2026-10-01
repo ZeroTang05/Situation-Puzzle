@@ -36,7 +36,8 @@ export const creationDraftSchema = z.object({
 export const creationCompleteSchema = creationDraftSchema.extend({
   surface: z.string().trim().min(1).max(2000),
   answer: z.string().trim().min(1).max(4000),
-  hints: z.array(z.string().trim().min(1).max(500)).length(3),
+  // 提示 1 必须填；2-3 可选；空白条目由前端在保存前过滤，不入库。
+  hints: z.array(z.string().max(500)).min(1).max(3).refine((items) => items[0]?.trim().length ?? 0 > 0, { message: '第 1 条提示不能为空' }),
 }).superRefine((draft, context) => {
   if (draft.origin === 'repost' && !draft.sourceUrl) context.addIssue({ code: 'custom', path: ['sourceUrl'], message: '转载作品请填写原作者链接' });
 });

@@ -66,6 +66,12 @@ export function creationCopy(language: Language) {
     version: copy[language].versionField,
     previewTitle: copy[language].previewTitle,
     backEditor: copy[language].backEditor,
+    /** 字段级校验错误文案：按字段直接显示 */
+    requiredField: language === 'zh' ? '不能为空' : 'Required',
+    tooLongField: (label: string) => language === 'zh' ? `${label}过长` : `${label} is too long`,
+    invalidUrlField: language === 'zh' ? '请填写正确的网址' : 'Please enter a valid URL',
+    requiredRepostUrl: language === 'zh' ? '转载作品请填写原作者链接' : 'Repost needs original author link',
+    invalidDisplayName: language === 'zh' ? '展示名不能为空' : 'Display name required',
     ask: copy[language].askShort,
     solve: copy[language].solveShort,
     send: copy[language].sendShort,
