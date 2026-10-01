@@ -15,6 +15,13 @@
       "when": 1792000000000,
       "tag": "0001_lobbies",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793000000000,
+      "tag": "0002_room_followups",
+      "breakpoints": true
     }
   ]
 }

@@ -68,10 +68,13 @@ export function LobbyPage({ session }: { session: Session | null }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, isHost]);
 
-  // 开局去向：等待室变成正式房间，全员自动跳转
+  // 自动跳卧室：仅在「我是客人、房主已 start」时触发。
+  // 房主自己刷新已 closed 的会客厅时，不应被拉去卧室，而是回到空会客厅继续下一局。
   useEffect(() => {
-    if (data?.startedRoomId) navigate(`/rooms/${data.startedRoomId}`, { replace: true });
-  }, [data?.startedRoomId, navigate]);
+    if (data?.startedRoomId && me !== null && data.hostUserId !== me) {
+      navigate(`/rooms/${data.startedRoomId}`, { replace: true });
+    }
+  }, [data?.startedRoomId, data?.hostUserId, me, navigate]);
 
   const startRound = async () => {
     if (!lobbyId || busy) return;

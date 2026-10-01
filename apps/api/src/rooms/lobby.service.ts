@@ -13,7 +13,7 @@
  *
  * 心跳/在线判定走进程内 Map 派生（2s 一写 DB 会爆），进程重启可丢，DB 是权威。
  */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import { and, count, desc, eq, isNull } from 'drizzle-orm';
 import {
@@ -68,6 +68,7 @@ function evictPresence(lobbyId: string): void {
 
 @Injectable()
 export class LobbyService {
+  private readonly logger = new Logger('LobbyService');
   private get db() {
     return app().db;
   }
@@ -283,14 +284,18 @@ export class LobbyService {
 
   // ---------- 选题 / 离开 / 踢人 / 解散 ----------
 
-  /** 房主选题：写 DB 行（不是只写内存）。 */
+  /** 房主选题：写 DB 行（不是只写内存）。
+   * 允许随时选题（包括 lobby.started_room_id 指向的房间还在 playing）：lobby 是会客厅，
+   * 与房间生命周期独立——房主可以在 lobby 里选下一局的题，即便上一局还在进行。
+   * 这与「一个用户一个 lobby id + 多个房间 id」的语义一致。 */
   async select(user: SessionUser, lobbyId: string, puzzleId: string, language: 'zh' | 'en'): Promise<void> {
+    this.logger.log(`select enter userId=${user.userId} lobbyId=${lobbyId} puzzleId=${puzzleId} lang=${language}`);
     return this.db.tx(async (rawTx) => {
       const tx = rawTx as Tx;
       const [lobby] = await tx.select().from(userLobbies).where(eq(userLobbies.id, lobbyId)).for('update').limit(1);
+      this.logger.log(`select lobby snapshot status=${lobby?.status} hostUserId=${lobby?.hostUserId} startedRoomId=${lobby?.startedRoomId} selectedPuzzleId=${lobby?.selectedPuzzleId}`);
       if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
       if (lobby.hostUserId !== user.userId) throw new DomainError('FORBIDDEN', '只有房主可以选题');
-      if (lobby.startedRoomId) throw new DomainError('STATE_CONFLICT', '这一局已经开始了');
 
       const [version] = await tx
         .select({
@@ -378,12 +383,13 @@ export class LobbyService {
    * 保证单例；下次 start 同一用户拿到的还是这同一个 id。
    */
   async dismiss(user: SessionUser, lobbyId: string): Promise<void> {
+    this.logger.log(`dismiss enter userId=${user.userId} lobbyId=${lobbyId}`);
     await this.db.tx(async (rawTx) => {
       const tx = rawTx as Tx;
       const [lobby] = await tx.select().from(userLobbies).where(eq(userLobbies.id, lobbyId)).for('update').limit(1);
+      this.logger.log(`dismiss lobby snapshot status=${lobby?.status} startedRoomId=${lobby?.startedRoomId}`);
       if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
       if (lobby.hostUserId !== user.userId) throw new DomainError('FORBIDDEN', '只有房主可以解散会客厅');
-      if (lobby.startedRoomId) throw new DomainError('STATE_CONFLICT', '会客厅已开局，不能解散（请关闭房间）');
 
       await tx.delete(lobbyMembers).where(eq(lobbyMembers.lobbyId, lobbyId));
       const now = new Date();
@@ -415,6 +421,7 @@ export class LobbyService {
    * appendEvent(round.started) → UPDATE lobby 回到 closed 清临时态。
    */
   async start(user: SessionUser, lobbyId: string): Promise<{ roomId: string; inviteToken: string }> {
+    this.logger.log(`start enter userId=${user.userId} lobbyId=${lobbyId}`);
     const inviteToken = randomBytes(16).toString('hex');
     const inviteTokenHash = createHash('sha256').update(inviteToken).digest('hex');
 
@@ -422,11 +429,9 @@ export class LobbyService {
       const tx = rawTx as Tx;
 
       const [lobby] = await tx.select().from(userLobbies).where(eq(userLobbies.id, lobbyId)).for('update').limit(1);
+      this.logger.log(`start lobby snapshot status=${lobby?.status} startedRoomId=${lobby?.startedRoomId} selectedPuzzleId=${lobby?.selectedPuzzleId}`);
       if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
       if (lobby.hostUserId !== user.userId) throw new DomainError('FORBIDDEN', '只有房主可以开始本局');
-      if (lobby.startedRoomId) {
-        throw new DomainError('STATE_CONFLICT', '这一局已经开始了');
-      }
       if (!lobby.selectedPuzzleId || !lobby.selectedPuzzleLang) {
         throw new DomainError('STATE_CONFLICT', '请先选题再开始本局');
       }

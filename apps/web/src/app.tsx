@@ -28,7 +28,7 @@ export function App() {
       <Route path="/library" element={<LibraryPage session={session} />} />
       <Route path="/solo/:puzzleId" element={<SoloPage session={session} />} />
       <Route path="/rooms/:roomId" element={<RoomPage session={session} />} />
-      <Route path="/lobbies/:id" element={<LobbyPage session={session} />} />
+      <Route path="/lobbies/:lobbyId" element={<LobbyPage session={session} />} />
       <Route path="/invite/:token" element={<InvitePage session={session} />} />
       <Route path="/me" element={<MePage session={session} />} />
       <Route path="/creations" element={<CreationListPage session={session} />} />

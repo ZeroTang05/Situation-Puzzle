@@ -14,5 +14,13 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    // 让每次构建出不同 chunk 文件名，避免 SPA HTML 在浏览器缓存期内引用旧的同名 JS。
+    rollupOptions: {
+      output: {
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
+      },
+    },
   },
 });
