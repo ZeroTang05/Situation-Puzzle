@@ -26,27 +26,75 @@ html, body { background: var(--bg); }
 .creation-item-link:hover { color: #b4d8ff; text-decoration: underline; text-underline-offset: 2px; }
 .creation-item-link-danger { color: #ff8a8a; }
 .creation-item-link-danger:hover { color: #ffb0b0; }
+/* 状态筛选 tab 里的计数：弱化展示 */
+.mode-tab-count { margin-left: 5px; font-size: 12px; opacity: .65; font-variant-numeric: tabular-nums; }
+/* 行 hover 轻微提亮，暗示可交互 */
+.creation-item:hover { background: rgba(115, 191, 220, .04); border-radius: 10px; }
+/* 行操作：小号实体按钮，触控 30px 起且覆盖 .creation-shell .btn 的 44px */
+.shell.creation-shell .creation-item-actions .btn { min-height: 30px; padding: 2px 12px; font-size: 13px; border-radius: 6px; }
+.creation-item-btn-play { color: #9ae6bd; border-color: rgba(154, 230, 189, .4); }
+.creation-item-btn-play:hover:not(:disabled) { border-color: rgba(154, 230, 189, .7); }
+.creation-filter-empty { margin: 0; padding: 16px 4px; }
+.creation-load-error { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.creation-empty-icon { font-size: 40px; line-height: 1; opacity: .5; }
 
-/* 「我的」页面：单面板、扁平分组，无圆角无边框 */
+/* 「我的」页面：账号卡片（与创作中心同款面板）+ 扁平历史列表 */
+.me-card { display: flex; flex-direction: column; gap: 16px; margin-top: 8px; padding: 20px 16px; border: 1px solid rgba(115, 191, 220, .22); border-radius: 16px; background: rgba(9, 39, 62, .7); }
+.me-head { display: flex; align-items: center; gap: 14px; }
+.avatar.me-avatar { flex: none; width: 48px; height: 48px; font-size: 22px; background: linear-gradient(150deg, #0d426d, #052747); }
+.me-id { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.me-name { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.me-email { margin: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.me-edit { display: flex; flex-direction: column; gap: 10px; }
+.me-edit-actions { display: flex; gap: 10px; }
+.field-help { font-size: 12px; line-height: 1.5; }
+/* 关键数字：额度 / 赞助，两块并排（窄屏自动换列） */
+.me-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.me-stat { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border: 1px solid rgba(115, 191, 220, .14); border-radius: 10px; background: rgba(115, 191, 220, .05); }
+.me-stat-label { font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+.me-stat-value { font-size: 20px; font-weight: 700; line-height: 1.3; color: var(--ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.me-stat-value .me-stat-sub { font-size: 13px; font-weight: 600; color: var(--muted); }
+.me-stat-value.is-ok { color: #9ae6bd; }
+.me-stat-value.is-expired { color: var(--muted); }
+.me-card-actions { display: flex; gap: 10px; }
+.me-card-actions .btn { flex: 1 1 auto; }
+.me-load-error { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.me-logout { width: 100%; margin-top: 12px; color: var(--danger); border-color: rgba(255, 143, 143, .28); }
+.me-logout:hover:not(:disabled) { border-color: rgba(255, 143, 143, .55); }
 .me-section { display: flex; flex-direction: column; }
-.me-row { padding: 14px 4px; border-bottom: 1px solid rgba(115, 191, 220, .12); display: flex; align-items: flex-start; gap: 12px; }
-.me-section > .me-row:last-child { border-bottom: 0; }
-.me-row-head { align-items: center; }
-.me-row-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.me-row-actions { flex: none; display: flex; align-items: center; gap: 14px; }
-.me-name { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.me-row-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; line-height: 1.6; }
-.me-row-meta .dot { color: rgba(115, 191, 220, .35); user-select: none; }
-.me-row-pill { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; background: rgba(154, 230, 189, .12); border: 1px solid rgba(154, 230, 189, .35); color: #9ae6bd; font-size: 12px; font-weight: 600; }
-.me-row-edit { flex-direction: column; gap: 8px; }
-.me-row-footer { justify-content: flex-end; padding-top: 8px; }
-.me-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 16px 4px 8px; }
+.me-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 20px 4px 10px; }
 .me-section-title { margin: 0; font-size: 14px; font-weight: 600; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
-.me-section-pager { display: flex; align-items: center; gap: 12px; font-size: 12px; }
+.me-pager { display: flex; align-items: center; gap: 8px; }
+.me-pager .btn { min-height: 30px; padding: 2px 12px; font-size: 13px; }
+.me-pager-page { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .me-history { list-style: none; margin: 0; padding: 0; }
-.me-history-item { padding: 10px 4px; border-bottom: 1px solid rgba(115, 191, 220, .12); display: flex; flex-direction: column; gap: 4px; }
+.me-history-item { border-bottom: 1px solid rgba(115, 191, 220, .12); }
 .me-history-item:last-child { border-bottom: 0; }
-.me-history-rounds { list-style: none; margin: 4px 0 0; padding: 0 0 0 12px; display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+/* 房间行整行可点；选择器带上 .shell.narrow 压过 auth 页内联链接的全局下划线规则 */
+.shell.narrow .me-history-room { display: flex; align-items: center; gap: 10px; padding: 12px 4px; color: inherit; text-decoration: none; }
+.me-history-room-main { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.me-history-date { font-size: 15px; font-weight: 600; color: var(--ink); }
+.me-history-room:hover .me-history-date { color: #9ae6bd; }
+.creation-status.me-badge-closed { color: var(--muted); background: rgba(142, 166, 186, .08); border-color: rgba(142, 166, 186, .22); }
+.me-history-count { flex: none; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.me-history-chevron { flex: none; color: rgba(115, 191, 220, .4); font-size: 18px; line-height: 1; }
+.me-history-room:hover .me-history-chevron { color: #9ae6bd; }
+.me-history-rounds { list-style: none; margin: 0; padding: 0 4px 12px 16px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+.me-history-rounds li { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.me-round-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.me-round-status { flex: none; font-size: 12px; }
+.me-round-status.st-active { color: #8fc6ff; }
+.me-round-status.st-solved { color: #9ae6bd; }
+.me-round-status.st-revealed { color: var(--gold); }
+.me-round-status.st-stopped { color: var(--muted); }
+.me-history-empty { margin: 8px 4px 0; }
+/* 历史加载骨架：两档宽度的呼吸条，动画受 prefers-reduced-motion 全局关停 */
+.me-skeleton { display: flex; flex-direction: column; padding: 4px 0; }
+.me-skeleton-row { display: flex; flex-direction: column; gap: 8px; padding: 12px 4px; border-bottom: 1px solid rgba(115, 191, 220, .08); }
+.me-skeleton-bar { height: 12px; border-radius: 6px; background: rgba(115, 191, 220, .12); animation: me-pulse 1.4s ease-in-out infinite; }
+.me-skeleton-bar:nth-child(1) { width: 45%; }
+.me-skeleton-bar:nth-child(2) { width: 72%; }
+@keyframes me-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 /* 状态色点：替代原色块徽章，整洁且与文字基线对齐 */
 .creation-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
 .creation-status-dot.status-published { background: #9ae6bd; }
@@ -685,14 +733,9 @@ textarea.composer-input, .composer .composer-input {
 }
 
 .member-name-self { color: #ffc078; }
-/* 「我的」账号卡片：标题/主操作两端对齐，昵称过长截断 */
-.me-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.me-card-head h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.me-card-meta { display: flex; justify-content: flex-end; margin-top: -4px; }
 .puzzle-selection { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; text-decoration: none; }
 .puzzle-selection strong { color: var(--ink); overflow-wrap: anywhere; }
 .puzzle-selection small { color: var(--muted); font-size: 13px; }
-.history-pagination { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
 .error-text {
   color: var(--danger);
