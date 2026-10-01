@@ -108,8 +108,9 @@ export function MePage({ session }: { session: Session | null }) {
   // 到期的月度赞助不再给不限次数，展示成「已到期」
   const hasUnlimited = lifetime || (monthlyUntil !== null && !monthlyExpired);
   const remaining = freeRooms ? freeRooms.total - freeRooms.consumed - freeRooms.reserved : null;
-  // 昵称权威值在 /me：加载中先占骨架（头像退 '·'），失败退邮箱；不读会话字段，避免先画邮箱再跳昵称
-  const displayName = me.data?.nickname ?? (me.isError ? session.user.email : null);
+  // 名字与邮箱都来自 /me：没回来就整卡占骨架，回来一起出；不读会话字段，避免分两步加载
+  const displayName = me.data?.nickname ?? null;
+  const displayEmail = me.data?.email ?? null;
   const roundCountLabel = (n: number) => (language === 'zh' ? `${n} 局` : n === 1 ? '1 round' : `${n} rounds`);
   const accountLoadFail = language === 'zh' ? '账号信息加载失败，请重试。' : 'Could not load your account. Please try again.';
   const logoutConfirmText = language === 'zh' ? '确定退出当前账号吗？' : 'Sign out of this account?';
@@ -136,7 +137,7 @@ export function MePage({ session }: { session: Session | null }) {
           <span className="avatar me-avatar" aria-hidden>{displayName ? displayName.trim().charAt(0).toUpperCase() : '·'}</span>
           <div className="me-id">
             <h2 className="me-name">{displayName ?? <span className="me-skeleton-bar me-name-skeleton" aria-hidden />}</h2>
-            <p className="me-email muted">{session.user.email}</p>
+            <p className="me-email muted">{displayEmail ?? <span className="me-skeleton-bar me-email-skeleton" aria-hidden />}</p>
           </div>
           {!editingNickname && (
             <button className="btn btn-ghost btn-sm" onClick={() => { setNicknameDraft(me.data?.nickname ?? ''); setNicknameError(null); setEditingNickname(true); }}>{copy.modify}</button>
