@@ -4,10 +4,11 @@ import { creationDraftSchema, creationCompleteSchema, creationSubmitRequestSchem
 const draft = { title: '邮差', surface: '', answer: '', hints: [], language: 'zh', difficulty: 'medium', origin: 'original', sourceUrl: '', authorDisplay: { mode: 'anonymous' } };
 const complete = { ...draft, surface: '邮差没有送信，却救了一条命。', answer: '他发现有人煤气中毒并报警。', hints: ['异常气味', '屋里有人', '煤气泄漏'] };
 describe('简化投稿契约', () => {
-  it('允许只保存标题，提交仍需完整题目和三条提示', () => {
+  it('允许只保存标题，提交仍需完整题目和首条提示', () => {
     expect(creationDraftSchema.safeParse(draft).success).toBe(true);
     expect(creationCompleteSchema.safeParse(draft).success).toBe(false);
-    expect(creationCompleteSchema.safeParse({ ...complete, hints: ['提示'] }).success).toBe(false);
+    expect(creationCompleteSchema.safeParse({ ...complete, hints: [] }).success).toBe(false);
+    expect(creationCompleteSchema.safeParse({ ...complete, hints: [' '] }).success).toBe(false);
   });
   it('自制无需链接、协议或审核补充材料', () => {
     expect(creationCompleteSchema.parse(complete)).toEqual(complete);

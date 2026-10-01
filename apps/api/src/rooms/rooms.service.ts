@@ -19,15 +19,12 @@ import {
   rooms,
   roundParticipants,
   rounds,
-  sponsorGrants,
   turns,
-  freeRoomAccounts,
-  roomEntitlements,
-  roomCreditLedger,
 } from '@jev/database';
-import { DomainError, resolveEntitlementSource } from '@jev/domain';
+import { DomainError } from '@jev/domain';
 import { app } from '../context.js';
 import type { SessionUser } from '../common/http.js';
+import { createRoomWithEntitlementTx, jevConfigVersionOf } from './room-creation.js';
 
 const ONLINE_WINDOW_MS = 45_000;
 
@@ -55,76 +52,48 @@ export class RoomsService {
   }
 
   /**
-   * 创建独立等待室：每次成功请求都会占用一份开房授权。
-   * 授权判定：先赞助后免费；免费来源在创建事务中预留一次机会。
+   * 老成员重入（v2 §一.6）：曾加入且未被踢的成员直接凭房间链接回到房间。
+   * 房主身份天然保留（hostUserId 从不变更），重入即恢复管理操作。
    */
-  async createRoom(
-    user: SessionUser,
-    capacity: number,
-  ): Promise<{ roomId: string; inviteToken: string }> {
+  async rejoinRoom(user: SessionUser, roomId: string): Promise<{ roomId: string; rejoined: boolean }> {
     const db = this.db;
-    const now = new Date();
 
-    const inviteToken = randomBytes(16).toString('hex');
-    const created = await db.tx(async (tx) => {
-      const roomId = await this.createRoomTx(tx, { user, capacity, inviteTokenHash: hashToken(inviteToken), now });
-      return { roomId };
+    const joined = await db.tx(async (tx) => {
+      const [room] = await tx.select().from(rooms).where(eq(rooms.id, roomId)).for('update').limit(1);
+      if (!room) throw new DomainError('NOT_FOUND', '房间不存在');
+      if (room.status === 'closed') throw new DomainError('ROOM_CLOSED', '房间已关闭');
+
+      const [member] = await tx
+        .select()
+        .from(roomMembers)
+        .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, user.userId)))
+        .limit(1);
+      if (!member) throw new DomainError('FORBIDDEN', '你不在这个房间里');
+      if (member.status === 'kicked') throw new DomainError('MEMBER_RESTRICTED', '你已被移出该房间，需要房主解除限制。');
+      if (member.status === 'joined') return { roomId: room.id, rejoined: true };
+
+      await tx.update(roomMembers).set({ status: 'joined', leftAt: null }).where(eq(roomMembers.id, member.id));
+
+      const [currentRound] = await tx
+        .select()
+        .from(rounds)
+        .where(and(eq(rounds.roomId, room.id), eq(rounds.status, 'active')))
+        .limit(1);
+      if (currentRound) {
+        await tx.insert(roundParticipants).values({ roundId: currentRound.id, userId: user.userId }).onConflictDoNothing();
+      }
+
+      await appendEvent(tx, {
+        roomId: room.id,
+        roundId: currentRound?.id ?? null,
+        type: 'room.member_joined',
+        payload: { userId: user.userId, nickname: user.nickname },
+      });
+      return { roomId: room.id, rejoined: false };
     });
 
-    await notifyRoomChange(db.pool, created.roomId);
-    return { roomId: created.roomId, inviteToken };
-  }
-
-  /**
-   * 建房事务体：锁授权账户 → 判定来源（先赞助后免费）→ 建房 + 成员 + 授权 + 预留流水。
-   * createRoom 与续玩新房共用；调用方负责前置状态检查（锁序：房间 → 赞助账户 → 免费账户）。
-   */
-  private async createRoomTx(
-    tx: Tx,
-    input: { user: SessionUser; capacity: number; inviteTokenHash: string; now: Date },
-  ): Promise<string> {
-    const { user, capacity, inviteTokenHash, now } = input;
-    const grants = await tx.select().from(sponsorGrants).where(eq(sponsorGrants.userId, user.userId));
-    const freeRows = await tx.select().from(freeRoomAccounts).where(eq(freeRoomAccounts.userId, user.userId)).for('update');
-    const free = freeRows[0];
-    if (!free) throw new DomainError('ACCOUNT_NOT_INITIALIZED', '账号未初始化免费次数账户');
-
-    const { source, grantId } = resolveEntitlementSource(grants, free, now);
-
-    const inserted = await tx
-      .insert(rooms)
-      .values({
-        creatorUserId: user.userId,
-        hostUserId: user.userId,
-        capacity,
-        inviteTokenHash,
-      })
-      .returning({ id: rooms.id });
-    const roomId = inserted[0]!.id;
-
-    await tx.insert(roomMembers).values({ roomId, userId: user.userId, status: 'joined' });
-
-    const entitlement = await tx
-      .insert(roomEntitlements)
-      .values({ roomId, creatorUserId: user.userId, source, sponsorGrantId: grantId ?? null, status: 'reserved' })
-      .returning({ id: roomEntitlements.id });
-    await tx.update(rooms).set({ entitlementId: entitlement[0]!.id }).where(eq(rooms.id, roomId));
-
-    if (source === 'free') {
-      const reservedRows = await tx
-        .update(freeRoomAccounts)
-        .set({ reserved: sql`${freeRoomAccounts.reserved} + 1`, updatedAt: now })
-        .where(
-          and(
-            eq(freeRoomAccounts.userId, user.userId),
-            sql`${freeRoomAccounts.consumed} + ${freeRoomAccounts.reserved} < ${freeRoomAccounts.total}`,
-          ),
-        )
-        .returning({ userId: freeRoomAccounts.userId });
-      if (reservedRows.length === 0) throw new DomainError('FREE_ROOMS_EXHAUSTED', '免费开房次数已用完');
-      await tx.insert(roomCreditLedger).values({ roomId, userId: user.userId, action: 'reserve', amount: 1 });
-    }
-    return roomId;
+    await notifyRoomChange(db.pool, joined.roomId);
+    return joined;
   }
 
   /**
@@ -183,10 +152,10 @@ export class RoomsService {
         .limit(1);
       if (!version) throw new DomainError('PUZZLE_UNPUBLISHED', '题目不可用或未发布');
 
-      // 新房授权：与普通建房同一套规则（先赞助后免费）
+      // 新房授权：与等待室开局同一套规则（先赞助后免费）
       const inviteToken = randomBytes(16).toString('hex');
-      const targetRoomId = await this.createRoomTx(tx, {
-        user,
+      const targetRoomId = await createRoomWithEntitlementTx(tx, {
+        creatorUserId: user.userId,
         capacity: source.capacity,
         inviteTokenHash: hashToken(inviteToken),
         now,
@@ -226,7 +195,7 @@ export class RoomsService {
           roundNo: 1,
           puzzleVersionId: version.puzzle_versions.id,
           language: version.puzzle_versions.language,
-          jevConfigVersion: `${app().jev.model}@${app().jev.promptVersion}@t${app().jev.threshold}@${app().jev.language}`,
+          jevConfigVersion: jevConfigVersionOf(),
         })
         .returning();
       const migratedUserIds = memberResults.filter((m) => m.migrated).map((m) => m.userId);
@@ -427,11 +396,6 @@ export class RoomsService {
         : [];
       const onlineSet = new Set(onlineRows.map((r) => r.userId));
 
-      const [selectedVersion] = room.selectedPuzzleVersionId
-        ? await tx.select({ puzzleId: puzzleVersions.puzzleId, title: puzzleVersions.title, language: puzzleVersions.language })
-            .from(puzzleVersions).where(eq(puzzleVersions.id, room.selectedPuzzleVersionId)).limit(1)
-        : [];
-
       // 最新一局（含已结束的最后一局：结算页用）
       const [round] = await tx.select().from(rounds).where(eq(rounds.roomId, roomId)).orderBy(desc(rounds.roundNo)).limit(1);
 
@@ -497,7 +461,6 @@ export class RoomsService {
         hostUserId: room.hostUserId,
         controlVersion: room.controlVersion,
         capacity: room.capacity,
-        selectedPuzzle: selectedVersion ?? null,
         round: roundInfo,
         members: memberRows.map((m) => ({
           userId: m.userId,

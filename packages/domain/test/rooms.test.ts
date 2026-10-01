@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertCanEnqueue, assertRoomTransition, nextHintIndex, pickHostSuccessor } from '../src/rooms.js';
+import { assertCanEnqueue, assertRoomTransition, nextHintIndex } from '../src/rooms.js';
 import { DomainError } from '../src/error.js';
 
 describe('房间状态机', () => {
@@ -34,23 +34,5 @@ describe('提示解锁', () => {
     expect(nextHintIndex(0)).toBe(0);
     expect(nextHintIndex(2)).toBe(2);
     expect(() => nextHintIndex(3)).toThrow(DomainError);
-  });
-});
-
-describe('房主继任', () => {
-  const base = { joinedAt: new Date(0), status: 'joined' as const };
-  it('选在线且最早加入的成员', () => {
-    const successor = pickHostSuccessor(
-      [
-        { userId: 'b', online: true, ...base, joinedAt: new Date(2000) },
-        { userId: 'a', online: true, ...base, joinedAt: new Date(1000) },
-        { userId: 'c', online: false, ...base, joinedAt: new Date(500) },
-      ],
-      'host',
-    );
-    expect(successor).toBe('a');
-  });
-  it('无人在线返回 null', () => {
-    expect(pickHostSuccessor([{ userId: 'b', online: false, ...base }], 'host')).toBeNull();
   });
 });

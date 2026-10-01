@@ -50,6 +50,20 @@
       "when": 1790766245843,
       "tag": "0006_puzzle_difficulty_enum",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790900000000,
+      "tag": "0007_lobby_start_gate",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790900001000,
+      "tag": "0008_archive_waiting_rooms",
+      "breakpoints": true
     }
   ]
 }

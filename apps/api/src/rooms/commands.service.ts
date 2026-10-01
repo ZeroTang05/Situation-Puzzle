@@ -27,7 +27,6 @@ import {
   assertControlVersion,
   assertCanEnqueue,
   nextHintIndex,
-  pickHostSuccessor,
 } from '@jev/domain';
 import type { CommandType } from '@jev/contracts';
 import { app } from '../context.js';
@@ -189,88 +188,6 @@ export class CommandsService {
     const payload = input.payload;
 
     switch (input.type) {
-      case 'select_puzzle': {
-        if (!isHost) throw new DomainError('FORBIDDEN', '只有房主可以选题');
-        // 一房一题（docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md §一.1）：本房玩过题就不再接受新题
-        const [existingRound] = await tx.select({ id: rounds.id }).from(rounds).where(eq(rounds.roomId, room.id)).limit(1);
-        if (existingRound) throw new DomainError('STATE_CONFLICT', '这个房间已经玩过一道题，下一题请创建新房间');
-        const { puzzleId, language } = payload as { puzzleId: string; language: 'zh' | 'en' };
-        const [version] = await tx
-          .select()
-          .from(puzzleVersions)
-          .innerJoin(puzzles, eq(puzzles.id, puzzleVersions.puzzleId))
-          .where(
-            and(
-              eq(puzzleVersions.puzzleId, puzzleId),
-              eq(puzzleVersions.moderationStatus, 'published'),
-              eq(puzzleVersions.language, language),
-              eq(puzzles.unavailable, false),
-            ),
-          )
-          .orderBy(desc(puzzleVersions.versionNo))
-          .limit(1);
-        if (!version) throw new DomainError('PUZZLE_UNPUBLISHED', '题目不可用或未发布');
-        await tx
-          .update(rooms)
-          .set({ selectedPuzzleVersionId: version.puzzle_versions.id, lastActivityAt: new Date() })
-          .where(eq(rooms.id, room.id));
-        await appendEvent(tx, {
-          roomId: room.id,
-          roundId: null,
-          type: 'room.puzzle_selected',
-          payload: { puzzleId, title: version.puzzle_versions.title, language: version.puzzle_versions.language },
-        });
-        return { controlCommand: true };
-      }
-
-      case 'start_round': {
-        if (!isHost) throw new DomainError('FORBIDDEN', '只有房主可以开局');
-        if (round) throw new DomainError('STATE_CONFLICT', '已有一局正在进行');
-        if (!room.selectedPuzzleVersionId) throw new DomainError('STATE_CONFLICT', '请先选题');
-        // 授权在创建房间时已确认；开局不重复预留、不重复检查赞助周期
-        const [version] = await tx.select().from(puzzleVersions).where(eq(puzzleVersions.id, room.selectedPuzzleVersionId)).limit(1);
-        if (!version) throw new DomainError('CONTENT_UNAVAILABLE', '选题内容缺失');
-        const [countRow] = await tx
-          .select({ count: sql<number>`count(*)::int` })
-          .from(rounds)
-          .where(eq(rounds.roomId, room.id));
-        const roundNo = (countRow?.count ?? 0) + 1;
-
-        const [newRound] = await tx
-          .insert(rounds)
-          .values({
-            roomId: room.id,
-            roundNo,
-            puzzleVersionId: version.id,
-            language: version.language,
-            jevConfigVersion: `${app().jev.model}@${app().jev.promptVersion}@t${app().jev.threshold}@${app().jev.language}`,
-          })
-          .returning();
-        const members = await tx
-          .select({ userId: roomMembers.userId })
-          .from(roomMembers)
-          .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.status, 'joined')));
-        for (const m of members) {
-          await tx.insert(roundParticipants).values({ roundId: newRound!.id, userId: m.userId }).onConflictDoNothing();
-        }
-        await tx.update(rooms).set({ status: 'playing', lastActivityAt: new Date() }).where(eq(rooms.id, room.id));
-        await appendEvent(tx, {
-          roomId: room.id,
-          roundId: newRound!.id,
-          type: 'round.started',
-          payload: {
-            roundId: newRound!.id,
-            roundNo,
-            puzzleId: version.puzzleId,
-            title: version.title,
-            surface: version.surface,
-            language: version.language,
-            hintsTotal: version.hints.length,
-          },
-        });
-        return { controlCommand: true };
-      }
-
       case 'ask':
       case 'solve': {
         if (!round) throw new DomainError('ROUND_ENDED', '当前没有进行中的一局');
@@ -411,27 +328,8 @@ export class CommandsService {
       }
 
       case 'leave': {
+        // v2 §一.6：房主离开与普通成员一致——房间照常，身份与管理权保留（重入即恢复）
         await this.removeMember(tx, { room, userId: user.userId, nickname: user.nickname, kicked: false });
-        if (isHost) {
-          // 房主离开：先转让给在线且最早加入的成员；无人可转让则关闭房间
-          const successor = await this.pickSuccessorTx(tx, room.id, room.hostUserId);
-          if (successor) {
-            await tx.update(rooms).set({ hostUserId: successor }).where(eq(rooms.id, room.id));
-            const [successorNickname] = await tx
-              .select({ nickname: profiles.nickname })
-              .from(profiles)
-              .where(eq(profiles.userId, successor))
-              .limit(1);
-            await appendEvent(tx, {
-              roomId: room.id,
-              roundId: round?.id ?? null,
-              type: 'room.host_changed',
-              payload: { userId: successor, nickname: successorNickname?.nickname ?? successor },
-            });
-          } else {
-            await archiveRoomTx(tx, room.id, 'host_left', round?.id ?? null);
-          }
-        }
         return { controlCommand: true };
       }
 
@@ -460,33 +358,6 @@ export class CommandsService {
         if (!target || target.status !== 'kicked') throw new DomainError('NOT_FOUND', '没有需要解除的成员');
         await tx.update(roomMembers).set({ status: 'left' }).where(eq(roomMembers.id, target.id));
         await appendEvent(tx, { roomId: room.id, roundId: round?.id ?? null, type: 'room.member_unrestricted', payload: { userId } });
-        return { controlCommand: true };
-      }
-
-      case 'transfer_host': {
-        if (!isHost) throw new DomainError('FORBIDDEN', '只有房主可以转让');
-        const { userId } = payload as { userId: string };
-        // 目标必须是在线成员（docs/rebuild/03-SPEC.md §6）
-        const [targetPresence] = await tx
-          .select()
-          .from(presence)
-          .where(and(eq(presence.roomId, room.id), eq(presence.userId, userId), sql`last_seen_at > now() - interval '45 seconds'`))
-          .limit(1);
-        if (!targetPresence) throw new DomainError('STATE_CONFLICT', '目标成员不在线');
-        const [targetMember] = await tx
-          .select()
-          .from(roomMembers)
-          .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, userId), eq(roomMembers.status, 'joined')))
-          .limit(1);
-        if (!targetMember) throw new DomainError('NOT_FOUND', '成员不存在');
-        await tx.update(rooms).set({ hostUserId: userId }).where(eq(rooms.id, room.id));
-        const [targetProfile] = await tx.select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
-        await appendEvent(tx, {
-          roomId: room.id,
-          roundId: round?.id ?? null,
-          type: 'room.host_changed',
-          payload: { userId, nickname: targetProfile?.nickname ?? userId },
-        });
         return { controlCommand: true };
       }
 
@@ -562,24 +433,6 @@ export class CommandsService {
         payload: { userId, nickname },
       });
     }
-  }
-
-  /** 在线且最早加入的继任房主（纯规则在 domain.pickHostSuccessor）。 */
-  private async pickSuccessorTx(
-    tx: Parameters<Parameters<import('@jev/database').Database['transaction']>[0]>[0],
-    roomId: string,
-    currentHostId: string,
-  ): Promise<string | null> {
-    const members = await tx
-      .select({ userId: roomMembers.userId, joinedAt: roomMembers.joinedAt })
-      .from(roomMembers)
-      .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.status, 'joined')));
-    const online = await tx.select({ userId: presence.userId }).from(presence).where(eq(presence.roomId, roomId));
-    const onlineSet = new Set(online.map((o) => o.userId));
-    return pickHostSuccessor(
-      members.map((m) => ({ ...m, status: 'joined' as const, online: onlineSet.has(m.userId) })),
-      currentHostId,
-    );
   }
 }
 

@@ -10,6 +10,8 @@ import { MeController } from './me/me.controller.js';
 import { RoomsController } from './rooms/rooms.controller.js';
 import { RoomsService } from './rooms/rooms.service.js';
 import { CommandsService } from './rooms/commands.service.js';
+import { LobbyController } from './rooms/lobby.controller.js';
+import { LobbyService } from './rooms/lobby.service.js';
 import { RealtimeController } from './realtime/realtime.controller.js';
 import { BillingController } from './billing/billing.controller.js';
 import { OrdersService } from './billing/orders.service.js';
@@ -24,6 +26,7 @@ import { AdminController } from './admin/admin.controller.js';
     SoloController,
     MeController,
     RoomsController,
+    LobbyController,
     RealtimeController,
     BillingController,
     CreationsController,
@@ -33,6 +36,7 @@ import { AdminController } from './admin/admin.controller.js';
   providers: [
     RoomsService,
     CommandsService,
+    LobbyService,
     OrdersService,
     { provide: APP_INTERCEPTOR, useClass: EnvelopeInterceptor },
     { provide: APP_GUARD, useClass: SessionGuard },

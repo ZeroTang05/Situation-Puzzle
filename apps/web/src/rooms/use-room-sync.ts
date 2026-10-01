@@ -73,8 +73,17 @@ export function useRoomSync(roomId: string, userId: string | null) {
       syncing = true;
       setStatus('syncing');
       armDeadline();
-      const { state: next } = await fetchSnapshot(roomId, controller.signal);
+      let { state: next } = await fetchSnapshot(roomId, controller.signal);
       if (!current(generation)) return;
+      // 老成员重入（v2 §一.6）：曾加入但不在当前成员表（left）→ 自动恢复后重拉快照；
+      // 被踢者由 rejoin/snapshot 直接拒绝并落到 forbidden 页。
+      if (userId && next.members.every((m) => m.userId !== userId)) {
+        await api(`/rooms/${roomId}/rejoin`, { method: 'POST', timeoutMs: 10_000, signal: controller.signal });
+        if (!current(generation)) return;
+        const rejoined = await fetchSnapshot(roomId, controller.signal);
+        if (!current(generation)) return;
+        next = rejoined.state;
+      }
       update(next);
       buffering.clear();
       syncing = false;

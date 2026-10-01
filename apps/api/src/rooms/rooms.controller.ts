@@ -11,7 +11,6 @@ import { RoomsService } from './rooms.service.js';
 import { CommandsService, type CommandInput } from './commands.service.js';
 import {
   roomCommandRequestSchema,
-  roomCreateRequestSchema,
   roomFollowupRequestSchema,
   roomJoinRequestSchema,
 } from '@jev/contracts';
@@ -26,16 +25,6 @@ export class RoomsController {
     @Inject(CommandsService) private readonly commandsService: CommandsService,
   ) {}
 
-  /** 创建等待室：记录授权（赞助或预留免费次数），尚不正式消费。 */
-  @HttpCode(HttpStatus.ACCEPTED)
-  @Post('rooms')
-  async create(
-    @CurrentUser() user: SessionUser,
-    @Body(new ZodValidationPipe(roomCreateRequestSchema)) body: z.infer<typeof roomCreateRequestSchema>,
-  ) {
-    return this.roomsService.createRoom(user, body.capacity);
-  }
-
   @Get('invites/:token')
   async invite(@CurrentUser() _user: SessionUser, @Param('token') token: string) {
     return this.roomsService.invitePreview(token);
@@ -45,6 +34,13 @@ export class RoomsController {
   @Post('rooms/join')
   async join(@CurrentUser() user: SessionUser, @Body(new ZodValidationPipe(roomJoinRequestSchema)) body: z.infer<typeof roomJoinRequestSchema>) {
     return this.roomsService.joinRoom(user, body.token);
+  }
+
+  /** 老成员重入：曾加入且未被踢的成员凭房间链接直接回到房间（v2 §一.6）。 */
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Post('rooms/:id/rejoin')
+  async rejoin(@CurrentUser() user: SessionUser, @Param('id') id: string) {
+    return this.roomsService.rejoinRoom(user, id);
   }
 
   /** 再来一题：房主从已归档房间创建独立新房并一键迁移合格成员（10-ROOM-LIFECYCLE-REVISION §一.2/3） */

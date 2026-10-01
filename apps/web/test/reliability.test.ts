@@ -5,21 +5,13 @@ import type { RoomState } from '../src/rooms/room-state.js';
 import type { PendingCommand, RoomLocal } from '../src/rooms/room-local.js';
 import { confirmCommand, receiveEvent, reconnectDelay, recoveryAction } from '../src/rooms/reliability.js';
 
-const initial = (): RoomState => ({ roomId: 'room-a', roomStatus: 'playing', hostUserId: 'user-a', controlVersion: 2, capacity: 8, selectedPuzzle: null, round: null, members: [], turns: [], discussions: [], lastSeq: 0, followupTargetRoomId: null });
+const initial = (): RoomState => ({ roomId: 'room-a', roomStatus: 'playing', hostUserId: 'user-a', controlVersion: 2, capacity: 8, round: null, members: [], turns: [], discussions: [], lastSeq: 0, followupTargetRoomId: null });
 const discussion = (seq: number): RoomEvent<'discussion.created'> => ({ schemaVersion: 1, eventId: `event-${seq}`, roomId: 'room-a', roundId: 'round-a', seq, type: 'discussion.created', occurredAt: '2026-09-29T00:00:00Z', payload: { clientRequestId: `request-${seq}`, userId: 'user-a', nickname: '玩家', text: `讨论${seq}` } });
 const pending = (type = 'ask', retries = 0): PendingCommand => ({ input: { clientRequestId: 'request-1', type, roundId: 'round-a', payload: { text: '问题' }, expectedControlVersion: 2 }, status: 'confirming', retries });
 const local = (item: PendingCommand): RoomLocal => ({ key: 'user-a:room-a', userId: 'user-a', drafts: { ask: '问题', solve: '还原草稿', discussion: '讨论草稿' }, pending: [item], tab: 'qa', mode: 'ask' });
 const result = { clientRequestId: 'request-1', status: 'accepted' as const, controlVersion: 2, turnId: 'turn-1', acceptedSeq: 1 };
 
 describe('连续事件恢复', () => {
-  it('重新选题事件覆盖旧题目，重连补齐后仍能显示当前选择', () => {
-    const buffer = new Map<number, RoomEvent>();
-    const first: RoomEvent<'room.puzzle_selected'> = { ...discussion(1), type: 'room.puzzle_selected', payload: { puzzleId: 'p1', title: '第一题', language: 'zh' } };
-    const second: RoomEvent<'room.puzzle_selected'> = { ...discussion(2), type: 'room.puzzle_selected', payload: { puzzleId: 'p2', title: '第二题', language: 'en' } };
-    const state = receiveEvent(receiveEvent(initial(), first, buffer), second, buffer);
-    expect(state.selectedPuzzle).toEqual(second.payload);
-    expect(state.lastSeq).toBe(2);
-  });
   it('缺口补齐前保持原记录与游标，补齐后按顺序应用', () => {
     const buffer = new Map<number, RoomEvent>();
     const before = initial();
@@ -99,7 +91,7 @@ describe('发送确认与草稿', () => {
     expect(recoveryAction({ ...item, retries: 1 }, false)).toBe('query_only');
     expect(JSON.stringify(item.input)).toBe(frozen);
   });
-  it.each(['start_round', 'reveal_answer', 'kick', 'leave'])('%s 未知结果只查询，避免误重放控制操作', (type) => {
+  it.each(['reveal_answer', 'kick', 'leave'])('%s 未知结果只查询，避免误重放控制操作', (type) => {
     expect(recoveryAction(pending(type), false)).toBe('query_only');
   });
   it('房间已结束且查询无记录时停止重投', () => {

@@ -8,7 +8,7 @@ import { soloStore } from '../solo/local-store.js';
 import { useEffect, useState } from 'react';
 import type { Session } from '../session.js';
 import { AuthorLabel } from './vote-buttons.js';
-import { createRoom } from '../rooms/create-room.js';
+import { createLobby } from '../rooms/create-lobby.js';
 import { compactVoteCount } from './vote-count.js';
 
 interface PuzzleItem {
@@ -60,10 +60,10 @@ export function LibraryPage({ session }: { session: Session | null }) {
 
   const onPick = (puzzle: PuzzleItem) => {
     if (mode === 'select') {
-      const roomId = params.get('roomId');
+      const lobbyId = params.get('lobby');
       const followupRoomId = params.get('followup');
       if (followupRoomId) {
-        // 再来一题：选定新题后创建独立新房并一键迁移合格成员（10-ROOM-LIFECYCLE-REVISION §一.2/3）
+        // 再来一题：选定新题后创建独立新房并一键迁移合格成员（10-ROOM-LIFECYCLE-REVISION §一.7）
         setFollowupError(null);
         void api<{ targetRoomId: string }>('/rooms/followup', {
           method: 'POST',
@@ -73,15 +73,15 @@ export function LibraryPage({ session }: { session: Session | null }) {
           .catch((err: unknown) => setFollowupError(translateApiError(err, language, copy.createRoomFail)));
         return;
       }
-      if (roomId) {
-        navigate(`/rooms/${roomId}?selectPuzzle=${puzzle.id}&lang=${language}`);
+      if (lobbyId) {
+        navigate(`/lobbies/${lobbyId}?selectPuzzle=${puzzle.id}&lang=${language}`);
       }
       return;
     }
     navigate(`/solo/${puzzle.id}?lang=${language}`);
   };
 
-  /** 建房后交给房间页选择这道题；登录回跳保留题目与语言。 */
+  /** 建等待室后直接带上这道题；登录回跳保留题目与语言。 */
   const openRoomWithPuzzle = async (puzzle: PuzzleItem) => {
     const selection = `/library?mode=select&pick=${encodeURIComponent(puzzle.id)}&lang=${language}`;
     if (!session) {
@@ -92,8 +92,8 @@ export function LibraryPage({ session }: { session: Session | null }) {
     setOpeningPuzzleId(puzzle.id);
     setFollowupError(null);
     try {
-      const room = await createRoom();
-      navigate(`/rooms/${room.roomId}?selectPuzzle=${encodeURIComponent(puzzle.id)}&lang=${language}`);
+      const lobby = await createLobby();
+      navigate(`/lobbies/${lobby.lobbyId}?selectPuzzle=${encodeURIComponent(puzzle.id)}&lang=${language}`);
     } catch (err) {
       setFollowupError(translateApiError(err, language, copy.createRoomFail));
       setOpeningPuzzleId(null);

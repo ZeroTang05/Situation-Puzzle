@@ -45,6 +45,8 @@ export const closeReasonEnum = pgEnum('close_reason', [
   'host_left',
   /** 破解或公布汤底后归档（10-ROOM-LIFECYCLE-REVISION §一.1） */
   'round_ended',
+  /** v2 迁移：存量 waiting 房（建了未开局）归档，等效从未存在 */
+  'never_started',
 ]);
 
 // ---------- 房间 ----------
@@ -68,10 +70,8 @@ export const rooms = pgTable(
     controlVersion: integer('control_version').notNull().default(0),
     /** 房间事件高水位：事件表的最大 seq，快照握手用 */
     lastSeq: bigint('last_seq', { mode: 'number' }).notNull().default(0),
-    /** 开房授权（免费预留 / 赞助），建房事务里写入 */
+    /** 开房授权（免费预留 / 赞助），开局事务里写入（v2：等待室不入库） */
     entitlementId: uuid('entitlement_id'),
-    /** 等待室中房主已选定的题目版本；start_round 用它开新局 */
-    selectedPuzzleVersionId: uuid('selected_puzzle_version_id'),
     lastActivityAt: timestamp('last_activity_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
     closedAt: timestamp('closed_at', { withTimezone: true, mode: 'date' }),
     closeReason: closeReasonEnum('close_reason'),

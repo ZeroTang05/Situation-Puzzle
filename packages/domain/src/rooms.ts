@@ -69,14 +69,3 @@ export function nextHintIndex(hintsRevealed: number): number {
   }
   return hintsRevealed;
 }
-
-/** 房主候选：在线且最早加入的成员（排除现任房主）。仅用于房主主动离开/转让。 */
-export function pickHostSuccessor(
-  members: Array<{ userId: string; online: boolean; joinedAt: Date; status: 'joined' | 'left' | 'kicked' }>,
-  currentHostId: string,
-): string | null {
-  const candidates = members
-    .filter((m) => m.status === 'joined' && m.userId !== currentHostId && m.online)
-    .sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime());
-  return candidates[0]?.userId ?? null;
-}

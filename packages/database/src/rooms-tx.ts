@@ -176,7 +176,7 @@ export async function earliestSeqTx(tx: Tx, roomId: string): Promise<number | nu
 export async function archiveRoomTx(
   tx: Tx,
   roomId: string,
-  reason: 'by_host' | 'idle' | 'all_offline' | 'moderation' | 'host_left' | 'round_ended',
+  reason: 'by_host' | 'idle' | 'all_offline' | 'moderation' | 'host_left' | 'round_ended' | 'never_started',
   roundId: string | null,
 ): Promise<void> {
   const now = new Date();

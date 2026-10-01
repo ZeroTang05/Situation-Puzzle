@@ -35,7 +35,7 @@ describe('模型置信度', () => {
     expect(roomEventPayloadSchemas['turn.completed'].safeParse({ turnId: 't', result: 'yes', confidence: value }).success).toBe(false);
   });
   it('实时完成事件保存概率，后续状态事件不会丢失它', () => {
-    const state: RoomState = { roomId: 'r', roomStatus: 'playing', hostUserId: 'u', capacity: 8, selectedPuzzle: null, controlVersion: 1, lastSeq: 1, round: null, members: [], discussions: [], followupTargetRoomId: null, turns: [{ turnId: 't', seq: 1, userId: 'u', nickname: '玩家', kind: 'ask', text: '问题', status: 'processing', result: null }] };
+    const state: RoomState = { roomId: 'r', roomStatus: 'playing', hostUserId: 'u', capacity: 8, controlVersion: 1, lastSeq: 1, round: null, members: [], discussions: [], followupTargetRoomId: null, turns: [{ turnId: 't', seq: 1, userId: 'u', nickname: '玩家', kind: 'ask', text: '问题', status: 'processing', result: null }] };
     const event: RoomEvent<'turn.completed'> = { schemaVersion: 1, eventId: 'e', roomId: 'r', roundId: 'round', seq: 2, occurredAt: '2026-09-29T00:00:00Z', type: 'turn.completed', payload: { turnId: 't', result: 'yes', confidence: 0.87 } };
     const next = applyEvent(state, event);
     expect(next.turns[0]).toMatchObject({ result: 'yes', confidence: 0.87, status: 'succeeded' });

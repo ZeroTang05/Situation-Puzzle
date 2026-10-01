@@ -54,17 +54,17 @@ export interface DiscussionMessage {
 
 export interface RoomState {
   roomId: string;
-  roomStatus: 'waiting' | 'playing' | 'closed';
+  /** v2：房间自创建即 playing（等待室不入库），closed 为归档终态 */
+  roomStatus: 'playing' | 'closed';
   hostUserId: string;
   controlVersion: number;
   capacity: number;
-  selectedPuzzle: { puzzleId: string; title: string; language: 'zh' | 'en' } | null;
   round: RoomRound | null;
   members: RoomMember[];
   turns: RoomTurn[];
   discussions: DiscussionMessage[];
   lastSeq: number;
-  /** 房主发起「再来一题」后的新房入口（10-ROOM-LIFECYCLE-REVISION §一.3） */
+  /** 房主发起「再来一题」后的新房入口（10-ROOM-LIFECYCLE-REVISION §一.7） */
   followupTargetRoomId: string | null;
 }
 
@@ -72,10 +72,6 @@ export interface RoomState {
 export function applyEvent(state: RoomState, event: RoomEvent): RoomState {
   const p = event.payload as Record<string, unknown>;
   switch (event.type) {
-    case 'room.puzzle_selected': {
-      const selection = (event as RoomEvent<'room.puzzle_selected'>).payload;
-      return { ...state, selectedPuzzle: selection };
-    }
     case 'room.member_joined':
     case 'room.member_unrestricted': {
       if (state.members.some((m) => m.userId === p.userId)) return state;
@@ -98,7 +94,7 @@ export function applyEvent(state: RoomState, event: RoomEvent): RoomState {
     case 'round.started': {
       return {
         ...state,
-        roomStatus: 'playing',
+        roomStatus: 'playing' as const,
         round: {
           roundId: String(p.roundId),
           roundNo: Number(p.roundNo),
@@ -190,7 +186,6 @@ export async function fetchSnapshot(roomId: string, signal?: AbortSignal): Promi
     hostUserId: string;
     controlVersion: number;
     capacity: number;
-    selectedPuzzle: RoomState['selectedPuzzle'];
     round: RoomRound | null;
     members: RoomMember[];
     turns: RoomTurn[];
@@ -205,7 +200,6 @@ export async function fetchSnapshot(roomId: string, signal?: AbortSignal): Promi
       hostUserId: snap.hostUserId,
       controlVersion: snap.controlVersion,
       capacity: snap.capacity,
-      selectedPuzzle: snap.selectedPuzzle,
       round: snap.round,
       members: snap.members,
       turns: snap.turns,

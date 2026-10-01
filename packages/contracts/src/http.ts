@@ -110,24 +110,72 @@ export const soloRevealRequestSchema = z.object({
   confirmed: z.literal(true),
 });
 
-// ---------- 房间 ----------
+// ---------- 等待室（内存临时态，开局前不入库；docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md §三） ----------
 
-export const roomCreateRequestSchema = z.object({
+/** 等待室里房主已选定的题目投影：标题与语言公开，不含汤底 */
+export const roomSelectedPuzzleSchema = z.object({ puzzleId: z.string(), title: z.string(), language: languageSchema });
+
+export const lobbyCreateRequestSchema = z.object({
   capacity: z.number().int().min(2).max(8).default(8),
 });
 
-export const roomSummarySchema = z.object({
-  roomId: z.string(),
-  status: z.enum(['waiting', 'playing', 'closed']),
-  capacity: z.number().int(),
-  memberCount: z.number().int(),
-  hostUserId: z.string(),
-  inviteToken: z.string().optional(),
+export const lobbyCreateResponseSchema = z.object({
+  lobbyId: z.string().uuid(),
+  inviteToken: z.string(),
+  /** 已有未开局等待室时返回同一实例（房主单例） */
+  existing: z.boolean(),
 });
+
+export const lobbyPreviewSchema = z.object({
+  lobbyId: z.string().uuid(),
+  hostNickname: z.string(),
+  memberCount: z.number().int(),
+  capacity: z.number().int(),
+});
+
+export const lobbyJoinRequestSchema = z.object({
+  token: z.string().min(8),
+});
+
+export const lobbyJoinResponseSchema = z.object({
+  lobbyId: z.string().uuid(),
+  /** 等待室已开局时携带去向，客户端直接跳正式房间 */
+  startedRoomId: z.string().uuid().nullable(),
+});
+
+export const lobbyMemberSchema = z.object({
+  userId: z.string(),
+  nickname: z.string(),
+  online: z.boolean(),
+  isHost: z.boolean(),
+});
+
+export const lobbySnapshotSchema = z.object({
+  lobbyId: z.string().uuid(),
+  hostUserId: z.string(),
+  capacity: z.number().int(),
+  members: z.array(lobbyMemberSchema),
+  selectedPuzzle: roomSelectedPuzzleSchema.nullable(),
+  /** 开局去向：非 null 时客户端跳转后停止轮询 */
+  startedRoomId: z.string().uuid().nullable(),
+});
+
+export const lobbySelectRequestSchema = z.object({
+  puzzleId: z.string().uuid(),
+  language: languageSchema,
+});
+
+/** 开局响应：正式房间 ID + 邀请令牌（开局后邀请更多玩家用） */
+export const lobbyStartResponseSchema = z.object({
+  roomId: z.string().uuid(),
+  inviteToken: z.string(),
+});
+
+// ---------- 房间 ----------
 
 export const invitePreviewSchema = z.object({
   roomId: z.string(),
-  status: z.enum(['waiting', 'playing', 'closed']),
+  status: z.enum(['playing', 'closed']),
   capacity: z.number().int(),
   memberCount: z.number().int(),
   hostNickname: z.string(),
@@ -136,6 +184,12 @@ export const invitePreviewSchema = z.object({
 
 export const roomJoinRequestSchema = z.object({
   token: z.string().min(8),
+});
+
+/** 老成员重入：曾加入且未被踢的成员直接凭房间链接回到 playing 房间。 */
+export const roomRejoinResponseSchema = z.object({
+  roomId: z.string(),
+  rejoined: z.boolean(),
 });
 
 // ---------- 题目投票与作者署名（docs/rebuild/11-VOTES-AND-AUTHORSHIP.md） ----------
@@ -197,9 +251,8 @@ export const roomFollowupResponseSchema = z.object({
 
 // ---------- 房间命令 ----------
 
+/** 选题与开局发生在等待室（HTTP 接口），不作为房间命令；转让房主功能不存在。 */
 export const commandTypes = [
-  'select_puzzle',
-  'start_round',
   'ask',
   'solve',
   'cancel_turn',
@@ -210,7 +263,6 @@ export const commandTypes = [
   'leave',
   'kick',
   'unrestrict_member',
-  'transfer_host',
   'rotate_invite',
   'close_room',
 ] as const;
@@ -220,8 +272,6 @@ export type CommandType = (typeof commandTypes)[number];
 
 /** 命令 payload 按类型分派，由请求契约统一校验。 */
 export const commandPayloadSchemas = {
-  select_puzzle: z.object({ puzzleId: z.string().uuid(), language: languageSchema }),
-  start_round: z.object({}),
   ask: z.object({ text: z.string().min(1).max(500) }),
   solve: z.object({ text: z.string().min(1).max(1500) }),
   cancel_turn: z.object({ turnId: z.string().uuid() }),
@@ -232,7 +282,6 @@ export const commandPayloadSchemas = {
   leave: z.object({}),
   kick: z.object({ userId: z.string() }),
   unrestrict_member: z.object({ userId: z.string() }),
-  transfer_host: z.object({ userId: z.string() }),
   rotate_invite: z.object({}),
   close_room: z.object({}),
 } as const satisfies Record<CommandType, z.ZodTypeAny>;
@@ -292,22 +341,20 @@ export const snapshotTurnSchema = z.object({
   result: z.string().nullable(),
 });
 
-export const roomSelectedPuzzleSchema = z.object({ puzzleId: z.string(), title: z.string(), language: languageSchema });
-
 /** 房间历史每页有明确上限，避免个人页一次展示所有记录。 */
 export const roomHistoryQuerySchema = z.object({
   page: z.coerce.number().int().min(1).max(100_000).default(1),
   limit: z.coerce.number().int().min(1).max(20).default(5),
 });
 
+/** 房间自创建即 playing（v2：等待室不入库），快照不再携带选题预览 */
 export const roomSnapshotSchema = z.object({
   roomId: z.string(),
-  roomStatus: z.enum(['waiting', 'playing', 'closed']),
+  roomStatus: z.enum(['playing', 'closed']),
   hostUserId: z.string(),
   controlVersion: z.number().int(),
   capacity: z.number().int(),
-  selectedPuzzle: roomSelectedPuzzleSchema.nullable(),
-  /** 当前局（无则为 null：等待室状态） */
+  /** 当前局（无则为 null） */
   round: z
     .object({
       roundId: z.string(),
