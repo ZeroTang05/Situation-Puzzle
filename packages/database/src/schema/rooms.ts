@@ -29,6 +29,14 @@ import { puzzleVersions } from './content';
 
 export const roomStatusEnum = pgEnum('room_status', ['waiting', 'playing', 'closed']);
 
+/**
+ * 会客厅状态：open = 当前有客人坐着或选了题；closed = 临时态已清空
+ * （start 后回到 closed + started_room_id；房主从未邀请过人也是 closed）。
+ * host_user_id UNIQUE 保证「每个用户固定一个会客厅 id」，
+ * 临时态是 open/closed 二选一，会客厅行不 delete。
+ */
+export const lobbyStatusEnum = pgEnum('lobby_status', ['closed', 'open']);
+
 export const memberStatusEnum = pgEnum('member_status', ['joined', 'left', 'kicked']);
 
 export const roundStatusEnum = pgEnum('round_status', ['active', 'solved', 'revealed', 'abandoned', 'aborted']);
@@ -103,6 +111,86 @@ export const roomMembers = pgTable(
   (t) => [
     uniqueIndex('room_members_room_user_uq').on(t.roomId, t.userId),
     index('room_members_user_idx').on(t.userId),
+  ],
+);
+
+// ---------- 会客厅（lobby）----------
+
+/**
+ * 会客厅：每个用户固定一个，id 永久不变。
+ * 不变量：host_user_id UNIQUE —— 物理上保证 1:1，无需 partial index。
+ *
+ * 临时态字段（selected_puzzle_*）可空、可被 start 事务清空。
+ * status='open' = 当前有客人坐着或选了题；'closed' = 空或刚开完游戏。
+ * started_room_id 让成员轮询时跳卧室；start 完成后 lobby_members 被清空。
+ *
+ * 用户注销账号时 CASCADE 清掉（host_user_id FK + members/invites CASCADE）。
+ */
+export const userLobbies = pgTable(
+  'user_lobbies',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    hostUserId: text('host_user_id')
+      .notNull()
+      .unique()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    status: lobbyStatusEnum('status').notNull().default('closed'),
+    capacity: integer('capacity').notNull().default(8),
+    selectedPuzzleId: text('selected_puzzle_id'),
+    selectedPuzzleLang: text('selected_puzzle_lang'),
+    selectedPuzzleTitle: text('selected_puzzle_title'),
+    selectedPuzzleSurface: text('selected_puzzle_surface'),
+    startedRoomId: uuid('started_room_id').references(() => rooms.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    openedAt: timestamp('opened_at', { withTimezone: true, mode: 'date' }),
+    closedAt: timestamp('closed_at', { withTimezone: true, mode: 'date' }),
+    startedAt: timestamp('started_at', { withTimezone: true, mode: 'date' }),
+  },
+  (t) => [index('user_lobbies_status_idx').on(t.status)],
+);
+
+/**
+ * 会客厅当前座位表：kick = DELETE 本行（不留 kicked_at，按用户要求
+ * 「这次游戏被踢，不是永久被踢」）。
+ * 心跳不进 DB：lastSeenAt 走进程内 Map 派生在线状态。
+ */
+export const lobbyMembers = pgTable(
+  'lobby_members',
+  {
+    lobbyId: uuid('lobby_id')
+      .notNull()
+      .references(() => userLobbies.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id),
+    joinedAt: timestamp('joined_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.lobbyId, t.userId] }),
+    index('lobby_members_user_idx').on(t.userId),
+  ],
+);
+
+/**
+ * 会客厅邀请 token：跟 user_lobbies 同生命周期。
+ * 房主重置邀请时把旧行 revoked_at 置位 + 发新行；同 lobby 同一时刻最多 1 条有效。
+ * 不存明文，只存 hash；明文在创建/重置时返回一次。
+ */
+export const lobbyInvites = pgTable(
+  'lobby_invites',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    lobbyId: uuid('lobby_id')
+      .notNull()
+      .references(() => userLobbies.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull().unique(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'date' }),
+  },
+  (t) => [
+    index('lobby_invites_lobby_idx').on(t.lobbyId),
+    index('lobby_invites_active_idx').on(t.lobbyId).where(sql`revoked_at IS NULL`),
   ],
 );
 

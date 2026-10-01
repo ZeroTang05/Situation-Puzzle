@@ -8,7 +8,7 @@ import { soloStore } from '../solo/local-store.js';
 import { useEffect, useState } from 'react';
 import type { Session } from '../session.js';
 import { AuthorLabel } from './vote-buttons.js';
-import { createLobby } from '../rooms/create-lobby.js';
+import { openOrGetLobby } from '../rooms/create-lobby.js';
 import { compactVoteCount } from './vote-count.js';
 
 interface PuzzleItem {
@@ -92,7 +92,7 @@ export function LibraryPage({ session }: { session: Session | null }) {
     setOpeningPuzzleId(puzzle.id);
     setFollowupError(null);
     try {
-      const lobby = await createLobby();
+      const lobby = await openOrGetLobby();
       navigate(`/lobbies/${lobby.lobbyId}?selectPuzzle=${encodeURIComponent(puzzle.id)}&lang=${language}`);
     } catch (err) {
       setFollowupError(translateApiError(err, language, copy.createRoomFail));

@@ -1,359 +1,532 @@
 /**
- * 等待室服务（docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md v2 §三）。
+ * 会客厅服务（v3）：每个用户固定一个会客厅，id 永久不变。
  *
- * 开局前的组队阶段只存本进程内存：创建/加入/选题/踢人/解散均不写数据库；
- * start 是唯一写库入口（授权预留 → 建房 → 建局）。等待页 2 秒轮询即心跳。
- * 部署边界：API 单实例（与实时网关同前提）；多实例时需迁移到共享存储。
+ * 模型：
+ * - user_lobbies：会客厅本体，host_user_id UNIQUE 保证 1:1，id 永不被删除。
+ * - lobby_members：会客厅当前座位表，kick = DELETE 本行（不留 kicked_at）。
+ * - lobby_invites：会客厅邀请 token，跟 user_lobbies 同生命周期。
+ *
+ * start() 是会客厅 → 卧室的迁移入口，单事务内：
+ *   锁 lobby 行 → 重验选题 → 建卧室 + 迁移成员 → 建局 + 事件 →
+ *   UPDATE lobby 回到 closed（清临时态、写 started_room_id、删 lobby_members、
+ *   revoke 旧会客厅邀请）。
+ *
+ * 心跳/在线判定走进程内 Map 派生（2s 一写 DB 会爆），进程重启可丢，DB 是权威。
  */
-import { Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { SignJWT, jwtVerify } from 'jose';
-import { and, desc, eq } from 'drizzle-orm';
-import { appendEvent, puzzleVersions, puzzles, roomMembers, rooms, roundParticipants, rounds } from '@jev/database';
+import { Injectable } from '@nestjs/common';
+import { createHash, randomBytes } from 'node:crypto';
+import { and, count, desc, eq, isNull } from 'drizzle-orm';
+import {
+  appendEvent,
+  lobbyInvites,
+  lobbyMembers,
+  puzzleVersions,
+  puzzles,
+  roomMembers,
+  rooms,
+  roundParticipants,
+  rounds,
+  userLobbies,
+} from '@jev/database';
 import { DomainError } from '@jev/domain';
 import { app } from '../context.js';
 import type { SessionUser } from '../common/http.js';
 import { createRoomWithEntitlementTx, jevConfigVersionOf } from './room-creation.js';
 
-/** 在线 = 30 秒内轮询过 */
+/** 在线判定：30 秒内轮询过。lobby 在线状态是派生量，DB 不存。 */
 const ONLINE_WINDOW_MS = 30_000;
-/** 未开局等待室闲置回收：2 小时无任何成员心跳 */
-const IDLE_TTL_MS = 2 * 60 * 60 * 1000;
-/** 开局去向（tombstone）保留：成员轮询到即跳转 */
-const TOMBSTONE_TTL_MS = 10 * 60 * 1000;
-/** 邀请令牌有效期 */
+/** 邀请 token 默认有效期 */
 const INVITE_TTL = '24h';
-const GC_INTERVAL_MS = 60_000;
 
-interface LobbyMember {
-  nickname: string;
-  joinedAt: number;
-  lastSeenAt: number;
-}
+type Tx = Parameters<Parameters<import('@jev/database').Database['transaction']>[0]>[0];
 
-interface LobbyState {
-  id: string;
+export interface LobbySnapshot {
+  lobbyId: string;
   hostUserId: string;
   capacity: number;
-  createdAt: number;
-  /** userId → 成员信息；房主创建时即加入 */
-  members: Map<string, LobbyMember>;
-  kicked: Set<string>;
-  selectedPuzzle: { puzzleId: string; language: 'zh' | 'en'; title: string; surface: string } | null;
-  /** 开局去向：非空后等待室只读，轮询方拿它跳正式房间 */
+  members: Array<{ userId: string; nickname: string; online: boolean; isHost: boolean }>;
+  selectedPuzzle: { puzzleId: string; title: string; language: 'zh' | 'en' } | null;
   startedRoomId: string | null;
-  startedAt: number | null;
-  /** start 事务进行中：防止房主连点开两个房间 */
-  starting: boolean;
 }
 
-function hashlessTokenSecret(): Uint8Array {
-  return new TextEncoder().encode(`${app().env.AUTH_SECRET}:lobby`);
+/** 进程内在线缓存：lobbyId → (userId → lastSeenAt)。DB 不写，进程重启丢失。 */
+const presenceCache = new Map<string, Map<string, { nickname: string; lastSeenAt: number }>>();
+
+function touchPresence(lobbyId: string, userId: string, nickname: string): void {
+  let inner = presenceCache.get(lobbyId);
+  if (!inner) {
+    inner = new Map();
+    presenceCache.set(lobbyId, inner);
+  }
+  inner.set(userId, { nickname, lastSeenAt: Date.now() });
+}
+
+/** lobby 关闭/start 后清掉对应 cache，lobby_id 不再被使用时 GC */
+function evictPresence(lobbyId: string): void {
+  presenceCache.delete(lobbyId);
 }
 
 @Injectable()
-export class LobbyService implements OnModuleInit, OnModuleDestroy {
-  private readonly lobbies = new Map<string, LobbyState>();
-  /** 房主单例索引：hostUserId → 未开局的等待室 */
-  private readonly hostIndex = new Map<string, string>();
-  private gcTimer: NodeJS.Timeout | null = null;
-  /** 邀请令牌签名密钥：生产取 AUTH_SECRET，单测注入固定密钥（真 JWT 往返） */
-  private readonly inviteSecret: () => Uint8Array;
-
-  constructor(inviteSecret?: () => Uint8Array) {
-    this.inviteSecret = inviteSecret ?? hashlessTokenSecret;
+export class LobbyService {
+  private get db() {
+    return app().db;
   }
 
-  onModuleInit(): void {
-    this.gcTimer = setInterval(() => this.gc(), GC_INTERVAL_MS);
-  }
+  // ---------- 会客厅主入口 ----------
 
-  onModuleDestroy(): void {
-    if (this.gcTimer) clearInterval(this.gcTimer);
-  }
-
-  /** 闲置回收：未开局 2 小时无人心跳、或 tombstone 超期。 */
-  gc(now = Date.now()): void {
-    for (const [id, lobby] of this.lobbies) {
-      if (lobby.startedRoomId) {
-        if (lobby.startedAt !== null && now - lobby.startedAt > TOMBSTONE_TTL_MS) this.dispose(lobby);
-        continue;
-      }
-      const lastSeen = Math.max(lobby.createdAt, ...[...lobby.members.values()].map((m) => m.lastSeenAt));
-      if (now - lastSeen > IDLE_TTL_MS) this.dispose(lobby);
+  /**
+   * 拿我的会客厅：没有就建一个（永久 row，id 永不删）。
+   * 房主单例是 host_user_id UNIQUE 物理保证的，业务层不需要 Map。
+   * 同一用户连点返回同一 id；不同用户互不冲突。
+   */
+  async openOrGetLobby(user: SessionUser, capacity: number): Promise<{ lobbyId: string; existed: boolean }> {
+    const [existing] = await this.db.db
+      .select({ id: userLobbies.id })
+      .from(userLobbies)
+      .where(eq(userLobbies.hostUserId, user.userId))
+      .limit(1);
+    if (existing) {
+      // 容量变更：幂等更新 capacity
+      await this.db.db.update(userLobbies).set({ capacity }).where(eq(userLobbies.id, existing.id));
+      return { lobbyId: existing.id, existed: true };
     }
+    const [created] = await this.db.db
+      .insert(userLobbies)
+      .values({ hostUserId: user.userId, capacity, status: 'closed' })
+      .returning({ id: userLobbies.id });
+    if (!created) throw new DomainError('INTERNAL', '会客厅创建失败');
+    return { lobbyId: created.id, existed: false };
   }
 
-  private dispose(lobby: LobbyState): void {
-    this.lobbies.delete(lobby.id);
-    if (this.hostIndex.get(lobby.hostUserId) === lobby.id) this.hostIndex.delete(lobby.hostUserId);
+  // ---------- 邀请 ----------
+
+  /**
+   * 房主生成/重置会客厅邀请：旧邀请 revoke、新邀请签 token 一次性返回。
+   * 同 lobby 同一时刻最多一条有效邀请。
+   */
+  async createInvite(user: SessionUser, lobbyId: string): Promise<{ token: string }> {
+    const [lobby] = await this.db.db
+      .select({ hostUserId: userLobbies.hostUserId })
+      .from(userLobbies)
+      .where(eq(userLobbies.id, lobbyId))
+      .limit(1);
+    if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+    if (lobby.hostUserId !== user.userId) throw new DomainError('FORBIDDEN', '只有房主可以生成邀请');
+
+    const now = new Date();
+    await this.db.db
+      .update(lobbyInvites)
+      .set({ revokedAt: now })
+      .where(and(eq(lobbyInvites.lobbyId, lobbyId), isNull(lobbyInvites.revokedAt)));
+
+    const token = randomBytes(16).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + this.inviteTtlMs());
+    await this.db.db.insert(lobbyInvites).values({ lobbyId, tokenHash, expiresAt });
+    return { token };
   }
 
-  private lobbyOf(lobbyId: string): LobbyState {
-    const lobby = this.lobbies.get(lobbyId);
-    if (!lobby) throw new DomainError('LOBBY_NOT_FOUND', '等待室不存在或已解散');
-    return lobby;
+  /** 解析邀请 token：拿 lobbyId。token 失效统一归一为 LOBBY_NOT_FOUND，不重建 lobby。 */
+  async resolveInvite(token: string): Promise<{ lobbyId: string; hostUserId: string }> {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const [row] = await this.db.db
+      .select({
+        lobbyId: lobbyInvites.lobbyId,
+        expiresAt: lobbyInvites.expiresAt,
+        revokedAt: lobbyInvites.revokedAt,
+        hostUserId: userLobbies.hostUserId,
+      })
+      .from(lobbyInvites)
+      .innerJoin(userLobbies, eq(userLobbies.id, lobbyInvites.lobbyId))
+      .where(eq(lobbyInvites.tokenHash, tokenHash))
+      .limit(1);
+    if (!row) throw new DomainError('LOBBY_NOT_FOUND', '邀请无效或已失效');
+    if (row.revokedAt !== null) throw new DomainError('LOBBY_NOT_FOUND', '邀请已被撤销');
+    if (row.expiresAt.getTime() <= Date.now()) throw new DomainError('LOBBY_NOT_FOUND', '邀请已过期');
+    return { lobbyId: row.lobbyId, hostUserId: row.hostUserId };
   }
 
-  /** 成员视角取等待室：被踢提示需房主解除（等待室由房主解散，重进须重新受邀）。 */
-  private memberLobbyOf(user: SessionUser, lobbyId: string): LobbyState {
-    const lobby = this.lobbyOf(lobbyId);
-    if (lobby.kicked.has(user.userId)) throw new DomainError('MEMBER_RESTRICTED', '你已被移出该等待室');
-    const member = lobby.members.get(user.userId);
-    if (!member) throw new DomainError('FORBIDDEN', '你不在这个等待室里');
-    // 心跳刷新顺带同步昵称（改名后无需重进）
-    member.lastSeenAt = Date.now();
-    if (member.nickname !== user.nickname) member.nickname = user.nickname;
-    return lobby;
-  }
-
-  private requireHost(lobby: LobbyState, user: SessionUser): void {
-    if (lobby.hostUserId !== user.userId) throw new DomainError('FORBIDDEN', '只有房主可以执行这个操作');
-  }
-
-  // ---------- 创建与邀请 ----------
-
-  /** 建等待室：房主单例——已有未开局等待室时返回同一实例（成员与已选题保留）。 */
-  async create(user: SessionUser, capacity: number): Promise<{ lobbyId: string; inviteToken: string; existing: boolean }> {
-    const existingId = this.hostIndex.get(user.userId);
-    if (existingId) {
-      const existing = this.lobbies.get(existingId);
-      if (existing && !existing.startedRoomId) {
-        return { lobbyId: existing.id, inviteToken: await this.signInvite(existing.id), existing: true };
-      }
-      this.hostIndex.delete(user.userId);
-    }
-
-    const lobby: LobbyState = {
-      id: randomUUID(),
-      hostUserId: user.userId,
-      capacity,
-      createdAt: Date.now(),
-      members: new Map([[user.userId, { nickname: user.nickname, joinedAt: Date.now(), lastSeenAt: Date.now() }]]),
-      kicked: new Set(),
-      selectedPuzzle: null,
-      startedRoomId: null,
-      startedAt: null,
-      starting: false,
-    };
-    this.lobbies.set(lobby.id, lobby);
-    this.hostIndex.set(user.userId, lobby.id);
-    return { lobbyId: lobby.id, inviteToken: await this.signInvite(lobby.id), existing: false };
-  }
-
-  private async signInvite(lobbyId: string): Promise<string> {
-    return new SignJWT({ purpose: 'lobby', lobbyId })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime(INVITE_TTL)
-      .sign(this.inviteSecret());
-  }
-
-  private async lobbyIdOfInvite(token: string): Promise<string> {
-    let lobbyId: string | null = null;
-    try {
-      const { payload } = await jwtVerify(token, this.inviteSecret());
-      if (payload.purpose === 'lobby' && typeof payload.lobbyId === 'string') lobbyId = payload.lobbyId;
-    } catch {
-      // 落到统一的 NOT_FOUND
-    }
-    if (!lobbyId) throw new DomainError('LOBBY_NOT_FOUND', '邀请无效或已失效');
-    return lobbyId;
-  }
-
-  /** 邀请预览：最小信息，不给成员资料。 */
+  /** 邀请预览：返回最小信息（含房主昵称），不暴露完整成员表。 */
   async previewByInvite(token: string): Promise<{ lobbyId: string; hostNickname: string; memberCount: number; capacity: number }> {
-    const lobby = this.lobbyOf(await this.lobbyIdOfInvite(token));
-    const host = lobby.members.get(lobby.hostUserId);
+    const { lobbyId } = await this.resolveInvite(token);
+    return this.preview(lobbyId);
+  }
+
+  private async preview(lobbyId: string) {
+    const [lobby] = await this.db.db
+      .select({
+        hostUserId: userLobbies.hostUserId,
+        capacity: userLobbies.capacity,
+      })
+      .from(userLobbies)
+      .where(eq(userLobbies.id, lobbyId))
+      .limit(1);
+    if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+    const [cnt] = await this.db.db
+      .select({ n: count() })
+      .from(lobbyMembers)
+      .where(eq(lobbyMembers.lobbyId, lobbyId));
+    const hostPresence = presenceCache.get(lobbyId)?.get(lobby.hostUserId);
     return {
-      lobbyId: lobby.id,
-      hostNickname: host?.nickname ?? lobby.hostUserId,
-      memberCount: lobby.members.size,
+      lobbyId,
+      hostUserId: lobby.hostUserId,
+      hostNickname: hostPresence?.nickname ?? lobby.hostUserId,
+      memberCount: cnt?.n ?? 0,
       capacity: lobby.capacity,
     };
   }
 
-  /** 凭邀请加入：已在成员表幂等；等待室已开局时直接给去向。 */
-  async join(user: SessionUser, token: string): Promise<{ lobbyId: string; startedRoomId: string | null }> {
-    const lobby = this.lobbyOf(await this.lobbyIdOfInvite(token));
-    if (lobby.startedRoomId) return { lobbyId: lobby.id, startedRoomId: lobby.startedRoomId };
-    if (lobby.kicked.has(user.userId)) throw new DomainError('MEMBER_RESTRICTED', '你已被移出该等待室，需要房主重新邀请');
+  // ---------- 邀请加入 ----------
 
-    const now = Date.now();
-    const member = lobby.members.get(user.userId);
-    if (member) {
-      member.lastSeenAt = now;
-      member.nickname = user.nickname;
-      return { lobbyId: lobby.id, startedRoomId: null };
-    }
-    if (lobby.members.size >= lobby.capacity) throw new DomainError('LOBBY_FULL', '等待室已经满了');
-    lobby.members.set(user.userId, { nickname: user.nickname, joinedAt: now, lastSeenAt: now });
-    return { lobbyId: lobby.id, startedRoomId: null };
+  /**
+   * 凭 token 加入：幂等；已在座位上直接返回。
+   * 不查 kicked（按用户要求：被踢就是 DELETE 座位行，重新邀请时自然可加入）。
+   * 会客厅已开局 → 返回 startedRoomId 跳卧室。
+   */
+  async join(user: SessionUser, token: string): Promise<{ lobbyId: string; startedRoomId: string | null }> {
+    const { lobbyId } = await this.resolveInvite(token);
+
+    return this.db.tx(async (tx) => {
+      const [lobby] = await tx.select().from(userLobbies).where(eq(userLobbies.id, lobbyId)).for('update').limit(1);
+      if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+      if (lobby.startedRoomId) return { lobbyId, startedRoomId: lobby.startedRoomId };
+
+      // 容量校验
+      const [cnt] = await tx.select({ n: count() }).from(lobbyMembers).where(eq(lobbyMembers.lobbyId, lobbyId));
+      const alreadyMember = await tx
+        .select({ userId: lobbyMembers.userId })
+        .from(lobbyMembers)
+        .where(and(eq(lobbyMembers.lobbyId, lobbyId), eq(lobbyMembers.userId, user.userId)))
+        .limit(1);
+      if (!alreadyMember[0] && (cnt?.n ?? 0) >= lobby.capacity) {
+        throw new DomainError('LOBBY_FULL', '会客厅已经满了');
+      }
+
+      if (!alreadyMember[0]) {
+        await tx.insert(lobbyMembers).values({ lobbyId, userId: user.userId });
+      }
+      if (lobby.status === 'closed') {
+        await tx.update(userLobbies).set({ status: 'open', openedAt: new Date() }).where(eq(userLobbies.id, lobbyId));
+      }
+      touchPresence(lobbyId, user.userId, user.nickname);
+      return { lobbyId, startedRoomId: null };
+    });
   }
 
-  // ---------- 等待室状态 ----------
+  // ---------- 快照 ----------
 
-  /** 快照：成员列表（在线 = 30 秒内轮询过）、已选题、开局去向。 */
-  snapshot(user: SessionUser, lobbyId: string) {
-    const lobby = this.memberLobbyOf(user, lobbyId);
+  /**
+   * 成员轮询快照：在线状态由进程内 cache 派生（DB 不写 last_seen_at）。
+   * 校验当前用户是房主或座位成员；status='closed' + startedRoomId 仍可读，
+   * 让前端跳卧室。
+   */
+  async snapshot(user: SessionUser, lobbyId: string): Promise<LobbySnapshot> {
+    const [lobby] = await this.db.db
+      .select({
+        id: userLobbies.id,
+        hostUserId: userLobbies.hostUserId,
+        capacity: userLobbies.capacity,
+        selectedPuzzleId: userLobbies.selectedPuzzleId,
+        selectedPuzzleLang: userLobbies.selectedPuzzleLang,
+        selectedPuzzleTitle: userLobbies.selectedPuzzleTitle,
+        selectedPuzzleSurface: userLobbies.selectedPuzzleSurface,
+        startedRoomId: userLobbies.startedRoomId,
+        status: userLobbies.status,
+      })
+      .from(userLobbies)
+      .where(eq(userLobbies.id, lobbyId))
+      .limit(1);
+    if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+
+    const members = await this.db.db
+      .select({ userId: lobbyMembers.userId, joinedAt: lobbyMembers.joinedAt })
+      .from(lobbyMembers)
+      .where(eq(lobbyMembers.lobbyId, lobbyId));
+    const isMember = members.some((m) => m.userId === user.userId);
+    if (lobby.hostUserId !== user.userId && !isMember) {
+      throw new DomainError('FORBIDDEN', '你不在这个会客厅里');
+    }
+
+    // 心跳：刷新自己在 cache 中的在线时间
+    touchPresence(lobbyId, user.userId, user.nickname);
+
     const now = Date.now();
+    const cache = presenceCache.get(lobbyId);
+    const memberList = members
+      .sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime())
+      .map((m) => {
+        const cached = cache?.get(m.userId);
+        return {
+          userId: m.userId,
+          nickname: cached?.nickname ?? m.userId,
+          online: cached !== undefined && now - cached.lastSeenAt < ONLINE_WINDOW_MS,
+          isHost: m.userId === lobby.hostUserId,
+        };
+      });
+
     return {
       lobbyId: lobby.id,
       hostUserId: lobby.hostUserId,
       capacity: lobby.capacity,
-      members: [...lobby.members.entries()]
-        .sort(([, a], [, b]) => a.joinedAt - b.joinedAt)
-        .map(([userId, m]) => ({
-          userId,
-          nickname: m.nickname,
-          online: now - m.lastSeenAt < ONLINE_WINDOW_MS,
-          isHost: userId === lobby.hostUserId,
-        })),
-      selectedPuzzle: lobby.selectedPuzzle,
+      members: memberList,
+      selectedPuzzle:
+        lobby.selectedPuzzleId && lobby.selectedPuzzleLang && lobby.selectedPuzzleTitle
+          ? {
+              puzzleId: lobby.selectedPuzzleId,
+              title: lobby.selectedPuzzleTitle,
+              language: lobby.selectedPuzzleLang as 'zh' | 'en',
+            }
+          : null,
       startedRoomId: lobby.startedRoomId,
     };
   }
 
-  /** 房主选题：记在内存，开局事务内会重新校验已发布。 */
+  // ---------- 选题 / 离开 / 踢人 / 解散 ----------
+
+  /** 房主选题：写 DB 行（不是只写内存）。 */
   async select(user: SessionUser, lobbyId: string, puzzleId: string, language: 'zh' | 'en'): Promise<void> {
-    const lobby = this.memberLobbyOf(user, lobbyId);
-    this.requireHost(lobby, user);
-    if (lobby.startedRoomId) throw new DomainError('STATE_CONFLICT', '这一局已经开始了');
+    return this.db.tx(async (rawTx) => {
+      const tx = rawTx as Tx;
+      const [lobby] = await tx.select().from(userLobbies).where(eq(userLobbies.id, lobbyId)).for('update').limit(1);
+      if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+      if (lobby.hostUserId !== user.userId) throw new DomainError('FORBIDDEN', '只有房主可以选题');
+      if (lobby.startedRoomId) throw new DomainError('STATE_CONFLICT', '这一局已经开始了');
 
-    const [version] = await app().db.db
-      .select({ puzzleId: puzzles.id, versionId: puzzleVersions.id, title: puzzleVersions.title, surface: puzzleVersions.surface, language: puzzleVersions.language })
-      .from(puzzleVersions)
-      .innerJoin(puzzles, eq(puzzles.id, puzzleVersions.puzzleId))
-      .where(
-        and(
-          eq(puzzleVersions.puzzleId, puzzleId),
-          eq(puzzleVersions.moderationStatus, 'published'),
-          eq(puzzleVersions.language, language),
-          eq(puzzles.unavailable, false),
-        ),
-      )
-      .orderBy(desc(puzzleVersions.versionNo))
-      .limit(1);
-    if (!version) throw new DomainError('PUZZLE_UNPUBLISHED', '题目不可用或未发布');
+      const [version] = await tx
+        .select({
+          puzzleId: puzzles.id,
+          versionId: puzzleVersions.id,
+          title: puzzleVersions.title,
+          surface: puzzleVersions.surface,
+          language: puzzleVersions.language,
+        })
+        .from(puzzleVersions)
+        .innerJoin(puzzles, eq(puzzles.id, puzzleVersions.puzzleId))
+        .where(
+          and(
+            eq(puzzleVersions.puzzleId, puzzleId),
+            eq(puzzleVersions.moderationStatus, 'published'),
+            eq(puzzleVersions.language, language),
+            eq(puzzles.unavailable, false),
+          ),
+        )
+        .orderBy(desc(puzzleVersions.versionNo))
+        .limit(1);
+      if (!version) throw new DomainError('PUZZLE_UNPUBLISHED', '题目不可用或未发布');
 
-    lobby.selectedPuzzle = { puzzleId: version.puzzleId, language, title: version.title, surface: version.surface };
+      await tx
+        .update(userLobbies)
+        .set({
+          selectedPuzzleId: version.puzzleId,
+          selectedPuzzleLang: language,
+          selectedPuzzleTitle: version.title,
+          selectedPuzzleSurface: version.surface,
+          status: 'open',
+          openedAt: lobby.openedAt ?? new Date(),
+        })
+        .where(eq(userLobbies.id, lobbyId));
+    });
   }
 
-  /** 非房主成员离开；房主请走解散。 */
-  leave(user: SessionUser, lobbyId: string): void {
-    const lobby = this.memberLobbyOf(user, lobbyId);
-    if (lobby.hostUserId === user.userId) throw new DomainError('STATE_CONFLICT', '房主离开请直接解散等待室');
-    lobby.members.delete(user.userId);
+  /** 非房主离开：DELETE 座位行。 */
+  async leave(user: SessionUser, lobbyId: string): Promise<void> {
+    return this.db.tx(async (rawTx) => {
+      const tx = rawTx as Tx;
+      const [lobby] = await tx.select().from(userLobbies).where(eq(userLobbies.id, lobbyId)).for('update').limit(1);
+      if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+      if (lobby.hostUserId === user.userId) {
+        throw new DomainError('STATE_CONFLICT', '房主离开请直接解散会客厅');
+      }
+      await tx
+        .delete(lobbyMembers)
+        .where(and(eq(lobbyMembers.lobbyId, lobbyId), eq(lobbyMembers.userId, user.userId)));
+      // 座位空了 → 回到 closed（保留 id）
+      const [remaining] = await tx.select({ n: count() }).from(lobbyMembers).where(eq(lobbyMembers.lobbyId, lobbyId));
+      if ((remaining?.n ?? 0) === 0) {
+        await tx
+          .update(userLobbies)
+          .set({ status: 'closed', closedAt: new Date() })
+          .where(eq(userLobbies.id, lobbyId));
+      }
+    });
   }
 
-  kick(user: SessionUser, lobbyId: string, targetUserId: string): void {
-    const lobby = this.memberLobbyOf(user, lobbyId);
-    this.requireHost(lobby, user);
-    if (targetUserId === lobby.hostUserId) throw new DomainError('STATE_CONFLICT', '不能移出房主');
-    if (!lobby.members.has(targetUserId)) throw new DomainError('NOT_FOUND', '成员不存在');
-    lobby.members.delete(targetUserId);
-    lobby.kicked.add(targetUserId);
+  /** 房主踢人：DELETE 座位行，无 kicked 软标记。 */
+  async kick(user: SessionUser, lobbyId: string, targetUserId: string): Promise<void> {
+    return this.db.tx(async (rawTx) => {
+      const tx = rawTx as Tx;
+      const [lobby] = await tx.select().from(userLobbies).where(eq(userLobbies.id, lobbyId)).for('update').limit(1);
+      if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+      if (lobby.hostUserId !== user.userId) throw new DomainError('FORBIDDEN', '只有房主可以踢人');
+      if (targetUserId === lobby.hostUserId) throw new DomainError('STATE_CONFLICT', '不能移出房主');
+      await tx
+        .delete(lobbyMembers)
+        .where(and(eq(lobbyMembers.lobbyId, lobbyId), eq(lobbyMembers.userId, targetUserId)));
+      const [remaining] = await tx.select({ n: count() }).from(lobbyMembers).where(eq(lobbyMembers.lobbyId, lobbyId));
+      if ((remaining?.n ?? 0) === 0) {
+        await tx
+          .update(userLobbies)
+          .set({ status: 'closed', closedAt: new Date() })
+          .where(eq(userLobbies.id, lobbyId));
+      }
+    });
   }
-
-  /** 房主解散：删除内存对象，成员下次轮询得到 LOBBY_NOT_FOUND。 */
-  dismiss(user: SessionUser, lobbyId: string): void {
-    const lobby = this.memberLobbyOf(user, lobbyId);
-    this.requireHost(lobby, user);
-    this.dispose(lobby);
-  }
-
-  // ---------- 开局（唯一写库入口） ----------
 
   /**
-   * 开始本轮：单事务内重验题目 → 授权预留（先赞助后免费）→ 建房 → 全体成员 → 建局 → round.started 事件。
-   * 失败（如免费次数用尽）整事务回滚、等待室原样保留。成功后留下 tombstone 供成员跳转。
+   * 房主解散：清空 lobby_members + revoke 所有邀请，但保留 lobby 行
+   * （status='closed'、临时态清空）。id 仍可访问，host_user_id UNIQUE 继续
+   * 保证单例；下次 start 同一用户拿到的还是这同一个 id。
+   */
+  async dismiss(user: SessionUser, lobbyId: string): Promise<void> {
+    await this.db.tx(async (rawTx) => {
+      const tx = rawTx as Tx;
+      const [lobby] = await tx.select().from(userLobbies).where(eq(userLobbies.id, lobbyId)).for('update').limit(1);
+      if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+      if (lobby.hostUserId !== user.userId) throw new DomainError('FORBIDDEN', '只有房主可以解散会客厅');
+      if (lobby.startedRoomId) throw new DomainError('STATE_CONFLICT', '会客厅已开局，不能解散（请关闭房间）');
+
+      await tx.delete(lobbyMembers).where(eq(lobbyMembers.lobbyId, lobbyId));
+      const now = new Date();
+      await tx
+        .update(lobbyInvites)
+        .set({ revokedAt: now })
+        .where(and(eq(lobbyInvites.lobbyId, lobbyId), isNull(lobbyInvites.revokedAt)));
+      await tx
+        .update(userLobbies)
+        .set({
+          status: 'closed',
+          closedAt: now,
+          selectedPuzzleId: null,
+          selectedPuzzleLang: null,
+          selectedPuzzleTitle: null,
+          selectedPuzzleSurface: null,
+        })
+        .where(eq(userLobbies.id, lobbyId));
+    });
+    evictPresence(lobbyId);
+  }
+
+  // ---------- 开局（会客厅 → 卧室）----------
+
+  /**
+   * start：单事务。
+   * 锁 lobby 行 → 校验选题 → createRoomWithEntitlementTx →
+   * 把 lobby_members 全员 INSERT 到 room_members → 建 rounds / round_participants →
+   * appendEvent(round.started) → UPDATE lobby 回到 closed 清临时态。
    */
   async start(user: SessionUser, lobbyId: string): Promise<{ roomId: string; inviteToken: string }> {
-    const lobby = this.memberLobbyOf(user, lobbyId);
-    this.requireHost(lobby, user);
+    const inviteToken = randomBytes(16).toString('hex');
+    const inviteTokenHash = createHash('sha256').update(inviteToken).digest('hex');
 
-    if (lobby.startedRoomId) {
-      // 已开局：返回既有房间（轮询重试/连点幂等）；邀请令牌需房主在正式房间重置获取
-      throw new DomainError('STATE_CONFLICT', '这一局已经开始了');
-    }
-    if (lobby.starting) throw new DomainError('STATE_CONFLICT', '正在开局，请稍候');
-    if (!lobby.selectedPuzzle) throw new DomainError('STATE_CONFLICT', '请先选题再开始本局');
+    const roomId = await this.db.tx(async (rawTx) => {
+      const tx = rawTx as Tx;
 
-    lobby.starting = true;
-    try {
-      const db = app().db;
+      const [lobby] = await tx.select().from(userLobbies).where(eq(userLobbies.id, lobbyId)).for('update').limit(1);
+      if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+      if (lobby.hostUserId !== user.userId) throw new DomainError('FORBIDDEN', '只有房主可以开始本局');
+      if (lobby.startedRoomId) {
+        throw new DomainError('STATE_CONFLICT', '这一局已经开始了');
+      }
+      if (!lobby.selectedPuzzleId || !lobby.selectedPuzzleLang) {
+        throw new DomainError('STATE_CONFLICT', '请先选题再开始本局');
+      }
+
+      // 开局前重验选题
+      const [version] = await tx
+        .select()
+        .from(puzzleVersions)
+        .innerJoin(puzzles, eq(puzzles.id, puzzleVersions.puzzleId))
+        .where(
+          and(
+            eq(puzzleVersions.puzzleId, lobby.selectedPuzzleId),
+            eq(puzzleVersions.moderationStatus, 'published'),
+            eq(puzzleVersions.language, lobby.selectedPuzzleLang as 'zh' | 'en'),
+            eq(puzzles.unavailable, false),
+          ),
+        )
+        .orderBy(desc(puzzleVersions.versionNo))
+        .limit(1);
+      if (!version) throw new DomainError('PUZZLE_UNPUBLISHED', '题目不可用或未发布');
+
+      // 拉当前会客厅成员（房主已在建房时加入，所以只迁非房主）
+      const seatRows = await tx
+        .select({ userId: lobbyMembers.userId })
+        .from(lobbyMembers)
+        .where(eq(lobbyMembers.lobbyId, lobbyId));
+      const guestIds = seatRows.map((r) => r.userId).filter((uid) => uid !== lobby.hostUserId);
+
       const now = new Date();
-      const inviteToken = randomBytes(16).toString('hex');
-      const inviteTokenHash = createHash('sha256').update(inviteToken).digest('hex');
-      const selected = lobby.selectedPuzzle;
-
-      const roomId = await db.tx(async (tx) => {
-        // 开局前重验：选题后题目可能被下架或退回
-        const [version] = await tx
-          .select()
-          .from(puzzleVersions)
-          .innerJoin(puzzles, eq(puzzles.id, puzzleVersions.puzzleId))
-          .where(
-            and(
-              eq(puzzleVersions.puzzleId, selected.puzzleId),
-              eq(puzzleVersions.moderationStatus, 'published'),
-              eq(puzzleVersions.language, selected.language),
-              eq(puzzles.unavailable, false),
-            ),
-          )
-          .orderBy(desc(puzzleVersions.versionNo))
-          .limit(1);
-        if (!version) throw new DomainError('PUZZLE_UNPUBLISHED', '题目不可用或未发布');
-
-        const newRoomId = await createRoomWithEntitlementTx(tx, {
-          creatorUserId: lobby.hostUserId,
-          capacity: lobby.capacity,
-          inviteTokenHash,
-          now,
-        });
-
-        for (const userId of lobby.members.keys()) {
-          if (userId === lobby.hostUserId) continue; // 房主已随建房加入
-          await tx.insert(roomMembers).values({ roomId: newRoomId, userId, status: 'joined' });
-        }
-
-        const [round] = await tx
-          .insert(rounds)
-          .values({
-            roomId: newRoomId,
-            roundNo: 1,
-            puzzleVersionId: version.puzzle_versions.id,
-            language: version.puzzle_versions.language,
-            jevConfigVersion: jevConfigVersionOf(),
-          })
-          .returning();
-        for (const userId of lobby.members.keys()) {
-          await tx.insert(roundParticipants).values({ roundId: round!.id, userId }).onConflictDoNothing();
-        }
-        await tx.update(rooms).set({ status: 'playing', lastActivityAt: now }).where(eq(rooms.id, newRoomId));
-        await appendEvent(tx, {
-          roomId: newRoomId,
-          roundId: round!.id,
-          type: 'round.started',
-          payload: {
-            roundId: round!.id,
-            roundNo: 1,
-            puzzleId: version.puzzles.id,
-            title: version.puzzle_versions.title,
-            surface: version.puzzle_versions.surface,
-            language: version.puzzle_versions.language,
-            hintsTotal: version.puzzle_versions.hints.length,
-          },
-        });
-        return newRoomId;
+      const newRoomId = await createRoomWithEntitlementTx(tx, {
+        creatorUserId: lobby.hostUserId,
+        capacity: lobby.capacity,
+        inviteTokenHash,
+        now,
       });
 
-      lobby.startedRoomId = roomId;
-      lobby.startedAt = Date.now();
-      this.hostIndex.delete(lobby.hostUserId); // 开局即完成使命，释放房主单例名额
-      return { roomId, inviteToken };
-    } finally {
-      lobby.starting = false;
-    }
+      for (const uid of guestIds) {
+        await tx.insert(roomMembers).values({ roomId: newRoomId, userId: uid, status: 'joined' });
+      }
+
+      const [round] = await tx
+        .insert(rounds)
+        .values({
+          roomId: newRoomId,
+          roundNo: 1,
+          puzzleVersionId: version.puzzle_versions.id,
+          language: version.puzzle_versions.language,
+          jevConfigVersion: jevConfigVersionOf(),
+        })
+        .returning();
+      if (!round) throw new DomainError('INTERNAL', '创建本局失败');
+      for (const uid of seatRows.map((r) => r.userId)) {
+        await tx.insert(roundParticipants).values({ roundId: round.id, userId: uid }).onConflictDoNothing();
+      }
+      await tx.update(rooms).set({ status: 'playing', lastActivityAt: now }).where(eq(rooms.id, newRoomId));
+      await appendEvent(tx, {
+        roomId: newRoomId,
+        roundId: round.id,
+        type: 'round.started',
+        payload: {
+          roundId: round.id,
+          roundNo: 1,
+          puzzleId: version.puzzles.id,
+          title: version.puzzle_versions.title,
+          surface: version.puzzle_versions.surface,
+          language: version.puzzle_versions.language,
+          hintsTotal: version.puzzle_versions.hints.length,
+        },
+      });
+
+      // 会客厅回到 closed：清临时态、写 started_room_id、清座位、撤销旧邀请
+      await tx
+        .update(userLobbies)
+        .set({
+          status: 'closed',
+          closedAt: now,
+          startedRoomId: newRoomId,
+          startedAt: now,
+          selectedPuzzleId: null,
+          selectedPuzzleLang: null,
+          selectedPuzzleTitle: null,
+          selectedPuzzleSurface: null,
+        })
+        .where(eq(userLobbies.id, lobbyId));
+      await tx.delete(lobbyMembers).where(eq(lobbyMembers.lobbyId, lobbyId));
+      await tx
+        .update(lobbyInvites)
+        .set({ revokedAt: now })
+        .where(and(eq(lobbyInvites.lobbyId, lobbyId), isNull(lobbyInvites.revokedAt)));
+
+      return newRoomId;
+    });
+
+    evictPresence(lobbyId);
+    return { roomId, inviteToken };
+  }
+
+  /** 解析 INVITE_TTL 常量为毫秒数。 */
+  private inviteTtlMs(): number {
+    const m = /^(\d+)h$/.exec(INVITE_TTL);
+    return m && m[1] ? Number(m[1]) * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
   }
 }

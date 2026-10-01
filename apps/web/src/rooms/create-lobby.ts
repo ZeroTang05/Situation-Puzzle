@@ -1,14 +1,18 @@
-/** 开房动作：创建内存等待室并保存邀请令牌（房主单例：已有等待室返回同一个）。 */
+/**
+ * 拿我的会客厅：服务端按 host_user_id UNIQUE 物理保证幂等，
+ * 不存在就建一个并返回 lobbyId；存在就返回同一个 id。
+ *
+ * 会客厅 id 永久不变（不像之前的内存 lobby 在重启后丢失），
+ * 前端不需要做 auto-recreate 兜底。
+ */
 import { api } from '../api/client.js';
 
-export interface LobbyCreated {
+export interface LobbyOpened {
   lobbyId: string;
-  inviteToken: string;
-  existing: boolean;
+  /** true = 我已经有会客厅；false = 刚为我新建 */
+  existed: boolean;
 }
 
-export async function createLobby(): Promise<LobbyCreated> {
-  const result = await api<LobbyCreated>('/lobbies', { method: 'POST', body: { capacity: 8 } });
-  localStorage.setItem(`jev.lobby-invite.${result.lobbyId}`, result.inviteToken);
-  return result;
+export async function openOrGetLobby(): Promise<LobbyOpened> {
+  return api<LobbyOpened>('/lobbies', { method: 'POST', body: { capacity: 8 } });
 }

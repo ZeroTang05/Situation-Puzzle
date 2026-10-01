@@ -121,9 +121,13 @@ export const lobbyCreateRequestSchema = z.object({
 
 export const lobbyCreateResponseSchema = z.object({
   lobbyId: z.string().uuid(),
-  inviteToken: z.string(),
-  /** 已有未开局等待室时返回同一实例（房主单例） */
-  existing: z.boolean(),
+  /** 已存在会客厅（host_user_id UNIQUE 命中） */
+  existed: z.boolean(),
+});
+
+/** 房主重置会客厅邀请的响应：明文 token 只返回这一次 */
+export const lobbyInviteResponseSchema = z.object({
+  token: z.string(),
 });
 
 export const lobbyPreviewSchema = z.object({

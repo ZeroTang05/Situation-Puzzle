@@ -1,7 +1,7 @@
 /**
- * 等待室页（docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md v2 §三）：
- * 内存临时态、2 秒轮询即心跳；开局后自动跳正式房间。
- * 房主：选题（跳题库带回）、开始本局、邀请、踢人、解散。非房主：离开。
+ * 会客厅页（v3）：每个用户的会客厅 id 永久不变（host_user_id UNIQUE），
+ * 2 秒轮询即心跳；开局后自动跳正式房间。
+ * 房主：选题（跳题库带回）、开始本局、生成邀请、踢人、解散。非房主：离开。
  */
 import { useDialog } from '@jev/ui';
 import { useEffect, useState } from 'react';
@@ -40,10 +40,17 @@ export function LobbyPage({ session }: { session: Session | null }) {
   const [inviteCopied, setInviteCopied] = useState(false);
 
   const poll = useQuery({
-    queryKey: ['lobby', lobbyId],
-    queryFn: () => api<LobbySnapshot>(`/lobbies/${lobbyId}`),
-    refetchInterval: POLL_MS,
-    enabled: session !== null,
+    // queryKey 含 lobbyId；路由切换时 useParams 即时更新，queryKey 也会变。
+    queryKey: ['lobby', lobbyId ?? ''],
+    queryFn: () => {
+      if (!lobbyId) throw new Error('lobbyId not ready');
+      return api<LobbySnapshot>(`/lobbies/${lobbyId}`);
+    },
+    // lobbyId 没就绪时不要发任何请求；用完后停轮询避免刷屏。
+    refetchInterval: (q) => (lobbyId && !q.state.error ? POLL_MS : false),
+    // 不依赖 session：后端 snapshot 走 SessionGuard；用户没登录自然 401。
+    // 之前依赖 session 会导致 useSession 在某些时序返回 null 时 lobby 页永远不发出 GET。
+    enabled: lobbyId !== undefined,
     retry: false,
   });
 
@@ -101,14 +108,17 @@ export function LobbyPage({ session }: { session: Session | null }) {
   };
 
   const copyInvite = async () => {
-    if (!lobbyId) return;
-    const token = localStorage.getItem(`jev.lobby-invite.${lobbyId}`);
-    if (!token) return;
+    if (!lobbyId || busy) return;
+    setBusy(true);
+    setError(null);
     try {
+      const { token } = await api<{ token: string }>(`/lobbies/${lobbyId}/invite`, { method: 'POST' });
       await navigator.clipboard.writeText(inviteUrl(location.origin, token));
       setInviteCopied(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(translateApiError(err, language, copy.startFail));
+    } finally {
+      setBusy(false);
     }
   };
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api, translateApiError } from '../api/client.js';
-import { createLobby } from '../rooms/create-lobby.js';
+import { openOrGetLobby } from '../rooms/create-lobby.js';
 import { useLanguage } from '../state/language.js';
 import type { Session } from '../session.js';
 import { creationCopy } from '../creations/copy.js';
@@ -62,7 +62,7 @@ export function HomePage({ session }: { session: Session | null }) {
               onClick={() => {
                 setCreating(true);
                 setCreateError(null);
-                createLobby()
+                openOrGetLobby()
                   .then((lobby) => navigate(`/lobbies/${lobby.lobbyId}`))
                   .catch((err: unknown) => setCreateError(translateApiError(err, language, copy.createRoomFail)))
                   .finally(() => setCreating(false));
