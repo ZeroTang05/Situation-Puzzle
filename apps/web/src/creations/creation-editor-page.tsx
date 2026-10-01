@@ -47,6 +47,16 @@ const FIELD_ORDER = ['title', 'language', 'difficulty', 'surface', 'answer', 'hi
 /** 字段节点注册表：Field 组件把自身的 ref 写进来，Editor 通过 id 取节点做滚动聚焦。 */
 const fieldRefs: Record<string, HTMLElement | null> = {};
 
+/** 审核结论 → 颜色：通过绿、驳回红、存疑金，其余用默认墨色。 */
+function reviewConclusionClass(conclusion: string) {
+  switch (conclusion) {
+    case 'review_pass': return 'is-pass';
+    case 'review_reject': return 'is-reject';
+    case 'review_uncertain': return 'is-uncertain';
+    default: return '';
+  }
+}
+
 export function CreationEditorPage({ session }: { session: Session | null }) {
   const { puzzleId } = useParams(); const { language, copy } = useLanguage(); const text = creationCopy(language);
   const query = useQuery({ queryKey: ['creation', session?.user.id, puzzleId], enabled: !!session && !!puzzleId,
@@ -165,8 +175,16 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
   };
 
   return <main className="shell creation-shell">
-    <header className="topbar"><button className="btn btn-ghost btn-sm" onClick={async () => { if (!dirty || await dialog.confirm(text.leaveConfirm)) navigate('/creations'); }}>{text.works}</button><h1 className="brand brand-sm">{detail ? text.edit : text.create}</h1>{detail && <span className={`creation-status status-${detail.status}`}>{creationStatusLabel(detail.status, language)}</span>}</header>
-    {detail && <p className="muted">{text.version} {detail.versionNo}</p>}
+    <header className="topbar">
+      <button className="btn btn-ghost btn-sm" onClick={async () => { if (!dirty || await dialog.confirm(text.leaveConfirm)) navigate('/creations'); }}>{text.works}</button>
+      <h1 className="brand brand-sm creation-title">{detail ? text.edit : text.create}</h1>
+      {detail && (
+        <span className="creation-topbar-meta">
+          <span className="creation-version-badge">v{detail.versionNo}</span>
+          <span className={`creation-status status-${detail.status}`}>{creationStatusLabel(detail.status, language)}</span>
+        </span>
+      )}
+    </header>
     <form onSubmit={(event) => { event.preventDefault(); void save(); }} className="creation-editor">
       <fieldset disabled={!editable || busy}>
         <section className="creation-section"><h2>{text.story}</h2>
@@ -184,10 +202,15 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
           {draft.origin === 'repost' && <Field id="sourceUrl" label={text.sourceUrl} required error={fieldErrors.sourceUrl}><input className="field" type="url" value={draft.sourceUrl} onChange={(event) => change('sourceUrl', event.target.value)} /></Field>}
           <Field id="attribution" label={text.attribution}><Segmented value={draft.authorDisplay.mode} options={[{ value: 'anonymous', label: text.anonymous }, { value: 'signature', label: text.signature }]} onChange={(value) => change('authorDisplay', value === 'anonymous' ? { mode: 'anonymous' } : { mode: 'signature', name: session.user.name })} /></Field>
           {draft.authorDisplay.mode === 'signature' && <Field id="authorDisplay.name" label={text.displayName} required error={fieldErrors['authorDisplay.name']}><input className="field" maxLength={30} value={draft.authorDisplay.name} onChange={(event) => change('authorDisplay', { mode: 'signature', name: event.target.value })} /></Field>}
+          {/* 署名现状跟署名字段放在一起：已生效的展示名 + 待审核的改名 */}
+          {(detail?.authorDisplay.name || detail?.authorDisplay.pendingName) && (
+            <div className="creation-attribution-note">
+              {detail?.authorDisplay.name && <p className="muted">{text.publishedName}{language === 'zh' ? '：' : ': '}{detail.authorDisplay.name}</p>}
+              {detail?.authorDisplay.pendingName && <p className="creation-item-pending">{text.pendingName}{language === 'zh' ? '：' : ': '}{detail.authorDisplay.pendingName}</p>}
+            </div>
+          )}
         </section>
       </fieldset>
-      {detail?.authorDisplay.pendingName && <p className="muted">{text.pendingName}：{detail.authorDisplay.pendingName}</p>}
-      {detail?.authorDisplay.name && <p className="muted">{text.publishedName}：{detail.authorDisplay.name}</p>}
       {submitError && <p className="error-text creation-error" role="alert">{submitError}</p>}
       {notice && <p className="accent" role="status">{notice}</p>}
       <footer className="creation-actions">
@@ -197,8 +220,31 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
         {detail && ['changes_requested', 'published', 'taken_down'].includes(detail.status) && <button className="btn btn-primary" type="button" disabled={busy} onClick={() => void revise('revise')}>{text.revise}</button>}
       </footer>
     </form>
-    {detail && <section className="creation-section"><h2>{text.review}</h2>{detail.reviews.length === 0 && <p className="muted">{text.noReviews}</p>}{detail.reviews.map((review, index) => <article className="creation-review" key={`${review.versionId}:${index}`}><strong>{creationStatusLabel(review.conclusion, language)}</strong><p>{review.reason}</p><small className="muted">{new Date(review.createdAt).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US')}</small></article>)}<h3>{text.versions}</h3>{detail.versions.map((version) => <p className="muted" key={version.versionId}>{text.version} {version.versionNo} · {version.language} · {creationStatusLabel(version.status, language)}</p>)}
-      <button className="btn btn-sm btn-ghost" disabled={busy} onClick={async () => { if (!dirty || await dialog.confirm(text.leaveConfirm)) void client.invalidateQueries({ queryKey: ['creation', session.user.id, detail.puzzleId] }); }}>{text.refresh}</button>
+    {detail && <section className="creation-section">
+      <div className="creation-section-head">
+        <h2>{text.review}</h2>
+        <button className="btn btn-sm btn-ghost" disabled={busy} onClick={async () => { if (!dirty || await dialog.confirm(text.leaveConfirm)) void client.invalidateQueries({ queryKey: ['creation', session.user.id, detail.puzzleId] }); }}>{text.refresh}</button>
+      </div>
+      {detail.reviews.length === 0 && <p className="muted creation-review-empty">{text.noReviews}</p>}
+      {detail.reviews.map((review, index) => (
+        <article className="creation-review" key={`${review.versionId}:${index}`}>
+          <div className="creation-review-head">
+            <strong className={`creation-review-conclusion ${reviewConclusionClass(review.conclusion)}`}>{creationStatusLabel(review.conclusion, language)}</strong>
+            <small className="muted">{new Date(review.createdAt).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US')}</small>
+          </div>
+          {review.reason && <p>{review.reason}</p>}
+        </article>
+      ))}
+      <h3 className="creation-versions-title">{text.versions}</h3>
+      <ul className="creation-versions">
+        {detail.versions.map((version) => (
+          <li key={version.versionId}>
+            <span className="creation-versions-no">v{version.versionNo}</span>
+            <span className={`creation-status status-${version.status}`}>{creationStatusLabel(version.status, language)}</span>
+            <span className="creation-versions-lang muted">{version.language === 'zh' ? copy.languageZh : copy.languageEn}</span>
+          </li>
+        ))}
+      </ul>
     </section>}
   </main>;
 }

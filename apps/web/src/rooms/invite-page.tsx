@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiError, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
+import { useBack } from '../back.js';
 import { format } from '@jev/i18n';
 import type { Session } from '../session.js';
 
@@ -20,6 +21,7 @@ export function InvitePage({ session }: { session: Session | null }) {
   const { token } = useParams();
   const { copy, language } = useLanguage();
   const navigate = useNavigate();
+  const back = useBack('/');
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,7 +58,7 @@ export function InvitePage({ session }: { session: Session | null }) {
     return (
       <main className="shell">
         <p className="error-text">{copy.inviteInvalid}</p>
-        <button className="btn" onClick={() => navigate('/')}>{copy.back}</button>
+        <button className="btn" onClick={back}>{copy.back}</button>
       </main>
     );
   }

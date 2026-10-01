@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { api, ApiError, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
+import { useBack } from '../back.js';
 import { displayVerdict, verdictDetail } from '@jev/i18n';
 import { soloStore, type SoloSessionRow } from './local-store.js';
 import type { Session } from '../session.js';
@@ -35,6 +36,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
   const dialog = useDialog();
   const { copy, language } = useLanguage();
   const navigate = useNavigate();
+  const back = useBack('/library');
 
   const [session, setSession] = useState<SoloSessionRow | null>(null);
   const [turns, setTurns] = useState<TurnRow[]>([]);
@@ -251,7 +253,8 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
         setError(copy.noOtherPuzzle);
         return;
       }
-      navigate(`/solo/${selectedId}?lang=${language}`);
+      // replace 不堆叠历史：连换多题后按「返回」直接回到单人模式入口，不落回旧题
+      navigate(`/solo/${selectedId}?lang=${language}`, { replace: true });
     } catch (err) {
       if (controller.signal.aborted) return;
       setError(err instanceof ApiError && err.code === 'NOT_FOUND' ? copy.noOtherPuzzle : translateApiError(err, language, copy.changePuzzleFail));
@@ -265,7 +268,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
     return (
       <main className="shell">
         <header className="topbar">
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)}>{copy.back}</button>
+          <button className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
         </header>
         <p className="error-text">{error}</p>
       </main>
@@ -280,7 +283,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
     <main className="shell solo-shell">
       <GameHeader
         title={session.title}
-        back={<button className="btn btn-ghost btn-sm" onClick={() => navigate('/library')}>{copy.back}</button>}
+        back={<button className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>}
         action={<button className="btn btn-ghost btn-sm" disabled={changingPuzzle || sending || hintBusy || revealing} onClick={() => void changePuzzle()}>{changingPuzzle ? copy.changingPuzzle : copy.changePuzzle}</button>}
       />
 

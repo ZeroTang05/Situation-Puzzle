@@ -6,6 +6,8 @@ import { api, translateApiError } from '../api/client.js';
 import { authClient } from '../api/auth-client.js';
 import { useLanguage } from '../state/language.js';
 import { clearRoomLocal } from '../rooms/room-local.js';
+import { useDialog } from '@jev/ui';
+import { useBack } from '../back.js';
 import { format } from '@jev/i18n';
 import type { Language } from '@jev/i18n';
 import type { Session } from '../session.js';
@@ -63,7 +65,9 @@ interface HistoryResponse {
 export function MePage({ session }: { session: Session | null }) {
   const { copy, language } = useLanguage();
   const navigate = useNavigate();
+  const back = useBack('/');
   const queryClient = useQueryClient();
+  const dialog = useDialog();
   const [editingNickname, setEditingNickname] = useState(false);
   const [nicknameDraft, setNicknameDraft] = useState('');
   const [nicknameError, setNicknameError] = useState<string | null>(null);
@@ -90,7 +94,7 @@ export function MePage({ session }: { session: Session | null }) {
   if (!session) {
     return (
       <main className="shell narrow">
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>{copy.back}</button>
+        <button className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
         <p className="muted">{copy.meRequiresLogin}</p>
         <button className="btn btn-primary" onClick={() => navigate('/login?next=/me')}>{copy.login}</button>
       </main>
@@ -104,14 +108,25 @@ export function MePage({ session }: { session: Session | null }) {
   // 到期的月度赞助不再给不限次数，展示成「已到期」
   const hasUnlimited = lifetime || (monthlyUntil !== null && !monthlyExpired);
   const remaining = freeRooms ? freeRooms.total - freeRooms.consumed - freeRooms.reserved : null;
-  const displayName = me.data?.nickname ?? session.user.email;
+  // 昵称优先用 /me 的权威值；接口未返回前用注册昵称兜底，避免先闪邮箱再变昵称
+  const displayName = me.data?.nickname || session.user.name || session.user.email;
   const roundCountLabel = (n: number) => (language === 'zh' ? `${n} 局` : n === 1 ? '1 round' : `${n} rounds`);
   const accountLoadFail = language === 'zh' ? '账号信息加载失败，请重试。' : 'Could not load your account. Please try again.';
+  const logoutConfirmText = language === 'zh' ? '确定退出当前账号吗？' : 'Sign out of this account?';
+
+  /** 退出登录走二次确认，避免误触后丢掉本地单人进度入口。 */
+  const logout = async () => {
+    if (!(await dialog.confirm(logoutConfirmText))) return;
+    await clearRoomLocal(session.user.id);
+    await authClient.signOut();
+    queryClient.clear();
+    navigate('/');
+  };
 
   return (
     <main className="shell narrow">
       <header className="topbar">
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>{copy.back}</button>
+        <button className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
         <h1 className="brand brand-sm">{copy.me}</h1>
       </header>
 
@@ -176,7 +191,7 @@ export function MePage({ session }: { session: Session | null }) {
         </div>
       </section>
 
-      <button className="btn me-logout" onClick={() => void clearRoomLocal(session.user.id).then(() => authClient.signOut()).then(() => { queryClient.clear(); navigate('/'); })}>{copy.logout}</button>
+      <button className="btn me-logout" onClick={() => void logout()}>{copy.logout}</button>
 
       {/* 房间历史：整行可点进房间，局状态用颜色区分 */}
       <section className="me-section">

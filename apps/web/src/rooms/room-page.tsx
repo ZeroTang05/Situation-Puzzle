@@ -8,6 +8,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api, ApiError, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
+import { useBack } from '../back.js';
 import { displayVerdict, format } from '@jev/i18n';
 import { useRoomSync } from './use-room-sync.js';
 import { useRoomOutbox } from './use-room-outbox.js';
@@ -32,6 +33,7 @@ export function RoomPage({ session }: { session: Session | null }) {
   const dialog = useDialog();
   const { copy, language } = useLanguage();
   const navigate = useNavigate();
+  const back = useBack('/');
   const [params, setParams] = useSearchParams();
   const me = session?.user.id ?? null;
   const { state, status, kicked, sendCommand, confirmResult } = useRoomSync(roomId ?? '', me);
@@ -172,7 +174,7 @@ export function RoomPage({ session }: { session: Session | null }) {
     <RoomShell playing={round?.status === 'active' && state.roomStatus === 'playing'}>
       <GameHeader
         title={round ? displayedTitle ?? copy.loadingRound : copy.waitingRoom}
-        back={<button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>{copy.back}</button>}
+        back={<button className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>}
         action={<button className="btn btn-ghost btn-sm" onClick={() => setManagementOpen((open) => !open)} aria-expanded={managementOpen}>
           {format(language === 'zh' ? copy.playersCount : copy.playersCountEn, { n: memberCount, cap: state.capacity })}
         </button>}
@@ -195,25 +197,6 @@ export function RoomPage({ session }: { session: Session | null }) {
         </div>}
       </section>}
       {inviteCopied && <p className="accent">{copy.inviteCopied}</p>}
-
-      {state.roomStatus === 'closed' && !answered && (
-        <section className="panel stack">
-          <p className="muted">{copy.roomClosedHint}</p>
-          <div className="hint-row">
-            {isHost && (
-              <button className="btn btn-primary" onClick={() => navigate(`/library?mode=select&followup=${roomId}&lang=${language}`)}>
-                {copy.nextPuzzle}
-              </button>
-            )}
-            {state.followupTargetRoomId && (
-              <button className="btn btn-primary" onClick={() => navigate(`/rooms/${state.followupTargetRoomId}`)}>
-                {copy.enterNewRoom}
-              </button>
-            )}
-            <button className="btn btn-ghost" onClick={() => navigate('/')}>{copy.back}</button>
-          </div>
-        </section>
-      )}
 
       {/* ---------- 等待室 ---------- */}
       {state.roomStatus === 'waiting' && !answered && (
@@ -372,6 +355,23 @@ export function RoomPage({ session }: { session: Session | null }) {
         </>
       )}
 
+      {/* 已结束且未出汤底：输入区原位换成结束操作条，示意本房不能再输入 */}
+      {state.roomStatus === 'closed' && !answered && (
+        <footer className="room-closed-bar">
+          {isHost && (
+            <button className="btn btn-primary" onClick={() => navigate(`/library?mode=select&followup=${roomId}&lang=${language}`)}>
+              {copy.nextPuzzle}
+            </button>
+          )}
+          {state.followupTargetRoomId && (
+            <button className="btn btn-primary" onClick={() => navigate(`/rooms/${state.followupTargetRoomId}`)}>
+              {copy.enterNewRoom}
+            </button>
+          )}
+          <button className="btn btn-ghost" onClick={back}>{copy.back}</button>
+        </footer>
+      )}
+
       {/* ---------- 结算（房间已归档：一房一题，历史保留可查） ---------- */}
       {answered && (
         <section className="panel stack">
@@ -392,7 +392,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                 {copy.enterNewRoom}
               </button>
             )}
-            <button className="btn btn-ghost" onClick={() => navigate('/')}>{copy.back}</button>
+            <button className="btn btn-ghost" onClick={back}>{copy.back}</button>
           </div>
         </section>
       )}

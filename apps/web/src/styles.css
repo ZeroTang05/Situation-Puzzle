@@ -4,6 +4,9 @@
 /* 页面统一使用纯色背景，加载期间沿用相同样式。 */
 html, body { background: var(--bg); }
 
+/* 全站链接一律不加下划线（含按钮形态的 <a>），可点性靠颜色与形态区分 */
+a { text-decoration: none; }
+
 /* 创作中心复用游玩页的深海配色，分组表单在手机上单列展示。 */
 .creation-shell { max-width: 880px; }
 .creation-editor fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
@@ -11,29 +14,23 @@ html, body { background: var(--bg); }
 .creation-section h2, .creation-card h2 { margin: 0 0 16px; font-size: 20px; }
 .creation-title { flex: 1 1 auto; min-width: 0; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .creation-section-title { margin: 24px 4px 12px; font-size: 16px; font-weight: 600; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
-/* 作品列表：扁平行项，无圆角无边框，分割线分组；状态用色点而非色块 */
-.creation-list { list-style: none; margin: 0; padding: 0; }
-.creation-item { display: flex; align-items: flex-start; gap: 16px; padding: 14px 4px; border-bottom: 1px solid rgba(115, 191, 220, .12); }
-.creation-item:last-child { border-bottom: 0; }
-.creation-item-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.creation-item-title { display: inline-block; color: var(--ink); text-decoration: none; font-size: 16px; font-weight: 600; line-height: 1.4; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.creation-item-title:hover { color: #9ae6bd; }
+/* 作品列表：卡片式行项，边框区分不同作品；整卡是编辑入口，游玩按钮浮在上层 */
+.creation-works { list-style: none; margin: 0; padding: 0; }
+.creation-work { position: relative; display: flex; align-items: center; gap: 12px; margin: 12px 0; padding: 14px 16px; border: 1px solid rgba(115, 191, 220, .2); border-radius: 12px; background: rgba(9, 39, 62, .55); transition: border-color .15s, background .15s; }
+.creation-work:hover { border-color: rgba(125, 216, 198, .45); background: rgba(9, 39, 62, .8); }
+/* 拉伸链接：::after 铺满整卡，点哪里都进编辑页；游玩按钮用 z-index 盖在上面避免 <a> 嵌套 */
+.creation-work-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; color: inherit; }
+.creation-work-main::after { content: ''; position: absolute; inset: 0; border-radius: 12px; }
+.creation-work-title { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.4; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.creation-work:hover .creation-work-title { color: #9ae6bd; }
 .creation-item-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; line-height: 1.6; }
 .creation-item-meta .dot { color: rgba(115, 191, 220, .35); user-select: none; }
 .creation-item-pending { font-size: 12px; color: #f3bf8d; line-height: 1.5; }
-.creation-item-actions { flex: none; display: flex; align-items: center; gap: 14px; padding-top: 2px; }
-.creation-item-link { font-size: 12px; color: #8fc6ff; text-decoration: none; white-space: nowrap; }
-.creation-item-link:hover { color: #b4d8ff; text-decoration: underline; text-underline-offset: 2px; }
-.creation-item-link-danger { color: #ff8a8a; }
-.creation-item-link-danger:hover { color: #ffb0b0; }
-/* 状态筛选 tab 里的计数：弱化展示 */
-.mode-tab-count { margin-left: 5px; font-size: 12px; opacity: .65; font-variant-numeric: tabular-nums; }
-/* 行 hover 轻微提亮，暗示可交互 */
-.creation-item:hover { background: rgba(115, 191, 220, .04); border-radius: 10px; }
-/* 行操作：小号实体按钮，触控 30px 起且覆盖 .creation-shell .btn 的 44px */
-.shell.creation-shell .creation-item-actions .btn { min-height: 30px; padding: 2px 12px; font-size: 13px; border-radius: 6px; }
+.shell.creation-shell .creation-work .creation-item-btn { position: relative; z-index: 1; flex: none; min-height: 30px; padding: 2px 12px; font-size: 13px; border-radius: 6px; }
 .creation-item-btn-play { color: #9ae6bd; border-color: rgba(154, 230, 189, .4); }
 .creation-item-btn-play:hover:not(:disabled) { border-color: rgba(154, 230, 189, .7); }
+/* 状态筛选 tab 里的计数：弱化展示 */
+.mode-tab-count { margin-left: 5px; font-size: 12px; opacity: .65; font-variant-numeric: tabular-nums; }
 .creation-filter-empty { margin: 0; padding: 16px 4px; }
 .creation-load-error { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .creation-empty-icon { font-size: 40px; line-height: 1; opacity: .5; }
@@ -103,7 +100,7 @@ html, body { background: var(--bg); }
 .creation-status-dot.status-submitted,
 .creation-status-dot.status-checking,
 .creation-status-dot.status-pending_review { background: rgba(115, 191, 220, .45); }
-@media (max-width: 480px) { .creation-item { flex-direction: column; align-items: stretch; gap: 6px; } .creation-item-actions { padding-top: 0; } }
+@media (max-width: 480px) { .creation-work { padding: 12px; gap: 10px; } }
 .creation-empty { text-align: center; padding: 32px 20px; }
 .creation-empty .btn { margin-top: 12px; }
 .creation-field { display: grid; gap: 8px; margin-bottom: 18px; }
@@ -133,6 +130,8 @@ html, body { background: var(--bg); }
 .creation-check input { width: 20px; height: 20px; flex-shrink: 0; margin-top: 4px; }
 .creation-license { padding: 16px; border-radius: 12px; background: rgba(10, 60, 78, .7); }
 .creation-actions { display: flex; flex-wrap: wrap; gap: 10px; padding: 16px 0; }
+/* 操作按钮：同一行等高拉伸 + 文字不换行，避免长标签折行后高度参差 */
+.creation-actions .btn { flex: 1 1 150px; white-space: nowrap; }
 .creation-shell .btn { min-height: 44px; }
 /* 创建页 topbar 里的返回/新建按钮：压缩高度与字号，文字水平垂直居中 */
 .creation-shell > .topbar .btn {
@@ -153,6 +152,31 @@ html, body { background: var(--bg); }
 .creation-status.status-pending_review { color: var(--muted); }
 .creation-review { border-top: 1px solid rgba(115, 191, 220, .2); padding: 14px 0; }
 .creation-review p, .creation-error { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* 编辑页头部右侧：版本徽标 + 状态胶囊 */
+.creation-topbar-meta { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.creation-version-badge { flex: none; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* 区块标题行：标题与次要操作（刷新）两端对齐；刷新按钮压缩到 28px 高 */
+.creation-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 16px; }
+.creation-section-head h2 { margin: 0; font-size: 20px; }
+.creation-section-head .btn { flex: none; min-height: 28px; padding: 2px 10px; font-size: 12px; }
+/* 审核反馈条目：结论与时间同一行，理由换行展示 */
+.creation-review-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.creation-review-conclusion { font-size: 14px; font-weight: 700; }
+.creation-review-conclusion.is-pass { color: #9ae6bd; }
+.creation-review-conclusion.is-reject { color: var(--danger); }
+.creation-review-conclusion.is-uncertain { color: var(--gold); }
+.creation-review p { margin: 6px 0 0; line-height: 1.6; }
+.creation-review-empty { margin: 0; }
+/* 版本历史：v 号、状态胶囊、语言一行对齐 */
+.creation-versions-title { margin: 20px 0 10px; font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+.creation-versions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.creation-versions li { display: flex; align-items: center; gap: 10px; }
+.creation-versions-no { flex: none; min-width: 32px; color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.creation-versions .creation-status { padding: 1px 8px; font-size: 11px; }
+.creation-versions-lang { font-size: 12px; }
+/* 署名备注：已生效展示名 + 待审核改名，跟署名字段放在一起 */
+.creation-attribution-note { display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
+.creation-attribution-note p { margin: 0; }
 .creation-editor fieldset:disabled .field { opacity: .8; }
 @media (max-width: 540px) { .creation-fields { grid-template-columns: 1fr; gap: 0; } .creation-section, .creation-card { padding: 16px; } }
 
@@ -171,8 +195,6 @@ html, body { background: var(--bg); }
 /* 登录/注册/找回/重置等 auth 页面里的内联超链接：深海背景上默认链接色太暗，提升对比度 */
 .shell.narrow a {
   color: #8fc6ff;
-  text-decoration: underline;
-  text-underline-offset: 2px;
 }
 .shell.narrow a:hover { color: #b4d8ff; }
 
@@ -654,8 +676,23 @@ textarea.composer-input, .composer .composer-input {
 .room-playing > .chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .room-playing > .chat > * { flex-shrink: 0; }
 .room-playing > .composer { position: static; padding: 4px 0 0; background: var(--bg); }
-.room-playing .hint-row { padding: 4px 0 0; }
+.room-playing > .hint-row { padding: 4px 0 0; }
 .room-playing > .story-card { max-height: 20dvh; }
+
+/* 已结束房间：输入区原位换成结束操作条（贴底、按钮等宽），没有输入控件即示意本房已归档 */
+.room-closed-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 0 max(8px, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, transparent, #03152b 30%);
+  /* room-shell 是纵向 flex：内容不足一屏时把操作条推到页面底部 */
+  margin-top: auto;
+}
+.room-closed-bar .btn { flex: 1 1 120px; white-space: nowrap; }
 
 .offline-banner {
   position: sticky;

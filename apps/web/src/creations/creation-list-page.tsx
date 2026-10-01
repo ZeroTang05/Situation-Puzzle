@@ -5,11 +5,12 @@ import { useState } from 'react';
 import { type CreationSummary } from '@jev/contracts';
 import { api, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
+import { useBack } from '../back.js';
 import { compactVoteCount } from '../catalog/vote-count.js';
 import type { Session } from '../session.js';
 import { creationCopy, creationStatusLabel } from './copy.js';
 
-/** 筛选分桶：草稿单独一类；已发布含被下架（行内仍有状态标签）；其余都算审核流程中。 */
+/** 筛选分桶：草稿单独一类；已发布含被下架（卡片上仍有状态标签）；其余都算审核流程中。 */
 type WorkFilter = 'all' | 'draft' | 'review' | 'published';
 
 function bucketOf(work: CreationSummary): Exclude<WorkFilter, 'all'> {
@@ -20,6 +21,7 @@ function bucketOf(work: CreationSummary): Exclude<WorkFilter, 'all'> {
 
 export function CreationListPage({ session }: { session: Session | null }) {
   const { language, copy } = useLanguage(); const text = creationCopy(language);
+  const back = useBack('/');
   const [filter, setFilter] = useState<WorkFilter>('all');
   const query = useQuery({ queryKey: ['creations', session?.user.id], queryFn: () => api<{ items: CreationSummary[] }>('/creations'), enabled: !!session, retry: false });
   if (!session) return <Navigate to="/login?next=%2Fcreations" replace />;
@@ -39,7 +41,7 @@ export function CreationListPage({ session }: { session: Session | null }) {
 
   return <main className="shell creation-shell">
     <header className="topbar">
-      <Link className="btn btn-ghost btn-sm" to="/">{copy.back}</Link>
+      <button className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
       <h1 className="brand brand-sm creation-title">{text.center}</h1>
       <Link className="btn btn-primary btn-sm" to="/creations/new">{text.create}</Link>
     </header>
@@ -71,9 +73,10 @@ export function CreationListPage({ session }: { session: Session | null }) {
     )}
     {showFilter && visible.length === 0 && <p className="muted creation-filter-empty">{text.filterEmpty}</p>}
 
-    <ul className="creation-list">{visible.map((work) => <li key={work.puzzleId} className="creation-item">
-      <div className="creation-item-main">
-        <Link className="creation-item-title" to={`/creations/${work.puzzleId}`}>{work.title}</Link>
+    {/* 整卡是编辑入口（拉伸链接铺满卡片）；游玩按钮浮在上层，避免 <a> 嵌套 */}
+    <ul className="creation-works">{visible.map((work) => <li key={work.puzzleId} className="creation-work">
+      <Link className="creation-work-main" to={`/creations/${work.puzzleId}`} aria-label={`${text.edit}：${work.title}`}>
+        <h3 className="creation-work-title">{work.title}</h3>
         <div className="creation-item-meta">
           <span className={`creation-status-dot status-${work.status}`} aria-label={creationStatusLabel(work.status, language)} />
           <span className="muted">{creationStatusLabel(work.status, language)}</span>
@@ -89,11 +92,8 @@ export function CreationListPage({ session }: { session: Session | null }) {
           <span className="muted">{new Date(work.updatedAt).toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US')}</span>
         </div>
         {work.pendingName && <div className="creation-item-pending">{text.pendingName}{language === 'zh' ? '：' : ': '}{work.pendingName}</div>}
-      </div>
-      <div className="creation-item-actions">
-        <Link className="btn btn-sm creation-item-btn" to={`/creations/${work.puzzleId}`}>{text.edit}</Link>
-        {work.published && <Link className="btn btn-sm creation-item-btn creation-item-btn-play" to={`/solo/${work.puzzleId}?lang=${work.publishedLanguage}`} title={text.public}>{text.playShort}</Link>}
-      </div>
+      </Link>
+      {work.published && <Link className="btn btn-sm creation-item-btn creation-item-btn-play" to={`/solo/${work.puzzleId}?lang=${work.publishedLanguage}`} title={text.public}>{text.playShort}</Link>}
     </li>)}</ul>
   </main>;
 }

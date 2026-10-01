@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
+import { useBack } from '../back.js';
 import { soloStore } from '../solo/local-store.js';
 import { useEffect, useState } from 'react';
 import type { Session } from '../session.js';
@@ -28,6 +29,7 @@ interface PuzzleItem {
 export function LibraryPage({ session }: { session: Session | null }) {
   const { copy, language } = useLanguage();
   const navigate = useNavigate();
+  const back = useBack('/');
   const [params, setParams] = useSearchParams();
   const mode = params.get('mode') === 'select' ? 'select' : 'solo';
   const sort = params.get('sort') === 'popular' ? 'popular' : 'latest';
@@ -126,7 +128,7 @@ export function LibraryPage({ session }: { session: Session | null }) {
   return (
     <main className="shell">
       <header className="topbar">
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
+        <button className="btn btn-ghost btn-sm" onClick={back}>
           {copy.back}
         </button>
         <h1 className="brand">{copy.library}</h1>
