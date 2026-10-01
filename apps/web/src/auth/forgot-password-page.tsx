@@ -5,7 +5,7 @@ import { authClient } from '../api/auth-client.js';
 import { useLanguage } from '../state/language.js';
 
 export function ForgotPasswordPage() {
-  const { copy } = useLanguage();
+  const { copy, language, setLanguage } = useLanguage();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
@@ -32,6 +32,14 @@ export function ForgotPasswordPage() {
     <main className="shell narrow">
       <header className="topbar">
         <h1 className="brand">{copy.brand}</h1>
+        <button
+          type="button"
+          className="btn btn-sm btn-ghost lang-switch"
+          aria-label={copy.langSwitchAria}
+          onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
+        >
+          {language === 'zh' ? copy.languageSwitchToEn : copy.languageSwitchToZh}
+        </button>
       </header>
       <section className="panel stack">
         <h2>{copy.forgotPasswordTitle}</h2>
@@ -46,7 +54,7 @@ export function ForgotPasswordPage() {
           <>
             <p className="muted">{copy.forgotPasswordPrompt}</p>
             <label className="field-label" htmlFor="email-fp">
-              Email
+              {copy.emailField}
               <input
                 id="email-fp"
                 className="field"
@@ -54,7 +62,6 @@ export function ForgotPasswordPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={copy.emailPlaceholder}
               />
             </label>
             <button
