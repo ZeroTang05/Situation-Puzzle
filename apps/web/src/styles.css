@@ -38,7 +38,6 @@ a { text-decoration: none; }
 /* 「我的」页面：账号卡片（与创作中心同款面板）+ 扁平历史列表 */
 .me-card { display: flex; flex-direction: column; gap: 16px; margin-top: 8px; padding: 20px 16px; border: 1px solid rgba(115, 191, 220, .22); border-radius: 16px; background: rgba(9, 39, 62, .7); }
 .me-head { display: flex; align-items: center; gap: 14px; }
-.avatar.me-avatar { flex: none; width: 48px; height: 48px; font-size: 22px; background: linear-gradient(150deg, #0d426d, #052747); }
 .me-id { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .me-name { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .me-email { margin: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -543,17 +542,6 @@ a { text-decoration: none; }
 
 .hint-float p {
   margin: 0 0 4px;
-}
-
-.avatar {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid rgba(137, 241, 229, 0.35);
-  border-radius: 50%;
-  background: #10486d;
-  font-size: 18px;
 }
 
 /* 单人页固定在可见屏幕内，题面与对话各自滚动，输入区始终可见。 */

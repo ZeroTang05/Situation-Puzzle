@@ -134,7 +134,6 @@ export function MePage({ session }: { session: Session | null }) {
       {/* 账号卡片：头像 + 昵称 + 额度/赞助两个关键数字 */}
       <section className="me-card">
         <div className="me-head">
-          <span className="avatar me-avatar" aria-hidden>{displayName ? displayName.trim().charAt(0).toUpperCase() : '·'}</span>
           <div className="me-id">
             <h2 className="me-name">{displayName ?? <span className="me-skeleton-bar me-name-skeleton" aria-hidden />}</h2>
             <p className="me-email muted">{displayEmail ?? <span className="me-skeleton-bar me-email-skeleton" aria-hidden />}</p>
