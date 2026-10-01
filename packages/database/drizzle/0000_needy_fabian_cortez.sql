@@ -6,7 +6,7 @@ CREATE TYPE "public"."report_object" AS ENUM('turn', 'puzzle', 'room', 'discussi
 CREATE TYPE "public"."report_status" AS ENUM('open', 'processing', 'resolved', 'rejected');--> statement-breakpoint
 CREATE TYPE "public"."rights_status" AS ENUM('pending', 'approved', 'rejected');--> statement-breakpoint
 CREATE TYPE "public"."staff_role" AS ENUM('admin', 'moderator', 'support', 'finance');--> statement-breakpoint
-CREATE TYPE "public"."close_reason" AS ENUM('by_host', 'idle', 'all_offline', 'moderation', 'host_left');--> statement-breakpoint
+CREATE TYPE "public"."close_reason" AS ENUM('by_host', 'idle', 'all_offline', 'moderation', 'host_left', 'round_ended', 'never_started');--> statement-breakpoint
 CREATE TYPE "public"."member_status" AS ENUM('joined', 'left', 'kicked');--> statement-breakpoint
 CREATE TYPE "public"."room_status" AS ENUM('waiting', 'playing', 'closed');--> statement-breakpoint
 CREATE TYPE "public"."round_status" AS ENUM('active', 'solved', 'revealed', 'abandoned', 'aborted');--> statement-breakpoint

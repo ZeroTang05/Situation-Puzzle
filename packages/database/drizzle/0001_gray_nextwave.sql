@@ -1,4 +1,4 @@
-ALTER TYPE "public"."close_reason" ADD VALUE 'round_ended';--> statement-breakpoint
+ALTER TYPE "public"."close_reason" ADD VALUE IF NOT EXISTS 'round_ended';--> statement-breakpoint
 CREATE TABLE "room_followups" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"source_room_id" uuid NOT NULL,
