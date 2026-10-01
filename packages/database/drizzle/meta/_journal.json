@@ -5,64 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1790364425784,
-      "tag": "0000_needy_fabian_cortez",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1790438788995,
-      "tag": "0001_gray_nextwave",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1790510698840,
-      "tag": "0002_votes_and_authorship",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1790683248063,
-      "tag": "0003_otp_send_quota",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1790698292724,
-      "tag": "0004_creation_origin",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1790749274294,
-      "tag": "0005_multi_room_membership",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1790766245843,
-      "tag": "0006_puzzle_difficulty_enum",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1790900000000,
-      "tag": "0007_lobby_start_gate",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1790900001000,
-      "tag": "0008_archive_waiting_rooms",
+      "when": 1791000000000,
+      "tag": "0000_consolidated",
       "breakpoints": true
     }
   ]

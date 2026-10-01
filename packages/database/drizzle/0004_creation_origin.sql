@@ -1,1 +1,0 @@
-ALTER TABLE "puzzle_rights" ADD COLUMN "origin" text DEFAULT 'original' NOT NULL;
