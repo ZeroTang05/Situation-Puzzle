@@ -4,8 +4,6 @@ export interface Session {
     id: string;
     email: string;
     name: string;
-    /** 权威昵称：由 API 自定义 get-session 从 profiles 注入（auth.instance.ts） */
-    nickname: string | null;
     emailVerified: boolean;
   };
   session: {

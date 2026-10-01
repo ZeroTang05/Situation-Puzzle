@@ -14,7 +14,7 @@ export const { signIn, signOut, useSession } = authClient;
 
 /**
  * 会话 + 加载态：在唯一的边界把库的返回收窄成业务 Session 投影。
- * user.nickname 由 API 自定义 get-session 注入，库的推断类型不包含它。
+ * 昵称不在这里 —— 权威值在 /api/v1/me，由用到昵称的页面自行查询。
  */
 export function useJevSession(): { session: Session | null; isPending: boolean } {
   const { data, isPending } = useSession();

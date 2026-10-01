@@ -91,6 +91,8 @@ a { text-decoration: none; }
 .me-skeleton-bar { height: 12px; border-radius: 6px; background: rgba(115, 191, 220, .12); animation: me-pulse 1.4s ease-in-out infinite; }
 .me-skeleton-bar:nth-child(1) { width: 45%; }
 .me-skeleton-bar:nth-child(2) { width: 72%; }
+/* 昵称占位条：复合选择器抬高特异性，避免被上面 nth-child 的百分比宽度压窄 */
+.me-skeleton-bar.me-name-skeleton { width: 120px; height: 16px; }
 @keyframes me-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 /* 状态色点：替代原色块徽章，整洁且与文字基线对齐 */
 .creation-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }

@@ -108,8 +108,8 @@ export function MePage({ session }: { session: Session | null }) {
   // 到期的月度赞助不再给不限次数，展示成「已到期」
   const hasUnlimited = lifetime || (monthlyUntil !== null && !monthlyExpired);
   const remaining = freeRooms ? freeRooms.total - freeRooms.consumed - freeRooms.reserved : null;
-  // 昵称链：/me 权威值 → 会话注入值（首屏即有）→ 邮箱兜底
-  const displayName = me.data?.nickname || session.user.nickname || session.user.email;
+  // 昵称权威值在 /me：加载中先占骨架（头像退 '·'），失败退邮箱；不读会话字段，避免先画邮箱再跳昵称
+  const displayName = me.data?.nickname ?? (me.isError ? session.user.email : null);
   const roundCountLabel = (n: number) => (language === 'zh' ? `${n} 局` : n === 1 ? '1 round' : `${n} rounds`);
   const accountLoadFail = language === 'zh' ? '账号信息加载失败，请重试。' : 'Could not load your account. Please try again.';
   const logoutConfirmText = language === 'zh' ? '确定退出当前账号吗？' : 'Sign out of this account?';
@@ -133,9 +133,9 @@ export function MePage({ session }: { session: Session | null }) {
       {/* 账号卡片：头像 + 昵称 + 额度/赞助两个关键数字 */}
       <section className="me-card">
         <div className="me-head">
-          <span className="avatar me-avatar" aria-hidden>{displayName.trim().charAt(0).toUpperCase() || '·'}</span>
+          <span className="avatar me-avatar" aria-hidden>{displayName ? displayName.trim().charAt(0).toUpperCase() : '·'}</span>
           <div className="me-id">
-            <h2 className="me-name">{displayName}</h2>
+            <h2 className="me-name">{displayName ?? <span className="me-skeleton-bar me-name-skeleton" aria-hidden />}</h2>
             <p className="me-email muted">{session.user.email}</p>
           </div>
           {!editingNickname && (

@@ -6,10 +6,9 @@
  * - 注册钩子：新用户初始化 profile + 免费开房账户 + 赞助账户（每用户一次，唯一约束兜底）
  */
 import { betterAuth } from 'better-auth';
-import { APIError, createAuthEndpoint, createAuthMiddleware, getSessionFromCtx, isAPIError } from 'better-auth/api';
+import { APIError, createAuthMiddleware, isAPIError } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { emailOTP, genericOAuth } from 'better-auth/plugins';
-import { eq } from 'drizzle-orm';
 import { randomInt } from 'node:crypto';
 import {
   user as userTable,
@@ -94,30 +93,6 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
         }
       : {},
     plugins: [
-      /**
-       * 自定义 get-session：把 profiles 表的权威昵称注入 user.nickname。
-       * web 端 App 等会话解析后才渲染，「我的」页首屏即可显示昵称、不闪邮箱；
-       * 登录/注册成功后客户端也会重拉 get-session，同一来源覆盖全部流程。
-       * 保留原响应的其余字段（含 needsRefresh 刷新标记），GET/POST 两种方法都接。
-       */
-      {
-        id: 'profile-nickname-session',
-        endpoints: {
-          '/get-session': createAuthEndpoint('/get-session', { method: ['GET', 'POST'] }, async (ctx) => {
-            const session = await getSessionFromCtx(ctx);
-            if (!session?.session) return ctx.json(null);
-            const [profile] = await db.db
-              .select({ nickname: profiles.nickname })
-              .from(profiles)
-              .where(eq(profiles.userId, session.user.id))
-              .limit(1);
-            return ctx.json({
-              ...session,
-              user: { ...session.user, nickname: profile?.nickname ?? null },
-            });
-          }),
-        },
-      },
       emailOTP({
         // 验证码 5 分钟有效、6 位；发送额度在前置钩子里由 PostgreSQL 管理。
         otpLength: 6,
