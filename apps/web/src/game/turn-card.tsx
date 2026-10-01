@@ -5,14 +5,11 @@ import type { Language } from '@jev/i18n';
 
 export interface PreviewTurn {
   localTurnId: string;
-  localSessionId: string;
-  order: number;
   kind: 'ask' | 'solve';
   text: string;
   status: 'sending' | 'succeeded' | 'failed';
   result: string | null;
   confidence?: number;
-  createdAt: number;
   failNote?: string;
 }
 

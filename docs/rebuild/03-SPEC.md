@@ -92,7 +92,7 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 | `profiles` | `user_id`、昵称（允许重复；未定制默认「用户+6 位随机编号」，可在「我的」修改）、账号状态、创建时间；状态 active/suspended/deletion_pending |
 | `role_assignments` | `user_id`、角色；用户与角色唯一 |
 | `puzzles` | 作品 ID、内部作者用户 ID（旧题可为空）、来源类型、当前发布版本指针、可用状态；作品级署名模式、已批准展示名与待审署名；匿名公共投影隐藏作者身份 |
-| `puzzle_versions` | 作品、版本号、语言、标题、汤面、汤底、提示、核心事实、因果链、难度、时长、内容提醒、审核状态；`(puzzle_id, version_no, language)` 唯一；提交后不可变 |
+| `puzzle_versions` | 作品、版本号、语言、标题、汤面、汤底、提示、核心事实、因果链、难度、时长、内容提醒、审核状态；`(puzzle_id, version_no, language)` 唯一；提交后不可变；难度使用 `puzzle_difficulty`（pgEnum：`easy` / `medium` / `hard`），禁止自由文本 |
 | `puzzle_rights` | 作品、origin（自制 original / 转载 repost）、原作者链接；保留平台自带及导入题库的权利核验字段 |
 | `puzzle_test_cases` | 版本、问题或还原、预期判定、理由、关键程度、人工确认人 |
 | `moderation_reviews` | 版本、阶段、结论、理由、操作者、自动模型版本、时间 |
@@ -102,6 +102,8 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 题库支持中文与英文，同一作品通过相同 `version_no`（版号）关联不同语言。各语言有独立的审核状态；公开列表和详情按请求语言读取当前发布版号中已发布的语言版本。`current_published_version_id`（当前发布版本指针）指向其中一条语言记录，用于确定公开版号；它指向中文时，同版已发布英文仍可公开读取。请求语言没有已发布版本时，题目详情返回 404。
 
 每局的判题语言与版本固定。界面语言独立，成员切换界面语言时可读取对应已发布的标题和汤面；此操作不改变房间的判题内容、历史问答或单人凭证。单人记录按题目和语言分别恢复。
+
+**难度枚举约束**：题库与创作中心共享 `difficultySchema = z.enum(['easy', 'medium', 'hard'])`，列表、单人详情、创作编辑、预览均按该枚举读取。题库列表支持 `difficulty` 查询参数（单值匹配）。`puzzle_difficulty` 枚举与现有审核、投票、翻译契约独立，仅影响内容字段取值范围。
 
 后台支持批准当前语言和明确选择同版全部语言。批准范围和审核状态在服务端校验；用户投稿初审通过直接发布，平台自带及导入题库继续校验授权；同版补发语言保留已有发布指针，切换版号时指向本次批准的版本。发布状态、发布指针、署名变更和每个新发布语言的审计记录在同一事务中写入。具体审核操作见 [内容运营 §7](05-OPERATIONS.md#7-ugc-与题库运营)。
 
@@ -207,6 +209,21 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 
 关键错误码：`ROOM_FULL`、`ROUND_ENDED`、`SPONSORSHIP_REQUIRED`、`FREE_ROOMS_EXHAUSTED`、`TURN_PENDING`、`QUEUE_FULL`、`STATE_CONFLICT`、`IDEMPOTENCY_CONFLICT`、`JEV_UNAVAILABLE`、`CONTENT_UNAVAILABLE`。分别使用 409 状态冲突、403 权限不足、429 频率限制、503 外部服务不可用等合适 HTTP 状态，客户端按稳定错误码翻译。单人永远不返回赞助要求或免费次数耗尽。
 
+### 创作契约补充：提示字段
+
+`creationCompleteSchema` 的 `hints` 字段约束：
+
+- 数组长度 `1 ≤ length ≤ 3`；
+- 第 1 条（`hints[0]`）必须非空且 trim 后至少 1 字；
+- 第 2、3 条允许空字符串（即允许作者只提供 1 条提示）；
+- 服务端 `POST /creations` / `PATCH /creations/:id` 在落库前过滤空字符串，仅保留非空项。返回的 `hints` 数量决定单人与多人 `hintsTotal`；
+- 草稿 schema 同样放宽（`creationDraftSchema`），便于作者分次填写；
+- 服务端在缺失第 1 条或数组越界时返回 `VALIDATION_FAILED`，路径包含 `hints.0` 等具体定位。
+
+### 创作契约补充：难度字段
+
+`difficulty` 字段使用 `difficultySchema = z.enum(['easy', 'medium', 'hard'])`，与数据库 `puzzle_difficulty` 枚举保持一致；客户端不得发送其它字符串或自由文本，否则返回 `VALIDATION_FAILED`。
+
 ## 7. 一致性、任务与实时发送
 
 创作写接口使用 `expectedVersionId`（已保存版本编号）及 `expectedUpdatedAt`（作品更新时间）；创建草稿无需这两个条件。提交另需 `agreementAccepted: true` 和当前 `agreementVersion`（授权文本版本）。授权审核携带审核员正在查看的 `expectedVersionId`，作者已有新版本时拒绝旧审核操作。
@@ -234,6 +251,40 @@ API、任务进程独立重启。发布先跑追加式数据库迁移，再部�
 ## 9. 跨端扩展约束
 
 小程序和 App 复用 API、事件协议与类型契约，不直接复用浏览器 DOM 组件。标准 WebSocket 在各端使用官方连接接口，服务端仍执行同一授权与恢复逻辑。未来客户端框架在开发该端时验证后选择。
+
+网页使用 HttpOnly 安全 Cookie 保存会话；后续原生端通过认证库已验证的令牌模式接入，令牌存系统安全存储，不把网页 Cookie 字符串当通用跨端协议。微信身份以独立第三方 identity 绑定用户 ID，微信支付身份与登录身份分开建模。
+
+赞助权益以服务器为准；不同平台购买渠道保留来源。App 和小程序的数字内容支付要求需在其上线前核实；本期不承诺网页支付入口能直接嵌入所有平台。
+
+## 10. 创作中心前端规范
+
+玩家端创作中心（`apps/web/src/creations/creation-editor-page.tsx`）将 zod `safeParse` 失败的 `issues` 翻译为字段路径到用户文案的映射（`FieldErrors`），不再使用单一整页错误条。规则：
+
+- 字段路径 `title` / `surface` / `answer` / `hints.0` / `hints.1` / `hints.2` / `sourceUrl` / `authorDisplay.name` 直接定位到对应控件；
+- 字段控件渲染 `aria-invalid="true"`，加红边框与 1px 微红阴影；`<label>` 末尾追加红 `*` 必填标记；
+- 字段下方显示红色 12px 文案（中文「不能为空」「转载作品请填写原作者链接」等，英文对应文案见 `packages/i18n`）；
+- 首次提交失败时按视觉顺序 `FIELD_ORDER` 自动滚动到首个出错字段并聚焦其输入控件，便于键盘用户继续修改；
+- 字段被修改后即时清除该字段的错误，避免错误一直挂着；只有服务端 5xx 或版本冲突等无法定位字段的错误才保留在底部统一错误条。
+
+控件与语言切换：
+
+- 创作中心使用扁平分组（无圆角矩形框、无卡片边框、淡分割线），与「我的」保持一致；
+- 2-3 选项的单选字段（作品语言、难度、题目来源、署名）使用自定义 `Segmented`（分段按钮组），替代原生 `<select>`，避免 Android 上的原生选择弹窗；超过 3 选项场景继续保留原生 `<select>`，通过 CSS 限制 `<option>` 撑出列宽；
+- 提示（hint）字段统一为单行高度（`rows={1}` + 32px `min-height`），输入框内不展示提示文字；
+- 登录 / 注册 / 找回密码页 topbar 右侧的语言切换按钮调用 `setLanguage('zh' ↔ 'en')`，与首页统一；`<a>` 默认 `#8fc6ff` 浅蓝色 + hover 加下划线，区别于默认浏览器深蓝。
+
+## 11. 私人试题预览 UI 规范
+
+私人试题预览（`/creations/:id/preview`）复用单人游戏页（`apps/web/src/solo/solo-page.tsx`）的视觉与组件栈：
+
+- 顶部栏：`<GameHeader>`，左「返回编辑器」、右「重置」按钮；
+- 题面卡：`<section class="story-card solo-story game-scroll">`；
+- 聊天区：`<section class="chat solo-chat game-scroll">` + 共享 `<TurnCard>`（`apps/web/src/game/turn-card.tsx`）；
+- 底部：`<div class="solo-bottom game-scroll">` + `<HintCapsule>` + `<section class="solo-action-row">`（hint / 模式切换 / reveal）+ `<footer class="composer solo-composer">` + `<ChatInput>`；
+- 服务端仍调用 `/solo/{judge, solve, hints, reveal}`，使用 `solo_preview` 凭证；单人 SDK 与浏览器本地存储栈与公开单人页共享；
+- 与单人页的差异仅在：①不暴露公开题库；②不存在「换一题」按钮（作者测试自己的作品）；③状态徽章与房主专属按钮不展示。
+
+新增或修改共享组件时，需同时更新单人游戏页与私人试题预览页，确保两者保持一致。
 
 网页使用 HttpOnly 安全 Cookie 保存会话；后续原生端通过认证库已验证的令牌模式接入，令牌存系统安全存储，不把网页 Cookie 字符串当通用跨端协议。微信身份以独立第三方 identity 绑定用户 ID，微信支付身份与登录身份分开建模。
 

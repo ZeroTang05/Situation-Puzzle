@@ -2,7 +2,7 @@
 
 > 本文记录 2026-09-26 的旧实现及当时验证结果。房间规则已由 [10-ROOM-LIFECYCLE-REVISION.md](10-ROOM-LIFECYCLE-REVISION.md) 修订：一房一题、换题新房、离线不归档、单人不限流。本文关于同房第二局及相关测试的“完成”状态不代表新规则已实现。
 
-版本：1.0；日期：2026-09-26；基线：docs/rebuild 设计文档 v1.0。
+版本：1.1；日期：2026-10-01；基线：`50e60d6`（docs/rebuild 设计文档 v1.1）。
 
 本文记录按设计文档完成的第一批可运行代码：monorepo、数据层、判题适配、API 服务、任务进程、玩家端、管理端与部署编排。旧系统（Next.js 单页 + Cloudflare Worker）已按用户决定提前删除（06-MIGRATION.md），旧代码保存在 main 分支。
 
@@ -182,6 +182,23 @@ docker compose up -d --build
 | 合计 | 14 | 89 |
 
 本次命令退出码为 0，全部单元测试通过，无失败或跳过的单元测试。数据库集成测试、端到端测试和 Playwright 测试均未运行。
+
+### 创作与作品 UI 一致化（2026-10-01）
+
+- 题目难度 `difficulty` 收紧为 zod `z.enum(['easy','medium','hard'])`；数据库 `puzzle_difficulty` 枚举；契约、列表、单人、创作中心共享同一枚举 schema。追加迁移 `0006_puzzle_difficulty_enum.sql`（CREATE TYPE + ALTER COLUMN USING 转换）。
+- 作品提示 `hints` 放宽：草稿允许空白；完整提交要求 1-3 条且第 1 条非空；服务端在 `POST /creations` / `PATCH /creations/:id` 落库前过滤空字符串，`hintsTotal` 反映真实非空条数。Editor UI 把提示 1 标注「(必填)」/「(required)」、提示 2-3 标注「(可选)」，输入框统一单行高度（`rows={1}` + 32px `min-height`），输入框内不展示提示文字。
+- 创作编辑器改为字段级错误：`zod safeParse` 失败时把 `issues` 翻译为 `FieldErrors`，控件渲染 `aria-invalid="true"` + 红 `*` + 字段下方错误文案；首次失败按 `FIELD_ORDER` 自动滚动到首个出错字段并聚焦；编辑该字段立即清除该错误；服务端 5xx / 版本冲突保留在底部统一错误条。`Field` 组件通过 ref 注册到 module-level `fieldRefs`。
+- 2-3 选项单选控件（作品语言 / 难度 / 题目来源 / 署名）改用自定义 `Segmented`（`role="radiogroup"`/`role="radio"`），避免 Android 上原生 `<select>` 弹窗；超过 3 选项仍保留原生 `<select>`，通过 CSS 限制列宽。
+- 创作中心 topbar 三个按钮（返回 / 标题 / 新建）按用户要求压缩高度与字号，`btn-sm` 加 28px 高 / 12px 字号，`inline-flex` 居中。
+- 创作列表（`/creations`）改为扁平行项（`<ul>` / `<li>`）：状态用 8px 圆形色点、版本 / 语言 / 👍 / 👎 / 更新日期 一行用「·」分隔、操作靠右侧文字链接；无圆角无边框无背景渐变。
+- 「我的」（`/me`）两个 `panel stack` 合并为单容器、扁平分组（账号信息 / 房间历史）；账号区一行布局、终身赞助以绿色 pill 表示、月费赞助以 muted 日期表示、退出登录为红色文字链接；房间历史为行项 + rounds 缩进子列表。
+- 题库卡片右下角「单人游玩 / 一键开房」按钮统一为 28px / 12px / `2px 8px` 紧凑尺寸，与「题库 - 单人游玩」一致；主操作仍靠 `btn-primary` 颜色区分。
+- 多人房间页「房间内玩家列表」改为右上角悬浮卡片（`top: 56px; right: 14px; width: min(260px, 50%-14px)`、深色背景 + 阴影、`max-height: 50dvh` 内部滚动），昵称过长 ellipsis、密度更高、不再挤压聊天区。
+- 多人消息发送：本地 pending 渲染时按 `p.input.type` 带上 `turn-${kind}` 方向类与本人昵称前缀，消除服务端确认后的「先默认占位再换方向」闪烁。
+- Auth 页面：`<a>` 默认 `#8fc6ff` 浅蓝色 + hover 下划线；topbar 右侧 `lang-switch` 按钮（zh ↔ en）出现在登录 / 注册 / 找回密码页，与首页一致。
+- 单人游戏页题面卡新增难度徽章（`easy` / `medium` / `hard`，与列表卡片样式一致）；私人试题预览（`/creations/:id/preview`）与单人游戏共用 `GameHeader` / 题面卡 / chat / `TurnCard`（共享组件 `apps/web/src/game/turn-card.tsx`）/ `ChatInput` / 操作行。
+- i18n 新增：`emailField` / `passwordField` / `langSwitchAria` / `roundStatus{Active,Solved,Revealed,Abandoned,Aborted}`；「我的」历史中的 round 状态由后端枚举翻译为用户文案。
+- 本次以 `pnpm --filter @jev/web exec tsc -p tsconfig.json --noEmit` 单工作区类型检查通过；未新增单测、未部署、未跑端到端。
 
 ## 5. 已知边界与下一步
 

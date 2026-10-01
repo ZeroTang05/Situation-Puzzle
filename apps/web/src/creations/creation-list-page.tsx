@@ -21,28 +21,29 @@ export function CreationListPage({ session }: { session: Session | null }) {
     {query.isPending && <p role="status">{text.loading}</p>}
     {query.error && <p className="error-text" role="alert">{query.error.message}</p>}
     {query.data?.items.length === 0 && <section className="creation-empty"><p>{text.empty}</p><Link className="btn btn-primary" to="/creations/new">{text.create}</Link></section>}
-    <div className="creation-list">{query.data?.items.map((work) => <article key={work.puzzleId} className="creation-row">
-      <header className="creation-row-head">
-        <div className="creation-row-head-l">
-          <span className={`creation-status status-${work.status}`}>{creationStatusLabel(work.status, language)}</span>
-          <span className="creation-row-meta muted">v{work.versionNo} · {work.language === 'en' ? copy.languageEn : copy.languageZh}</span>
-          {work.published && <span className="creation-row-published muted">{work.publishedLanguage === 'en' ? copy.languageEn : copy.languageZh} · {text.public}</span>}
+    <ul className="creation-list">{query.data?.items.map((work) => <li key={work.puzzleId} className="creation-item">
+      <div className="creation-item-main">
+        <Link className="creation-item-title" to={`/creations/${work.puzzleId}`}>{work.title}</Link>
+        <div className="creation-item-meta">
+          <span className={`creation-status-dot status-${work.status}`} aria-label={creationStatusLabel(work.status, language)} />
+          <span className="muted">{creationStatusLabel(work.status, language)}</span>
+          <span className="dot" aria-hidden>·</span>
+          <span className="muted">v{work.versionNo}</span>
+          <span className="dot" aria-hidden>·</span>
+          <span className="muted">{work.language === 'en' ? copy.languageEn : copy.languageZh}</span>
+          <span className="dot" aria-hidden>·</span>
+          <span className="muted">👍 {work.upCount}</span>
+          <span className="dot" aria-hidden>·</span>
+          <span className="muted">👎 {work.downCount}</span>
+          <span className="dot" aria-hidden>·</span>
+          <span className="muted">{new Date(work.updatedAt).toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US')}</span>
         </div>
-        <div className="creation-row-head-r">
-          <span className="creation-row-stat" title={text.feedback}>
-            <span aria-hidden>👍</span>{work.upCount}
-            <span className="creation-row-stat-sep" aria-hidden>·</span>
-            <span aria-hidden>👎</span>{work.downCount}
-          </span>
-          <span className="creation-row-meta muted">{new Date(work.updatedAt).toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US')}</span>
-        </div>
-      </header>
-      <Link className="creation-row-title" to={`/creations/${work.puzzleId}`}><h3>{work.title}</h3></Link>
-      {work.pendingName && <p className="creation-row-pending"><span className="creation-row-pending-label">{text.pendingName}</span>：{work.pendingName}</p>}
-      <footer className="creation-row-actions">
-        <Link className="btn btn-sm" to={`/creations/${work.puzzleId}`}>{text.edit}</Link>
-        {work.published && <Link className="btn btn-sm btn-ghost" to={`/solo/${work.puzzleId}?lang=${work.publishedLanguage}`}>{text.public}</Link>}
-      </footer>
-    </article>)}</div>
+        {work.pendingName && <div className="creation-item-pending muted">{text.pendingName}：{work.pendingName}</div>}
+      </div>
+      <div className="creation-item-actions">
+        <Link className="creation-item-link" to={`/creations/${work.puzzleId}`}>{text.edit}</Link>
+        {work.published && <Link className="creation-item-link" to={`/solo/${work.puzzleId}?lang=${work.publishedLanguage}`}>{text.public}</Link>}
+      </div>
+    </li>)}</ul>
   </main>;
 }

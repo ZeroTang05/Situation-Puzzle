@@ -1,5 +1,5 @@
-/** 「我的」：账号、赞助有效期、免费开房余量、多人历史与订单。 */
-import { useNavigate } from 'react-router';
+/** 「我的」：账号、赞助有效期、免费开房余量、多人历史；统一单面板紧凑布局。 */
+import { useNavigate, Link } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api, translateApiError } from '../api/client.js';
@@ -8,6 +8,8 @@ import { useLanguage } from '../state/language.js';
 import { clearRoomLocal } from '../rooms/room-local.js';
 import { format } from '@jev/i18n';
 import type { Language } from '@jev/i18n';
+import type { Session } from '../session.js';
+import { creationCopy } from '../creations/copy.js';
 
 /** 把服务端 round.status 翻译成中文/英文用户文案；未识别值回退到原值便于排查。 */
 function roundStatusLabel(status: string, language: Language, copy: { roundStatusActive: string; roundStatusSolved: string; roundStatusRevealed: string; roundStatusAbandoned: string; roundStatusAborted: string }) {
@@ -20,8 +22,6 @@ function roundStatusLabel(status: string, language: Language, copy: { roundStatu
     default: return status;
   }
 }
-import type { Session } from '../session.js';
-import { creationCopy } from '../creations/copy.js';
 
 interface MeResponse {
   userId: string;
@@ -45,7 +45,6 @@ export function MePage({ session }: { session: Session | null }) {
   const { copy, language } = useLanguage();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  // 昵称修改：允许重名，保存后让 /me 重新拉取
   const [editingNickname, setEditingNickname] = useState(false);
   const [nicknameDraft, setNicknameDraft] = useState('');
   const [nicknameError, setNicknameError] = useState<string | null>(null);
@@ -64,7 +63,6 @@ export function MePage({ session }: { session: Session | null }) {
       setEditingNickname(false);
     } catch (error) {
       setNicknameError(translateApiError(error, language, copy.saveFail));
-      return;
     } finally {
       setSavingNickname(false);
     }
@@ -80,6 +78,10 @@ export function MePage({ session }: { session: Session | null }) {
     );
   }
 
+  const freeRooms = me.data?.freeRooms;
+  const hasUnlimited = me.data?.sponsorship.lifetime || me.data?.sponsorship.monthlyUntil;
+  const freeRoomsLabel = freeRooms ? (hasUnlimited ? copy.unlimited : `${freeRooms.total - freeRooms.consumed - freeRooms.reserved} / ${freeRooms.total}`) : '—';
+
   return (
     <main className="shell narrow">
       <header className="topbar">
@@ -87,104 +89,78 @@ export function MePage({ session }: { session: Session | null }) {
         <h1 className="brand brand-sm">{copy.me}</h1>
       </header>
 
-      <section className="panel stack">
-        <div className="me-card-head">
-          {editingNickname ? (
-            <span className="muted">{copy.nickname}</span>
-          ) : (
-            <h2 style={{ margin: 0 }}>{me.data?.nickname ?? session.user.email}</h2>
-          )}
-          <button className="btn btn-primary btn-sm" onClick={() => navigate('/creations')}>{creationCopy(language).works}</button>
+      {/* 账号信息：单条扁平分组，标题 + 元信息 */}
+      <section className="me-section">
+        <div className="me-row me-row-head">
+          <div className="me-row-main">
+            {editingNickname ? (
+              <span className="me-row-label muted">{copy.nickname}</span>
+            ) : (
+              <h2 className="me-name">{me.data?.nickname ?? session.user.email}</h2>
+            )}
+            <div className="me-row-meta">
+              <span className="muted">{session.user.email}</span>
+              <span className="dot" aria-hidden>·</span>
+              <span className="muted">{copy.freeRooms} {freeRoomsLabel}</span>
+              {me.data?.sponsorship.lifetime && <><span className="dot" aria-hidden>·</span><span className="me-row-pill">{copy.lifetime}{copy.sponsored}</span></>}
+              {me.data?.sponsorship.monthlyUntil && !me.data.sponsorship.lifetime && <><span className="dot" aria-hidden>·</span><span className="muted">{copy.sponsored}至 {new Date(me.data.sponsorship.monthlyUntil).toLocaleDateString()}</span></>}
+            </div>
+          </div>
+          <div className="me-row-actions">
+            <button className="btn btn-sm btn-primary" onClick={() => navigate('/creations')}>{creationCopy(language).works}</button>
+            {!editingNickname && <button className="creation-item-link" onClick={() => { setNicknameDraft(me.data?.nickname ?? ''); setEditingNickname(true); }}>{copy.modify}</button>}
+          </div>
         </div>
-        {editingNickname ? (
-          <>
+
+        {editingNickname && (
+          <div className="me-row me-row-edit">
             <label className="field-label" htmlFor="nickname">
-              {copy.nickname}
-              <input
-                id="nickname"
-                className="field"
-                type="text"
-                value={nicknameDraft}
-                maxLength={30}
-                onChange={(e) => setNicknameDraft(e.target.value)}
-                placeholder={copy.nicknameRule}
-              />
+              <span className="muted">{copy.nickname}</span>
+              <input id="nickname" className="field" type="text" value={nicknameDraft} maxLength={30} onChange={(e) => setNicknameDraft(e.target.value)} />
             </label>
             {nicknameError && <p className="error-text" role="alert">{nicknameError}</p>}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                className="btn btn-primary"
-                disabled={savingNickname || nicknameDraft.trim().length === 0}
-                onClick={() => void saveNickname()}
-              >
-                {copy.saved}
-              </button>
-              <button className="btn" disabled={savingNickname} onClick={() => setEditingNickname(false)}>
-                {copy.cancelEdit}
-              </button>
+            <div className="me-row-actions">
+              <button className="btn btn-sm btn-primary" disabled={savingNickname || nicknameDraft.trim().length === 0} onClick={() => void saveNickname()}>{copy.saved}</button>
+              <button className="btn btn-sm" disabled={savingNickname} onClick={() => setEditingNickname(false)}>{copy.cancelEdit}</button>
             </div>
-          </>
-        ) : (
-          <div className="me-card-meta">
-            <button
-              className="btn btn-sm btn-ghost"
-              onClick={() => {
-                setNicknameDraft(me.data?.nickname ?? '');
-                setEditingNickname(true);
-              }}
-            >
-              {copy.modify}
-            </button>
           </div>
         )}
-        <p className="muted">{session.user.email}</p>
-        {me.data && (
-          <p>
-            {copy.freeRooms}：
-            {me.data.sponsorship.lifetime || me.data.sponsorship.monthlyUntil
-              ? copy.unlimited
-              : `${me.data.freeRooms.total - me.data.freeRooms.consumed - me.data.freeRooms.reserved} / ${me.data.freeRooms.total}`}
-          </p>
-        )}
-        {me.data?.sponsorship.monthlyUntil && <p className="muted">{copy.sponsored}至 {new Date(me.data.sponsorship.monthlyUntil).toLocaleString()}</p>}
-        {me.data?.sponsorship.lifetime && <p className="verdict-badge verdict-solved">{copy.lifetime}{copy.sponsored}</p>}
-        <button
-          className="btn btn-ghost"
-          onClick={() =>
-            void clearRoomLocal(session.user.id).then(() => authClient.signOut()).then(() => {
-              queryClient.clear();
-              navigate('/');
-            })
-          }
-        >
-          {copy.logout}
-        </button>
+
+        <div className="me-row me-row-footer">
+          <button className="creation-item-link creation-item-link-danger" onClick={() => void clearRoomLocal(session.user.id).then(() => authClient.signOut()).then(() => { queryClient.clear(); navigate('/'); })}>{copy.logout}</button>
+        </div>
       </section>
 
-      <section className="panel stack">
-        <h3>{copy.history}</h3>
+      {/* 房间历史：紧凑行项列表，无卡片框 */}
+      <section className="me-section">
+        <div className="me-section-head">
+          <h3 className="me-section-title">{copy.history}</h3>
+          {(historyPage > 1 || history.data?.hasMore) && (
+            <div className="me-section-pager">
+              <button className="creation-item-link" disabled={historyPage === 1 || history.isFetching} onClick={() => setHistoryPage((p) => p - 1)}>{copy.previousPage}</button>
+              <span className="muted">{format(copy.pageNumber, { n: historyPage })}</span>
+              <button className="creation-item-link" disabled={!history.data?.hasMore || history.isFetching} onClick={() => setHistoryPage((p) => p + 1)}>{copy.nextPage}</button>
+            </div>
+          )}
+        </div>
         {history.isPending && <p className="muted">{copy.loadingRound}</p>}
         {history.isError && <p className="error-text" role="alert">{copy.historyLoadFail}</p>}
         {history.data?.rooms.length === 0 && <p className="muted">{copy.noRoomHistory}</p>}
-        {history.data?.rooms.map((room) => (
-          <article key={room.roomId} className="stack-sm">
-            <button className="btn btn-sm" onClick={() => navigate(`/rooms/${room.roomId}`)}>
-              {new Date(room.createdAt).toLocaleDateString()} · {room.roomStatus === 'closed' ? copy.roomStatusClosed : copy.roomStatusActive}
-            </button>
-            {room.rounds.map((r) => (
-              <p key={r.roundId} className="muted">
-                {format(copy.roundX, { n: r.roundNo })} {r.title ?? ''} · {roundStatusLabel(r.status, language, copy)}
-              </p>
-            ))}
-          </article>
-        ))}
-        {(historyPage > 1 || history.data?.hasMore) && <nav className="history-pagination" aria-label={copy.history}>
-          <button className="btn btn-sm" disabled={historyPage === 1 || history.isFetching} onClick={() => setHistoryPage((page) => page - 1)}>{copy.previousPage}</button>
-          <span>{format(copy.pageNumber, { n: historyPage })}</span>
-          <button className="btn btn-sm" disabled={!history.data?.hasMore || history.isFetching} onClick={() => setHistoryPage((page) => page + 1)}>{copy.nextPage}</button>
-        </nav>}
+        <ul className="me-history">
+          {history.data?.rooms.map((room) => (
+            <li key={room.roomId} className="me-history-item">
+              <Link className="creation-item-link" to={`/rooms/${room.roomId}`}>{new Date(room.createdAt).toLocaleDateString()} · {room.roomStatus === 'closed' ? copy.roomStatusClosed : copy.roomStatusActive}</Link>
+              {room.rounds.length > 0 && (
+                <ul className="me-history-rounds">
+                  {room.rounds.map((r) => (
+                    <li key={r.roundId} className="muted">{format(copy.roundX, { n: r.roundNo })} {r.title ?? ''} · {roundStatusLabel(r.status, language, copy)}</li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ul>
       </section>
-
     </main>
   );
 }

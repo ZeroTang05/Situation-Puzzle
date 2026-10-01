@@ -40,6 +40,8 @@ sequenceDiagram
 
 单人页删除主持人介绍；提示、还原答案、看汤底并排放在输入框上方。提示卡标题、图标和翻页按钮压缩为一行。单人和房间页共用居中顶部栏、提示卡片及低对比海底图片背景；背景随容器比例裁切，汤面使用深海配色的细滚动条。
 
+单人页面与作者私人试题预览（`/creations/:id/preview`）共用 `GameHeader`、题面卡、聊天气泡（共享 `TurnCard` 组件）、`HintCapsule`、`ChatInput` 与底部 composer 与 action-row；差异仅在数据来源（公开题库 vs 当前作者作品）与可用操作（公开题库支持「换一题」，预览只支持「重置」）。单人题面卡在有 `difficulty` 时显示难度色点/徽章。
+
 ## 3. 单人 HTTP 契约
 
 普通单人请求使用 `credentials: omit`（不携带账号 Cookie），不加载账号认证中间件。服务端仍忽略主动附带的 Cookie/Authorization，不将其写日志。接口只接受允许的字段，多余历史、身份或客户端答案字段直接拒绝。
