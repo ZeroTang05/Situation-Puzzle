@@ -1,24 +1,23 @@
-/** 私人试题复用真实单人接口；凭证来自作者鉴权，问答只写浏览器。 */
+/** 私人试题复用真实单人接口；UI 与单人页保持一致（顶部栏 / 题面卡 / 聊天 / 操作行）。 */
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
 import { creationPreviewSchema, type CreationPreview } from '@jev/contracts';
-import { displayVerdict } from '@jev/i18n';
 import { api } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
 import type { Session } from '../session.js';
 import { soloStore, type SoloSessionRow } from '../solo/local-store.js';
 import { HintCapsule } from '../game/hint-capsule.js';
-import { confidenceLabel } from '../game/game-display.js';
+import { TurnCard, type PreviewTurn } from '../game/turn-card.js';
+import { GameHeader } from '../game/game-header.js';
+import { ChatInput } from '../game/chat-input.js';
 import { creationCopy } from './copy.js';
 
-type Turn = Awaited<ReturnType<typeof soloStore.listTurns>>[number];
-
 export function CreationPreviewPage({ session: account }: { session: Session | null }) {
-  const { puzzleId } = useParams(); const { language } = useLanguage(); const text = creationCopy(language);
+  const { puzzleId } = useParams(); const { copy, language } = useLanguage(); const text = creationCopy(language);
   const [preview, setPreview] = useState<CreationPreview | null>(null); const [local, setLocal] = useState<SoloSessionRow | null>(null);
-  const [turns, setTurns] = useState<Turn[]>([]); const [input, setInput] = useState(''); const [mode, setMode] = useState<'ask' | 'solve'>('ask');
+  const [turns, setTurns] = useState<PreviewTurn[]>([]); const [input, setInput] = useState(''); const [mode, setMode] = useState<'ask' | 'solve'>('ask');
   const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null); const [revision, setRevision] = useState(0);
-  const forceNew = useRef(false); const bottom = useRef<HTMLDivElement>(null);
+  const forceNew = useRef(false); const chatRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!account || !puzzleId) return;
     let cancelled = false;
@@ -31,33 +30,33 @@ export function CreationPreviewPage({ session: account }: { session: Session | n
         const reuse = !forceNew.current && existing?.versionId === token.versionId && existing.previewDigest === token.contentHash;
         const row = reuse ? { ...existing!, token: token.token } : await soloStore.createSession({ puzzleId: key, versionId: token.versionId, language: token.language, title: token.title, surface: token.surface, token: token.token, configVersion: token.configVersion, previewDigest: token.contentHash });
         if (reuse) await soloStore.updateSession(row.localSessionId, { token: token.token });
-        const records = await soloStore.listTurns(row.localSessionId); const draft = await soloStore.loadDraft(row.localSessionId);
+        const records = await soloStore.listTurns(row.localSessionId) as PreviewTurn[]; const draft = await soloStore.loadDraft(row.localSessionId);
         if (cancelled) return;
         forceNew.current = false; setPreview(token); setLocal(row); setTurns(records); setInput(draft?.text ?? ''); setMode(draft?.inputMode ?? 'ask');
       } catch (error) { if (!cancelled) setError(error instanceof Error ? error.message : String(error)); }
     })();
     return () => { cancelled = true; };
   }, [account?.user.id, puzzleId, revision]);
-  useEffect(() => { bottom.current?.scrollIntoView({ block: 'end' }); }, [turns.length]);
+  useEffect(() => { chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: 'smooth' }); }, [turns.length, local?.revealedAnswer]);
 
   const ask = async () => {
     if (!local || !preview || !input.trim() || busy) return;
     setBusy(true); setError(null);
+    const question = input.trim();
+    const id = await soloStore.addTurn({ localSessionId: local.localSessionId, kind: mode, text: question });
+    setTurns(await soloStore.listTurns(local.localSessionId) as PreviewTurn[]);
     try {
-      const question = input.trim();
-      const id = await soloStore.addTurn({ localSessionId: local.localSessionId, kind: mode, text: question });
-      setTurns(await soloStore.listTurns(local.localSessionId));
-      try {
-        const result = await api<{ result: string; confidence: number; answer?: string }>(mode === 'ask' ? '/solo/judge' : '/solo/solve', { method: 'POST', body: mode === 'ask' ? { token: preview.token, question } : { token: preview.token, solution: question }, credentials: 'omit' });
-        await soloStore.finishTurn(id, { status: 'succeeded', result: result.result, confidence: result.confidence });
-        if (result.answer) { await soloStore.updateSession(local.localSessionId, { revealedAnswer: result.answer }); setLocal({ ...local, revealedAnswer: result.answer }); }
-        await soloStore.saveDraft(local.localSessionId, mode, ''); setInput('');
-      } catch (error) {
-        await soloStore.finishTurn(id, { status: 'failed', failNote: error instanceof Error ? error.message : String(error) });
-        throw error;
-      } finally { setTurns(await soloStore.listTurns(local.localSessionId)); }
-    } catch (error) { setError(error instanceof Error ? error.message : String(error)); }
-    finally { setBusy(false); }
+      const result = await api<{ result: string; confidence: number; answer?: string }>(mode === 'ask' ? '/solo/judge' : '/solo/solve', { method: 'POST', body: mode === 'ask' ? { token: preview.token, question } : { token: preview.token, solution: question }, credentials: 'omit' });
+      await soloStore.finishTurn(id, { status: 'succeeded', result: result.result, confidence: result.confidence });
+      if (result.answer) { await soloStore.updateSession(local.localSessionId, { revealedAnswer: result.answer }); setLocal({ ...local, revealedAnswer: result.answer }); }
+      await soloStore.saveDraft(local.localSessionId, mode, ''); setInput('');
+    } catch (error) {
+      await soloStore.finishTurn(id, { status: 'failed', failNote: error instanceof Error ? error.message : String(error) });
+      setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setTurns(await soloStore.listTurns(local.localSessionId) as PreviewTurn[]);
+      setBusy(false);
+    }
   };
   const hint = async () => {
     if (!local || !preview || busy) return;
@@ -68,7 +67,8 @@ export function CreationPreviewPage({ session: account }: { session: Session | n
       const id = await soloStore.addTurn({ localSessionId: local.localSessionId, kind: 'ask', text: result.text });
       await soloStore.finishTurn(id, { status: 'succeeded', result: 'hint' });
       await soloStore.updateSession(local.localSessionId, { hintsUnlocked: [...local.hintsUnlocked, index] });
-      setLocal({ ...local, hintsUnlocked: [...local.hintsUnlocked, index] }); setTurns(await soloStore.listTurns(local.localSessionId));
+      setLocal({ ...local, hintsUnlocked: [...local.hintsUnlocked, index] });
+      setTurns(await soloStore.listTurns(local.localSessionId) as PreviewTurn[]);
     } catch (error) { setError(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
   };
@@ -79,18 +79,92 @@ export function CreationPreviewPage({ session: account }: { session: Session | n
     catch (error) { setError(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
   };
+  const reset = () => { forceNew.current = true; setRevision((value) => value + 1); };
+
   if (!account) return <Navigate to={`/login?next=${encodeURIComponent(`/creations/${puzzleId}/preview`)}`} replace />;
-  return <main className="shell">
-    <header className="topbar"><Link className="btn btn-ghost btn-sm" to={`/creations/${puzzleId}`}>{text.backEditor}</Link><h1 className="brand brand-sm">{text.previewTitle}</h1></header>
-    {error && <p className="error-text" role="alert">{error}</p>}
-    {!local && !error && <p role="status">{text.loading}</p>}
-    {local && preview && <><section className="hero-card"><h2>{preview.title}</h2><p className="story">{preview.surface}</p></section>
-      <section className="chat" aria-live="polite">{turns.filter((turn) => turn.result !== 'hint').map((turn) => <article key={turn.localTurnId} className={`turn turn-${turn.kind}`}><p className="turn-text">{turn.text}</p>{turn.status === 'sending' && <p className="muted">{text.judging}</p>}{turn.status === 'failed' && <p className="error-text">{turn.failNote ?? text.failed}</p>}{turn.result && <p className="turn-result"><span className={`verdict-badge verdict-${turn.result}`}>{displayVerdict(turn.result, language)}</span><small className="confidence">{confidenceLabel(turn.confidence, language)}</small></p>}</article>)}<div ref={bottom} /></section>
-      <HintCapsule hints={turns.filter((turn) => turn.result === 'hint').map((turn) => turn.text)} total={preview.hintsTotal} />
-      {local.revealedAnswer && <section className="panel answer-panel"><h3>{text.answer}</h3><p>{local.revealedAnswer}</p></section>}
-      <div className="hint-row"><button className="btn btn-sm" disabled={busy || local.hintsUnlocked.length >= preview.hintsTotal} onClick={() => void hint()}>{text.hint} {local.hintsUnlocked.length}/{preview.hintsTotal}</button><button className="btn btn-sm btn-ghost" disabled={busy} onClick={() => void reveal()}>{text.reveal}</button><button className="btn btn-sm btn-ghost" disabled={busy} onClick={() => { forceNew.current = true; setRevision((value) => value + 1); }}>{text.reset}</button></div>
-      <footer className="composer"><div className="mode-tabs" role="tablist">{(['ask', 'solve'] as const).map((value) => <button className={`mode-tab ${mode === value ? 'active' : ''}`} key={value} role="tab" aria-selected={mode === value} disabled={busy} onClick={() => setMode(value)}>{text[value]}</button>)}</div>
-        <div className="composer-row"><textarea aria-label={text.question} className="field composer-input" rows={2} disabled={busy} maxLength={mode === 'ask' ? 500 : 1500} placeholder={mode === 'ask' ? text.placeholder : text.solvePlaceholder} value={input} onChange={(event) => { setInput(event.target.value); void soloStore.saveDraft(local.localSessionId, mode, event.target.value).catch((error: unknown) => setError(error instanceof Error ? error.message : String(error))); }} /><button className="btn btn-primary" disabled={busy || !input.trim()} onClick={() => void ask()}>{text.send}</button></div>
-      </footer></>}
-  </main>;
+  if (error && !local) {
+    return (
+      <main className="shell">
+        <header className="topbar"><Link className="btn btn-ghost btn-sm" to={`/creations/${puzzleId}`}>{text.backEditor}</Link></header>
+        <p className="error-text">{error}</p>
+      </main>
+    );
+  }
+  if (!local || !preview) return <main className="shell page-loading">{text.loading}</main>;
+
+  const solved = local.status === 'solved';
+  const hintProgress = `${local.hintsUnlocked.length}/${preview.hintsTotal}`;
+  return (
+    <main className="shell solo-shell">
+      <GameHeader
+        title={text.previewTitle}
+        back={<Link className="btn btn-ghost btn-sm" to={`/creations/${puzzleId}`}>{text.backEditor}</Link>}
+        action={<button className="btn btn-ghost btn-sm" disabled={busy} onClick={reset}>{text.reset}</button>}
+      />
+
+      <section className="story-card solo-story game-scroll">
+        <p className="accent">{preview.title}</p>
+        <p className="story">{preview.surface}</p>
+      </section>
+
+      <section className="chat solo-chat game-scroll" ref={chatRef} aria-live="polite">
+        {turns.filter((turn) => turn.result !== 'hint').map((turn) => (
+          <TurnCard key={turn.localTurnId} turn={turn} copy={copy} language={language} />
+        ))}
+        {solved && (
+          <section className="panel verdict-panel">
+            <p className="verdict-badge verdict-solved">✓</p>
+            <p className="muted">{text.previewTitle}</p>
+          </section>
+        )}
+        {local.revealedAnswer && (
+          <section className="panel answer-panel">
+            <h3>{text.answer}</h3>
+            <p>{local.revealedAnswer}</p>
+          </section>
+        )}
+      </section>
+
+      <div className="solo-bottom game-scroll">
+        {error && <p className="error-text" role="alert">{error}</p>}
+        <HintCapsule hints={turns.filter((turn) => turn.result === 'hint').map((turn) => turn.text)} total={preview.hintsTotal} />
+        <section className="solo-action-row" role="group" aria-label={text.hint}>
+          <button className="btn btn-sm" disabled={busy || local.hintsUnlocked.length >= preview.hintsTotal} onClick={() => void hint()}>
+            {text.hint} {hintProgress}
+          </button>
+          <button className="btn btn-sm" aria-pressed={mode === 'solve'} disabled={busy || solved || Boolean(local.revealedAnswer)} onClick={() => {
+            const next = mode === 'solve' ? 'ask' : 'solve';
+            setMode(next);
+            setInput('');
+            void soloStore.saveDraft(local.localSessionId, next, '').catch(() => undefined);
+          }}>{text.solve}</button>
+          <button className="btn btn-sm" disabled={busy || Boolean(local.revealedAnswer)} onClick={() => void reveal()}>{text.reveal}</button>
+        </section>
+
+        {!solved && !local.revealedAnswer && (
+          <footer className="composer solo-composer">
+            <div className="composer-row">
+              <ChatInput
+                aria-label={mode === 'ask' ? text.ask : text.solve}
+                maxLength={mode === 'ask' ? 500 : 1500}
+                value={input}
+                placeholder={mode === 'ask' ? text.placeholder : text.solvePlaceholder}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  void soloStore.saveDraft(local.localSessionId, mode, e.target.value).catch((error: unknown) => setError(error instanceof Error ? error.message : String(error)));
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    void ask();
+                  }
+                }}
+              />
+              <button className="btn btn-primary" disabled={busy || !input.trim()} onClick={() => void ask()}>{text.send}</button>
+            </div>
+          </footer>
+        )}
+      </div>
+    </main>
+  );
 }

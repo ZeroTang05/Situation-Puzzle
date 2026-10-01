@@ -23,16 +23,22 @@ export function CreationListPage({ session }: { session: Session | null }) {
     {query.data?.items.length === 0 && <section className="creation-empty"><p>{text.empty}</p><Link className="btn btn-primary" to="/creations/new">{text.create}</Link></section>}
     <div className="creation-list">{query.data?.items.map((work) => <article key={work.puzzleId} className="creation-row">
       <header className="creation-row-head">
-        <span className={`creation-status status-${work.status}`}>{creationStatusLabel(work.status, language)}</span>
-        <span className="creation-row-meta muted">{text.version} {work.versionNo} · {work.language === 'en' ? copy.languageEn : copy.languageZh}</span>
+        <div className="creation-row-head-l">
+          <span className={`creation-status status-${work.status}`}>{creationStatusLabel(work.status, language)}</span>
+          <span className="creation-row-meta muted">v{work.versionNo} · {work.language === 'en' ? copy.languageEn : copy.languageZh}</span>
+          {work.published && <span className="creation-row-published muted">{work.publishedLanguage === 'en' ? copy.languageEn : copy.languageZh} · {text.public}</span>}
+        </div>
+        <div className="creation-row-head-r">
+          <span className="creation-row-stat" title={text.feedback}>
+            <span aria-hidden>👍</span>{work.upCount}
+            <span className="creation-row-stat-sep" aria-hidden>·</span>
+            <span aria-hidden>👎</span>{work.downCount}
+          </span>
+          <span className="creation-row-meta muted">{new Date(work.updatedAt).toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US')}</span>
+        </div>
       </header>
       <Link className="creation-row-title" to={`/creations/${work.puzzleId}`}><h3>{work.title}</h3></Link>
-      <p className="creation-row-stats muted">
-        <span>👍 {work.upCount}</span>
-        <span>👎 {work.downCount}</span>
-        <span>{text.feedback} {work.popularityScore}</span>
-      </p>
-      {work.pendingName && <p className="creation-row-pending muted">{text.pendingName}：{work.pendingName}</p>}
+      {work.pendingName && <p className="creation-row-pending"><span className="creation-row-pending-label">{text.pendingName}</span>：{work.pendingName}</p>}
       <footer className="creation-row-actions">
         <Link className="btn btn-sm" to={`/creations/${work.puzzleId}`}>{text.edit}</Link>
         {work.published && <Link className="btn btn-sm btn-ghost" to={`/solo/${work.puzzleId}?lang=${work.publishedLanguage}`}>{text.public}</Link>}

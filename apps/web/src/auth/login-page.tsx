@@ -258,7 +258,7 @@ export function LoginPage() {
                   {copy.login}
                 </button>
                 <p className="muted" style={{ textAlign: 'center' }}>
-                  {copy.forgotPassword}？<a href="/forgot-password">{copy.forgotPasswordLink}</a>
+                  {copy.forgotPassword}？ <a href="/forgot-password">{copy.forgotPasswordLink}</a>
                 </p>
               </div>
             )}
@@ -423,9 +423,9 @@ export function LoginPage() {
         {/* 模式切换：底部超链接 */}
         <p className="muted" style={{ textAlign: 'center', marginTop: 12 }}>
           {mode === 'signin' ? (
-            <>{copy.noAccount}<a href="#" onClick={(e) => { e.preventDefault(); switchMode('signup'); }}>{copy.goSignup}</a></>
+            <>{copy.noAccount} <a href="#" onClick={(e) => { e.preventDefault(); switchMode('signup'); }}>{copy.goSignup}</a></>
           ) : (
-            <>{copy.haveAccount}<a href="#" onClick={(e) => { e.preventDefault(); switchMode('signin'); }}>{copy.goLogin}</a></>
+            <>{copy.haveAccount} <a href="#" onClick={(e) => { e.preventDefault(); switchMode('signin'); }}>{copy.goLogin}</a></>
           )}
         </p>
       </section>

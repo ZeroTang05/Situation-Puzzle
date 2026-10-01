@@ -171,18 +171,18 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
       <fieldset disabled={!editable || busy}>
         <section className="creation-section"><h2>{text.story}</h2>
           <Field id="title" label={text.title} required error={fieldErrors.title}><input className="field" required maxLength={60} value={draft.title} onChange={(event) => change('title', event.target.value)} /></Field>
-          <div className="creation-fields"><Field id="language" label={text.language}><select className="field" value={draft.language} onChange={(event) => change('language', event.target.value as 'zh' | 'en')}><option value="zh">{copy.languageZh}</option><option value="en">{copy.languageEn}</option></select></Field>
-            <Field id="difficulty" label={text.difficulty}><select className="field" value={draft.difficulty} onChange={(event) => change('difficulty', event.target.value as CreationDraft['difficulty'])}><option value="easy">{text.easy}</option><option value="medium">{text.medium}</option><option value="hard">{text.hard}</option></select></Field></div>
+          <div className="creation-fields"><Field id="language" label={text.language}><Segmented value={draft.language} options={[{ value: 'zh', label: copy.languageZh }, { value: 'en', label: copy.languageEn }]} onChange={(value) => change('language', value as 'zh' | 'en')} /></Field>
+            <Field id="difficulty" label={text.difficulty}><Segmented value={draft.difficulty} options={[{ value: 'easy', label: text.easy }, { value: 'medium', label: text.medium }, { value: 'hard', label: text.hard }]} onChange={(value) => change('difficulty', value as CreationDraft['difficulty'])} /></Field></div>
           <Field id="surface" label={text.surface} required error={fieldErrors.surface}><textarea className="field" rows={5} maxLength={2000} value={draft.surface} onChange={(event) => change('surface', event.target.value)} /></Field>
         </section>
         <section className="creation-section"><h2>{text.truth}</h2>
           <Field id="answer" label={text.answer} required error={fieldErrors.answer}><textarea className="field" rows={6} maxLength={4000} value={draft.answer} onChange={(event) => change('answer', event.target.value)} /></Field>
-          {[0, 1, 2].map((index) => <Field key={index} id={`hints.${index}`} label={`${text.hint} ${index + 1}${index === 0 ? '' : language === 'zh' ? '（可选）' : ' (optional)'}`} required={index === 0} error={fieldErrors[`hints.${index}`]}><textarea className="field" rows={2} maxLength={500} value={draft.hints[index] ?? ''} placeholder={index === 0 ? '' : language === 'zh' ? '可不填' : 'Optional'} onChange={(event) => { change('hints', [0, 1, 2].map((i) => i === index ? event.target.value : draft.hints[i] ?? '')); clearField(`hints.${index}`); }} /></Field>)}
+          {[0, 1, 2].map((index) => <Field key={index} id={`hints.${index}`} label={`${text.hint} ${index + 1}${index === 0 ? (language === 'zh' ? '（必填）' : ' (required)') : language === 'zh' ? '（可选）' : ' (optional)'}`} required={index === 0} error={fieldErrors[`hints.${index}`]}><textarea className="field field-hint" rows={1} maxLength={500} value={draft.hints[index] ?? ''} onChange={(event) => { change('hints', [0, 1, 2].map((i) => i === index ? event.target.value : draft.hints[i] ?? '')); clearField(`hints.${index}`); }} /></Field>)}
         </section>
         <section className="creation-section"><h2>{text.origin}</h2>
-          <Field id="origin" label={text.origin}><select className="field" value={draft.origin} onChange={(event) => { change('origin', event.target.value as CreationDraft['origin']); if (event.target.value === 'original') change('sourceUrl', ''); }}><option value="original">{text.original}</option><option value="repost">{text.repost}</option></select></Field>
+          <Field id="origin" label={text.origin}><Segmented value={draft.origin} options={[{ value: 'original', label: text.original }, { value: 'repost', label: text.repost }]} onChange={(value) => { change('origin', value as CreationDraft['origin']); if (value === 'original') change('sourceUrl', ''); }} /></Field>
           {draft.origin === 'repost' && <Field id="sourceUrl" label={text.sourceUrl} required error={fieldErrors.sourceUrl}><input className="field" type="url" value={draft.sourceUrl} onChange={(event) => change('sourceUrl', event.target.value)} /></Field>}
-          <Field id="attribution" label={text.attribution}><select className="field" value={draft.authorDisplay.mode} onChange={(event) => change('authorDisplay', event.target.value === 'anonymous' ? { mode: 'anonymous' } : { mode: 'signature', name: session.user.name })}><option value="anonymous">{text.anonymous}</option><option value="signature">{text.signature}</option></select></Field>
+          <Field id="attribution" label={text.attribution}><Segmented value={draft.authorDisplay.mode} options={[{ value: 'anonymous', label: text.anonymous }, { value: 'signature', label: text.signature }]} onChange={(value) => change('authorDisplay', value === 'anonymous' ? { mode: 'anonymous' } : { mode: 'signature', name: session.user.name })} /></Field>
           {draft.authorDisplay.mode === 'signature' && <Field id="authorDisplay.name" label={text.displayName} required error={fieldErrors['authorDisplay.name']}><input className="field" maxLength={30} value={draft.authorDisplay.name} onChange={(event) => change('authorDisplay', { mode: 'signature', name: event.target.value })} /></Field>}
         </section>
       </fieldset>
@@ -222,4 +222,27 @@ function FieldChild({ invalid, children }: { invalid: boolean; children: ReactNo
   const element = children as React.ReactElement<{ 'aria-invalid'?: boolean }>;
   if (element.props['aria-invalid'] !== undefined) return <>{children}</>;
   return <>{invalid ? cloneElement(element, { 'aria-invalid': true }) : children}</>;
+}
+
+/** 分段按钮组：替代 native select，避免 Android 原生选择弹窗；选项少时更直观。 */
+function Segmented({ value, options, onChange }: { value: string; options: ReadonlyArray<{ value: string; label: string }>; onChange: (value: string) => void }) {
+  return (
+    <div className="creation-segmented" role="radiogroup">
+      {options.map((option) => {
+        const active = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            className={`creation-segmented-item${active ? ' active' : ''}`}
+            onClick={() => { if (!active) onChange(option.value); }}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
 }

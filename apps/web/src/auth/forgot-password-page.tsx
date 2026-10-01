@@ -72,7 +72,7 @@ export function ForgotPasswordPage() {
               {copy.sendResetEmail}
             </button>
             <p className="muted" style={{ textAlign: 'center' }}>
-              {copy.rememberPassword}<a href="/login">{copy.goLogin}</a>
+              {copy.rememberPassword} <a href="/login">{copy.goLogin}</a>
             </p>
           </>
         )}

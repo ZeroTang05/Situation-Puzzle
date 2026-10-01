@@ -17,6 +17,7 @@ import { canRateSoloPuzzle } from './rating-visibility.js';
 import { selectUnplayedPuzzle } from './unplayed-puzzle.js';
 import { GameHeader } from '../game/game-header.js';
 import { ChatInput } from '../game/chat-input.js';
+import { TurnCard } from '../game/turn-card.js';
 
 type InputMode = 'ask' | 'solve';
 
@@ -294,7 +295,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
 
       <section className="chat solo-chat game-scroll" ref={chatRef} aria-live="polite">
         {turns.filter((turn) => turn.result !== 'hint').map((turn) => (
-          <TurnCard key={turn.localTurnId} turn={turn} />
+          <TurnCard key={turn.localTurnId} turn={turn} copy={copy} language={language} />
         ))}
         {solved && (
           <section className="panel verdict-panel">
@@ -365,29 +366,5 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
         )}
       </div>
     </main>
-  );
-}
-
-function TurnCard({ turn }: { turn: TurnRow }) {
-  const { copy, language } = useLanguage();
-  return (
-    <div className={`turn turn-${turn.kind}`}>
-      <p className="turn-text">{turn.text}</p>
-      {turn.status === 'sending' && <p className="muted turn-status">{copy.judging}</p>}
-      {turn.status === 'failed' && <p className="error-text turn-status">{copy.failed}</p>}
-      {turn.status === 'succeeded' && turn.kind === 'ask' && turn.result && (
-        <p className="turn-result">
-          <span className={`verdict-badge verdict-${turn.result}`}>{displayVerdict(turn.result, language)}</span>
-          <small className="confidence">{confidenceLabel(turn.confidence, language)}</small>
-        </p>
-      )}
-      {turn.status === 'succeeded' && turn.kind === 'solve' && turn.result && (
-        <p className="turn-result">
-          <span className={`verdict-badge verdict-${turn.result}`}>{displayVerdict(turn.result, language)}</span>
-          <small className="confidence">{confidenceLabel(turn.confidence, language)}</small>
-          <span className="muted">{verdictDetail(turn.result, language)}</span>
-        </p>
-      )}
-    </div>
   );
 }

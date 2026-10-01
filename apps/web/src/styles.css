@@ -12,21 +12,35 @@ html, body { background: var(--bg); }
 .creation-title { flex: 1 1 auto; min-width: 0; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .creation-section-title { margin: 24px 4px 12px; font-size: 16px; font-weight: 600; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
 .creation-list { display: flex; flex-direction: column; gap: 12px; }
-.creation-row { display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'head head' 'title title' 'stats actions' 'pending pending'; align-items: center; gap: 8px 12px; }
-.creation-row-head { grid-area: head; display: flex; align-items: center; gap: 10px; min-width: 0; }
-.creation-row-meta { font-size: 13px; font-variant-numeric: tabular-nums; }
+.creation-row { display: grid; grid-template-columns: 1fr; grid-template-areas: 'head' 'title' 'pending' 'actions'; align-items: start; gap: 10px; padding: 14px 16px; border: 1px solid rgba(115, 191, 220, .18); border-radius: 14px; background: linear-gradient(180deg, rgba(14, 30, 51, .9), rgba(9, 23, 39, .85)); transition: border-color .15s, transform .15s; }
+.creation-row:hover { border-color: rgba(154, 230, 189, .35); }
+.creation-row-head { grid-area: head; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.creation-row-head-l { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.creation-row-head-r { display: flex; align-items: center; gap: 10px; flex: none; font-variant-numeric: tabular-nums; }
+.creation-row-meta { font-size: 12px; font-variant-numeric: tabular-nums; }
+.creation-row-published { font-size: 12px; color: #9ae6bd; }
+.creation-row-stat { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: rgba(115, 191, 220, .08); border: 1px solid rgba(115, 191, 220, .18); font-size: 12px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.creation-row-stat-sep { color: var(--muted); margin: 0 2px; }
 .creation-row-title { grid-area: title; display: block; color: inherit; text-decoration: none; min-width: 0; }
-.creation-row-title h3 { margin: 0; font-size: 17px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.creation-row-title h3 { margin: 0; font-size: 17px; line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .creation-row-title:hover h3 { color: #9ae6bd; }
-.creation-row-stats { grid-area: stats; margin: 0; display: flex; gap: 12px; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); }
-.creation-row-pending { grid-area: pending; margin: 0; font-size: 13px; color: #f3bf8d; }
-.creation-row-actions { grid-area: actions; display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.creation-row-pending { grid-area: pending; margin: 0; padding: 6px 10px; border-radius: 8px; background: rgba(243, 191, 141, .08); border: 1px solid rgba(243, 191, 141, .25); font-size: 12px; color: #f3bf8d; line-height: 1.4; }
+.creation-row-pending-label { font-weight: 600; }
+.creation-row-actions { grid-area: actions; display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; padding-top: 4px; border-top: 1px dashed rgba(115, 191, 220, .14); }
 .creation-row-actions .btn { min-height: 28px; padding: 2px 10px; font-size: 12px; }
 .creation-empty { text-align: center; padding: 32px 20px; }
 .creation-empty .btn { margin-top: 12px; }
-@media (max-width: 480px) { .creation-row { grid-template-areas: 'head' 'title' 'stats' 'pending' 'actions'; } .creation-row-actions { justify-content: flex-start; } }
+@media (max-width: 480px) { .creation-row-head { flex-direction: column; align-items: flex-start; gap: 6px; } .creation-row-head-r { width: 100%; justify-content: flex-start; } .creation-row-actions { justify-content: flex-start; } }
 .creation-field { display: grid; gap: 8px; margin-bottom: 18px; }
 .creation-field textarea { width: 100%; resize: vertical; }
+/* 提示字段：单行高度，不要默认 44px */
+.creation-field textarea.field-hint { min-height: 32px; padding: 6px 10px; line-height: 1.4; resize: none; }
+/* 分段按钮组：替代原生 select，避免 Android 上的原生选择弹窗 */
+.creation-segmented { display: inline-flex; flex-wrap: wrap; gap: 6px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: rgba(115, 191, 220, .04); }
+.creation-segmented-item { appearance: none; min-height: 32px; padding: 4px 12px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; transition: background .12s, color .12s, border-color .12s; }
+.creation-segmented-item:hover:not(.active) { color: var(--ink); background: rgba(115, 191, 220, .08); }
+.creation-segmented-item.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.creation-segmented-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 /* 创建页表单字段：原生 select / input / textarea 不能被 <option> 撑出列宽 */
 .creation-field select.field,
 .creation-field input.field,
