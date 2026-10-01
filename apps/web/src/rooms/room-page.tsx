@@ -355,20 +355,18 @@ export function RoomPage({ session }: { session: Session | null }) {
         </>
       )}
 
-      {/* 已结束且未出汤底：输入区原位换成结束操作条，示意本房不能再输入 */}
-      {state.roomStatus === 'closed' && !answered && (
+      {/* 已结束且未出汤底：输入区原位换成单个继续操作（返回走顶部返回键）；成员无可操作时不渲染 */}
+      {state.roomStatus === 'closed' && !answered && (isHost || state.followupTargetRoomId) && (
         <footer className="room-closed-bar">
-          {isHost && (
+          {state.followupTargetRoomId ? (
+            <button className="btn btn-primary" onClick={() => navigate(`/rooms/${state.followupTargetRoomId}`)}>
+              {copy.enterNewRoom}
+            </button>
+          ) : (
             <button className="btn btn-primary" onClick={() => navigate(`/library?mode=select&followup=${roomId}&lang=${language}`)}>
               {copy.nextPuzzle}
             </button>
           )}
-          {state.followupTargetRoomId && (
-            <button className="btn btn-primary" onClick={() => navigate(`/rooms/${state.followupTargetRoomId}`)}>
-              {copy.enterNewRoom}
-            </button>
-          )}
-          <button className="btn btn-ghost" onClick={back}>{copy.back}</button>
         </footer>
       )}
 

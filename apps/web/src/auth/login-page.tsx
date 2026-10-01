@@ -10,6 +10,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { authClient } from '../api/auth-client.js';
 import { translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
+import { useBack } from '../back.js';
 import { format } from '@jev/i18n';
 import { otpCooldownKey, readOtpDeadline, remainingOtpSeconds, sendOtpCode, OtpSendError } from './otp-cooldown.js';
 
@@ -20,6 +21,7 @@ type Stage = 'email' | 'code';
 export function LoginPage() {
   const { copy, language, setLanguage } = useLanguage();
   const navigate = useNavigate();
+  const back = useBack('/');
   const [params] = useSearchParams();
   const next = params.get('next') ?? '/';
 
@@ -193,6 +195,7 @@ export function LoginPage() {
   return (
     <main className="shell narrow">
       <header className="topbar">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
         <h1 className="brand">{copy.brand}</h1>
         <button
           type="button"

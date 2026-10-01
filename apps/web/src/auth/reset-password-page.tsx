@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { authClient } from '../api/auth-client.js';
 import { useLanguage } from '../state/language.js';
+import { useBack } from '../back.js';
 
 export function ResetPasswordPage() {
   const { copy } = useLanguage();
   const navigate = useNavigate();
+  const back = useBack('/login');
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
 
@@ -34,6 +36,7 @@ export function ResetPasswordPage() {
   return (
     <main className="shell narrow">
       <header className="topbar">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
         <h1 className="brand">{copy.brand}</h1>
       </header>
       <section className="panel stack">

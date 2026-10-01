@@ -108,8 +108,8 @@ export function MePage({ session }: { session: Session | null }) {
   // 到期的月度赞助不再给不限次数，展示成「已到期」
   const hasUnlimited = lifetime || (monthlyUntil !== null && !monthlyExpired);
   const remaining = freeRooms ? freeRooms.total - freeRooms.consumed - freeRooms.reserved : null;
-  // 昵称优先用 /me 的权威值；接口未返回前用注册昵称兜底，避免先闪邮箱再变昵称
-  const displayName = me.data?.nickname || session.user.name || session.user.email;
+  // 昵称链：/me 权威值 → 会话注入值（首屏即有）→ 邮箱兜底
+  const displayName = me.data?.nickname || session.user.nickname || session.user.email;
   const roundCountLabel = (n: number) => (language === 'zh' ? `${n} 局` : n === 1 ? '1 round' : `${n} rounds`);
   const accountLoadFail = language === 'zh' ? '账号信息加载失败，请重试。' : 'Could not load your account. Please try again.';
   const logoutConfirmText = language === 'zh' ? '确定退出当前账号吗？' : 'Sign out of this account?';

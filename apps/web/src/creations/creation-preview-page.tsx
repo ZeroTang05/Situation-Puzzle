@@ -1,9 +1,10 @@
 /** 私人试题复用真实单人接口；UI 与单人页保持一致（顶部栏 / 题面卡 / 聊天 / 操作行）。 */
 import { useEffect, useRef, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router';
+import { Navigate, useParams } from 'react-router';
 import { creationPreviewSchema, type CreationPreview } from '@jev/contracts';
 import { api } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
+import { useBack } from '../back.js';
 import type { Session } from '../session.js';
 import { soloStore, type SoloSessionRow } from '../solo/local-store.js';
 import { HintCapsule } from '../game/hint-capsule.js';
@@ -14,6 +15,7 @@ import { creationCopy } from './copy.js';
 
 export function CreationPreviewPage({ session: account }: { session: Session | null }) {
   const { puzzleId } = useParams(); const { copy, language } = useLanguage(); const text = creationCopy(language);
+  const back = useBack(`/creations/${puzzleId ?? ''}`);
   const [preview, setPreview] = useState<CreationPreview | null>(null); const [local, setLocal] = useState<SoloSessionRow | null>(null);
   const [turns, setTurns] = useState<PreviewTurn[]>([]); const [input, setInput] = useState(''); const [mode, setMode] = useState<'ask' | 'solve'>('ask');
   const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null); const [revision, setRevision] = useState(0);
@@ -85,7 +87,7 @@ export function CreationPreviewPage({ session: account }: { session: Session | n
   if (error && !local) {
     return (
       <main className="shell">
-        <header className="topbar"><Link className="btn btn-ghost btn-sm" to={`/creations/${puzzleId}`}>{text.backEditor}</Link></header>
+        <header className="topbar"><button className="btn btn-ghost btn-sm" onClick={back}>{text.backEditor}</button></header>
         <p className="error-text">{error}</p>
       </main>
     );
@@ -98,7 +100,7 @@ export function CreationPreviewPage({ session: account }: { session: Session | n
     <main className="shell solo-shell">
       <GameHeader
         title={text.previewTitle}
-        back={<Link className="btn btn-ghost btn-sm" to={`/creations/${puzzleId}`}>{text.backEditor}</Link>}
+        back={<button className="btn btn-ghost btn-sm" onClick={back}>{text.backEditor}</button>}
         action={<button className="btn btn-ghost btn-sm" disabled={busy} onClick={reset}>{text.reset}</button>}
       />
 

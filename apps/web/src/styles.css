@@ -679,7 +679,7 @@ textarea.composer-input, .composer .composer-input {
 .room-playing > .hint-row { padding: 4px 0 0; }
 .room-playing > .story-card { max-height: 20dvh; }
 
-/* 已结束房间：输入区原位换成结束操作条（贴底、按钮等宽），没有输入控件即示意本房已归档 */
+/* 已结束房间：输入区原位换成单个继续操作；紧跟内容排布，聊天较长滚动时贴底可见 */
 .room-closed-bar {
   position: sticky;
   bottom: 0;
@@ -689,8 +689,6 @@ textarea.composer-input, .composer .composer-input {
   gap: 10px;
   padding: 12px 0 max(8px, env(safe-area-inset-bottom));
   background: linear-gradient(180deg, transparent, #03152b 30%);
-  /* room-shell 是纵向 flex：内容不足一屏时把操作条推到页面底部 */
-  margin-top: auto;
 }
 .room-closed-bar .btn { flex: 1 1 120px; white-space: nowrap; }
 

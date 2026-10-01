@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { authClient } from '../api/auth-client.js';
 import { useLanguage } from '../state/language.js';
+import { useBack } from '../back.js';
 
 export function ForgotPasswordPage() {
   const { copy, language, setLanguage } = useLanguage();
   const navigate = useNavigate();
+  const back = useBack('/login');
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
@@ -31,6 +33,7 @@ export function ForgotPasswordPage() {
   return (
     <main className="shell narrow">
       <header className="topbar">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
         <h1 className="brand">{copy.brand}</h1>
         <button
           type="button"

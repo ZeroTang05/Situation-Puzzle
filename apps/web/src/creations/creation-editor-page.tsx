@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { creationDraftSchema, creationCompleteSchema, creationDetailSchema, type CreationDraft, type CreationDetail } from '@jev/contracts';
 import { api } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
+import { useBack } from '../back.js';
 import type { Session } from '../session.js';
 import { creationCopy, creationStatusLabel } from './copy.js';
 
@@ -73,6 +74,7 @@ export function CreationEditorPage({ session }: { session: Session | null }) {
 function Editor({ session, detail }: { session: Session; detail: CreationDetail | undefined }) {
   const dialog = useDialog();
   const { language, copy } = useLanguage(); const text = creationCopy(language); const navigate = useNavigate(); const client = useQueryClient();
+  const back = useBack('/creations');
   const [draft, setDraft] = useState<CreationDraft>(detail ? { ...detail.draft, hints: padHints(detail.draft.hints) } : emptyDraft(language));
   const [busy, setBusy] = useState(false); const [dirty, setDirty] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -176,7 +178,7 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
 
   return <main className="shell creation-shell">
     <header className="topbar">
-      <button className="btn btn-ghost btn-sm" onClick={async () => { if (!dirty || await dialog.confirm(text.leaveConfirm)) navigate('/creations'); }}>{text.works}</button>
+      <button className="btn btn-ghost btn-sm" onClick={async () => { if (!dirty || await dialog.confirm(text.leaveConfirm)) back(); }}>{copy.back}</button>
       <h1 className="brand brand-sm creation-title">{detail ? text.edit : text.create}</h1>
       {detail && (
         <span className="creation-topbar-meta">
@@ -200,7 +202,7 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
         <section className="creation-section"><h2>{text.origin}</h2>
           <Field id="origin" label={text.origin}><Segmented value={draft.origin} options={[{ value: 'original', label: text.original }, { value: 'repost', label: text.repost }]} onChange={(value) => { change('origin', value as CreationDraft['origin']); if (value === 'original') change('sourceUrl', ''); }} /></Field>
           {draft.origin === 'repost' && <Field id="sourceUrl" label={text.sourceUrl} required error={fieldErrors.sourceUrl}><input className="field" type="url" value={draft.sourceUrl} onChange={(event) => change('sourceUrl', event.target.value)} /></Field>}
-          <Field id="attribution" label={text.attribution}><Segmented value={draft.authorDisplay.mode} options={[{ value: 'anonymous', label: text.anonymous }, { value: 'signature', label: text.signature }]} onChange={(value) => change('authorDisplay', value === 'anonymous' ? { mode: 'anonymous' } : { mode: 'signature', name: session.user.name })} /></Field>
+          <Field id="attribution" label={text.attribution}><Segmented value={draft.authorDisplay.mode} options={[{ value: 'anonymous', label: text.anonymous }, { value: 'signature', label: text.signature }]} onChange={(value) => change('authorDisplay', value === 'anonymous' ? { mode: 'anonymous' } : { mode: 'signature', name: session.user.nickname ?? session.user.name })} /></Field>
           {draft.authorDisplay.mode === 'signature' && <Field id="authorDisplay.name" label={text.displayName} required error={fieldErrors['authorDisplay.name']}><input className="field" maxLength={30} value={draft.authorDisplay.name} onChange={(event) => change('authorDisplay', { mode: 'signature', name: event.target.value })} /></Field>}
           {/* 署名现状跟署名字段放在一起：已生效的展示名 + 待审核的改名 */}
           {(detail?.authorDisplay.name || detail?.authorDisplay.pendingName) && (

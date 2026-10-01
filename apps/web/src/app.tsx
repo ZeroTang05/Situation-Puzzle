@@ -9,13 +9,13 @@ import { MePage } from './me/me-page.js';
 import { LoginPage } from './auth/login-page.js';
 import { ForgotPasswordPage } from './auth/forgot-password-page.js';
 import { ResetPasswordPage } from './auth/reset-password-page.js';
-import { useSession } from './api/auth-client.js';
+import { useJevSession } from './api/auth-client.js';
 import { CreationListPage } from './creations/creation-list-page.js';
 import { CreationEditorPage } from './creations/creation-editor-page.js';
 import { CreationPreviewPage } from './creations/creation-preview-page.js';
 
 export function App() {
-  const { data: session, isPending } = useSession();
+  const { session, isPending } = useJevSession();
 
   if (isPending) {
     return <div className="page-loading">加载中…</div>;
@@ -23,16 +23,16 @@ export function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<HomePage session={session ?? null} />} />
-      <Route path="/library" element={<LibraryPage session={session ?? null} />} />
-      <Route path="/solo/:puzzleId" element={<SoloPage session={session ?? null} />} />
-      <Route path="/rooms/:roomId" element={<RoomPage session={session ?? null} />} />
-      <Route path="/invite/:token" element={<InvitePage session={session ?? null} />} />
-      <Route path="/me" element={<MePage session={session ?? null} />} />
-      <Route path="/creations" element={<CreationListPage session={session ?? null} />} />
-      <Route path="/creations/new" element={<CreationEditorPage session={session ?? null} />} />
-      <Route path="/creations/:puzzleId" element={<CreationEditorPage session={session ?? null} />} />
-      <Route path="/creations/:puzzleId/preview" element={<CreationPreviewPage session={session ?? null} />} />
+      <Route path="/" element={<HomePage session={session} />} />
+      <Route path="/library" element={<LibraryPage session={session} />} />
+      <Route path="/solo/:puzzleId" element={<SoloPage session={session} />} />
+      <Route path="/rooms/:roomId" element={<RoomPage session={session} />} />
+      <Route path="/invite/:token" element={<InvitePage session={session} />} />
+      <Route path="/me" element={<MePage session={session} />} />
+      <Route path="/creations" element={<CreationListPage session={session} />} />
+      <Route path="/creations/new" element={<CreationEditorPage session={session} />} />
+      <Route path="/creations/:puzzleId" element={<CreationEditorPage session={session} />} />
+      <Route path="/creations/:puzzleId/preview" element={<CreationPreviewPage session={session} />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
