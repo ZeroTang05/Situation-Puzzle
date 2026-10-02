@@ -108,7 +108,7 @@ export function InvitePage({ session, kind }: { session: Session | null; kind: '
             {joining ? copy.joining : copy.joinRoom}
           </button>
         ) : (
-          <button className="btn btn-primary" onClick={() => navigate(`/login?next=${encodeURIComponent(location.pathname)}`)}>
+          <button className="btn btn-primary" onClick={() => navigate(`/login?next=${encodeURIComponent(location.pathname)}`, { replace: true })}>
             {copy.loginAndJoin}
           </button>
         )}

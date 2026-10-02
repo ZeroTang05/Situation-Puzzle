@@ -63,22 +63,26 @@ export function LibraryPage({ session }: { session: Session | null }) {
       const lobbyId = params.get('lobby');
       const followupRoomId = params.get('followup');
       if (followupRoomId) {
-        // 再来一题：选定新题后创建独立新房并一键迁移合格成员（10-ROOM-LIFECYCLE-REVISION §一.7）
+        // 再来一题：选定新题后创建独立新房并一键迁移合格成员（10-ROOM-LIFECYCLE-REVISION §一.7）。
+        // 新房替换题库页（replace）：结算页 → library → 新房的栈里 library 不出现,
+        // 新房按返回直接回到结算页对应的上一级。
         setFollowupError(null);
         void api<{ targetRoomId: string }>('/rooms/followup', {
           method: 'POST',
           body: { sourceRoomId: followupRoomId, puzzleId: puzzle.id, language },
         })
-          .then((result) => navigate(`/rooms/${result.targetRoomId}`))
+          .then((result) => navigate(`/rooms/${result.targetRoomId}`, { replace: true }))
           .catch((err: unknown) => setFollowupError(translateApiError(err, language, copy.createRoomFail)));
         return;
       }
       if (lobbyId) {
-        navigate(`/lobbies/${lobbyId}?selectPuzzle=${puzzle.id}&lang=${language}`);
+        // 题库是 lobby 的"选菜过渡态":选完回 lobby 时把题库从 history 移除。
+        navigate(`/lobbies/${lobbyId}?selectPuzzle=${puzzle.id}&lang=${language}`, { replace: true });
       }
       return;
     }
-    navigate(`/solo/${puzzle.id}?lang=${language}`);
+    // 题库是单人的"选菜过渡态":选完进入单人页时把题库从 history 移除。
+    navigate(`/solo/${puzzle.id}?lang=${language}`, { replace: true });
   };
 
   /** 建等待室后直接带上这道题；登录回跳保留题目与语言。 */
@@ -93,7 +97,8 @@ export function LibraryPage({ session }: { session: Session | null }) {
     setFollowupError(null);
     try {
       const lobby = await openOrGetLobby();
-      navigate(`/lobbies/${lobby.lobbyId}?selectPuzzle=${encodeURIComponent(puzzle.id)}&lang=${language}`);
+      // 题库 → lobby:题库是"选菜过渡态",选完进 lobby 时把题库从 history 移除。
+      navigate(`/lobbies/${lobby.lobbyId}?selectPuzzle=${encodeURIComponent(puzzle.id)}&lang=${language}`, { replace: true });
     } catch (err) {
       setFollowupError(translateApiError(err, language, copy.createRoomFail));
       setOpeningPuzzleId(null);

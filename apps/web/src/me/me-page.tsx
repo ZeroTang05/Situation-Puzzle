@@ -111,7 +111,6 @@ export function MePage({ session }: { session: Session | null }) {
   // 名字与邮箱都来自 /me：没回来就整卡占骨架，回来一起出；不读会话字段，避免分两步加载
   const displayName = me.data?.nickname ?? null;
   const displayEmail = me.data?.email ?? null;
-  const roundCountLabel = (n: number) => (language === 'zh' ? `${n} 局` : n === 1 ? '1 round' : `${n} rounds`);
   const accountLoadFail = language === 'zh' ? '账号信息加载失败，请重试。' : 'Could not load your account. Please try again.';
   const logoutConfirmText = language === 'zh' ? '确定退出当前账号吗？' : 'Sign out of this account?';
 
@@ -220,29 +219,24 @@ export function MePage({ session }: { session: Session | null }) {
         {history.data?.rooms.length === 0 && <p className="muted me-history-empty">{copy.noRoomHistory}</p>}
 
         <ul className="me-history">
-          {history.data?.rooms.map((room) => (
-            <li key={room.roomId} className="me-history-item">
-              <Link className="me-history-room" to={`/rooms/${room.roomId}`}>
-                <div className="me-history-room-main">
-                  <span className="me-history-date">{shortDate(room.createdAt, language)}</span>
-                  <span className={`creation-status${room.roomStatus === 'closed' ? ' me-badge-closed' : ''}`}>{room.roomStatus === 'closed' ? copy.roomStatusClosed : copy.roomStatusActive}</span>
-                </div>
-                {room.rounds.length > 0 && <span className="me-history-count">{roundCountLabel(room.rounds.length)}</span>}
-                <span className="me-history-chevron" aria-hidden>›</span>
-              </Link>
-              {room.rounds.length > 0 && (
-                <ul className="me-history-rounds">
-                  {room.rounds.map((r) => (
-                    <li key={r.roundId}>
-                      <span className="muted">{format(copy.roundX, { n: r.roundNo })}</span>
-                      {r.title && <span className="me-round-title">{r.title}</span>}
-                      <span className={`me-round-status ${roundStatusClass(r.status)}`}>{roundStatusLabel(r.status, language, copy)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))}
+          {history.data?.rooms.map((room) => {
+            // v3 一房一题：rounds 永远只有 1 局；不再渲染局数 badge / 子列表，
+            // 直接在主卡展示该局的题目标题与局状态。点击进入归档房间查看完整历史。
+            const round = room.rounds[0];
+            return (
+              <li key={room.roomId} className="me-history-item">
+                <Link className="me-history-room" to={`/rooms/${room.roomId}`}>
+                  <div className="me-history-room-main">
+                    <span className="me-history-date">{shortDate(room.createdAt, language)}</span>
+                    <span className={`creation-status${room.roomStatus === 'closed' ? ' me-badge-closed' : ''}`}>{room.roomStatus === 'closed' ? copy.roomStatusClosed : copy.roomStatusActive}</span>
+                  </div>
+                  {round?.title && <span className="me-history-title">{round.title}</span>}
+                  {round && <span className={`me-round-status ${roundStatusClass(round.status)}`}>{roundStatusLabel(round.status, language, copy)}</span>}
+                  <span className="me-history-chevron" aria-hidden>›</span>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       </section>
     </main>

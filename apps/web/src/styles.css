@@ -72,12 +72,10 @@ a { text-decoration: none; }
 .me-history-date { font-size: 15px; font-weight: 600; color: var(--ink); }
 .me-history-room:hover .me-history-date { color: #9ae6bd; }
 .creation-status.me-badge-closed { color: var(--muted); background: rgba(142, 166, 186, .08); border-color: rgba(142, 166, 186, .22); }
-.me-history-count { flex: none; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.me-history-title { flex: 1 1 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: var(--ink); }
+.me-history-room:hover .me-history-title { color: #9ae6bd; }
 .me-history-chevron { flex: none; color: rgba(115, 191, 220, .4); font-size: 18px; line-height: 1; }
 .me-history-room:hover .me-history-chevron { color: #9ae6bd; }
-.me-history-rounds { list-style: none; margin: 0; padding: 0 4px 12px 16px; display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
-.me-history-rounds li { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.me-round-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .me-round-status { flex: none; font-size: 12px; }
 .me-round-status.st-active { color: #8fc6ff; }
 .me-round-status.st-solved { color: #9ae6bd; }

@@ -27,6 +27,10 @@ export function RoomPage({ session }: { session: Session | null }) {
   const dialog = useDialog();
   const { copy, language } = useLanguage();
   const navigate = useNavigate();
+  // 房间页的"返回"键严格走 history 栈：
+  // - 从 lobby start 过来：栈里有 lobby，按返回回 lobby（栈自然行为，无需硬塞 state）
+  // - 从「我的」/首页/继续我的房间 进来：栈里只有上一页，按返回回那一页
+  // - 直达链接：idx=0，useBack 兜底到首页
   const back = useBack('/');
   const me = session?.user.id ?? null;
   const { state, status, kicked, sendCommand, confirmResult } = useRoomSync(roomId ?? '', me);
@@ -188,7 +192,6 @@ export function RoomPage({ session }: { session: Session | null }) {
       {round && (
         <>
           <section className="story-card game-scroll">
-            <p className="accent">{format(copy.roundNo, { n: round.roundNo })}</p>
             <p className="story">{displayedSurface}</p>
           </section>
 
@@ -306,11 +309,13 @@ export function RoomPage({ session }: { session: Session | null }) {
       {state.roomStatus === 'closed' && !answered && (isHost || state.followupTargetRoomId) && (
         <footer className="room-closed-bar">
           {state.followupTargetRoomId ? (
-            <button className="btn btn-primary" onClick={() => navigate(`/rooms/${state.followupTargetRoomId}`)}>
+            // 续局新房替换旧房（v3 一房一题，旧房已归档）：新房的返回跳过旧房直接回到上一级。
+            <button className="btn btn-primary" onClick={() => navigate(`/rooms/${state.followupTargetRoomId}`, { replace: true })}>
               {copy.enterNewRoom}
             </button>
           ) : (
-            <button className="btn btn-primary" onClick={() => navigate(`/library?mode=select&followup=${roomId}&lang=${language}`)}>
+            // 已归档房间是过渡态：跳 library 时把旧房从 history 移除，避免选完题回退时落到旧房结算页。
+            <button className="btn btn-primary" onClick={() => navigate(`/library?mode=select&followup=${roomId}&lang=${language}`, { replace: true })}>
               {copy.nextPuzzle}
             </button>
           )}
@@ -328,12 +333,14 @@ export function RoomPage({ session }: { session: Session | null }) {
           <VoteButtons puzzleId={round.puzzleId} session={session} initialUp={0} initialDown={0} />
           <div className="hint-row">
             {isHost && (
-              <button className="btn btn-primary" onClick={() => navigate(`/library?mode=select&followup=${roomId}&lang=${language}`)}>
+              // 已归档房间是过渡态：跳 library 时把旧房从 history 移除。
+              <button className="btn btn-primary" onClick={() => navigate(`/library?mode=select&followup=${roomId}&lang=${language}`, { replace: true })}>
                 {copy.nextPuzzle}
               </button>
             )}
             {state.followupTargetRoomId && (
-              <button className="btn btn-primary" onClick={() => navigate(`/rooms/${state.followupTargetRoomId}`)}>
+              // 续局新房替换旧房（v3 一房一题，旧房已归档）。
+              <button className="btn btn-primary" onClick={() => navigate(`/rooms/${state.followupTargetRoomId}`, { replace: true })}>
                 {copy.enterNewRoom}
               </button>
             )}

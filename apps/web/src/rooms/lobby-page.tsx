@@ -59,6 +59,7 @@ export function LobbyPage({ session }: { session: Session | null }) {
 
   // 实时推送：start() 事务成功后服务端广播 lobby.started，客户端收到后立即跳转房间。
   // 房主自己也会收到（同一 broadcastLobbyStarted 不区分身份），导航到结果一致。
+  // replace：lobby 是过渡态（已 closed、座位清空、邀请撤销），不应留在 history 栈里被返回。
   useLobbySync(lobbyId, (event) => {
     if (event.inviteToken) localStorage.setItem(`jev.invite.${event.roomId}`, event.inviteToken);
     navigate(`/rooms/${event.roomId}`, { replace: true });
@@ -82,6 +83,7 @@ export function LobbyPage({ session }: { session: Session | null }) {
     try {
       const result = await api<{ roomId: string; inviteToken: string }>(`/lobbies/${lobbyId}/start`, { method: 'POST' });
       localStorage.setItem(`jev.invite.${result.roomId}`, result.inviteToken);
+      // replace：lobby 是过渡态（已 closed、座位清空、邀请撤销），不应留在 history 栈里被返回。
       navigate(`/rooms/${result.roomId}`, { replace: true });
     } catch (err) {
       setError(translateApiError(err, language, copy.startFail));
