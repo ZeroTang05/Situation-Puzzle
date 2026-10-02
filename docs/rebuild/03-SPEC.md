@@ -98,6 +98,9 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 | `moderation_reviews` | 版本、阶段、结论、理由、操作者、自动模型版本、时间 |
 | `reports` | 举报人、对象类型与 ID、原因、处理状态、处置记录 |
 | `ratings` | 用户、作品、up/down（赞/踩）、投票时版本、创建及更新时间；用户与作品唯一；取消删除投票，不要求游玩记录 |
+| `user_lobbies` | v3 会客厅：每个用户固定一行，`host_user_id UNIQUE` 物理保证 1:1，id 永不被删；`status lobby_status ENUM('closed','open')`、容量、选题四字段（标题）、`opened_at/closed_at` 时间戳 |
+| `lobby_members` | v3 客人座位表：`(lobby_id, user_id)` 复合主键；kick = DELETE；房主不写入（虚拟在场） |
+| `lobby_invites` | v3 会客厅邀请 token 池：跟 `user_lobbies` 同生命周期；`expires_at` 视为 24h；`revoked_at` 写入即作废 |
 
 题库支持中文与英文，同一作品通过相同 `version_no`（版号）关联不同语言。各语言有独立的审核状态；公开列表和详情按请求语言读取当前发布版号中已发布的语言版本。`current_published_version_id`（当前发布版本指针）指向其中一条语言记录，用于确定公开版号；它指向中文时，同版已发布英文仍可公开读取。请求语言没有已发布版本时，题目详情返回 404。
 
@@ -111,7 +114,7 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 
 | 表 | 关键字段与约束 |
 | --- | --- |
-| `rooms` | 创建者、房主、状态 waiting/playing/closed、容量、邀请令牌散列、唯一一局、开房授权 ID、`last_seq`、控制版本号；离线与闲置不改变状态 |
+| `rooms` | 创建者、房主、状态 playing/closed（v3 起不再有 waiting——房间由会客厅 start 单事务直接建为 playing）、容量、邀请令牌散列、唯一一局、开房授权 ID、`last_seq`、控制版本号；离线与闲置不改变状态 |
 | `room_members` | 房间、用户、成员状态 joined/left/kicked、加入时间、最近活动；`(room_id,user_id)` 唯一 |
 | `presence` | `(room_id,user_id)` 复合主键；同一用户在不同房间分别记录在线状态，离线记录由心跳巡检清理 |
 | `rounds` | 房间唯一、固定题目版本、状态、提示进度、有效判定数、开始/结束时间、终止原因、取消代次；每个新 roomId 独立计数 |
@@ -159,9 +162,12 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 | `POST /solo/sessions` | 匿名获取固定题目版本的无状态签名凭证，不落会话表 |
 | `POST /solo/judge`、`POST /solo/solve` | 匿名单人判断，内存处理，不存正文和逐次调用记录 |
 | `POST /solo/hints`、`POST /solo/reveal` | 单人主动取得提示或答案；不读取和改变多人局 |
-| `POST /rooms` | 登录用户创建等待室，记录赞助授权或预留免费次数，尚不正式消费 |
-| `GET /invites/:token` | 最小邀请预览，限速；无完整成员资料 |
-| `POST /rooms/join` | 邀请令牌入房；锁房间检查人数及封禁 |
+| `POST /lobbies` | 登录用户拿自己的会客厅（host_user_id UNIQUE 物理保证幂等；没有就建一个） |
+| `POST /lobbies/:id/invite` | 房主生成/重置会客厅邀请 token；返回 `{ token, kind: 'lobby' }` |
+| `GET /invites/lobby/:token` | 会客厅邀请预览（只查 `lobby_invites`）；限速 |
+| `GET /invites/room/:token` | 房间邀请预览（只查 `rooms.invite_token_hash`）；限速 |
+| `POST /lobbies/join` | 凭会客厅 token 加入座位；幂等；不锁任何活跃房间 |
+| `POST /lobbies/:id/start` | 会客厅 → 卧室唯一入口，单事务：建房+迁成员+建局；记录赞助授权或预留免费次数 |
 | `GET /rooms/:id/snapshot` | 当前有权成员获取一致快照与 `lastSeq` |
 | `GET /rooms/:id/events?afterSeq=...` | 当前成员补齐本房自创建以来的公开事件；超出保留范围返回 410 要求快照，被踢与封禁后拒绝 |
 | `POST /rooms/:id/commands` | 见下表；服务端逐项检查身份、局、状态和队列容量 |

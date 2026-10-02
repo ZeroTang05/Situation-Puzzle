@@ -1,70 +1,142 @@
-# 房间生命周期修订（v2：等待室与开局时序）
+# 房间生命周期（v3：会客厅与卧室彻底解耦）
 
-版本：2026-10-01。v1（2026-09-30）确立一房一题与多房间规则并已实现；v2 把「开房组队」阶段改为内存等待室，数据库只从「开始本轮」起记录。本文是唯一有效规则源；实现与本文冲突时以本文为准，v1 的任务清单与验收记录见 git 历史。
+版本：2026-10-02。v1 确立一房一题与多房间规则；v2 把「开房组队」改为内存等待室，但「房主对等待室单例」被耦合到进程内存，API 重启会丢、auto-recreate 把逻辑拉成三层兜底；v3 把会客厅实体下沉到数据库（lobby id 永久不变、host_user_id UNIQUE 物理保证单例），与房间（卧室）生命周期彻底解耦。本文是唯一有效规则源；实现与本文冲突时以本文为准。
 
 ## 一、产品规则
 
 1. **一房一题**。一个房间实体只承载一道海龟汤及其全部提问、讨论、提示、成员和事件。破解成功或房主公布汤底时房间进入终态并归档；历史仍可按权限查看，不能再写入游戏内容。
-2. **等待室不入库**。开房间的组队阶段（等待室）只存在于 API 进程内存：创建、加入、踢人、选题都不写数据库。点击「开始本轮」才在单个数据库事务里完成授权预留 → 建房间 → 建局 → 事件落库，房间生命从这一刻开始。解散未开始的等待室 = 删除内存对象：零数据库操作、零计费、零痕迹。
-3. **先选题后开始**。房主必须先选定一道已发布题（记在内存等待室，成员可见题目名），「开始本局」按钮才可用。开局事务内重新校验题目仍为已发布，防止选题后题目被下架。
-4. **等待室解散路径唯一**：房主点「解散」。房主返回上一页、关页、掉线均保留等待室；非房主成员可自由离开并可再凭邀请加入。整个等待室连续 2 小时无任何成员心跳，自动回收（无痕解散）。
-5. **房主等待室单例**。同一用户作为房主同时只能有一个未开局的等待室；再次点「开房间」进入的是同一个等待室（同批成员、已选题保留）。开局成功或等待室回收后名额释放。
-6. **转让房主不存在**。房主是拥有管理权限的角色（开局、公布答案、解锁提示、踢人、解除限制、解散、邀请重置），身份不转让、不离线自动变更。正式房间房主离开后房间照常游玩；全员离线的房间保留；曾加入且未被踢的成员直接访问房间链接即自动重新加入。
-7. **一次新题就是一次新房**。结算页提供「再来一题」：房主选题后，服务端在单个事务里创建新房间、开局并迁入旧房合格成员（房主及未退出未被封禁者）；旧房记录不复制。每个新房按创建时的赞助资格或免费余量授权；首次有效 Jev 判定把预留转为消费。
-8. **未结束就可续玩**。离线、无人访问、等待过久均不结束或归档已开局的房间，也不消耗或释放其预留。用户主动放弃、解散及运营强制终止属于明确终止操作，保存原因并归档；已产生有效判定的免费机会不退。
-9. **当前房间历史对新成员开放**。新加入者能读取该房自创建以来的公开问答与讨论；未揭晓的汤底及未解锁提示仍不可读。被踢出、被封禁的成员停止接收实时事件，也不能再补取或参与，直至房主解除限制。
-10. **单人无限游玩**。单人模式不设业务频率限制；对话仅存浏览器。
-11. **收费顺序**。先保证房间生命周期与免费次数正确性；真实收款仍是收费上线前的独立任务，收款入口保持关闭。
+
+2. **会客厅（lobby）** 是用户的常驻资源，每个用户固定一个 `user_lobbies` 行，`host_user_id UNIQUE` 物理保证 1:1。会客厅 id 永久不变——服务重启、用户离开、再次访问都拿到同一个 lobby。**用户也可以同时是其他 lobby 的成员**（作为客人加入别人的等待室）。
+
+3. **房间（room）没有数量限制**。房主可以同时拥有任意多个 active 房间作为房主：上一个房间还在 playing 时，他可以在自己的会客厅里选下一个题、开始下一局。会客厅不锁房间，房间不锁会客厅。
+
+4. **房间无痕**。`POST /lobbies/:id/start` 是会客厅 → 卧室的唯一入口。单事务内：锁会客厅行 → 重验题目已发布 → 建卧室（playing）+ 房主成员 + 迁移会客厅里的客人成员 → 建局 + 局参与者 → `round.started` 事件 → 会客厅回到 `status='closed'`、清临时态、删座位、撤销邀请。
+
+5. **踢人硬删**。`kick` = `DELETE FROM lobby_members WHERE ...`，不留 `kicked_at`/`status='kicked'`。下一次同一邀请 token 重新加入直接成功——被踢是这次游戏的，不是永久的。
+
+6. **解散路径**。`DELETE /lobbies/:id`（房主主动）：删座位、revoke 所有未过期邀请、lobby 行 `status='closed'`、清空选题、关闭时间戳。**lobby 行不删**，id 永久保留。
+
+7. **邀请生命周期**。会客厅邀请 = `lobby_invites.token_hash` 行，跟 lobby 行绑定：
+   - 创建：`POST /lobbies/:id/invite`，生成 24h 随机 32 字节 hex。
+   - 失效：`expires_at` 到期 / `revoked_at` 写入 / lobby 行被删（账号注销 CASCADE）/ 重建新邀请时旧邀请 revoke。
+   - **三种触发 revoke 的代码路径**：`createInvite` 重置时、`dismiss()` 解散时、`start()` 开局时。
+
+8. **邀请链接形式**：URL 路径明确区分，按绑定对象类型走：
+   - `https://<host>/lobby/invite/<hex>` → SPA → `GET /api/v1/invites/lobby/<hex>`（只查 `lobby_invites`）
+   - `https://<host>/room/invite/<hex>` → SPA → `GET /api/v1/invites/room/<hex>`（只查 `rooms.invite_token_hash`）
+   - **无 fallback**——同 hex 不可能在两个表都中，前端按 URL 类型走固定 endpoint，不会被错配。
+
+9. **加入路径**。`POST /lobbies/join` 凭会客厅 token 加入座位表，幂等（已在座位上直接返）；不查 kicked（行不在 → 重新加入直接成功）；不锁任何活跃房间；返 `{ lobbyId }` 不再返 `startedRoomId`（之前会把客人拽进上一局，已移除——lobby 与 room 生命周期独立）。
+
+10. **再选下一题**。会客厅上一局已结束后，房主可以重新选题 `POST /lobbies/:id/select` —— `select()` 现在不阻止任何状态（之前因 `startedRoomId` 指向 playing 房间拒房主换题，已移除）；只校验选题是否 published。房主选完题 + start = 创建新房间。
+
+11. **房主永远在场**。`snapshot` 把房主作为虚拟成员返回（joinedAt=0 排最前），不依赖 `lobby_members` 行。`start` 事务把房主 + 客人都插入 `round_participants`（房主在 `lobby_members` 里没有，但作为 host 同样拥有本局历史阅读权与提问权——之前房主发问会 403，已修复）。
+
+12. **单人无限游玩**。单人模式不设业务频率限制；对话仅存浏览器。
+
+13. **收费顺序**。先保证房间生命周期与免费次数正确性；真实收款仍是收费上线前的独立任务，收款入口保持关闭。
 
 ## 二、生命周期
 
 ```mermaid
 stateDiagram-v2
     direction LR
-    state "等待室（API 内存，不入库）" as lobby
-    [*] --> lobby: 房主创建 / 成员凭邀请加入
-    lobby --> lobby: 成员进出、选题（纯内存）
-    lobby --> [*]: 房主解散 / 闲置 2 小时回收（无痕）
-    lobby --> playing: 开始本轮（唯一写库事务：授权+建房+建局）
-    playing --> playing: 离线后继续游玩 / 房主离开照常玩
-    playing --> archived: 破解 / 公布汤底 / 房主放弃 / 房主解散 / 运营终止
-    archived --> [*]
+    state "会客厅（user_lobbies 行永久存在）" as lobby
+    state "会客厅：open（有客人在/已选题）" as open
+    state "会客厅：closed（空/刚开完）" as closed
+    state "房间（playing/closed）" as room_state
+
+    [*] --> closed: 用户首次需要会客厅
+    closed --> open: 房主首次轮询 / 客人加入
+    open --> closed: 房主解散（清座位/撤销邀请）/ 所有人离开
+    open --> open: 选题 / 客人进出 / 房主轮询（不动状态机）
+    open --> room_state: POST /lobbies/:id/start（单事务建卧室）
+    closed --> room_state: 重新选题 + start（房主选下一局）
+    room_state --> room_state: 房主可同时拥有多个 active 房间
 ```
 
-数据库中不再出现 `waiting` 状态的新房间（存量 waiting 房已由 v2 迁移释放预留并归档，原因 `never_started`）。`rooms` 表自创建起即为 `playing`，一房至多一局。
+**关键不变量**：
 
-## 三、等待室技术设计
+- `user_lobbies.host_user_id UNIQUE`：物理保证 1:1，无业务层单例 Map。
+- `lobby_members` 没有房主行（房主虚拟在场）。轮询 snapshot 加房主。
+- `start` 写 `round_participants` 时合并 `host + guests`（Set 去重），房主始终能提问。
+- `room_lifecycle` 与 `lobby_lifecycle` 完全独立——房主可以同时拥有 N 个 playing 房间 + 1 个 lobby。
 
-- **数据结构（进程内存）**：等待室 ID、房主、容量（2–8）、成员表（userId → 昵称/加入时间/最后心跳）、被踢集合、房主已选题（题目 ID + 语言 + 标题 + 封面）、开局去向（tombstone）。房主 → 等待室的索引实现单例。
-- **邀请令牌**：jose JWT（purpose=lobby、lobbyId、24 小时有效），密钥从 `AUTH_SECRET` 派生，不落任何表；收到令牌验签后查内存。令牌不可伪造，等待室解散后令牌自然失效。
-- **实时同步**：等待页每 2 秒轮询快照（成员、在线状态、已选题）；心跳即轮询本身，在线 = 30 秒内轮询过。开局后客户端跳转正式房间，走现有快照 + WebSocket 通道。
-- **开局事务（唯一写库入口）**：重验题目已发布 → 锁赞助/免费账户判定授权（先赞助后免费）→ 建房间（playing）+ 全体成员 → 建局 + 局参与者 → `round.started` 事件。失败（如免费次数用尽）整事务回滚，等待室保留。
-- **tombstone**：开局成功后等待室对象保留 `startedRoomId` 供轮询中的成员拿到跳转目标，10 分钟后回收。
-- **回收（GC）**：每分钟扫描；未开局等待室 2 小时无人心跳、或 tombstone 超期，即从内存删除并释放房主单例名额。
-- **部署边界**：API 单实例（与实时网关连接表同前提）；未来扩多实例需把等待室挪到共享存储，HTTP 接口形状不变。
+## 三、Schema 落地
 
-## 四、v2 改造清单
+```sql
+-- 0001_lobbies.sql（新库迁移）
+CREATE TABLE user_lobbies (
+  id uuid PK DEFAULT gen_random_uuid(),
+  host_user_id text NOT NULL UNIQUE REFERENCES "user"(id) ON DELETE CASCADE,
+  status lobby_status NOT NULL DEFAULT 'closed',  -- 'closed' | 'open'
+  capacity integer NOT NULL DEFAULT 8,
+  selected_puzzle_id text,
+  selected_puzzle_lang text,
+  selected_puzzle_title text,
+  selected_puzzle_surface text,
+  created_at timestamptz DEFAULT now(),
+  opened_at timestamptz,
+  closed_at timestamptz
+);
 
-| 编号 | 内容 | 涉及 |
+CREATE TABLE lobby_members (
+  lobby_id uuid NOT NULL REFERENCES user_lobbies(id) ON DELETE CASCADE,
+  user_id text NOT NULL REFERENCES "user"(id),
+  joined_at timestamptz DEFAULT now(),
+  PRIMARY KEY (lobby_id, user_id)
+);
+
+CREATE TABLE lobby_invites (
+  id uuid PK DEFAULT gen_random_uuid(),
+  lobby_id uuid NOT NULL REFERENCES user_lobbies(id) ON DELETE CASCADE,
+  token_hash text NOT NULL UNIQUE,
+  created_at timestamptz DEFAULT now(),
+  expires_at timestamptz NOT NULL,
+  revoked_at timestamptz
+);
+```
+
+**为什么不存 `started_room_id`**：lobby 与房间生命周期独立——会客厅不该知道自己的房主最近开了哪些房。「上局房间是 X」这类历史展示不在 lobby 职责内，需要时另起 `lobby_room_history` 表。
+
+## 五、API 路由
+
+| 方法 | 路径 | 作用 |
 | --- | --- | --- |
-| L01 | 契约：lobby 系列 schema；删 `select_puzzle`/`start_round`/`transfer_host` 命令；快照删 `selectedPuzzle`、roomStatus 收窄 playing/closed；错误码与 i18n 文案 | packages/contracts、packages/i18n |
-| L02 | 数据库：`rooms.selected_puzzle_version_id` 列删除；`close_reason` 枚举加 `never_started`；存量 waiting 房释放预留并归档 | packages/database 迁移 |
-| L03 | API 等待室模块：内存 store（单例/GC/心跳）、JWT 邀请、轮询接口、开局事务 | apps/api |
-| L04 | 房间命令清理：删三命令；`leave` 不再触发继任/归档；`POST /rooms/:id/rejoin` 老成员重入；`POST /rooms` 移除 | apps/api |
-| L05 | 前端：等待室页、题库 lobby 选题主线、邀请令牌分流、房间页删等待 UI、首页开房入口 | apps/web |
-| L06 | 单测：lobby 内存逻辑（单例/解散/GC/开局前置）、domain 删 `pickHostSuccessor` | packages/domain、apps/api |
-| L07 | smoke / e2e 脚本切换到等待室流程（随脚本单独验收，不在本次范围） | scripts/ |
-| L08 | 文档同步：本文 + AGENTS.md | docs/ |
+| POST | `/lobbies` | 拿我的会客厅（没有就建一个） |
+| GET | `/lobbies/:lobbyId` | 轮询快照（成员、在线、已选题） |
+| POST | `/lobbies/:lobbyId/select` | 房主选题 |
+| POST | `/lobbies/:lobbyId/invite` | 房主生成/重置邀请（返 `{ token, kind: 'lobby' }`） |
+| POST | `/lobbies/:lobbyId/leave` | 非房主离开（删座位） |
+| POST | `/lobbies/:lobbyId/kick` | 房主踢人（DELETE 座位行） |
+| DELETE | `/lobbies/:lobbyId` | 房主解散（清座位、撤销邀请、清临时态） |
+| POST | `/lobbies/:lobbyId/start` | 开局（会客厅 → 卧室唯一入口） |
+| POST | `/lobbies/join` | 凭 lobby token 加入座位 |
+| GET | `/invites/lobby/:token` | 预览会客厅邀请 |
+| GET | `/invites/room/:token` | 预览房间邀请 |
 
-收费闭环（v1 R10）仍在收费上线前单独处理。
+## 六、与 v2 的关键差异
 
-## 五、验收场景
+| 维度 | v2（内存） | v3（DB） |
+| --- | --- | --- |
+| 会客厅存储 | 进程内存 Map（`lobbies` / `hostIndex`） | DB 表 `user_lobbies` |
+| 单例实现 | `Map<hostUserId, lobbyId>` 业务逻辑 | `host_user_id UNIQUE` 物理保证 |
+| API 重启 | lobby 全丢 + auto-recreate 兜底 | lobby 永久存在 |
+| 多实例部署 | 不支持（文档明确写） | 直接支持 |
+| 踢人语义 | `kicked: Set<userId>` 软标记 | `DELETE FROM lobby_members` 物理删 |
+| 重选下一题 | 上一局状态不影响 | 上一局状态不影响（`startedRoomId` 已移除） |
+| 房间无限制 | 同 lobby 阻塞选新题/解散 | 房间与会客厅完全独立 |
+| 邀请链接 | JWT 形状区分 lobby/room + 后端 fallback | URL 路径明确区分，无 fallback |
 
-1. 建等待室后关页，再点「开房间」→ 进入同一等待室（成员、已选题原样）。
-2. 等待室选题后开局 → 全员跳进 playing 房间；开局前数据库无该房间的任何行。
-3. 建了没玩就解散 → 数据库无新行、免费次数不变、历史列表无记录。
-4. 免费次数用尽时开局 → 明确报错，等待室保留，可散伙（零成本）或赞助后重试。
-5. 正式房间房主退出 → 成员继续游玩提问；房主经房间链接重入后恢复管理操作。
-6. 全员离线的房间 → 状态保留；老成员直接访问链接即自动重入继续玩。
-7. 被踢成员访问房间链接 → 拒绝重入，提示需房主解除限制。
-8. 等待室闲置 2 小时无人轮询 → 自动回收；房主「开房间」得到全新等待室。
+## 七、验收场景
+
+1. 用户首次点「开房间」 → 第一次 INSERT `user_lobbies` 行（`status='closed'`），跳转 `/lobbies/:lobbyId` 看到空会客厅。
+2. 用户关闭浏览器再点「开房间」 → 拿到同一 lobby id，看到空会客厅（DB 行永久）。
+3. 同一用户开完一局后回到 lobby → lobby 行存在（id 不变），选题 + start → 创建新房间。
+4. 上一局 playing 时房主想选下一题 → 在 lobby 选新题不阻塞，start 创建新房间，原房间继续 playing。
+5. 用户也可以同时是别人 lobby 的成员（userId 在其他 lobby 的 `lobby_members` 里）——两个 lobby 同时存在，不冲突。
+6. 房主在房间里向 jev 发问 → `round_participants` 有房主行（`start` 事务合并 host + guests），不再 403。
+7. 邀请链接：lobby 邀请 → `/lobby/invite/<hex>` → 只查 `lobby_invites`；room 邀请 → `/room/invite/<hex>` → 只查 `rooms.invite_token_hash`；revoke 后的 token 返 404。
+8. 房主解散 lobby → lobby 行保留（`status='closed'`），座位清空，邀请 revoke，id 可访问。
+9. 房主踢人 → DELETE 座位行；同一邀请 token 重新加入直接成功（无 kicked 软标记）。
+10. 房间/会客厅邀请端点路由明确分开，同 hex 不会误配另一类型。

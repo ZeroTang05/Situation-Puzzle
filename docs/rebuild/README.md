@@ -17,7 +17,7 @@
 | [代码与数据迁移](06-MIGRATION.md) | 哪些复用、哪些重写、什么时候删除、如何切换 | 迁移执行者 |
 | [决策与资料](07-DECISIONS.md) | 哪些已由用户指定、哪些是建议、哪些还需确定 | 产品负责人、开发负责人 |
 | [实施记录](09-IMPLEMENTATION.md) | M1～M2 已交付代码、验证证据、本地运行方法、下一步 | 开发模型、测试 |
-| [房间生命周期修订](10-ROOM-LIFECYCLE-REVISION.md) | 一房一题、归档、续玩迁移及离线保留 | 产品、开发、测试 |
+| [房间生命周期修订](10-ROOM-LIFECYCLE-REVISION.md) | 会客厅（lobby id 永久、host_user_id UNIQUE 1:1）与房间（room 无数量限制）彻底解耦 | 产品、开发、测试 |
 | [题目点赞与作者署名](11-VOTES-AND-AUTHORSHIP.md) | 全题库赞踩、受欢迎排序、署名与匿名、作者反馈 | 产品、开发、测试 |
 | [WebSocket 连接与可靠发送](12-CONNECTION-EXPERIENCE.md) | 发送确认、消息去重、重连补齐、草稿与页面保留 | 前后端开发、测试 |
 
