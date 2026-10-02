@@ -1,6 +1,6 @@
 /**
  * 邀请落地页：展示房间/等待室信息，登录后加入。
- * 令牌按形状分流：JWT（含「.」）指向内存等待室，纯 hex 串指向正式房间。
+ * 路径 /lobby/invite/:token 与 /room/invite/:token 各自走固定的后端 endpoint，无 fallback。
  */
 import { useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -11,7 +11,14 @@ import { useBack } from '../back.js';
 import { format } from '@jev/i18n';
 import type { Session } from '../session.js';
 
-interface InvitePreview {
+interface LobbyPreview {
+  lobbyId: string;
+  hostNickname: string;
+  memberCount: number;
+  capacity: number;
+}
+
+interface RoomPreview {
   roomId: string;
   status: 'playing' | 'closed';
   capacity: number;
@@ -20,46 +27,42 @@ interface InvitePreview {
   currentPuzzleTitle: string | null;
 }
 
-interface LobbyPreview {
-  lobbyId: string;
-  hostNickname: string;
-  memberCount: number;
-  capacity: number;
-}
-
-export function InvitePage({ session }: { session: Session | null }) {
+export function InvitePage({ session, kind }: { session: Session | null; kind: 'lobby' | 'room' }) {
   const { token } = useParams();
   const { copy, language } = useLanguage();
   const navigate = useNavigate();
   const back = useBack('/');
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isLobby = (token ?? '').includes('.');
 
   const preview = useQuery({
-    queryKey: ['invite', token],
-    queryFn: (): Promise<LobbyPreview | InvitePreview> =>
-      isLobby ? api<LobbyPreview>(`/lobbies/by-invite/${token}`) : api<InvitePreview>(`/invites/${token}`),
+    queryKey: ['invite', kind, token],
+    queryFn: (): Promise<LobbyPreview | RoomPreview> => {
+      if (!token) throw new Error('token not ready');
+      return kind === 'lobby'
+        ? api<LobbyPreview>(`/invites/lobby/${token}`)
+        : api<RoomPreview>(`/invites/room/${token}`);
+    },
     retry: false,
   });
 
   const attempted = useRef<string | null>(null);
-  // 登录返回后直接提交加入命令，只有成功获得成员身份才跳转。
+  // 登录返回后自动提交加入命令：lobby 邀请 join → 可能跳卧室（已开局）或 lobby；room 邀请 join → 跳卧室。
   useEffect(() => {
-    if (!session || !token || !preview.data || attempted.current === token) return;
-    if (!isLobby && (preview.data as InvitePreview).status === 'closed') return;
-    attempted.current = token;
+    if (!session || !token || !preview.data || attempted.current === `${kind}:${token}`) return;
+    if (kind === 'room' && (preview.data as RoomPreview).status === 'closed') return;
+    attempted.current = `${kind}:${token}`;
     void join();
-  }, [session, token, preview.data]);
+  }, [session, token, preview.data, kind]);
 
   const join = async () => {
     if (!token) return;
     setJoining(true);
     setError(null);
     try {
-      if (isLobby) {
-        const result = await api<{ lobbyId: string; startedRoomId: string | null }>('/lobbies/join', { method: 'POST', body: { token } });
-        navigate(result.startedRoomId ? `/rooms/${result.startedRoomId}` : `/lobbies/${result.lobbyId}`, { replace: true });
+      if (kind === 'lobby') {
+        const result = await api<{ lobbyId: string }>('/lobbies/join', { method: 'POST', body: { token } });
+        navigate(`/lobbies/${result.lobbyId}`, { replace: true });
       } else {
         const result = await api<{ roomId: string; rejoined: boolean }>('/rooms/join', { method: 'POST', body: { token } });
         navigate(`/rooms/${result.roomId}`, { replace: true });
@@ -81,9 +84,10 @@ export function InvitePage({ session }: { session: Session | null }) {
     );
   }
 
-  const hostNickname = isLobby ? (preview.data as LobbyPreview).hostNickname : (preview.data as InvitePreview).hostNickname;
-  const memberCount = isLobby ? (preview.data as LobbyPreview).memberCount : (preview.data as InvitePreview).memberCount;
-  const capacity = isLobby ? (preview.data as LobbyPreview).capacity : (preview.data as InvitePreview).capacity;
+  const data = preview.data;
+  const hostNickname = data.hostNickname;
+  const memberCount = data.memberCount;
+  const capacity = data.capacity;
 
   return (
     <main className="shell narrow">
@@ -92,19 +96,19 @@ export function InvitePage({ session }: { session: Session | null }) {
         <h1 className="brand">{copy.brand}</h1>
       </header>
       <section className="panel stack">
-        <h2>{isLobby ? copy.lobbyTitle : copy.waitingRoom}</h2>
+        <h2>{kind === 'lobby' ? copy.lobbyTitle : copy.waitingRoom}</h2>
         <p>{format(copy.roomOf, { name: hostNickname, n: memberCount, cap: capacity })}</p>
-        {!isLobby && (preview.data as InvitePreview).currentPuzzleTitle && (
-          <p className="muted">{format(copy.playingRoom, { title: (preview.data as InvitePreview).currentPuzzleTitle! })}</p>
+        {kind === 'room' && (data as RoomPreview).currentPuzzleTitle && (
+          <p className="muted">{format(copy.playingRoom, { title: (data as RoomPreview).currentPuzzleTitle! })}</p>
         )}
-        {!isLobby && (preview.data as InvitePreview).status === 'closed' ? (
+        {kind === 'room' && (data as RoomPreview).status === 'closed' ? (
           <p className="error-text">{copy.roomClosedHint}</p>
         ) : session ? (
           <button className="btn btn-primary" disabled={joining} onClick={() => void join()}>
             {joining ? copy.joining : copy.joinRoom}
           </button>
         ) : (
-          <button className="btn btn-primary" onClick={() => navigate(`/login?next=${encodeURIComponent(`/invite/${token}`)}`)}>
+          <button className="btn btn-primary" onClick={() => navigate(`/login?next=${encodeURIComponent(location.pathname)}`)}>
             {copy.loginAndJoin}
           </button>
         )}

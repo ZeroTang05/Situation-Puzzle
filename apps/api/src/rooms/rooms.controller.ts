@@ -25,7 +25,7 @@ export class RoomsController {
     @Inject(CommandsService) private readonly commandsService: CommandsService,
   ) {}
 
-  @Get('invites/:token')
+  @Get('invites/room/:token')
   async invite(@CurrentUser() _user: SessionUser, @Param('token') token: string) {
     return this.roomsService.invitePreview(token);
   }

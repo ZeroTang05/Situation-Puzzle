@@ -13,11 +13,9 @@ CREATE TABLE "user_lobbies" (
 	"selected_puzzle_lang" text,
 	"selected_puzzle_title" text,
 	"selected_puzzle_surface" text,
-	"started_room_id" uuid REFERENCES "rooms"("id") ON DELETE SET NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"opened_at" timestamp with time zone,
-	"closed_at" timestamp with time zone,
-	"started_at" timestamp with time zone
+	"closed_at" timestamp with time zone
 );
 CREATE INDEX "user_lobbies_status_idx" ON "user_lobbies" USING btree ("status");
 

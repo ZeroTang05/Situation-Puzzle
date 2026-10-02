@@ -255,17 +255,6 @@ CREATE TABLE "round_participants" (
 	"can_read" boolean DEFAULT true NOT NULL
 );
 
--- ===================== 续玩关系 =====================
-
-CREATE TABLE "room_followups" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"source_room_id" uuid NOT NULL,
-	"target_room_id" uuid NOT NULL,
-	"initiated_by" text NOT NULL,
-	"member_results" jsonb NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
-
 CREATE TABLE "rounds" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"room_id" uuid NOT NULL,

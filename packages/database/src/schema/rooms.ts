@@ -31,7 +31,7 @@ export const roomStatusEnum = pgEnum('room_status', ['waiting', 'playing', 'clos
 
 /**
  * 会客厅状态：open = 当前有客人坐着或选了题；closed = 临时态已清空
- * （start 后回到 closed + started_room_id；房主从未邀请过人也是 closed）。
+ * （start 后回到 closed；房主从未邀请过人也是 closed）。
  * host_user_id UNIQUE 保证「每个用户固定一个会客厅 id」，
  * 临时态是 open/closed 二选一，会客厅行不 delete。
  */
@@ -122,7 +122,7 @@ export const roomMembers = pgTable(
  *
  * 临时态字段（selected_puzzle_*）可空、可被 start 事务清空。
  * status='open' = 当前有客人坐着或选了题；'closed' = 空或刚开完游戏。
- * started_room_id 让成员轮询时跳卧室；start 完成后 lobby_members 被清空。
+ * start() 后清临时态、删 lobby_members、revoke 邀请，lobby 行保留。
  *
  * 用户注销账号时 CASCADE 清掉（host_user_id FK + members/invites CASCADE）。
  */
@@ -140,11 +140,9 @@ export const userLobbies = pgTable(
     selectedPuzzleLang: text('selected_puzzle_lang'),
     selectedPuzzleTitle: text('selected_puzzle_title'),
     selectedPuzzleSurface: text('selected_puzzle_surface'),
-    startedRoomId: uuid('started_room_id').references(() => rooms.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
     openedAt: timestamp('opened_at', { withTimezone: true, mode: 'date' }),
     closedAt: timestamp('closed_at', { withTimezone: true, mode: 'date' }),
-    startedAt: timestamp('started_at', { withTimezone: true, mode: 'date' }),
   },
   (t) => [index('user_lobbies_status_idx').on(t.status)],
 );

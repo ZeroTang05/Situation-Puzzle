@@ -56,7 +56,7 @@ export function RoomPage({ session }: { session: Session | null }) {
         const result = await outbox.submit({ type, ...(payload !== undefined ? { payload } : {}), ...(roundId !== undefined ? { roundId } : {}), expectedControlVersion: state?.controlVersion ?? 0 });
         if (result?.inviteToken) {
           localStorage.setItem(`jev.invite.${roomId}`, result.inviteToken);
-          await navigator.clipboard.writeText(inviteUrl(location.origin, result.inviteToken));
+          await navigator.clipboard.writeText(inviteUrl(location.origin, result.inviteToken, 'room'));
           setInviteCopied(true);
         }
         return result;
@@ -112,7 +112,7 @@ export function RoomPage({ session }: { session: Session | null }) {
     try {
       const token = localStorage.getItem(`jev.invite.${roomId}`);
       if (!token) { await run('rotate_invite'); return; }
-      await navigator.clipboard.writeText(inviteUrl(location.origin, token));
+      await navigator.clipboard.writeText(inviteUrl(location.origin, token, 'room'));
       setInviteCopied(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

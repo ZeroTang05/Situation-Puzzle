@@ -143,8 +143,6 @@ export const lobbyJoinRequestSchema = z.object({
 
 export const lobbyJoinResponseSchema = z.object({
   lobbyId: z.string().uuid(),
-  /** 等待室已开局时携带去向，客户端直接跳正式房间 */
-  startedRoomId: z.string().uuid().nullable(),
 });
 
 export const lobbyMemberSchema = z.object({
@@ -160,8 +158,6 @@ export const lobbySnapshotSchema = z.object({
   capacity: z.number().int(),
   members: z.array(lobbyMemberSchema),
   selectedPuzzle: roomSelectedPuzzleSchema.nullable(),
-  /** 开局去向：非 null 时客户端跳转后停止轮询 */
-  startedRoomId: z.string().uuid().nullable(),
 });
 
 export const lobbySelectRequestSchema = z.object({

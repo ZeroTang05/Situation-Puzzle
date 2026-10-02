@@ -2,8 +2,8 @@
  * 会客厅 HTTP 接口（v3：每个用户固定一个会客厅，id 永久不变）。
  *
  * POST /lobbies             拿我的会客厅（没有就建一个）
- * POST /lobbies/:id/invite  房主生成/重置邀请 token
- * GET  /lobbies/by-invite/:token  预览邀请
+ * POST /lobbies/:id/invite  房主生成/重置邀请 token（返回 {token, kind:'lobby'}）
+ * GET  /invites/lobby/:token 预览邀请（只查 lobby_invites）
  * POST /lobbies/join        凭邀请加入
  * GET  /lobbies/:id         成员轮询快照
  * POST /lobbies/:id/select  房主选题
@@ -44,7 +44,7 @@ export class LobbyController {
     return this.lobbyService.createInvite(user, id);
   }
 
-  @Get('lobbies/by-invite/:token')
+  @Get('invites/lobby/:token')
   async preview(@CurrentUser() _user: SessionUser, @Param('token') token: string) {
     return this.lobbyService.previewByInvite(token);
   }

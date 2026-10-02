@@ -21,7 +21,6 @@ interface LobbySnapshot {
   capacity: number;
   members: Array<{ userId: string; nickname: string; online: boolean; isHost: boolean }>;
   selectedPuzzle: { puzzleId: string; title: string; language: 'zh' | 'en' } | null;
-  startedRoomId: string | null;
 }
 
 const POLL_MS = 2000;
@@ -68,14 +67,6 @@ export function LobbyPage({ session }: { session: Session | null }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, isHost]);
 
-  // 自动跳卧室：仅在「我是客人、房主已 start」时触发。
-  // 房主自己刷新已 closed 的会客厅时，不应被拉去卧室，而是回到空会客厅继续下一局。
-  useEffect(() => {
-    if (data?.startedRoomId && me !== null && data.hostUserId !== me) {
-      navigate(`/rooms/${data.startedRoomId}`, { replace: true });
-    }
-  }, [data?.startedRoomId, data?.hostUserId, me, navigate]);
-
   const startRound = async () => {
     if (!lobbyId || busy) return;
     setBusy(true);
@@ -115,8 +106,8 @@ export function LobbyPage({ session }: { session: Session | null }) {
     setBusy(true);
     setError(null);
     try {
-      const { token } = await api<{ token: string }>(`/lobbies/${lobbyId}/invite`, { method: 'POST' });
-      await navigator.clipboard.writeText(inviteUrl(location.origin, token));
+      const { token } = await api<{ token: string; kind: 'lobby' }>(`/lobbies/${lobbyId}/invite`, { method: 'POST' });
+      await navigator.clipboard.writeText(inviteUrl(location.origin, token, 'lobby'));
       setInviteCopied(true);
     } catch (err) {
       setError(translateApiError(err, language, copy.startFail));
