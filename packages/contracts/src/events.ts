@@ -22,6 +22,9 @@ export const wsClientFrameSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('unsubscribe'), roomId: z.string() }),
   z.object({ type: z.literal('ping'), visible: z.boolean().optional() }),
+  // ---------- 会客厅订阅：瞬时通知，无事件补齐 ----------
+  z.object({ type: z.literal('lobby.subscribe'), lobbyId: z.string() }),
+  z.object({ type: z.literal('lobby.unsubscribe'), lobbyId: z.string() }),
 ]);
 
 export type WsClientFrame = z.infer<typeof wsClientFrameSchema>;
@@ -53,6 +56,16 @@ export const wsHeartbeatSchema = z.object({
   type: z.literal('heartbeat'),
   /** 各订阅房间的当前高水位：客户端发现领先即可补齐 */
   watermarks: z.array(z.object({ roomId: z.string(), seq: z.number().int() })),
+});
+
+/** 会客厅 → 卧室 推送：服务端在 start() 事务成功后向所有 lobby 订阅者推一次，
+ *  客户端收到后 navigate('/rooms/:roomId')。不需要 seq/补齐，丢失就丢（轮询兜底）。 */
+export const wsLobbyStartedSchema = z.object({
+  type: z.literal('lobby.started'),
+  lobbyId: z.string(),
+  roomId: z.string(),
+  /** 房主生成的房间邀请 token，前端写入 localStorage 直接导航。 */
+  inviteToken: z.string().optional(),
 });
 
 // ---------- 房间事件 payload ----------
@@ -137,6 +150,7 @@ export const wsServerFrameSchema = z.union([
   roomEventSchema,
   wsSyncReadySchema,
   wsHeartbeatSchema,
+  wsLobbyStartedSchema,
 ]);
 
 export type WsServerFrame = z.infer<typeof wsServerFrameSchema>;

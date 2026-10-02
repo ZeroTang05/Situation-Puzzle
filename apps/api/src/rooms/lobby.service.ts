@@ -547,6 +547,10 @@ export class LobbyService {
     });
 
     evictPresence(lobbyId);
+    // 事务已提交，向 lobby 内在线订阅者推送 lobby.started；
+    // 没有订阅者就走前端轮询兜底（轮询 snapshot 看到 lobby 已 closed 但 selectedPuzzle 已清，
+    // 此时前端应保留最近一次 roomId 直接导航，本任务由前端组件完成）。
+    app().realtime?.broadcastLobbyStarted(lobbyId, roomId, inviteToken);
     return { roomId, inviteToken };
   }
 

@@ -14,6 +14,7 @@ import { format } from '@jev/i18n';
 import type { Session } from '../session.js';
 import { PuzzleSelection } from './puzzle-selection.js';
 import { inviteUrl } from '../game/game-display.js';
+import { useLobbySync } from './use-lobby-sync.js';
 
 interface LobbySnapshot {
   lobbyId: string;
@@ -55,6 +56,13 @@ export function LobbyPage({ session }: { session: Session | null }) {
 
   const data = poll.data ?? null;
   const isHost = data !== null && me !== null && data.hostUserId === me;
+
+  // 实时推送：start() 事务成功后服务端广播 lobby.started，客户端收到后立即跳转房间。
+  // 房主自己也会收到（同一 broadcastLobbyStarted 不区分身份），导航到结果一致。
+  useLobbySync(lobbyId, (event) => {
+    if (event.inviteToken) localStorage.setItem(`jev.invite.${event.roomId}`, event.inviteToken);
+    navigate(`/rooms/${event.roomId}`, { replace: true });
+  });
 
   // 选题回跳：/lobbies/:id?selectPuzzle=xxx 提交给等待室（只记内存）
   useEffect(() => {
@@ -132,6 +140,11 @@ export function LobbyPage({ session }: { session: Session | null }) {
   // 等待室被解散 / 闲置回收 / 被移出
   if (poll.isError || !data) {
     const code = poll.error instanceof ApiError ? poll.error.code : null;
+    // start() 单事务会把 lobby_members 清掉，紧跟其后 broadcastLobbyStarted 推送房间；
+    // 推送丢失 / ws 重连中时，snapshot 会返 FORBIDDEN。客户端此时再 snapshot 一次
+    // （DB 已经回到 closed 且 selectedPuzzle 清空），期望看到同样错误。
+    // 这里不再主动拉房间：后端没有"lobby → 最近房间"映射（v3 故意解耦）；
+    // 真正可靠的兜底是 ws 推送，所以引导用户重新进入页面让 ws 重新订阅。
     return (
       <main className="shell">
         <p className="error-text" role="alert">

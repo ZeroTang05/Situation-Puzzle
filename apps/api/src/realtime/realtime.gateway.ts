@@ -4,7 +4,7 @@ import { jwtVerify } from 'jose';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { Server } from 'node:http';
 import { and, asc, eq, gt, inArray, lte } from 'drizzle-orm';
-import { presence, profiles, roomEvents, roomMembers, rooms, session } from '@jev/database';
+import { lobbyMembers, presence, profiles, roomEvents, roomMembers, rooms, session, userLobbies } from '@jev/database';
 import { wsClientFrameSchema } from '@jev/contracts';
 import { app } from '../context.js';
 import { consumeJti } from './realtime.controller.js';
@@ -15,6 +15,8 @@ interface ClientState {
   userId: string | null;
   sessionId: string | null;
   subscriptions: Map<string, Subscription>;
+  /** lobby 订阅：瞬时通知用，不带 seq、不补齐、不持久化（轮询兜底）。 */
+  lobbySubscriptions: Set<string>;
   lastPongAt: number;
   lastPingAt: number;
   lastActiveAt: number;
@@ -75,7 +77,7 @@ export class RealtimeGateway {
 
   private connect(socket: WebSocket): void {
     const now = Date.now();
-    const state: ClientState = { userId: null, sessionId: null, subscriptions: new Map(), lastPongAt: now, lastPingAt: 0, lastActiveAt: 0, connectedAt: now, queue: Promise.resolve(), scheduled: false };
+    const state: ClientState = { userId: null, sessionId: null, subscriptions: new Map(), lobbySubscriptions: new Set(), lastPongAt: now, lastPingAt: 0, lastActiveAt: 0, connectedAt: now, queue: Promise.resolve(), scheduled: false };
     this.clients.set(socket, state);
     const authTimer = setTimeout(() => { if (!state.userId) socket.close(4401, 'auth_timeout'); }, 5_000);
     socket.on('pong', () => { state.lastPongAt = Date.now(); });
@@ -129,6 +131,32 @@ export class RealtimeGateway {
       return false;
     }
     return true;
+  }
+
+  /**
+   * lobby 订阅鉴权：会话有效 + 当前用户在该 lobby 内（房主或 seat 成员）。
+   * 失败不 close socket——客户端可能只是订阅错了 lobby，轮询快照会自己拿到 403。
+   */
+  private async lobbyAuthorized(socket: WebSocket, state: ClientState, lobbyId: string): Promise<boolean> {
+    if (!state.userId || !state.sessionId) return false;
+    const [identity] = await app().db.db.select({ status: profiles.status }).from(session)
+      .innerJoin(profiles, eq(profiles.userId, session.userId))
+      .where(and(eq(session.id, state.sessionId), eq(session.userId, state.userId), gt(session.expiresAt, new Date()))).limit(1);
+    if (!identity) { this.reject(socket, 'UNAUTHORIZED', '登录已过期', 4401); return false; }
+    if (identity.status !== 'active') { this.reject(socket, 'FORBIDDEN', '账号已停用', 4403); return false; }
+    const [lobby] = await app().db.db
+      .select({ hostUserId: userLobbies.hostUserId })
+      .from(userLobbies)
+      .where(eq(userLobbies.id, lobbyId))
+      .limit(1);
+    if (!lobby) return false;
+    if (lobby.hostUserId === state.userId) return true;
+    const [seat] = await app().db.db
+      .select({ userId: lobbyMembers.userId })
+      .from(lobbyMembers)
+      .where(and(eq(lobbyMembers.lobbyId, lobbyId), eq(lobbyMembers.userId, state.userId)))
+      .limit(1);
+    return seat !== undefined;
   }
 
   private async tick(): Promise<void> {
@@ -200,6 +228,19 @@ export class RealtimeGateway {
       state.subscriptions.set(frame.roomId, sub);
       if (await this.deliver(socket, state, sub)) this.send(socket, { type: 'sync.ready', roomId: sub.roomId, watermark: sub.lastSeq });
     }
+    // lobby 订阅只校验 session 有效性 + 当前用户在该 lobby 内（房主或成员）；
+    // lobby id 是 UUID 难猜，且无事件补齐，被恶意订阅也不会泄漏业务数据。
+    if (frame.type === 'lobby.subscribe') {
+      if (!await this.lobbyAuthorized(socket, state, frame.lobbyId)) return;
+      state.lobbySubscriptions.add(frame.lobbyId);
+      this.send(socket, { type: 'ack' });
+      return;
+    }
+    if (frame.type === 'lobby.unsubscribe') {
+      state.lobbySubscriptions.delete(frame.lobbyId);
+      this.send(socket, { type: 'ack' });
+      return;
+    }
   }
 
   /** 固定高水位、顺序分页；发现缺口明确要求快照，不跳过序号。 */
@@ -233,6 +274,19 @@ export class RealtimeGateway {
     for (const [socket, state] of this.clients) if (state.userId === userId && state.subscriptions.has(roomId)) {
       state.subscriptions.delete(roomId);
       this.reject(socket, 'FORBIDDEN', '你已不在该房间', 4403);
+    }
+  }
+
+  /**
+   * 会客厅开局广播：start() 事务成功后调用，向所有订阅了 lobbyId 的 socket 推送 lobby.started。
+   * 找不到订阅者也没关系——客户端走 2 秒轮询兜底，会看到 status='closed' + 空 members，
+   * 但已经不再有 selectedPuzzle，不会拿到"等待室已解散"误报；这时由前端再 fallback 一次导航即可。
+   */
+  broadcastLobbyStarted(lobbyId: string, roomId: string, inviteToken: string): void {
+    for (const [socket, state] of this.clients) {
+      if (state.lobbySubscriptions.has(lobbyId)) {
+        this.send(socket, { type: 'lobby.started', lobbyId, roomId, inviteToken });
+      }
     }
   }
 

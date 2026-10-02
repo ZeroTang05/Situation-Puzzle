@@ -28,9 +28,13 @@ export interface AppContext {
   expressServer: import('express').Express;
   /**
    * 实时网关钩子：main.ts 在网关创建后注入。
-   * 踢人等命令用它在事务提交后立即断开被移除者的订阅（本进程内）。
+   * 踢人等命令用它在事务提交后立即断开被移除者的订阅（本进程内）；
+   * lobby.started 推送在 start() 事务提交后调用，向所有 lobby 订阅者发车。
    */
-  realtime?: { dropUserFromRoom: (userId: string, roomId: string) => void };
+  realtime?: {
+    dropUserFromRoom: (userId: string, roomId: string) => void;
+    broadcastLobbyStarted: (lobbyId: string, roomId: string, inviteToken: string) => void;
+  };
 }
 
 let context: AppContext | null = null;

@@ -58,7 +58,10 @@ async function main(): Promise<void> {
   await nestApp.init();
   const gateway = new RealtimeGateway();
   // 踢人命令经此钩子立即断开被移除者的实时订阅
-  context.realtime = { dropUserFromRoom: (userId, roomId) => gateway.dropUserFromRoom(userId, roomId) };
+  context.realtime = {
+    dropUserFromRoom: (userId, roomId) => gateway.dropUserFromRoom(userId, roomId),
+    broadcastLobbyStarted: (lobbyId, roomId, inviteToken) => gateway.broadcastLobbyStarted(lobbyId, roomId, inviteToken),
+  };
   const port = env.PORT;
   const httpServer = context.expressServer.listen(port, () =>
     logger.log(`API 已启动：http://localhost:${port}/api/v1/health/live`),
