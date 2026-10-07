@@ -1,47 +1,153 @@
-# 题库来源与整理说明
+# 海龟汤重写：参考资料与题目索引
 
-题库固定为 30 道已有谜题：保留 12 道经典题，新增 18 道流传谜题；此前的 18 道原创题已移出中英文题库。核对日期：2026-09-25。
+更新日期：2026-10-08。对应本目录 `library.json` 的 100 篇中文作品。
 
-沿用来源中的核心情节与谜底，中文采用简短整理，英文为对应译写。标题可按中文阅读习惯调整；每题三条提示由本项目重新整理，分别补充人物、环境、物品、动机或时间关系中的事实，均与该题汤底一致。
+## 参考资料
 
-来源链接表示可核对的流传版本，不等同于首发证明或商业转载授权。投稿者仅按页面所示注明；未确认原作者的题目不署为项目原创。这里不收录付费题本原文，不把开源程序的许可证视为其收集故事的授权。
+本次检索了抖音、YouTube 和小红书相关创作者。完整阅读的主要材料是许二木节目的公开文字转录，另核对了视频条目与可读取的观众评论。下列“节目来源”与“转录者”分开记录；视频发布账号和转载者不自动视为每篇谜题的原作者。
 
-| 题目编号 | 题名 | 参考版本 | 本项目整理说明 |
-| --- | --- | --- | --- |
-| seed-classic-albatross | 海鸟汤 | [Minute Mysteries（一分钟谜题集），第 10 题](https://www.scribd.com/document/323597925/One-Minute-Mysteries) | 采用妻子在海难后死去的版本；补入向同伴确认的情节，避免仅凭口味就断定肉的来源。 |
-| seed-classic-short-match | 半根火柴 | [Minute Mysteries（一分钟谜题集），第 14 题](https://www.scribd.com/document/323597925/One-Minute-Mysteries) | 保留热气球失高、丢弃重物、抽短签的因果关系。 |
-| seed-classic-lighthouse | 熄灯之后 | [Jed Hartman 情境谜题档案，第 1.91 题](https://www.kith.org/jed/situation-puzzles/answers/1-91-html/) | 保留熄灭航标导致船难的谜底，结尾止于发现事故。 |
-| seed-classic-music-stopped | 音乐停止以后 | [Braingle：The Music Stopped（音乐停止）](https://www.braingle.com/brainteasers/1049/the-music-stopped.html) | 采用蒙眼表演、乐队意外提前停奏的版本。 |
-| seed-classic-iced-drinks | 喝得慢的人 | [Puzzling Stack Exchange：Poisoned Iced Tea（有毒的冰茶）](https://puzzling.stackexchange.com/questions/2980/poisoned-iced-tea) | 保留冰块融化与饮用速度的机关；快喝者摄入较少，避免声称冰块完全不会融化。 |
-| seed-classic-rewound-tape | 倒回开头的遗言 | [TalkBass：Riddle time（猜谜时间），2008 年讨论](https://www.talkbass.com/threads/riddle-time.426785/) | 明确手动倒带条件；汤面表述为发现现场被操作的线索，汤底给出凶手布置过程。 |
-| seed-classic-one-way-ticket | 没有回程的旅客 | [Jed Hartman 情境谜题档案，第 1.3 题](https://www.kith.org/jed/situation-puzzles/answers-to-jeds-list-of-situation-puzzles/) | 补入丈夫声称共同返程的条件，将购票记录表述为调查线索。 |
-| seed-classic-subway-pact | 地铁上的旧约 | [Braingle：Subway Meeting（地铁相遇）](https://www.braingle.com/brainteasers/teaser.php?comm=1&id=2652&op=2) | 采用最后一人获救后逃走、拒绝履约的版本，省略伤害细节。 |
-| seed-classic-birthday-surprise | 门后的生日快乐 | [Minute Mysteries（一分钟谜题集），第 24 题](https://www.scribd.com/document/323597925/One-Minute-Mysteries) | 保留杀妻者撞见妻子安排的派对这一反转，结尾改为计划暴露。 |
-| seed-classic-dark-motel | 唯一没亮的房间 | [Two Plus Two：汽车喇叭情境谜题讨论](https://forumserver.twoplustwo.com/59/puzzles-other-games/situational-puzzle-revengeance-room-car-honk-1315356/index4.html?s=d0be9410495aaef6872871cf01a0eebd) | 明确当晚客满及其他房客实际亮灯，避免将所有人的反应当成必然规律。 |
-| seed-classic-unopened-pack | 来不及打开的包 | [ThePuzzleLabs：Lateral Thinking Puzzles（情境推理题），第 1 题](https://www.thepuzzlelabs.com/deduction/lateral-thinking-puzzles) | 保留伞包未能展开、死者从空中到达现场的机关。 |
-| seed-classic-sunken-cards | 赢家先死 | [Jed Hartman 情境谜题档案，第 1.14 题](https://www.kith.org/jed/situation-puzzles/answers-to-jeds-list-of-situation-puzzles/) | 采用潜水员发现沉船舱室的版本，保留牌局“赢家”的反转。 |
-| seed-classic-bar-hiccups | 酒保的枪 | [Braingle：A Glass of Water（一杯水）；投稿 jerry1](https://www.braingle.com/brainteasers/165/a-glass-of-water.html) | 保留打嗝与惊吓的机关。 |
-| seed-classic-rainy-elevator | 下雨才到家 | [Tease Your Brain：The Man in the Elevator（电梯里的男人）](https://teaseyourbrain.com/logic-puzzles/the-man-in-the-elevator/) | 采用七楼、十楼和雨伞的版本。 |
-| seed-classic-broken-fishbowl | 安东尼与克莉奥佩特拉 | [Diario de WKR：Antonio y Cleopatra（安东尼与克莉奥佩特拉），2015](https://labsk.net/wkr/archives/18046/) | 采用狗碰倒鱼缸的版本。 |
-| seed-classic-silent-phone-call | 一句话也没说 | [Marcia's Musings：The Phone Call（电话），2008](https://marciasmusingsonline.blogspot.com/2008/11/riddle-31-phone-call.html) | 保留旅馆鼾声与铃声叫醒的机关。 |
-| seed-classic-night-watchman | 救命之后被解雇 | [Crazy Stuff：The Night Watchman（守夜人）](https://www.crazy-stuff.net/en/entertainment/riddles/the-night-watchman) | 保留预警应验、获酬后被解雇的版本。 |
-| seed-classic-sawdust-cane | 地上的木屑 | [rec.puzzles：Hopefully New riddle（希望是新谜题），1996 年讨论](https://groups.google.com/g/rec.puzzles/c/MZXZUa0miB8) | 采用竞争者锯短手杖的流传版本，省略自伤过程。 |
-| seed-classic-tunnel-light | 隧道里的一点火光 | [School of Educators：Lateral Thinking（横向思维）教学材料](https://schoolofeducators.com/wp-content/uploads/2012/05/Lateral_Thinking_Puzzles.pdf) | 采用香烟火光让复明者意识到自己仍看得见的获救版本。 |
-| seed-classic-melted-support | 空房间里的水 | [Braingle：The Room（房间）；投稿 Mr. G](https://www.braingle.com/brainteasers/teaser.php?comm=1&id=163&op=1) | 保留融化支撑物的密室机关，省略尺寸与自伤操作。 |
-| seed-classic-fifty-three-cards | 第五十三张牌 | [Riddles.com：Unlucky 53（不幸的五十三），1999](https://www.riddles.com/archives/4542) | 沿用多一张牌暴露作弊的谜底；去除 Bicycle 品牌的英文双关。 |
-| seed-classic-mountain-cabin | 山上的小舱室 | [Minute Mysteries（一分钟谜题）：Two Men Found Dead in a Cabin（舱内的两名死者）](https://dragon.sleepdeprived.ca/games/minute_mystery/minute_mystery_5.htm) | 将 cabin 译为小舱室，保留交通工具误认，避免谎称木屋。 |
-| seed-classic-second-funeral | 再办一次葬礼 | [Braingle：Funeral（葬礼）；投稿 bmotts](https://www.braingle.com/brainteasers/6677/funeral.html) | 仅采用虚构谜题情节，不采用来源的心理测试说法。 |
-| seed-classic-counting-floors | 对面的手指 | [Reddit r/riddles：This one's kinda dark（一道有些黑暗的谜题），2020](https://www.reddit.com/r/riddles/comments/jteb7x/) | 采用数楼层版本，保留讨论中补充的双方室内亮灯条件。 |
-| seed-classic-window-portraits | 木屋里的肖像 | [Creepypasta：The Portraits（肖像），2009；页面标注匿名](https://www.creepypasta.com/the-portraits/) | 对流传短篇作情节摘要，保留窗户反转，不复制原文段落。 |
-| seed-classic-fatal-ringtone | 最后一通电话 | [OpenReview：论文附录中收录的情境谜题（富翁给妻子打电话）](https://openreview.net/pdf?id=2mbDATzUOt) | 采用附录列出的入侵者、藏身、来电暴露位置的情节。 |
-| seed-classic-five-in-rain | 雨中的五个人 | [Puzzle Prime：Five Men in the Rain（雨中的五个人）；页面标注作者不详](https://www.puzzleprime.com/puzzles/brain-teasers/lateral/five-men-in-the-rain/) | 保留抬棺与雨水机关，澄清第五个人随棺移动。 |
-| seed-classic-bodies-in-well | 井里最后一个人 | [Scary for Kids：Bodies in the Well（井里的尸体），2012](https://www.scaryforkids.com/bodies-in-the-well/) | 压缩多次犯罪为概要，保留母亲包庇与最后一次失效。 |
-| seed-classic-missing-bride | 没有离开的新娘 | [槲寄生枝传说（Legend of the Mistletoe Bough）条目及其列举的传统版本](https://en.wikipedia.org/wiki/Legend_of_the_Mistletoe_Bough) | 传统失踪新娘故事的情节摘要，保留阁楼箱子机关。 |
-| seed-classic-two-pills | 总能活下来的那个人 | [Braingle：Murder by Poison（毒杀）；投稿 Marple](https://www.braingle.com/brainteasers/52143/murder-by-poison.html) | 明确有毒药是绑匪的说法，采用各自一杯水的版本。 |
+### 《双鱼》
 
-## 题库维护
+- 节目来源：许二木。可读取的[抖音录像转载页](https://www.douyin.com/video/7554545997167332643)由 bye44 发布。
+- 完整内容：[汤面](https://xszj.org/b/466711/c/24577789)、[汤底一](https://xszj.org/b/466711/c/24577801)、[汤底二](https://xszj.org/b/466711/c/24577801?page=2)、[汤底三及主持说明](https://xszj.org/b/466711/c/24577801?page=3)。转录署名：二木粉。
+- 具体好评：[海龟汤分类柜的玩家投稿](https://www.sina.cn/news/detail/5165557738111968.html)于 2025-05-12 描述，在持续提示下推理三小时后给出很高评价。这是一条玩家体验，不能代表平均评分。
+- 负面反馈：上述抖音转载页可见观众质疑穿越年份与“本来存在的时间点”之间的关系。改写时需要固定时间规则，不能靠临时增加例外解释。
+- 参考手法：让前面的异常细节在最后连接起来；用重复身份和人物处境扩大恐怖感。新稿《二号地球》《一百封求救信》等沿用的是这些抽象手法，具体场景、人物目标、线索与结局重新设计。
 
-- `library.json` 和 `library.en.json` 共用题目 ID，保持相同顺序、相同情节和每题三条提示。
-- 保留的 12 道经典题沿用旧 ID；替换题使用新 ID，防止旧题的已答记录被误认为新题的记录。
-- 更新后运行 `pnpm sync:seed` 和 `pnpm sync:xiaohongshu`。前者同时生成新库种子与现有数据库的题库更新 SQL；后者更新小红书共享数据。
-- 现有 D1 数据库的更新方法见 `../worker/README.md`。替换题库不需要清空数据库，也不修改玩家投稿。
+### 《宿舍规则怪谈》
+
+- 视频条目：[YouTube 页面](https://www.youtube.com/watch?v=szcj5wISwzs)，页面署名许二木。此次读取到标题、发布日期和介绍，未直接播放或逐帧核对。
+- 完整内容：[汤面及提问过程](https://m.ilwxs.com/shu/430705/213219203.html)、[后半段及完整汤底](https://m.ilwxs.com/shu/430705/213219204.html)。转录署名：二木粉。
+- 可取之处：一个看似安全的住所，隐藏着叙述者没意识到的同住者；日常动作的意义在揭晓后发生变化。
+- 评价边界：转录记录了参与者逐步推到隐藏住客的过程。此次未取得可核验的独立作品评分，不将它标为“高分作品”。
+- 参考手法：通过门、脚步、衣柜、声音等具体物件，让危险的位置发生反转。新稿《门链》《第七级》《九分钟》等参考了这种叙事方向。
+
+### 《信》
+
+- 节目来源：许二木。完整材料：[汤面](https://xszj.org/b/466711/c/24577585)、[推理过程与完整汤底](https://m.51read.org/xiaoshuo/466711/zhangjie/24577590)。转录署名：二木粉。
+- 观众反馈：[抖音的难汤讨论页](https://www.douyin.com/video/7533848584904297763)有观众认同《信》位居该发布者的榜首，也有对其他作品过度绕弯的批评。该榜单是个人盘点。
+- 参考手法：同一人物在不同时间承担不同角色，先列清时间关系，再安排揭晓。新稿《借阅记录》《休眠者》参考“身份连续与时间差”的思路，并另设情境。
+
+### 《咒》
+
+- 节目来源：许二木。[完整汤底转录](https://xszj.org/b/466711/c/24577775?page=4)，转录署名二木粉。
+- 阅读范围：已读汤底及该页列出的关键线索。本次没有完整核对汤面，因此只作为气氛与叙事手法的补充材料。
+- 参考手法：让本来意味着安心的空间与物品，显露出另一种令人不安的用途。未把它的原有故事逐句改写进题库，也未给它补造评分。
+
+## 其他检索入口
+
+- 许二木《学院规则怪谈》：[抖音视频页](https://www.douyin.com/video/7520963224028597545)。可读取部分作品信息和评论，未据此声称已核对完整内容。
+- 许二木《教室》：[抖音转载页](https://www.douyin.com/video/7554009764935732532)。可见观众谈及害怕的观看体验，也有人质疑伤亡细节；[已读的汤底转录](https://xszj.org/b/466711/c/24578038?page=6)未包含全部疑点解析，未将其当作已经核清的直接改编底稿。
+- 小红书创作者海龟汤老兔、猫窝推理社、肘子汤店：在[播客作品说明](https://www.xiaoyuzhoufm.com/podcast/691c31998ca3e135a9ae51bb)中查到署名线索，但此次没有读到对应小红书原帖的完整图文，未将二手署名当作原帖核验结果。
+
+## 本批作品与参考的关系
+
+本批以新的恐怖、悬疑、奇幻和科幻场景重写。参考内容主要用于比较悬念入口、危险来源、身份关系和时间反转的写法。下面的索引记录新稿自身的推理入口与核心真相，方便逐篇审稿；它不表示每篇都另有一篇经过评分验证的原作。
+
+100 篇保留原有 ID 与排列顺序，每篇仍为七个字段、三条递进提示。已做编辑回读和格式校验，尚未取得这批新稿的真实玩家试玩评价。
+
+## 题目索引（含剧透）
+
+| 序号 | ID | 题名 | 类别 | 推理入口 | 核心真相 |
+| --- | --- | --- | --- | --- | --- |
+
+| 1 | seed-three-heroine-names | 认亲 | 本格 | 三年里，她多了一个无法独自带走的家人。 | 买主扣住了她的孩子；她否认父亲，是被迫让营救的人离开。 |
+| 2 | seed-unlit-applause | 返场 | 本格 | 演出原本就包含逼真的求救和灾难场景。 | 小丑用破坏妆容、揭开布景后的真实火场，打破观众对演出的误判。 |
+| 3 | seed-scratched-window | 窗外 | 本格 | 老板对窗外那些人的解释并不可信。 | 窗外是搜救人员；老板把她藏起来，阻止她回应。 |
+| 4 | seed-blank-underpage | 墙上的指甲 | 本格 | 女人想把一样东西带出地窖。 | 假指甲下藏着窝点地址，厮打是交出求救信息的掩护。 |
+| 5 | seed-sold-out-portraits | 替身 | 本格 | 拍摄地点与摄制组，都是她丈夫安排的。 | 丈夫准备先拍替身的远景，再把她推下悬崖，伪造拍摄事故。 |
+| 6 | seed-empty-witness-chair | 守灵 | 本格 | 棺材里的人一直活着，祖父知道他的身份。 | 祖父准备穿寿衣装成死者，让伤员扮作送葬亲属离开。 |
+| 7 | seed-ten-minute-mirror | 镜子慢了一步 | 变格 | 镜子里的过去，仍然连着现实中的人。 | 封条被撕掉后，镜中之物能通过十分钟前的影像抓走真人。 |
+| 8 | seed-one-day-repair | 修补匠 | 变格 | 修补照片的效果会延伸到照片里的人。 | 她前一夜杀死了丈夫；恢复后的丈夫仍记得她藏刀的地方。 |
+| 9 | seed-last-book-reader | 读完再睡 | 变格 | 书摊老板知道书会发生什么。 | 解除方法藏在书后；焚书毁掉了方法，已经转移的诅咒仍会继续。 |
+| 10 | seed-unpainted-door | 门后的海 | 变格 | 母亲死在海里，女儿画的门确实能打开。 | 父亲把回家的母亲锁在门外；女儿擦掉锁开门，海水随母亲一起涌入。 |
+| 11 | seed-awning-in-the-rain | 雨棚 | 本格 | 寺里藏着一个需要保护的人。 | 绑匪的鞋裤留下了女孩反抗的痕迹；雨棚顶上还垂着她脚踝的铁链。 |
+| 12 | seed-no-return-umbrellas | 借伞 | 本格 | 他口中的母亲，把他带到车站另有目的。 | 伞内是他的寻人启事，接伞的女人跑去找警察。 |
+| 13 | seed-missing-stair-noise | 第七级 | 本格 | 母亲让孩子藏起来，是为了躲避一个现实中的人。 | 父亲出差时，威胁母亲的人闯了进来；孩子把他的脚步误认成父亲。 |
+| 14 | seed-wrong-way-signature | 值夜 | 本格 | 跑出来的女人是员工。 | 夜班保安是追踪而来的施暴丈夫，故意制造停电；按铃反而把他叫到了面前。 |
+| 15 | seed-fourth-place-ribbon | 第四名 | 本格 | 比赛的奖品与参赛者想象的不同。 | 前三名会被扣下转卖；他故意跌到第四，获得离岛的机会。 |
+| 16 | seed-unopened-postcards | 家书 | 本格 | 矿主控制了家书的内容，也控制着送饭口和水管。 | 矿主准备借排水之名向藏人的巷道灌水，哥哥用压痕传出了警告。 |
+| 17 | seed-ferry-of-unkept-promises | 渡口 | 变格 | 这条河连接着活人与死者的世界。 | 他让自己成为能在日出前行动的死者，把唯一的活人名额留给孩子。 |
+| 18 | seed-shadow-at-noon | 别开灯 | 变格 | 它需要接触人的影子，才能进一步伤害人。 | 开灯会让姐姐的影子伸到门缝外，给追逐者接近她的路径。 |
+| 19 | seed-snow-inside-the-frame | 全村的雪 | 变格 | 照片中的雪会真实积起来。 | 族长把遇害的一家困在照片里；雪漫过相框后，他们走了出来。 |
+| 20 | seed-borrowed-sleep | 轮到你睡了 | 变格 | 哥哥需要睡觉，也需要屋里一直有人清醒。 | 只要有人清醒地看着它，它就无法长成能吃人的身体。 |
+| 21 | seed-zero-complaints | 隔壁的歌 | 本格 | 这些歌在囚犯入狱时就已经录好。 | 歌声在掩盖处决的动静，并让留下的囚犯继续相信释放的承诺。 |
+| 22 | seed-cut-curtain | 喜帘 | 本格 | 新郎早已死去，姑娘一直被瞒着。 | 奶奶发现这是冥婚衣，用破衣向母亲传警，救下孙女后遭到报复。 |
+| 23 | seed-returned-luggage-tags | 失物招领 | 本格 | 她当着父亲的面否认，另有顾虑。 | 父亲准备在海上抛弃杀害哥哥的证据；沉船让这些东西被公开打捞出来。 |
+| 24 | seed-two-empty-pockets | 门链 | 本格 | 父亲当晚刚换过锁，钥匙始终在身上。 | 劫匪有一个同伙早已藏在屋里，正从里面摘门链。 |
+| 25 | seed-rented-rain | 求雨 | 变格 | 庙里的回应是归还供品，村民误把它理解成赐雨。 | 孩子们正在回来；真正威胁他们的是害怕罪行暴露的族长。 |
+| 26 | seed-echo-wedding | 应声 | 变格 | 山谷里的东西能模仿刚刚听到的人声。 | 村民用婚俗引新人入谷，让模仿新郎的东西夺走新娘。 |
+| 27 | seed-prisoners-keyhole | 牢门 | 变格 | 他入狱的代价与救活妻子有关。 | 妻子死后找到早夭的孩子，把能解除禁制的人带到了牢门前。 |
+| 28 | seed-saved-footprints | 回来的人 | 变格 | 弟弟在雪山上冻得意识模糊，哥哥其实早已去世。 | 哥哥回来救弟弟，送他到安全处后，留下鞋并回到了自己的坟里。 |
+| 29 | seed-torn-audition-number | 面试 | 本格 | 母亲应聘，是在追查失踪的女儿。 | 女儿认出了化名来找她的母亲，中介误以为演员能安抚她，反而将母亲带到她面前。 |
+| 30 | seed-two-balcony-photos | 最后一张合影 | 本格 | 出发时的人数比正面照片显示的更多。 | 两张照片粘在一起，里面记录着被故意遗弃的第七人的位置。 |
+| 31 | seed-silent-rehearsal | 咳嗽 | 本格 | 灵堂里有一口棺材藏着活人。 | 妻子借葬礼营救丈夫扣住的证人，孩子提前发出的信号暴露了藏身处。 |
+| 32 | seed-unopened-cake-box | 第十八支蜡烛 | 本格 | 姐姐的脸与年龄都停留在十七岁。 | 椅子上是姐姐的遗体；多出的蜡烛让父亲察觉，儿子已经看穿了谎言。 |
+| 33 | seed-unworn-rain-boots | 上岸 | 本格 | 穿潜水装备的人，在水下发生了替换。 | 海盗穿上救援者的装备，绑着真正的潜水员，冒充救人者登船。 |
+| 34 | seed-missing-caption | 照片外的人 | 本格 | 照片上的两个人是双胞胎。 | 父亲制造矿难杀死哥哥，剪去公开合影，却私藏照片，并在临终信中留下真相。 |
+| 35 | seed-three-bells-at-dawn | 第三声钟 | 变格 | 第三声钟给了死者一次回家的机会，也要求代价。 | 父亲想让孩子应声，用孩子的命换自己归来；母亲刚刚发现了这条规则。 |
+| 36 | seed-road-to-the-name | 喊魂 | 变格 | 井里原本就有许多死者。 | 身体由其他亡魂的影子拼成；他们的求救声，也随母亲一起回了家。 |
+| 37 | seed-blank-tomorrow-card | 明天的讣告 | 变格 | 送来报纸与送来新婚纱的人，有共同的计划。 | 未婚夫要用冥婚换回前妻，讣告里的婚纱属于午夜那场仪式。 |
+| 38 | seed-ghost-in-the-audience | 最后一排 | 变格 | 银幕里放的是母亲生前遗憾的一天。 | 母亲终于在记忆中找回走失的孩子，完成遗愿后离开了影院。 |
+| 39 | seed-drawn-wrinkles | 替她长大 | 变格 | 姐姐的画像和弟弟的寿命被连在了一起。 | 弟弟十岁时借命获救，二十年后用尽了姐姐能借给他的六十年。 |
+| 40 | seed-arrow-behind-the-sign | 路标 | 本格 | 路牌原先故意指向一条抓捕逃亡者的路。 | 她把真正的出山路留给后来者，自己在改牌时被追兵杀害。 |
+| 41 | seed-cleaned-observation-window | 观景窗 | 本格 | 窗里的人是本馆的维修员，还活着。 | 擦玻璃是在遮挡求救，手势是在威胁维修员退开。 |
+| 42 | seed-last-package-first | 第七个包裹 | 本格 | 前六个包裹来自绑匪，第七个的来路变了。 | 丈夫逃脱后混在送货人员中回到她面前，包裹帮助她认出他。 |
+| 43 | seed-fifteen-minute-queue | 最后一班 | 本格 | 车辆承担的是掩盖声音的作用。 | 抽签在挑选被处决的人，母亲吞签是阻止儿子被带走。 |
+| 44 | seed-left-at-the-hat-shop | 量头围 | 本格 | 他接近头部，主要为了寻找一道特殊疤痕。 | 假帽匠在追查抢走赃款的人，获知哥哥已死后，转去墓地寻找随葬的线索。 |
+| 45 | seed-window-without-a-face | 别拍到脸 | 本格 | 拍照的人正在寻找失踪的姐姐。 | 脚部照片让人把向导与姐姐失踪前的领队联系起来，营地成为搜查地点。 |
+| 46 | seed-unread-newspaper | 旧报纸 | 本格 | 外面的生活早已证明所谓瘟疫是谎言。 | 孩子出生于绑架现场，父亲用疫情故事把他关在地下室多年。 |
+| 47 | seed-frozen-handshake | 握紧 | 变格 | 神像曾经也是活人。 | 女儿是上一任神像；父亲见到她的同时，正在代替她变成石像。 |
+| 48 | seed-toll-of-one-secret | 过路费 | 变格 | 桥下的死者一直不知道凶手是谁。 | 他承认了杀人，即使没说沉尸地点，受害者也能凭秘密认出他。 |
+| 49 | seed-half-sized-monster | 它变小了 | 变格 | 鞋盒里留下的东西，已经不能代表怪物本体的大小。 | 缩小的是旧壳，真正长大的怪物已经逃出去，正在寻找关住它的人。 |
+| 50 | seed-unopened-future-safe | 保险箱 | 变格 | 父亲给出的日期，藏着对儿子的算计。 | 父亲想借儿子的身体复活；儿子晚到一天，使他永远困进自己的遗照。 |
+| 51 | seed-photographer-under-the-table | 桌下 | 本格 | 婚宴上的亲友都在演戏，新娘刚刚发现。 | 她假装醉酒钻到桌下，制造混乱，带着不知情的摄影师一起逃跑。 |
+| 52 | seed-bell-after-the-last-bus | 末班车 | 本格 | 买两张票是司机与常客约好的信号。 | 女人正被持刀者尾随，第二张票是在请求司机带大家去岗亭避险。 |
+| 53 | seed-lower-hemline | 裙摆 | 本格 | 改短裙摆，是为了露出脚踝上的旧伤。 | 替她改婚纱的人是找了她多年的生母，伤疤帮助父母在婚礼上认回女儿。 |
+| 54 | seed-hundred-empty-tins | 空罐头 | 本格 | 空罐头在逃离时有具体用途。 | 哥哥把防护和路标材料交给妹妹，又用响声把守卫引向另一边。 |
+| 55 | seed-empty-violin-case | 琴盒 | 本格 | 父亲借拉琴确认一份证据的去向。 | 发卡说明女儿落到军阀手里，父亲被迫以沉默换她活命。 |
+| 56 | seed-brightest-bedroom | 灯火通明 | 变格 | 增加光源，也增加了房间里的影子。 | 十二个敲门者都是模仿弟弟的影子，真正的弟弟仍藏在床下。 |
+| 57 | seed-nine-minute-alibi | 九分钟 | 变格 | 回到九分钟前，并不会让当时已经存在的人消失。 | 她回到的时刻，凶手已经藏在衣柜里；反锁大门又挡住了赶来的警方。 |
+| 58 | seed-king-without-a-name | 无名王 | 变格 | 王族的存在，依赖祖先姓名在世上的留存。 | 父王的墓碑是最后一处姓名；彻底抹去它，也抹去了作为后代的新王。 |
+| 59 | seed-stolen-yesterday | 卖掉昨天 | 变格 | 交易只能消除记忆，衣服和伤口仍保留昨天的痕迹。 | 买家买走目击杀人的记忆后又露出了真脸，只能继续收购这次见面。 |
+| 60 | seed-one-way-window | 窗后的儿子 | 变格 | 母亲早已去世，窗内是亡魂停留的地方。 | 她拒绝开窗，是想让病危的儿子回到仍有机会被救活的身体。 |
+| 61 | seed-unused-microphone | 请开麦 | 本格 | 听得到声音，不代表对方正在实时说话。 | 凶手在播放失踪者的旧录音，无法回答临时提出的问题。 |
+| 62 | seed-extra-seat-on-the-boat | 空出一个位置 | 本格 | 新上艇的人曾经出现在袭击现场。 | 获救者是海盗，正想把整艇幸存者带回自己的船。 |
+| 63 | seed-different-last-page | 最后一页 | 本格 | 小说是一本藏起来的逃生手册。 | 出口经过会被潮水灌满的涵洞；他走早了一天，必须退回去等落潮。 |
+| 64 | seed-uncut-tailor-thread | 缝在里面 | 本格 | 红线是死后才匆匆缝上的。 | 她把求助证据的藏处缝进领口，丈夫封住衣服，仍没能阻止入殓师发现。 |
+| 65 | seed-library-weight-limit | 带走重的那本 | 本格 | 院长在厚书的夹层藏了东西。 | 院长出卖了孩子们的父母，把夺来的金牙藏进书里，又纵火毁证。 |
+| 66 | seed-earliest-wrong-turn | 带路的人 | 本格 | 他在进洞时记过出口路线。 | 向导要把人带到封得住的支洞，后面的人识破路线，抓住他不让独自离开。 |
+| 67 | seed-door-for-the-youngest | 最小的孩子 | 变格 | 山神要求的是全村当前年纪最小的活人。 | 村民在等新生儿取代弟弟成为祭品，所以不再搜捕他。 |
+| 68 | seed-silent-truth-stone | 真话 | 变格 | 石头测的是故意说谎，无法替人恢复记忆。 | 他被迫杀人后又被抹去记忆，手背上的刻字是清醒时留给自己的警告。 |
+| 69 | seed-lost-shadow-market | 影子铺 | 变格 | 母亲认错人，是她自己的选择。 | 母亲用假病诱使次子卖影子，借他的模样换回了亡故的长子。 |
+| 70 | seed-memory-of-an-empty-room | 空房间 | 变格 | 每处住所留下的东西，保存着他在那时的记忆。 | 他拒绝继续留房后，分身取得了身体，搬家工人在旧屋又见到了一个他。 |
+| 71 | seed-upside-down-clocktower | 倒影 | 本格 | 画面拍到的是水中倒影。 | 倒影与近在耳边的钟声说明，父亲还被困在钟楼里。 |
+| 72 | seed-seat-behind-the-pillar | 贵宾席 | 本格 | 柱子遮挡的位置，对伪造在场状态很有用。 | 尸体被固定成坐姿，新伙计被利用来证明贵客整晚都在看戏。 |
+| 73 | seed-staple-through-the-date | 第三天 | 本格 | 哥哥的身体撑住了妹妹旁边的危险结构。 | 哥哥已经去世，但身体仍在保护妹妹，搜救人员必须先救活着的人。 |
+| 74 | seed-no-music-in-the-video | 收声 | 本格 | 女人曾在女儿被绑架时听过这段录音。 | 绑匪把勒索录音剪成恐怖音效出售，母亲认出了其中独有的声音顺序。 |
+| 75 | seed-library-of-unwritten-books | 借阅记录 | 变格 | 第一次和最后一次借阅，会在这张桌前重合。 | 他回来是把值得活下去的记忆交给年轻自己，减轻那三十年的恐惧。 |
+| 76 | seed-statue-that-blinks | 二号地球 | 变格 | 小地球上的改动，会直接影响他们的现实世界。 | 他们发现自己也住在一颗被更大世界的人观察的模型里。 |
+| 77 | seed-wishes-on-loan | 三个愿望 | 变格 | 父亲就是当初杀死女儿的人。 | 女儿不再怕他，反而终于敢当面说出要去揭发他的决定。 |
+| 78 | seed-compass-to-the-last-touch | 归航针 | 变格 | 父亲在交出罗盘前，曾用自己的血让它认主。 | 哥哥的魂附着弟弟回家，指针也就从埋尸地转向了弟弟。 |
+| 79 | seed-rain-that-waits | 雨一直没停 | 变格 | 雨在维持一场与十七年前洪灾有关的约定。 | 父亲死后约定中断，曾被拒之门外的亡魂开始进城复仇。 |
+| 80 | seed-last-sentence-of-the-curse | 最后一句 | 变格 | 传唱者死亡后，童谣会在特定亲属的记忆中重新出现。 | 杀死老太太使诅咒传到他的女儿，家里的歌声意味着下一轮已经开始。 |
+| 81 | seed-teacher-keeps-the-mistake | 篝火 | 本格 | 向导曾在这座木屋里经历过另一场暴雪。 | 烧出的旧刻字暴露了向导杀害同伴的事，他想连同自己和木屋一起毁去证据。 |
+| 82 | seed-white-line-on-the-jacket | 白线 | 本格 | 白线来自栏杆内侧的新漆。 | 儿子在挣扎求生，父亲把他的手扯开了，却声称自己曾试图救他。 |
+| 83 | seed-ticket-without-a-destination | 单程票 | 本格 | 车票上的红叉用来标记被挑中的人。 | 列车在替秘密矿场运送苦工；藏票让他被当成无用的蹭车者赶下。 |
+| 84 | seed-lantern-that-holds-one-sound | 灯里有人 | 变格 | 灯会用人最思念的面孔诱使他不肯放手。 | 海妖通过接触夺取声音与身体，丢进海中的手让它学会了他的声音。 |
+| 85 | seed-equal-weight-gate | 称重 | 变格 | 重量增加来自一个被隐藏的生命。 | 寄生体藏在喉部，探出口腔后才被单独计入人数。 |
+| 86 | seed-sleeping-road | 休眠者 | 变格 | 他的记忆停留在启航之前，队友们却已经共同生活了几十年。 | 原来的身体死亡后，医疗系统用年轻细胞和旧记忆重造了他。 |
+| 87 | seed-second-copy-of-the-ring | 第二枚婚戒 | 变格 | 两枚戒指各自保存了同一个人的身体和记忆。 | 她同时戴上两枚，带回了两个都记得自己是丈夫的人。 |
+| 88 | seed-silent-auction-of-voices | 拍卖你的声音 | 变格 | 交易的效力只针对买家指定的一场发言。 | 凶手一方买走了证词的声音，但证人仍可以通过书写揭露真相。 |
+| 89 | seed-map-of-the-moving-city | 地图边缘 | 变格 | 地图能直接改变这座城。 | 城市被外界的人画在纸上，失踪者与道路都可能被橡皮一起擦去。 |
+| 90 | seed-necromancers-wooden-house | 请你敲门 | 变格 | 钉子与真正限制鬼的封印是两回事。 | 屋里的人诱使他完成交换，自己出去，把新的求救者留在木屋里。 |
+| 91 | seed-statue-in-the-warm-van | 融化之前 | 本格 | 这尊展品有一个现实中的原型。 | 馆长把合伙人的遗体覆蜡藏进展厅，制冷故障迫使他转移。 |
+| 92 | seed-signature-on-the-gift-wrap | 礼物上的名字 | 本格 | 礼物是在父亲遇害后，由另一个人代寄的。 | 来访者写卡片的笔迹暴露了他与最后一份礼物的联系，布熊里藏着旧包装。 |
+| 93 | seed-last-empty-line | 最后一个名字 | 本格 | 失踪队员用过的绳子被领队收了回来，断口过于整齐。 | 领队要独吞发现，把最后的幸存者安排成死亡事故的替罪者。 |
+| 94 | seed-one-letter-a-hundred-times | 一百封求救信 | 变格 | 相同字迹来自被复制出来的许多个自己。 | 死者的魂随求救信回来了，每一个都记得同一处家，也有同样的脚伤。 |
+| 95 | seed-bottled-silence | 安静一点 | 变格 | 瓶子收走的声音来自那场火灾的亡魂。 | 瓶子破碎释放了死者，他们回到各自家门，叫醒了仍在思念他们的人。 |
+| 96 | seed-bread-for-someone-else | 分食 | 变格 | 两块面包之间有固定的交换关系。 | 母亲用自己的身体为儿子续粮，他分给同行者的食物也由她一并支付。 |
+| 97 | seed-window-packed-for-winter | 极夜温室 | 变格 | 温室植物在追逐来自地下的一点光。 | 考察站和远处的冰山都在巨兽背上，眼睛被挖开后，它正在醒来。 |
+| 98 | seed-coins-that-go-home | 找零 | 变格 | 铜钱原本是给抬棺者的报酬。 | 第七夜结束后，受害者能向捡钱的人索回被夺走的寿命。 |
+| 99 | seed-clock-that-counts-visitors | 第四名乘员 | 变格 | 检测数的是独立意识，舱内只有三具身体。 | 第四个意识寄居在他脑中，正借返回舱把控制它的外来者带到地球。 |
+| 100 | seed-gardeners-last-watch | 最后一个守夜人 | 变格 | 花园里的每朵花，对应镇上的一个人。 | 整个镇子都是被借回来的死者，祖父死后，他们要求孙子接下永远不能安睡的守夜。 |
