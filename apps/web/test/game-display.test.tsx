@@ -10,10 +10,11 @@ import { latestSessionInLanguage } from '../src/solo/session-selection.js';
 
 describe('邀请链接', () => {
   it.each(['https://soup.example.com', 'https://soup.example.com/'])('域名 %s 可以直接访问邀请路由', (origin) => {
-    expect(inviteUrl(origin, 'abc-123')).toBe('https://soup.example.com/invite/abc-123');
+    expect(inviteUrl(origin, 'abc-123', 'room')).toBe('https://soup.example.com/room/invite/abc-123');
+    expect(inviteUrl(origin, 'abc-123', 'lobby')).toBe('https://soup.example.com/lobby/invite/abc-123');
   });
   it('令牌不会变成路径或查询参数', () => {
-    expect(new URL(inviteUrl('https://soup.example.com', 'a/b?c')).pathname).toBe('/invite/a%2Fb%3Fc');
+    expect(new URL(inviteUrl('https://soup.example.com', 'a/b?c', 'room')).pathname).toBe('/room/invite/a%2Fb%3Fc');
   });
 });
 

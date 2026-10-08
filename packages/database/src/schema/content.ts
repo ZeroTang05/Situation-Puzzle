@@ -50,6 +50,9 @@ export const authorDisplayModeEnum = pgEnum('author_display_mode', ['anonymous',
 /** 题目难度：题库题入库时直接指定；玩家草稿无难度（保持 null）。 */
 export const puzzleDifficultyEnum = pgEnum('puzzle_difficulty', ['easy', 'medium', 'hard']);
 
+/** 题目类别：honkaku=本格（汤底须现实合理），henkaku=变格（允许超自然设定）。存量内容无类别（null）。 */
+export const puzzleCategoryEnum = pgEnum('puzzle_category', ['honkaku', 'henkaku']);
+
 // ---------- 身份扩展 ----------
 
 /** 业务档案：与 Better Auth 的 user 一对一；单人游玩完全不经过这里。 */
@@ -131,6 +134,8 @@ export const puzzleVersions = pgTable(
     /** 因果链描述 */
     causalChain: text('causal_chain'),
     difficulty: puzzleDifficultyEnum('difficulty'),
+    /** 题目类别（本格/变格）：判题提示词与题库筛选用；旧内容与未分类草稿为 null */
+    category: puzzleCategoryEnum('category'),
     durationMinutes: integer('duration_minutes'),
     contentWarnings: jsonb('content_warnings').$type<string[]>().notNull().default([]),
     moderationStatus: moderationStatusEnum('moderation_status').notNull().default('draft'),

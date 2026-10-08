@@ -12,6 +12,7 @@ export function PuzzleList() {
       <Datagrid rowClick="show" bulkActionButtons={false}>
         <TextField source="title" label={c.puzzleCol} />
         <TextField source="language" label={c.languageCol} />
+        <TextField source="category" label={c.categoryCol} />
         <NumberField source="versionNo" label={c.versionCol} />
         <TextField source="status" label={c.statusCol} />
         <BooleanField source="unavailable" label={c.disabledCol} />
@@ -100,6 +101,7 @@ export function VersionDetail() {
         <TextField source="title" label={c.puzzleCol} />
         <NumberField source="versionNo" label={c.versionCol} />
         <TextField source="language" label={c.languageCol} />
+        <TextField source="category" label={c.categoryCol} />
         <TextField source="surface" label={c.surfaceLabel} />
         <TextField source="answer" label={c.answerLabel} />
         <TextField source="status" label={c.statusCol} />

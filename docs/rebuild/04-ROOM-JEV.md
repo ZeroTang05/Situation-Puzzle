@@ -2,6 +2,8 @@
 
 连接体验与可靠发送的详细规则见 [12-CONNECTION-EXPERIENCE.md](12-CONNECTION-EXPERIENCE.md)，包括发送确认、命令查询、增量重连和草稿保留。
 
+房间生命周期以 [10-ROOM-LIFECYCLE-REVISION.md](10-ROOM-LIFECYCLE-REVISION.md)（v3）为准：会客厅先选题后开局、start 单事务建房、一房一题。本文第 2 节状态机里的 waiting 态与"创建等待室"流程是 v2 旧版描述，保留作历史记录。
+
 ## 1. 必须一直成立的规则
 
 1. 服务端决定房间状态、顺序、判定和揭晓。客户端发送意图，不能提交权威答案或余额。

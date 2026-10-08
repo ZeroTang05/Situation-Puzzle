@@ -8,6 +8,7 @@ export function copy(language: Language) {
     puzzleCol: language === 'zh' ? '标题' : 'Title',
     languageCol: w.language,
     versionCol: language === 'zh' ? '版号' : 'Version',
+    categoryCol: w.categoryField,
     statusCol: language === 'zh' ? '状态' : 'Status',
     disabledCol: language === 'zh' ? '已停用' : 'Disabled',
     rightsCol: language === 'zh' ? '授权' : 'Rights',

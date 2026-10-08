@@ -90,6 +90,7 @@ export class SoloController {
         surface: puzzleVersions.surface,
         hints: puzzleVersions.hints,
         difficulty: puzzleVersions.difficulty,
+        category: puzzleVersions.category,
         puzzleId: puzzles.id,
       })
       .from(puzzleVersions)
@@ -120,6 +121,7 @@ export class SoloController {
       title: version.title,
       surface: version.surface,
       difficulty: version.difficulty,
+      category: version.category,
       hintsTotal: version.hints.length,
       configVersion,
     };
@@ -146,6 +148,7 @@ export class SoloController {
         surface: puzzleVersions.surface,
         answer: puzzleVersions.answer,
         coreFacts: puzzleVersions.coreFacts,
+        category: puzzleVersions.category,
         hints: puzzleVersions.hints,
       })
       .from(puzzleVersions)
@@ -182,6 +185,7 @@ export class SoloController {
         surface: version.surface,
         answer: version.answer,
         coreFacts: version.coreFacts,
+        category: version.category,
         solution: body.solution,
       });
     } finally {
@@ -208,6 +212,7 @@ export class SoloController {
         surface: version.surface,
         answer: version.answer,
         coreFacts: version.coreFacts,
+        category: version.category,
         question,
       });
     } finally {

@@ -17,6 +17,7 @@ interface PuzzleItem {
   title: string;
   surface: string;
   difficulty: 'easy' | 'medium' | 'hard' | null;
+  category: 'honkaku' | 'henkaku' | null;
   durationMinutes: number | null;
   contentWarnings: string[];
   language: string;
@@ -38,15 +39,19 @@ export function LibraryPage({ session }: { session: Session | null }) {
     difficultyParam === 'easy' || difficultyParam === 'medium' || difficultyParam === 'hard'
       ? difficultyParam
       : null;
+  const categoryParam = params.get('category');
+  const category: 'honkaku' | 'henkaku' | null =
+    categoryParam === 'honkaku' || categoryParam === 'henkaku' ? categoryParam : null;
   const [playedIds, setPlayedIds] = useState<Set<string>>(new Set());
   const [followupError, setFollowupError] = useState<string | null>(null);
   const [openingPuzzleId, setOpeningPuzzleId] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['puzzles', language, sort, difficulty],
+    queryKey: ['puzzles', language, sort, difficulty, category],
     queryFn: () => {
       const qs = new URLSearchParams({ language, sort, limit: '50' });
       if (difficulty) qs.set('difficulty', difficulty);
+      if (category) qs.set('category', category);
       return api<{ items: PuzzleItem[]; nextCursor: string | null }>(`/puzzles?${qs.toString()}`);
     },
   });
@@ -130,6 +135,13 @@ export function LibraryPage({ session }: { session: Session | null }) {
     setParams(next, { replace: true });
   };
 
+  const setCategory = (value: 'honkaku' | 'henkaku' | null) => {
+    const next = new URLSearchParams(params);
+    if (value === null) next.delete('category');
+    else next.set('category', value);
+    setParams(next, { replace: true });
+  };
+
   return (
     <main className="shell">
       <header className="topbar">
@@ -162,6 +174,18 @@ export function LibraryPage({ session }: { session: Session | null }) {
           {copy.hard}
         </button>
       </div>
+      {/* 类别筛选：本格=汤底须现实合理，变格=允许超自然；空=全部 */}
+      <div className="mode-tabs" role="tablist" aria-label={copy.categoryField}>
+        <button className={`mode-tab ${category === null ? 'active' : ''}`} role="tab" aria-selected={category === null} onClick={() => setCategory(null)}>
+          {copy.categoryAll}
+        </button>
+        <button className={`mode-tab ${category === 'honkaku' ? 'active' : ''}`} role="tab" aria-selected={category === 'honkaku'} onClick={() => setCategory('honkaku')}>
+          {copy.honkaku}
+        </button>
+        <button className={`mode-tab ${category === 'henkaku' ? 'active' : ''}`} role="tab" aria-selected={category === 'henkaku'} onClick={() => setCategory('henkaku')}>
+          {copy.henkaku}
+        </button>
+      </div>
       {isLoading && <p className="muted">{copy.libraryLoading}</p>}
       {error && <p className="error-text">{copy.libraryLoadFail}</p>}
       {followupError && <p className="error-text" role="alert">{followupError}</p>}
@@ -172,6 +196,7 @@ export function LibraryPage({ session }: { session: Session | null }) {
               <h2>{puzzle.title}</h2>
               <div className="puzzle-card-badges">
                 {playedIds.has(puzzle.id) && <span className="puzzle-played">{copy.played}</span>}
+                {puzzle.category && <span className="puzzle-card-category">{puzzle.category === 'honkaku' ? copy.honkaku : copy.henkaku}</span>}
                 {puzzle.difficulty && (
                   <span className={`puzzle-card-difficulty puzzle-card-difficulty-${puzzle.difficulty}`}>
                     {puzzle.difficulty === 'easy' ? copy.easy : puzzle.difficulty === 'hard' ? copy.hard : copy.medium}

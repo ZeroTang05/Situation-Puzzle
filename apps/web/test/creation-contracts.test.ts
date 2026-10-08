@@ -1,7 +1,7 @@
 /** 投稿只要求题目与来源，转载链接和版本条件由共享契约检查。 */
 import { describe, expect, it } from 'vitest';
 import { creationDraftSchema, creationCompleteSchema, creationSubmitRequestSchema } from '@jev/contracts';
-const draft = { title: '邮差', surface: '', answer: '', hints: [], language: 'zh', difficulty: 'medium', origin: 'original', sourceUrl: '', authorDisplay: { mode: 'anonymous' } };
+const draft = { title: '邮差', surface: '', answer: '', hints: [], language: 'zh', difficulty: 'medium', category: 'honkaku', origin: 'original', sourceUrl: '', authorDisplay: { mode: 'anonymous' } };
 const complete = { ...draft, surface: '邮差没有送信，却救了一条命。', answer: '他发现有人煤气中毒并报警。', hints: ['异常气味', '屋里有人', '煤气泄漏'] };
 describe('简化投稿契约', () => {
   it('允许只保存标题，提交仍需完整题目和首条提示', () => {
@@ -22,8 +22,9 @@ describe('简化投稿契约', () => {
     expect(creationCompleteSchema.safeParse({ ...complete, origin: 'repost', sourceUrl: 'https://example.com/author/story' }).success).toBe(true);
     for (const sourceUrl of ['javascript:alert(1)', 'ftp://example.com/story']) expect(creationCompleteSchema.safeParse({ ...complete, origin: 'repost', sourceUrl }).success).toBe(false);
   });
-  it('来源类型和署名必须有效', () => {
+  it('来源类型、类别和署名必须有效', () => {
     expect(creationDraftSchema.safeParse({ ...draft, origin: 'other' }).success).toBe(false);
+    expect(creationDraftSchema.safeParse({ ...draft, category: 'mystery' }).success).toBe(false);
     expect(creationDraftSchema.safeParse({ ...draft, authorDisplay: { mode: 'signature', name: ' ' } }).success).toBe(false);
   });
 });

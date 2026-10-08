@@ -92,7 +92,7 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 | `profiles` | `user_id`、昵称（允许重复；未定制默认「用户+6 位随机编号」，可在「我的」修改）、账号状态、创建时间；状态 active/suspended/deletion_pending |
 | `role_assignments` | `user_id`、角色；用户与角色唯一 |
 | `puzzles` | 作品 ID、内部作者用户 ID（旧题可为空）、来源类型、当前发布版本指针、可用状态；作品级署名模式、已批准展示名与待审署名；匿名公共投影隐藏作者身份 |
-| `puzzle_versions` | 作品、版本号、语言、标题、汤面、汤底、提示、核心事实、因果链、难度、时长、内容提醒、审核状态；`(puzzle_id, version_no, language)` 唯一；提交后不可变；难度使用 `puzzle_difficulty`（pgEnum：`easy` / `medium` / `hard`），禁止自由文本 |
+| `puzzle_versions` | 作品、版本号、语言、标题、汤面、汤底、提示、核心事实、因果链、难度、类别、时长、内容提醒、审核状态；`(puzzle_id, version_no, language)` 唯一；提交后不可变；难度使用 `puzzle_difficulty`（pgEnum：`easy` / `medium` / `hard`），类别使用 `puzzle_category`（pgEnum：`honkaku` / `henkaku`，即本格/变格），禁止自由文本 |
 | `puzzle_rights` | 作品、origin（自制 original / 转载 repost）、原作者链接；保留平台自带及导入题库的权利核验字段 |
 | `puzzle_test_cases` | 版本、问题或还原、预期判定、理由、关键程度、人工确认人 |
 | `moderation_reviews` | 版本、阶段、结论、理由、操作者、自动模型版本、时间 |
@@ -107,6 +107,8 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 每局的判题语言与版本固定。界面语言独立，成员切换界面语言时可读取对应已发布的标题和汤面；此操作不改变房间的判题内容、历史问答或单人凭证。单人记录按题目和语言分别恢复。
 
 **难度枚举约束**：题库与创作中心共享 `difficultySchema = z.enum(['easy', 'medium', 'hard'])`，列表、单人详情、创作编辑、预览均按该枚举读取。题库列表支持 `difficulty` 查询参数（单值匹配）。`puzzle_difficulty` 枚举与现有审核、投票、翻译契约独立，仅影响内容字段取值范围。
+
+**类别枚举约束**：类别共享 `puzzleCategorySchema = z.enum(['honkaku', 'henkaku'])`——本格 = 汤底必须是现实合理的解释，变格 = 汤底允许超自然或非现实设定。题库列表支持 `category` 查询参数；判题提示词（ask/solve）携带类别说明辅助判定涉及超自然的提问；seed 导入把 library.json 的中文值（本格/变格）映射为该枚举。存量内容与未分类草稿为 null，筛选默认全部；创作读取旧草稿时按本格（honkaku）回填展示。
 
 后台支持批准当前语言和明确选择同版全部语言。批准范围和审核状态在服务端校验；用户投稿初审通过直接发布，平台自带及导入题库继续校验授权；同版补发语言保留已有发布指针，切换版号时指向本次批准的版本。发布状态、发布指针、署名变更和每个新发布语言的审计记录在同一事务中写入。具体审核操作见 [内容运营 §7](05-OPERATIONS.md#7-ugc-与题库运营)。
 
@@ -226,9 +228,9 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 - 草稿 schema 同样放宽（`creationDraftSchema`），便于作者分次填写；
 - 服务端在缺失第 1 条或数组越界时返回 `VALIDATION_FAILED`，路径包含 `hints.0` 等具体定位。
 
-### 创作契约补充：难度字段
+### 创作契约补充：难度与类别字段
 
-`difficulty` 字段使用 `difficultySchema = z.enum(['easy', 'medium', 'hard'])`，与数据库 `puzzle_difficulty` 枚举保持一致；客户端不得发送其它字符串或自由文本，否则返回 `VALIDATION_FAILED`。
+`difficulty` 字段使用 `difficultySchema = z.enum(['easy', 'medium', 'hard'])`，与数据库 `puzzle_difficulty` 枚举保持一致；客户端不得发送其它字符串或自由文本，否则返回 `VALIDATION_FAILED`。`category` 字段使用 `puzzleCategorySchema = z.enum(['honkaku', 'henkaku'])`，与数据库 `puzzle_category` 枚举保持一致；旧草稿未选类别时读取按本格（honkaku）回填，保存时写入显式值。
 
 ## 7. 一致性、任务与实时发送
 

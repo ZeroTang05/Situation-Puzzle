@@ -30,10 +30,21 @@ const IMPORT_SOURCE = 'official' as const;
 interface LibraryEntry {
   id: string;
   title: string;
+  /** 题目类别（中文源文件携带）：本格=现实逻辑，变格=允许超自然 */
+  category?: '本格' | '变格';
   story: string;
   answer: string;
   hints: string[];
   difficulty?: 'easy' | 'medium' | 'hard';
+}
+
+/** JSON 中文类别值 → puzzle_category 枚举；未知值直接报错（fast-fail）。 */
+const CATEGORY_MAP = { 本格: 'honkaku', 变格: 'henkaku' } as const;
+function categoryOf(entry: LibraryEntry): 'honkaku' | 'henkaku' | null {
+  if (entry.category === undefined) return null;
+  const mapped = CATEGORY_MAP[entry.category];
+  if (!mapped) throw new Error(`未知题目类别：${entry.id} ${String(entry.category)}`);
+  return mapped;
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -88,7 +99,10 @@ for (const entry of zh) {
     const versions = await db.select().from(puzzleVersions).where(eq(puzzleVersions.puzzleId, existingId));
     const zhSame = versions.some((v) => v.language === 'zh' && v.sourceHash === hash);
     const enSame = versions.some((v) => v.language === 'en' && v.sourceHash === contentHash(enEntry));
-    if (zhSame && enSame) {
+    // 类别补齐：列存在前导入的版本 hash 不变但 category 为 null，按新版本补写
+    const category = categoryOf(entry);
+    const categorySame = versions.some((v) => v.language === 'zh' && v.category === category);
+    if (zhSame && enSame && categorySame) {
       skipped += 1;
       continue;
     }
@@ -107,6 +121,7 @@ for (const entry of zh) {
           answer: entry.answer,
           hints: entry.hints,
           difficulty: entry.difficulty ?? null,
+          category,
           moderationStatus: 'published',
           sourceHash: hash,
         },
@@ -119,6 +134,7 @@ for (const entry of zh) {
           answer: enEntry.answer,
           hints: enEntry.hints,
           difficulty: enEntry.difficulty ?? null,
+          category,
           moderationStatus: 'published',
           sourceHash: contentHash(enEntry),
         },
@@ -155,32 +171,34 @@ for (const entry of zh) {
   });
   const insertedVersions = await db
     .insert(puzzleVersions)
-    .values([
-      {
-        puzzleId,
-        versionNo: 1,
-        language: 'zh',
-        title: entry.title,
-        surface: entry.story,
-        answer: entry.answer,
-        hints: entry.hints,
-        difficulty: entry.difficulty ?? null,
-        moderationStatus: 'published',
-        sourceHash: hash,
-      },
-      {
-        puzzleId,
-        versionNo: 1,
-        language: 'en',
-        title: enEntry.title,
-        surface: enEntry.story,
-        answer: enEntry.answer,
-        hints: enEntry.hints,
-        difficulty: enEntry.difficulty ?? null,
-        moderationStatus: 'published',
-        sourceHash: contentHash(enEntry),
-      },
-    ])
+      .values([
+        {
+          puzzleId,
+          versionNo: 1,
+          language: 'zh',
+          title: entry.title,
+          surface: entry.story,
+          answer: entry.answer,
+          hints: entry.hints,
+          difficulty: entry.difficulty ?? null,
+          category: categoryOf(entry),
+          moderationStatus: 'published',
+          sourceHash: hash,
+        },
+        {
+          puzzleId,
+          versionNo: 1,
+          language: 'en',
+          title: enEntry.title,
+          surface: enEntry.story,
+          answer: enEntry.answer,
+          hints: enEntry.hints,
+          difficulty: enEntry.difficulty ?? null,
+          category: categoryOf(entry),
+          moderationStatus: 'published',
+          sourceHash: contentHash(enEntry),
+        },
+      ])
     .returning({ id: puzzleVersions.id, language: puzzleVersions.language });
   const zhVersionId = insertedVersions.find((v) => v.language === 'zh')?.id;
   if (zhVersionId) {

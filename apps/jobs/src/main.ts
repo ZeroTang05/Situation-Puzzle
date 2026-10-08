@@ -223,6 +223,7 @@ class JobsApp {
           surface: version.surface,
           answer: version.answer,
           coreFacts: version.coreFacts,
+          category: version.category,
           question: turn.text,
         });
         await this.completeTurn(payload, verdict.result, String(verdict.confidence));
@@ -232,6 +233,7 @@ class JobsApp {
           surface: version.surface,
           answer: version.answer,
           coreFacts: version.coreFacts,
+          category: version.category,
           solution: turn.text,
         });
         await this.completeTurn(payload, verdict.result, String(verdict.confidence), verdict.result === 'solved');

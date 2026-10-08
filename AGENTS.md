@@ -9,20 +9,20 @@
 ## 目录结构
 
 ```
-apps/web        玩家端（React 19 + Vite）：首页、题库、单人、房间、邀请、我的、登录
+apps/web        玩家端（React 19 + Vite）：首页、题库、单人、会客厅、房间、邀请、创作、我的、登录、找回密码
 apps/admin      管理端（React-admin）：题库审核、用户、房间调查、举报、订单
-apps/api        NestJS 服务：认证、题库、单人、房间命令、实时网关、赞助订单、创作、治理、后台接口
+apps/api        NestJS 服务：认证 auth、题库 catalog、单人 solo、房间与会客厅 rooms、实时网关 realtime、赞助订单 billing、创作 creations、治理 governance、后台 admin
 apps/jobs       pg-boss 任务进程：dispatch-room / process-turn / review-puzzle / maintenance
 packages/contracts   跨端 Zod 契约：HTTP 请求响应、WS 事件、稳定错误码（客户端只准引用这里）
 packages/domain      纯业务规则：房间状态机、排队容量、赞助自然月算法、授权来源判定（配单测）
-packages/database    Drizzle 表结构（36 张表）、追加式迁移（drizzle/）、房间事务封装（rooms-tx）、题库导入
+packages/database    Drizzle 表结构（40 张表）、追加式迁移（drizzle/）、房间事务封装（rooms-tx）、题库导入
 packages/jev         Jev SystemOne 适配：20s 超时、错误分类、缺概率=协议错误、阈值 0.5、配置版本号
 packages/i18n        稳定枚举/错误码 → 中英文案
 packages/ui          设计变量（深海色系、16px 正文、44px 触控）
-infra/               web.Dockerfile / admin.Dockerfile（apps/web+apps/admin 静态烘进 nginx）、api/jobs Dockerfile、各自 nginx.conf
+infra/               web/admin/api/jobs 各自 Dockerfile（apps/web+apps/admin 静态烘进 nginx，api 容器启动自动跑迁移）、web.nginx.conf / admin.nginx.conf
 scripts/             冒烟与端到端联调脚本（smoke-new-system.sh、e2e-run.sh、dev-env.sh、dev-mailsink.mjs）
-data/                题库 JSON 导入源（library.json / library.en.json 共用 ID）
-docs/rebuild/        产品与架构设计文档（01~09）
+data/                题库 JSON 导入源（library.json / library.en.json 各 100 题同 ID 配套，顺序须一致；zh 条目 category 本格/变格由导入映射为 puzzle_category 枚举 honkaku/henkaku）
+docs/rebuild/        产品与架构设计文档（01~12：10 房间生命周期修订、11 赞踩署名、12 连接体验）
 ```
 
 ## 常用命令
@@ -35,9 +35,10 @@ pnpm dev:jobs           # 任务进程
 pnpm dev:web            # 玩家端 :5173（Vite 代理 /api/v1 与 /ws）
 pnpm dev:admin          # 管理端 :5174
 pnpm db:migrate         # 追加式迁移（可重复执行）
-pnpm db:seed            # 导入 30 题并本地发布（--publish 仅限开发，平台自带及导入题库平台自带及导入题库正式须走权利审核，用户投稿由 Jev 初审发布，用户投稿由 Jev 初审发布）
+pnpm db:seed            # 导入 data/library.json 全部题目（当前 100 题），平台自有内容入库即发布（--purge-stale 硬删消失题，生产禁用）
 pnpm smoke              # 冒烟：一次性 PostgreSQL + API + jobs + 接口断言
 pnpm e2e:multiplayer    # 双用户多人 E2E：36 项断言（真实 SMTP 登录 + 真实 Jev）
+pnpm e2e:votes          # 赞踩与署名 E2E（真实 SMTP + 真实 Jev）
 ```
 
 部署（服务器上）：`cp .env.example .env && docker compose up -d --build`；
@@ -51,8 +52,8 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   `GET /rounds/:id/answer`（揭晓后 + 有阅读权）与单人主动揭晓返回
 - **房间一致性**：写操作统一 HTTP 命令（`POST /rooms/:id/commands`），命令幂等
   (`clientRequestId` 唯一) + 控制版本乐观并发；事件按 `seq` 广播，客户端去重补齐；
-  四条不变量靠部分唯一索引兜底（见 `packages/database/src/schema/rooms.ts`）
-- **计费不变量**：免费开房 `(room_id, action)` 唯一流水；首次有效判定才消费；
+  四条不变量靠数据库唯一索引兜底（见 `packages/database/src/schema/rooms.ts`）
+- **计费不变量**：免费开房 `(room_id, action)` 唯一流水；首次有效判定或公布答案即消费；
   一房一题，换题新建房间并重新授权；CHECK 约束禁止负余额；赞助检查与扣减同事务同锁
 - **单人隐私**：`/solo/*` 匿名凭证（jose）、不落任何业务表；新规则不按 IP 或题目做业务限流；
   客户端 `credentials: 'omit'`
@@ -61,7 +62,7 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
 - **认证**：Better Auth（邮箱/密码 + Email OTP + Google + LINUX DO）；`trustedOrigins` 来自 `PUBLIC_BASE_URL`，
   改来源先看 `apps/api/src/auth/auth.instance.ts`
 - **邮件通道**：`MAIL_TRANSPORT` 显式二选一（`apps/api/src/auth/mailer.ts`）——
-  `resend` 生产通道（官方 SDK，与内部其他项目共用 Resend 账号，发件 `noreply@xiaobaozi.cn`）；
+  `resend` 生产通道（官方 SDK，与内部其他项目共用 Resend 账号，发件地址由 `MAIL_FROM` 配置，生产用 `noreply@xiaobaozi.cn`）；
   `smtp` 本地联调通道（投递给 dev-mailsink）。通道与配置的对应关系在 `env.ts` 跨字段校验
 - **OAuth 出站中继**：境内服务器配 `GOOGLE_OAUTH_PROXY_BASE_URL` +
   `GOOGLE_OAUTH_PROXY_SHARED_SECRET` 后，Google 与 LINUX DO 的服务端请求（token 兑换 POST、

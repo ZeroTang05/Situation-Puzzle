@@ -17,7 +17,7 @@
 6. **解散路径**。`DELETE /lobbies/:id`（房主主动）：删座位、revoke 所有未过期邀请、lobby 行 `status='closed'`、清空选题、关闭时间戳。**lobby 行不删**，id 永久保留。
 
 7. **邀请生命周期**。会客厅邀请 = `lobby_invites.token_hash` 行，跟 lobby 行绑定：
-   - 创建：`POST /lobbies/:id/invite`，生成 24h 随机 32 字节 hex。
+   - 创建：`POST /lobbies/:id/invite`，生成 24h 随机 hex（16 随机字节 → 32 字符）。
    - 失效：`expires_at` 到期 / `revoked_at` 写入 / lobby 行被删（账号注销 CASCADE）/ 重建新邀请时旧邀请 revoke。
    - **三种触发 revoke 的代码路径**：`createInvite` 重置时、`dismiss()` 解散时、`start()` 开局时。
 

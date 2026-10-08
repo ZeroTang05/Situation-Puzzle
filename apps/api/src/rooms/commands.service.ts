@@ -10,6 +10,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import {
   appendEvent,
   archiveRoomTx,
+  consumeEntitlementIfFreeTx,
   notifyRoomChange,
   presence,
   profiles,
@@ -304,6 +305,9 @@ export class CommandsService {
           type: 'round.ended',
           payload: { roundId: round.id, status: 'revealed', reason: 'host_revealed' },
         });
+        // 公布汤底即交付本局全部价值：即使尚无有效判定也在此消费免费次数，
+        // 否则「开局→不提问→公布→关房」会把预留原额退回，免费看答案无限循环（幂等，已消费则跳过）。
+        await consumeEntitlementIfFreeTx(tx, room.id);
         // 终局即归档：本房一题，公布后房间只读（10-ROOM-LIFECYCLE-REVISION §一.1）
         await archiveRoomTx(tx, room.id, 'round_ended', round.id);
         return { controlCommand: true };

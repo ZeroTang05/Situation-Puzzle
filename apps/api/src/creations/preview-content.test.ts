@@ -7,8 +7,8 @@ describe('私人试题内容摘要', () => {
   it('相同内容始终得到相同摘要', () => {
     expect(previewContentHash({ ...content })).toBe(previewContentHash(content));
   });
-  it('正文、答案、提示和核心事实修改后都使摘要改变', () => {
-    for (const change of [{ title: '新标题' }, { surface: '新汤面' }, { answer: '新汤底' }, { hints: ['新提示'] }, { coreFacts: ['新事实'] }]) {
+  it('正文、答案、提示、核心事实和类别修改后都使摘要改变', () => {
+    for (const change of [{ title: '新标题' }, { surface: '新汤面' }, { answer: '新汤底' }, { hints: ['新提示'] }, { coreFacts: ['新事实'] }, { category: 'henkaku' }]) {
       expect(previewContentHash({ ...content, ...change })).not.toBe(previewContentHash(content));
     }
   });

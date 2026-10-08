@@ -343,8 +343,9 @@ a { text-decoration: none; }
   min-width: 0;
 }
 
-/* 卡片右上角 badge 公共样式：已玩 + 难度统一大小、字重、内边距与背景 */
+/* 卡片右上角 badge 公共样式：已玩 + 类别 + 难度统一大小、字重、内边距与背景 */
 .puzzle-played,
+.puzzle-card-category,
 .puzzle-card-difficulty {
   display: inline-block;
   flex: none;
@@ -360,6 +361,11 @@ a { text-decoration: none; }
 .puzzle-played {
   border-color: #eb9f52;
   color: #ffc078;
+}
+
+.puzzle-card-category {
+  border-color: #5f93d6;
+  color: #8fc6ff;
 }
 
 .puzzle-surface {

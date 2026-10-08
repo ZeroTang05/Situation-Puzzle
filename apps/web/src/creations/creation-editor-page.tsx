@@ -12,7 +12,7 @@ import { creationCopy, creationStatusLabel } from './copy.js';
 
 /** 新稿只要求标题，正文可分次保存。 */
 function emptyDraft(language: 'zh' | 'en'): CreationDraft {
-  return { title: '', surface: '', answer: '', hints: ['', '', ''], language, difficulty: 'medium', origin: 'original', sourceUrl: '', authorDisplay: { mode: 'anonymous' } };
+  return { title: '', surface: '', answer: '', hints: ['', '', ''], language, difficulty: 'medium', category: 'honkaku', origin: 'original', sourceUrl: '', authorDisplay: { mode: 'anonymous' } };
 }
 
 /** 把 hints 补齐到 3 项以便稳定渲染；服务端读取时只有非空条目会被保留 */
@@ -43,7 +43,7 @@ function mapIssuesToFields(issues: ReadonlyArray<{ path: ReadonlyArray<unknown>;
 }
 
 /** 按视觉顺序排列的字段 id：用于首个错误自动滚动 + 聚焦。 */
-const FIELD_ORDER = ['title', 'language', 'difficulty', 'surface', 'answer', 'hints.0', 'hints.1', 'hints.2', 'origin', 'sourceUrl', 'attribution', 'authorDisplay.name'] as const;
+const FIELD_ORDER = ['title', 'language', 'difficulty', 'category', 'surface', 'answer', 'hints.0', 'hints.1', 'hints.2', 'origin', 'sourceUrl', 'attribution', 'authorDisplay.name'] as const;
 
 /** 字段节点注册表：Field 组件把自身的 ref 写进来，Editor 通过 id 取节点做滚动聚焦。 */
 const fieldRefs: Record<string, HTMLElement | null> = {};
@@ -192,7 +192,8 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
         <section className="creation-section"><h2>{text.story}</h2>
           <Field id="title" label={text.title} required error={fieldErrors.title}><input className="field" required maxLength={60} value={draft.title} onChange={(event) => change('title', event.target.value)} /></Field>
           <div className="creation-fields"><Field id="language" label={text.language}><Segmented value={draft.language} options={[{ value: 'zh', label: copy.languageZh }, { value: 'en', label: copy.languageEn }]} onChange={(value) => change('language', value as 'zh' | 'en')} /></Field>
-            <Field id="difficulty" label={text.difficulty}><Segmented value={draft.difficulty} options={[{ value: 'easy', label: text.easy }, { value: 'medium', label: text.medium }, { value: 'hard', label: text.hard }]} onChange={(value) => change('difficulty', value as CreationDraft['difficulty'])} /></Field></div>
+            <Field id="difficulty" label={text.difficulty}><Segmented value={draft.difficulty} options={[{ value: 'easy', label: text.easy }, { value: 'medium', label: text.medium }, { value: 'hard', label: text.hard }]} onChange={(value) => change('difficulty', value as CreationDraft['difficulty'])} /></Field>
+            <Field id="category" label={text.category}><Segmented value={draft.category} options={[{ value: 'honkaku', label: text.honkaku }, { value: 'henkaku', label: text.henkaku }]} onChange={(value) => change('category', value as CreationDraft['category'])} /></Field></div>
           <Field id="surface" label={text.surface} required error={fieldErrors.surface}><textarea className="field" rows={5} maxLength={2000} value={draft.surface} onChange={(event) => change('surface', event.target.value)} /></Field>
         </section>
         <section className="creation-section"><h2>{text.truth}</h2>

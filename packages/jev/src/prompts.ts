@@ -12,11 +12,29 @@ export interface ChoiceQuestion {
   criteria: Record<string, string>;
 }
 
+/** 题目类别：honkaku=本格（汤底须现实合理），henkaku=变格（允许超自然设定）。 */
+export type PuzzleCategory = 'honkaku' | 'henkaku';
+
+/** 类别注记：把这类汤底的现实性边界写进判题上下文，辅助判定涉及超自然的提问。null/undefined（未分类）不写入。 */
+function categoryEntry(category: PuzzleCategory | null | undefined, language: Language): Record<string, unknown> {
+  if (!category) return {};
+  const note =
+    category === 'honkaku'
+      ? language === 'en'
+        ? 'Honkaku: the answer is a realistic explanation with no supernatural forces.'
+        : '本格：汤底是现实合理的解释，不存在超自然力量。'
+      : language === 'en'
+        ? 'Henkaku: the answer may include supernatural or unrealistic elements.'
+        : '变格：汤底可以包含超自然或非现实设定。';
+  return language === 'en' ? { category: note } : { 类别: note };
+}
+
 export interface AskInput {
   title: string;
   surface: string;
   answer: string;
   coreFacts?: string[];
+  category?: PuzzleCategory | null;
   question: string;
 }
 
@@ -25,6 +43,7 @@ export interface SolveInput {
   surface: string;
   answer: string;
   coreFacts?: string[];
+  category?: PuzzleCategory | null;
   solution: string;
 }
 
@@ -110,6 +129,7 @@ export function askState(input: AskInput, language: Language): Record<string, un
     return {
       story: input.surface,
       answer: input.answer,
+      ...categoryEntry(input.category, language),
       ...(input.coreFacts?.length ? { coreFacts: input.coreFacts } : {}),
       playerQuestion: input.question,
     };
@@ -117,6 +137,7 @@ export function askState(input: AskInput, language: Language): Record<string, un
   return {
     汤面: input.surface,
     真相: input.answer,
+    ...categoryEntry(input.category, language),
     ...(input.coreFacts?.length ? { 核心事实: input.coreFacts } : {}),
     玩家提问: input.question,
   };
@@ -127,6 +148,7 @@ export function solveState(input: SolveInput, language: Language): Record<string
     return {
       story: input.surface,
       answer: input.answer,
+      ...categoryEntry(input.category, language),
       ...(input.coreFacts?.length ? { coreFacts: input.coreFacts } : {}),
       playerSolution: input.solution,
     };
@@ -134,6 +156,7 @@ export function solveState(input: SolveInput, language: Language): Record<string
   return {
     汤面: input.surface,
     汤底: input.answer,
+    ...categoryEntry(input.category, language),
     ...(input.coreFacts?.length ? { 核心事实: input.coreFacts } : {}),
     玩家还原: input.solution,
   };

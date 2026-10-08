@@ -11,6 +11,10 @@ export type Language = z.infer<typeof languageSchema>;
 export const difficultySchema = z.enum(['easy', 'medium', 'hard']);
 export type Difficulty = z.infer<typeof difficultySchema>;
 
+/** 题目类别：honkaku=本格（汤底须现实合理），henkaku=变格（允许超自然设定）；存量内容为 null。 */
+export const puzzleCategorySchema = z.enum(['honkaku', 'henkaku']);
+export type PuzzleCategory = z.infer<typeof puzzleCategorySchema>;
+
 // ---------- 通用信封 ----------
 
 export const errorBodySchema = z.object({
@@ -45,6 +49,7 @@ export const puzzleListItemSchema = z.object({
   title: z.string(),
   surface: z.string(),
   difficulty: difficultySchema.nullable(),
+  category: puzzleCategorySchema.nullable(),
   durationMinutes: z.number().int().nullable(),
   contentWarnings: z.array(z.string()),
   language: languageSchema,
@@ -73,6 +78,7 @@ export const soloSessionResponseSchema = z.object({
   title: z.string(),
   surface: z.string(),
   difficulty: difficultySchema.nullable(),
+  category: puzzleCategorySchema.nullable(),
   hintsTotal: z.number().int(),
   /** 凭证绑定的判题配置版本：本地记录用于展示一致性 */
   configVersion: z.string(),

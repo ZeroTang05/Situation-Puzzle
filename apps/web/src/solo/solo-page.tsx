@@ -91,7 +91,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
           }
           return;
         }
-        const created = await api<{ token: string; puzzleId: string; versionId: string; language: 'zh' | 'en'; title: string; surface: string; difficulty: 'easy' | 'medium' | 'hard' | null; hintsTotal: number; configVersion: string }>('/solo/sessions', {
+        const created = await api<{ token: string; puzzleId: string; versionId: string; language: 'zh' | 'en'; title: string; surface: string; difficulty: 'easy' | 'medium' | 'hard' | null; category: 'honkaku' | 'henkaku' | null; hintsTotal: number; configVersion: string }>('/solo/sessions', {
           method: 'POST',
           body: { puzzleId, language },
           credentials: 'omit',
@@ -104,6 +104,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
           title: created.title,
           surface: created.surface,
           difficulty: created.difficulty,
+          category: created.category,
           token: created.token,
           configVersion: created.configVersion,
         });
@@ -288,6 +289,11 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
       />
 
       <section className="story-card solo-story game-scroll">
+        {session.category && (
+          <span className="puzzle-card-category" style={{ marginBottom: '12px' }}>
+            {session.category === 'honkaku' ? copy.honkaku : copy.henkaku}
+          </span>
+        )}
         {session.difficulty && (
           <span className={`puzzle-card-difficulty puzzle-card-difficulty-${session.difficulty}`} style={{ marginBottom: '12px' }}>
             {session.difficulty === 'easy' ? copy.easy : session.difficulty === 'hard' ? copy.hard : copy.medium}

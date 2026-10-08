@@ -27,7 +27,7 @@ docker run -d --name jev-pg -e POSTGRES_USER=jev -e POSTGRES_PASSWORD=jev \
   -e POSTGRES_DB=jev -p 5432:5432 postgres:17
 
 pnpm db:migrate                   # append-only migrations, safe to re-run
-pnpm db:seed                      # import 30 classic puzzles (dev only)
+pnpm db:seed                      # import all puzzles from data/library.json (100 currently)
 
 pnpm dev:api & pnpm dev:jobs & pnpm dev:web
 ```

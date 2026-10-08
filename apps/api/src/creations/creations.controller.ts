@@ -19,9 +19,9 @@ type Condition = z.infer<typeof creationRevisionRequestSchema>;
 function authorSetting(display: CreationDraft['authorDisplay'], approvedName: string | null = null) {
   return display.mode === 'anonymous' ? { authorDisplayMode: 'anonymous' as const, authorDisplayName: null, authorPendingName: null } : { authorPendingName: display.name === approvedName ? null : display.name };
 }
-/** 题目正文与授权、署名分开保存。 */
+/** 题目正文与授权、署名分开保存。旧草稿 category 为 null，读取时按本格回填展示。 */
 function content(body: CreationDraft) {
-  return { title: body.title, surface: body.surface, answer: body.answer, hints: body.hints, language: body.language, difficulty: body.difficulty };
+  return { title: body.title, surface: body.surface, answer: body.answer, hints: body.hints, language: body.language, difficulty: body.difficulty, category: body.category };
 }
 /** 先锁作品再锁版本，版本条件避免旧页面覆盖新编辑。 */
 async function lockCreation(tx: Tx, userId: string, puzzleId: string, condition: Condition) {
@@ -34,7 +34,7 @@ async function lockCreation(tx: Tx, userId: string, puzzleId: string, condition:
 }
 /** 已提交版本的内容保留，修改通过复制新草稿完成。 */
 async function forkDraft(tx: Tx, latest: Version) {
-  const [next] = await tx.insert(puzzleVersions).values({ puzzleId: latest.puzzleId, versionNo: latest.versionNo + 1, language: latest.language, title: latest.title, surface: latest.surface, answer: latest.answer, hints: latest.hints, coreFacts: latest.coreFacts, causalChain: latest.causalChain, difficulty: latest.difficulty, contentWarnings: latest.contentWarnings, durationMinutes: latest.durationMinutes, moderationStatus: 'draft' }).returning();
+  const [next] = await tx.insert(puzzleVersions).values({ puzzleId: latest.puzzleId, versionNo: latest.versionNo + 1, language: latest.language, title: latest.title, surface: latest.surface, answer: latest.answer, hints: latest.hints, coreFacts: latest.coreFacts, causalChain: latest.causalChain, difficulty: latest.difficulty, category: latest.category, contentWarnings: latest.contentWarnings, durationMinutes: latest.durationMinutes, moderationStatus: 'draft' }).returning();
   if (!next) throw new Error('创建新草稿失败');
   await tx.update(puzzles).set({ updatedAt: new Date() }).where(eq(puzzles.id, latest.puzzleId));
   return { versionId: next.id, status: 'draft' as const };
@@ -77,7 +77,7 @@ export class CreationsController {
       const reviews = await tx.select({ versionId: moderationReviews.versionId, stage: moderationReviews.stage, conclusion: moderationReviews.conclusion, reason: moderationReviews.reason, createdAt: moderationReviews.createdAt }).from(moderationReviews).where(inArray(moderationReviews.versionId, versions.map((version) => version.id))).orderBy(desc(moderationReviews.createdAt));
       const requestedName = puzzle.authorPendingName ?? puzzle.authorDisplayName;
       return { puzzleId, versionId: latest.id, versionNo: latest.versionNo, status: latest.moderationStatus, updatedAt: puzzle.updatedAt,
-        draft: { title: latest.title, surface: latest.surface, answer: latest.answer, hints: latest.hints, language: latest.language, difficulty: latest.difficulty, origin: rights.origin, sourceUrl: rights.sourceUrl ?? '', authorDisplay: requestedName ? { mode: 'signature', name: requestedName } : { mode: 'anonymous' } },
+        draft: { title: latest.title, surface: latest.surface, answer: latest.answer, hints: latest.hints, language: latest.language, difficulty: latest.difficulty, category: latest.category ?? 'honkaku', origin: rights.origin, sourceUrl: rights.sourceUrl ?? '', authorDisplay: requestedName ? { mode: 'signature', name: requestedName } : { mode: 'anonymous' } },
         authorDisplay: { mode: puzzle.authorDisplayMode, name: puzzle.authorDisplayName, pendingName: puzzle.authorPendingName }, reviews,
         versions: versions.map((version) => ({ versionId: version.id, versionNo: version.versionNo, language: version.language, status: version.moderationStatus })),
       };

@@ -12,7 +12,7 @@ export function jevConfigFromEnv(env: NodeJS.ProcessEnv = process.env): JevConfi
     baseUrl: env.JEV_BASE_URL ?? 'https://opencode.ai/zen/v1/systemone',
     model: env.JEV_MODEL ?? 'jev-1.13',
     threshold,
-    promptVersion: env.JEV_PROMPT_VERSION ?? 'v1-2026-09',
+    promptVersion: env.JEV_PROMPT_VERSION ?? 'v2-2026-10',
     attemptTimeoutMs: 20_000,
     totalDeadlineMs: 45_000,
     language,

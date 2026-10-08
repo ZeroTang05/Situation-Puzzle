@@ -18,6 +18,8 @@ interface JevLocalDB extends DBSchema {
       surface: string;
       /** 题库题才有 difficulty，玩家自创草稿预览没有 */
       difficulty?: 'easy' | 'medium' | 'hard' | null;
+      /** 题目类别（本格/变格），与 difficulty 一样仅题库题携带 */
+      category?: 'honkaku' | 'henkaku' | null;
       configVersion: string;
       token: string;
       previewDigest?: string;
@@ -102,6 +104,7 @@ export const soloStore = {
     title: string;
     surface: string;
     difficulty?: 'easy' | 'medium' | 'hard' | null;
+    category?: 'honkaku' | 'henkaku' | null;
     token: string;
     configVersion: string;
     previewDigest?: string;

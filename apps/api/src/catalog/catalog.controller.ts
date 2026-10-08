@@ -7,7 +7,7 @@
  */
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { and, asc, eq, isNotNull, lt, ne, or, sql, desc } from 'drizzle-orm';
-import { randomPuzzleQuerySchema, difficultySchema } from '@jev/contracts';
+import { randomPuzzleQuerySchema, difficultySchema, puzzleCategorySchema } from '@jev/contracts';
 import { puzzles, puzzleVersions, ratings } from '@jev/database';
 import { DomainError } from '@jev/domain';
 import { app } from '../context.js';
@@ -19,6 +19,7 @@ import { publishedLanguageJoin } from './published-language.js';
 const listQuerySchema = z.object({
   language: z.enum(['zh', 'en']).default('zh'),
   difficulty: difficultySchema.optional(),
+  category: puzzleCategorySchema.optional(),
   sort: z.enum(['latest', 'popular']).default('latest'),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -61,6 +62,7 @@ export class CatalogController {
       eq(puzzleVersions.moderationStatus, 'published'),
     ];
     if (query.difficulty) conditions.push(eq(puzzleVersions.difficulty, query.difficulty));
+    if (query.category) conditions.push(eq(puzzleVersions.category, query.category));
 
     const scoreExpr = sql<number>`coalesce(${agg.upCount}, 0) - coalesce(${agg.downCount}, 0)`;
     const upExpr = sql<number>`coalesce(${agg.upCount}, 0)::int`;
@@ -104,6 +106,7 @@ export class CatalogController {
         title: puzzleVersions.title,
         surface: puzzleVersions.surface,
         difficulty: puzzleVersions.difficulty,
+        category: puzzleVersions.category,
         durationMinutes: puzzleVersions.durationMinutes,
         contentWarnings: puzzleVersions.contentWarnings,
         language: puzzleVersions.language,
@@ -139,6 +142,7 @@ export class CatalogController {
         title: row.title,
         surface: row.surface,
         difficulty: row.difficulty,
+        category: row.category,
         durationMinutes: row.durationMinutes,
         contentWarnings: row.contentWarnings,
         language: row.language,
@@ -184,6 +188,7 @@ export class CatalogController {
         title: puzzleVersions.title,
         surface: puzzleVersions.surface,
         difficulty: puzzleVersions.difficulty,
+        category: puzzleVersions.category,
         durationMinutes: puzzleVersions.durationMinutes,
         contentWarnings: puzzleVersions.contentWarnings,
         language: puzzleVersions.language,
@@ -217,6 +222,7 @@ export class CatalogController {
       title: item.title,
       surface: item.surface,
       difficulty: item.difficulty,
+      category: item.category,
       durationMinutes: item.durationMinutes,
       contentWarnings: item.contentWarnings,
       language: item.language,

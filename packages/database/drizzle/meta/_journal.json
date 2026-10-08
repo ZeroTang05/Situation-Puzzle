@@ -22,6 +22,13 @@
       "when": 1793000000000,
       "tag": "0002_room_followups",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794000000000,
+      "tag": "0003_puzzle_category",
+      "breakpoints": true
     }
   ]
 }

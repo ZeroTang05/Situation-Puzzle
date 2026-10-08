@@ -68,6 +68,7 @@ export class AdminController {
         language: puzzleVersions.language,
         title: puzzleVersions.title,
         surface: puzzleVersions.surface,
+        category: puzzleVersions.category,
         status: puzzleVersions.moderationStatus,
         unavailable: puzzles.unavailable,
         authorUserId: puzzles.authorUserId,
