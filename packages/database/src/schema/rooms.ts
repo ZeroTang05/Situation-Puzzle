@@ -216,7 +216,7 @@ export const rounds = pgTable(
     /** 开局固定的题目版本：旧局不受题目更新影响 */
     puzzleVersionId: uuid('puzzle_version_id')
       .notNull()
-      .references(() => puzzleVersions.id),
+      .references(() => puzzleVersions.id, { onDelete: 'cascade' }),
     language: text('language').notNull(),
     status: roundStatusEnum('status').notNull().default('active'),
     hintsRevealed: integer('hints_revealed').notNull().default(0),
@@ -391,7 +391,7 @@ export const jevCalls = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     turnId: uuid('turn_id').references(() => turns.id, { onDelete: 'cascade' }),
-    reviewVersionId: uuid('review_version_id').references(() => puzzleVersions.id),
+    reviewVersionId: uuid('review_version_id').references(() => puzzleVersions.id, { onDelete: 'cascade' }),
     /** 每次真实尝试一条记录，重试不合并 */
     model: text('model').notNull(),
     promptVersion: text('prompt_version').notNull(),

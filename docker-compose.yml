@@ -105,6 +105,10 @@ services:
 
   # 可选：一次性导入题库并本地发布（仅测试环境；正式环境须走权利审核，见 README）
   # 用法：docker compose --profile seed run --rm seed
+  #       SEED_PURGE_STALE=1 docker compose --profile seed run --rm seed
+  # docker compose run 的 "--" 后参数会整体覆盖 service 的 command（不是追加），
+  # 所以不靠 run -- <args> 透传，而是用 SEED_PURGE_STALE 环境变量开关硬删模式。
+  # 容器内 shell 脚本读该变量后再决定要不要给 db:import-library 加 --purge-stale。
   seed:
     profiles: ['seed']
     build:
@@ -114,10 +118,14 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-jev}:${POSTGRES_PASSWORD:?请在 .env 填写 POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-jev}
+      SEED_PURGE_STALE: ${SEED_PURGE_STALE:-}
     depends_on:
       postgres:
         condition: service_healthy
-    command: ['sh', '-c', 'pnpm --dir packages/database run db:migrate && pnpm --dir packages/database run db:import-library']
+    command:
+      - sh
+      - -c
+      - 'pnpm --dir packages/database run db:migrate && if [ "$$SEED_PURGE_STALE" = "1" ]; then pnpm --dir packages/database run db:import-library -- --purge-stale; else pnpm --dir packages/database run db:import-library; fi'
 
 volumes:
   postgres-data:

@@ -21,6 +21,7 @@ docker run -d --name jev-pg -e POSTGRES_USER=jev -e POSTGRES_PASSWORD=jev \
 
 pnpm db:migrate                   # 建表（追加式迁移，可重复执行）
 pnpm db:seed                      # 导入 data/library.json 全部题目（当前 100 题，本地直接发布）
+                                 # 硬删：pnpm --dir packages/database run db:import-library -- --purge-stale（不可逆）
 
 pnpm dev:api & pnpm dev:jobs & pnpm dev:web   # 三个进程并行
 ```
@@ -38,10 +39,35 @@ docker compose up -d --build
 ```
 
 这一条命令会构建并启动全部服务：玩家端/管理端/后端 API + 任务进程 + PostgreSQL，
-并且 API 容器启动时自动执行数据库迁移。首次体验可再执行
-`docker compose --profile seed run --rm seed` 导入演示题库（正式环境须走内容权利审核）。
+并且 API 容器启动时自动执行数据库迁移。首次体验可再执行下面的命令导入演示题库
+（正式环境须走内容权利审核）。
 
 升级版本：`git pull && docker compose up -d --build`。
+
+### 题库导入与维护
+
+题库源文件位于 `data/library.json`（中文）与 `data/library.en.json`（英文），
+导入脚本按 `legacyId` 差量同步——新增的题会新建、修改的题会追加新版本、
+消失的题按以下两种模式处理。脚本可重复运行，每次都按当前 `library.json`
+重新计算，**不会**因为重复执行而丢数据。
+
+```bash
+# 修改 library.json 后必须先重建 seed 镜像，否则容器内仍是旧版数据
+docker compose --profile seed build seed
+
+# 默认（软删）：消失的题标记 unavailable=true，历史局/评分等数据完整保留
+docker compose --profile seed run --rm seed
+
+# 硬删（不可逆）：消失的题连同 rounds / jev_calls / puzzle_versions 等全部级联清掉
+# 仅在 library.json 真删题、且确认不再需要任何审计历史时使用
+# 生产环境禁止（无 UNDO）
+SEED_PURGE_STALE=1 docker compose --profile seed run --rm seed
+```
+
+硬删依赖 `rounds.puzzle_version_id → puzzle_versions.id` 与
+`jev_calls.review_version_id → puzzle_versions.id` 两条 FK 上的 `ON DELETE CASCADE`
+（迁移 `packages/database/drizzle/0004_purge_cascade.sql`），少了它们会被 PostgreSQL
+外键约束挡住。软删路径不受此限制，可放心使用。
 
 ## 部署形态
 

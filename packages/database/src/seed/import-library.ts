@@ -15,7 +15,9 @@
  * 直接指向新增版本，licenseBasis 写明"平台自有"以与玩家投稿区分。
  *
  * --purge-stale 把 library.json 里消失的 legacyId 真删（清 puzzle_versions、
- * puzzle_rights、ratings 全部级联数据）。生产环境禁止（无 UNDO）。
+ * puzzle_rights、puzzle_test_cases、moderation_reviews、puzzle_ratings、rounds、
+ * jev_calls 全部级联数据）。生产环境禁止（无 UNDO）。rounds / jev_calls 的 FK
+ * cascade 在 0004_purge_cascade.sql 迁移里加上。
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -219,7 +221,8 @@ for (const [legacyId, id] of existingByLegacyId.entries()) {
 if (staleIds.length > 0) {
   if (purgeStale) {
     // 硬删：cascade 清掉 puzzle_versions / puzzle_rights / puzzle_test_cases /
-    // moderation_reviews / ratings。无法恢复。
+    // moderation_reviews / puzzle_ratings / rounds / jev_calls。无法恢复。
+    // rounds 与 jev_calls 的 ON DELETE CASCADE 见 drizzle/0004_purge_cascade.sql。
     await db.delete(puzzles).where(inArray(puzzles.id, staleIds));
     purged = staleIds.length;
   } else {
