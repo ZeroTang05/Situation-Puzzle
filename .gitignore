@@ -35,3 +35,6 @@ dist/
 mailsink.json
 playwright-report/
 test-results/
+
+data/reference
+data/curated

@@ -1,0 +1,4 @@
+interface:
+  display_name: "海龟汤创作"
+  short_description: "核验博主完整作品，创作自然、有故事性且可推理的恐怖悬疑海龟汤"
+  default_prompt: "使用 $turtle-soup-writer，按我的数量和题材要求，先完整阅读并核验合适的博主作品，如实说明访问缺口，再参考改写有故事性、汤面自然、反转可推理的海龟汤；审稿后按约定 JSON 交付。"

@@ -167,7 +167,7 @@ for (const entry of zh) {
   await db.insert(puzzleRights).values({
     puzzleId,
     status: 'approved',
-    licenseBasis: '平台自有题库（data/library-sources.md，source=official）',
+    licenseBasis: '平台自有题库（data/sources.md，source=official）',
     agreementVersion: 'platform-library-v1',
     confirmedAt: new Date(),
   });
