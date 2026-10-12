@@ -313,6 +313,12 @@ a { text-decoration: none; }
 
 /* ---------- 题库 ---------- */
 
+.library-pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
 .puzzle-grid {
   display: grid;
   gap: 12px;

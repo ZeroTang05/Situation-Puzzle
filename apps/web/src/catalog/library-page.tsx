@@ -1,11 +1,11 @@
 /** 题库：筛选、最新发布/受欢迎排序、署名与赞踩计数、单人开始或房主选题（11-VOTES-AND-AUTHORSHIP.md §3/§5）。 */
 import { useNavigate, useSearchParams } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { api, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
 import { useBack } from '../back.js';
 import { soloStore } from '../solo/local-store.js';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Session } from '../session.js';
 import { AuthorLabel } from './vote-buttons.js';
 import { openOrGetLobby } from '../rooms/create-lobby.js';
@@ -46,15 +46,20 @@ export function LibraryPage({ session }: { session: Session | null }) {
   const [followupError, setFollowupError] = useState<string | null>(null);
   const [openingPuzzleId, setOpeningPuzzleId] = useState<string | null>(null);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['puzzles', language, sort, difficulty, category],
-    queryFn: () => {
+  // 每页沿接口游标继续读取；筛选和排序各自缓存完整的分页列表。
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetching, isFetchingNextPage, isFetchNextPageError } = useInfiniteQuery({
+    queryKey: ['puzzles', 'pages', language, sort, difficulty, category],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) => {
       const qs = new URLSearchParams({ language, sort, limit: '50' });
       if (difficulty) qs.set('difficulty', difficulty);
       if (category) qs.set('category', category);
-      return api<{ items: PuzzleItem[]; nextCursor: string | null }>(`/puzzles?${qs.toString()}`);
+      if (pageParam) qs.set('cursor', pageParam);
+      return api<{ items: PuzzleItem[]; nextCursor: string | null }>(`/puzzles?${qs.toString()}`, { signal });
     },
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
+  const items = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
 
   // 本地已玩标记：单人历史不上传，只在浏览器提示本人
   useEffect(() => {
@@ -112,15 +117,15 @@ export function LibraryPage({ session }: { session: Session | null }) {
 
   useEffect(() => {
     const pick = params.get('pick');
-    if (!pick || !session || !data?.items.some((item) => item.id === pick)) return;
-    const puzzle = data.items.find((item) => item.id === pick)!;
+    if (!pick || !session || !items.some((item) => item.id === pick)) return;
+    const puzzle = items.find((item) => item.id === pick)!;
     const next = new URLSearchParams(params);
     next.delete('pick');
     setParams(next, { replace: true });
     void openRoomWithPuzzle(puzzle);
     // 登录回跳只处理一次，按钮仍由用户主动触发。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, session, params]);
+  }, [items, session, params]);
 
   const setSort = (value: 'latest' | 'popular') => {
     const next = new URLSearchParams(params);
@@ -187,10 +192,10 @@ export function LibraryPage({ session }: { session: Session | null }) {
         </button>
       </div>
       {isLoading && <p className="muted">{copy.libraryLoading}</p>}
-      {error && <p className="error-text">{copy.libraryLoadFail}</p>}
+      {error && !isFetchNextPageError && <p className="error-text">{copy.libraryLoadFail}</p>}
       {followupError && <p className="error-text" role="alert">{followupError}</p>}
       <div className="puzzle-grid">
-        {data?.items.map((puzzle) => (
+        {items.map((puzzle) => (
           <article key={puzzle.id} className="panel puzzle-card">
             <div className="puzzle-card-heading">
               <h2>{puzzle.title}</h2>
@@ -221,6 +226,14 @@ export function LibraryPage({ session }: { session: Session | null }) {
           </article>
         ))}
       </div>
+      {isFetchNextPageError && <p className="error-text" role="alert">{copy.libraryMoreLoadFail}</p>}
+      {hasNextPage && (
+        <div className="library-pagination">
+          <button className="btn" disabled={isFetching} onClick={() => void fetchNextPage()}>
+            {isFetchingNextPage ? copy.libraryLoading : isFetchNextPageError ? copy.retry : copy.libraryLoadMore}
+          </button>
+        </div>
+      )}
       {!session && mode === 'select' && (
         <p className="muted">{copy.libraryNeedLogin}</p>
       )}
