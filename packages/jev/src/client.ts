@@ -202,6 +202,8 @@ export class JevClient {
         headers: {
           Authorization: `Bearer ${this.config.apiKey}`,
           'Content-Type': 'application/json',
+          // 请求未压缩 JSON，保证代理响应可直接解析。
+          'Accept-Encoding': 'identity',
         },
         body: JSON.stringify({
           model: this.config.model,

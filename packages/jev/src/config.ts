@@ -9,7 +9,8 @@ export function jevConfigFromEnv(env: NodeJS.ProcessEnv = process.env): JevConfi
   const language: Language = env.JEV_LANGUAGE === 'en' ? 'en' : 'zh';
   return {
     apiKey: env.OPENCODE_API_KEY ?? '',
-    baseUrl: env.JEV_BASE_URL ?? 'https://opencode.ai/zen/v1/systemone',
+    // 代理路径保留上游域名和接口路径，JEV_BASE_URL 可指定完整请求地址。
+    baseUrl: env.JEV_BASE_URL ?? 'https://ai-proxy.xiaobaozi.cn/opencode.ai/zen/v1/systemone',
     model: env.JEV_MODEL ?? 'jev-1.13',
     threshold,
     promptVersion: env.JEV_PROMPT_VERSION ?? 'v2-2026-10',
