@@ -19,6 +19,10 @@ next-env.d.ts
 .toy-workspace/
 toy-dist/
 
+# 小红书小工具构建产物与下载的技能压缩包
+minitool-dist/
+.codex/*.skill
+
 # 日志
 *.log
 pnpm-debug.log*

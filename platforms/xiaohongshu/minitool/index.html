@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Jev 海龟汤</title>
+  <link rel="stylesheet" href="./assets/style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">Jev <span id="brand-name">海龟汤</span></div>
+      <div class="top-actions">
+        <button id="language-button" type="button">EN</button>
+        <button id="library-button" type="button">题库 ▾</button>
+        <button id="next-button" type="button">换一题</button>
+        <button id="share-button" type="button">分享</button>
+      </div>
+    </header>
+    <button id="library-dismiss" class="library-dismiss" type="button" aria-label="关闭题库" hidden></button>
+    <section id="library-panel" class="library-panel" aria-label="题库" hidden>
+      <input id="library-search" type="search" placeholder="搜索题目" maxlength="80">
+      <div id="library-list" class="library-list"></div>
+      <div class="library-pagination"><button id="previous-page" type="button">←</button><span id="library-page"></span><button id="next-page" type="button">→</button></div>
+    </section>
+    <div id="notice" class="notice" role="status" hidden></div>
+    <section class="play">
+      <section class="hero">
+        <div id="tagline" class="eyebrow">一问一答，接近真相</div>
+        <h1 id="soup-title"></h1>
+        <div id="soup-story" class="story"></div>
+        <div class="turtle" aria-hidden="true">🐢</div>
+      </section>
+      <div id="solve-head" class="panel-head" hidden><b id="solve-title">还原真相</b><button id="exit-solve" type="button">返回提问</button></div>
+      <div id="chat" class="chat" aria-live="polite"></div>
+      <section id="hint-card" class="hint-card" hidden>
+        <div class="hint-head"><b id="hint-title"></b><div class="hint-nav"><button id="previous-hint" type="button" aria-label="上一条提示">←</button><button id="next-hint" type="button" aria-label="下一条提示">→</button></div></div>
+        <p id="hint-text"></p>
+      </section>
+      <div id="actions" class="action-row"><button id="hint-button" type="button">提示</button><button id="reveal-button" type="button">公布答案</button><button id="solve-button" type="button">还原真相</button></div>
+      <form id="composer" class="composer">
+        <input id="question" type="text" maxlength="500" placeholder="问问 Jev…" autocomplete="off" required>
+        <button id="send-button" class="primary" type="submit">发送</button>
+      </form>
+    </section>
+  </main>
+  <script src="./assets/data.js"></script>
+  <script src="./assets/main.js"></script>
+</body>
+</html>
