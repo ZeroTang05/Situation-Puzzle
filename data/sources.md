@@ -1,6 +1,6 @@
 # 题库来源总览
 
-对应根目录 `library.json` 的 575 题，每题一行，序号与题库顺序一致。`library.en.json` 为同 ID 同序的英文翻译。更新日期：2026-10-12。
+逐题对照按 2026-10-12 整库（575 题）时的题库位置编号；2026-10-13 起现役题库为 514 题，累计下架 61 题（见文末「已下架」），主表序号保持不变以便对照 scores.md 打分记录。`library.en.json` 为同 ID 同序的英文翻译。更新日期：2026-10-13。
 
 ## 按批统计
 
@@ -596,6 +596,81 @@
 | 573 | xxye-0516 | 十七楼 | 小小耶 | [原作《十七楼》](reference/real/小小耶/走楼梯.md)（小小耶文字稿）· 优化改写 |
 | 574 | xxye-0519 | 最爱 | 小小耶 | [原作《最爱》](reference/real/小小耶/最爱.md)（小小耶文字稿）· 优化改写 |
 | 575 | xxye-0529 | 木梯上的眼泪 | 小小耶 | [原作《木梯上的眼泪》](reference/real/小小耶/T上之泪.md)（小小耶文字稿）· 原样保留 |
+
+## 已下架
+
+2026-10-13 代词指代诡计清理：谜底核心依赖「某个人称代词实际指代的对象与读者默认理解不同」的题目整体下架——这类题在 AI 主持人的是/否问答模式下无法公平判题（提问里的「他/她」在主持人与玩家各自理解中指不同的人）。下表 38 题，编号为下架前在 `library.json` 中的位置；主表与 scores.md 的编号均按下架前位置保留，不随现役题库移动。题面存档仍在 `curated/` 各批目录中。
+
+| # | ID | 题名 | 批次 |
+| --- | --- | --- | --- |
+| 33 | seed-unworn-rain-boots | 上岸 | 首发 |
+| 49 | seed-half-sized-monster | 它变小了 | 首发 |
+| 50 | seed-unopened-future-safe | 保险箱 | 首发 |
+| 61 | seed-unused-microphone | 请开麦 | 首发 |
+| 90 | seed-necromancers-wooden-house | 请你敲门 | 首发 |
+| 227 | real-survived-as-another | 活下来的我 | 天堂 |
+| 239 | real-mr-pumpkin | 南瓜先生 | 天堂 |
+| 255 | real-november-diary | 十一月日记 | 天堂 |
+| 256 | real-a-testing-reply | 试探的回复 | 天堂 |
+| 258 | real-he-came-back | 他回来了 | 天堂 |
+| 260 | real-finally-dead | 他终于死了 | 天堂 |
+| 291 | real-together-forever | 永远在一起 | 天堂 |
+| 295 | real-moonlit-monster | 月夜怪物 | 天堂 |
+| 300 | real-tidy-bedroom | 整理好的卧室 | 天堂 |
+| 304 | real-homeward-procession | 终于回家了 | 天堂 |
+| 312 | xxye-0012 | 按摩师 | 小小耶 |
+| 330 | xxye-0049 | 穿越日记 | 小小耶 |
+| 335 | xxye-0059 | 村庄 | 小小耶 |
+| 336 | xxye-0064 | 带绳而来 | 小小耶 |
+| 345 | xxye-0079 | 夺舍 | 小小耶 |
+| 347 | xxye-0083 | 法医 | 小小耶 |
+| 350 | xxye-0089 | 飞来横祸 | 小小耶 |
+| 354 | xxye-0094 | 疯女人 | 小小耶 |
+| 363 | xxye-0110 | 关机去见你 | 小小耶 |
+| 387 | xxye-0154 | 婚礼 | 小小耶 |
+| 451 | xxye-0274 | 妻子爱上他 | 小小耶 |
+| 457 | xxye-0288 | 求婚 | 小小耶 |
+| 460 | xxye-0295 | 刀拔不出 | 小小耶 |
+| 465 | xxye-0314 | 三明治 | 小小耶 |
+| 467 | xxye-0318 | 上楼 | 小小耶 |
+| 481 | xxye-0337 | 时空滑梯 | 小小耶 |
+| 498 | xxye-0371 | 替代它 | 小小耶 |
+| 504 | xxye-0380 | 完美的手术 | 小小耶 |
+| 505 | xxye-0381 | 完美机器 | 小小耶 |
+| 523 | xxye-0414 | 消失的他 | 小小耶 |
+| 531 | xxye-0428 | 鞋里的秘密 | 小小耶 |
+| 543 | xxye-0458 | 一样的东西 | 小小耶 |
+| 546 | xxye-0461 | 阴晴不定 | 小小耶 |
+
+### 2026-10-13 用户指定下架（data/delete.txt）
+
+用户复核后指定下架的 23 题（清单原 25 题，其中「上岸」「求婚」已见于上表）。编号同为下架前位置；题面存档仍在 `curated/` 各批目录中。
+
+| # | ID | 题名 | 批次 |
+| --- | --- | --- | --- |
+| 4 | seed-blank-underpage | 墙上的指甲 | 首发 |
+| 5 | seed-sold-out-portraits | 替身 | 首发 |
+| 11 | seed-awning-in-the-rain | 雨棚 | 首发 |
+| 15 | seed-fourth-place-ribbon | 第四名 | 首发 |
+| 42 | seed-last-package-first | 第七个包裹 | 首发 |
+| 44 | seed-left-at-the-hat-shop | 量头围 | 首发 |
+| 46 | seed-unread-newspaper | 旧报纸 | 首发 |
+| 53 | seed-lower-hemline | 裙摆 | 首发 |
+| 62 | seed-extra-seat-on-the-boat | 空出一个位置 | 首发 |
+| 83 | seed-ticket-without-a-destination | 单程票 | 首发 |
+| 93 | seed-last-empty-line | 最后一个名字 | 首发 |
+| 125 | seed-theatre-cut-curtain | 幕布下面 | 扩展 |
+| 183 | seed-bloodless-duel-scabbard | 挥空三次 | 扩展 |
+| 192 | seed-last-runway-landing-lights | 熄灭跑道 | 扩展 |
+| 247 | real-three-falls | 三次坠崖 | 天堂 |
+| 248 | real-three-airplanes | 三架飞机 | 天堂 |
+| 274 | real-seven-years-old | 我七岁了 | 天堂 |
+| 299 | real-possessiveness | 占有欲 | 天堂 |
+| 334 | xxye-0057 | 辞职回山 | 小小耶 |
+| 434 | xxye-0244 | 敏锐 | 小小耶 |
+| 462 | xxye-0298 | 礼物里的人 | 小小耶 |
+| 509 | xxye-0393 | 无力回天 | 小小耶 |
+| 554 | xxye-0480 | 再见 | 小小耶 |
 
 ## 未并入主题库存档
 

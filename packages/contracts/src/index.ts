@@ -3,3 +3,4 @@ export * from './errors.js';
 export * from './http.js';
 export * from './events.js';
 export * from './creations.js';
+export * from './catalog.js';

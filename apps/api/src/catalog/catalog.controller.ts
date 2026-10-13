@@ -7,7 +7,7 @@
  */
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { and, asc, eq, isNotNull, lt, ne, or, sql, desc } from 'drizzle-orm';
-import { randomPuzzleQuerySchema, difficultySchema, puzzleCategorySchema } from '@jev/contracts';
+import { randomPuzzleQuerySchema, catalogListQuerySchema } from '@jev/contracts';
 import { puzzles, puzzleVersions, ratings } from '@jev/database';
 import { DomainError } from '@jev/domain';
 import { app } from '../context.js';
@@ -15,15 +15,6 @@ import { Public } from '../common/public.js';
 import { ZodValidationPipe } from '../common/http.js';
 import { z } from 'zod';
 import { publishedLanguageJoin } from './published-language.js';
-
-const listQuerySchema = z.object({
-  language: z.enum(['zh', 'en']).default('zh'),
-  difficulty: difficultySchema.optional(),
-  category: puzzleCategorySchema.optional(),
-  sort: z.enum(['latest', 'popular']).default('latest'),
-  cursor: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-});
 
 /** 每作品投票聚合（子查询联入列表；无投票为 0）。 */
 function ratingsAggregate() {
@@ -50,10 +41,10 @@ function popularCursorOf(score: number, upCount: number, createdAt: Date, id: st
 
 @Controller('puzzles')
 export class CatalogController {
-  /** 公开题库列表：latest 按作品 ID 游标；popular 按排序元组游标（排序字段 + 作品 ID）。 */
+  /** 公开题库列表：支持按页直达和按排序元组连续读取。 */
   @Public()
   @Get()
-  async list(@Query(new ZodValidationPipe(listQuerySchema)) query: z.infer<typeof listQuerySchema>) {
+  async list(@Query(new ZodValidationPipe(catalogListQuerySchema)) query: z.infer<typeof catalogListQuerySchema>) {
     const agg = ratingsAggregate();
     const conditions = [
       eq(puzzles.unavailable, false),
@@ -63,6 +54,14 @@ export class CatalogController {
     ];
     if (query.difficulty) conditions.push(eq(puzzleVersions.difficulty, query.difficulty));
     if (query.category) conditions.push(eq(puzzleVersions.category, query.category));
+
+    // 总数与列表共用语言、发布和筛选条件；计数无需联入投票聚合。
+    const totals = query.page === undefined ? undefined : await app().db.db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(puzzles)
+      .innerJoin(puzzleVersions, publishedLanguageJoin())
+      .where(and(...conditions));
+    const total = totals?.[0]?.total;
 
     const scoreExpr = sql<number>`coalesce(${agg.upCount}, 0) - coalesce(${agg.downCount}, 0)`;
     const upExpr = sql<number>`coalesce(${agg.upCount}, 0)::int`;
@@ -125,7 +124,8 @@ export class CatalogController {
       .leftJoin(agg, eq(agg.puzzleId, puzzles.id))
       .where(and(...conditions))
       .orderBy(...orderBy)
-      .limit(query.limit + 1);
+      .limit(query.limit + 1)
+      .offset(query.page === undefined ? 0 : (query.page - 1) * query.limit);
 
     const hasMore = rows.length > query.limit;
     const items = hasMore ? rows.slice(0, query.limit) : rows;
@@ -152,6 +152,7 @@ export class CatalogController {
         downCount: row.downCount,
       })),
       nextCursor,
+      ...(total !== undefined ? { total, page: query.page, totalPages: Math.max(1, Math.ceil(total / query.limit)) } : {}),
     };
   }
 

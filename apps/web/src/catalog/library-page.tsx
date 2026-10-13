@@ -1,15 +1,16 @@
 /** 题库：筛选、最新发布/受欢迎排序、署名与赞踩计数、单人开始或房主选题（11-VOTES-AND-AUTHORSHIP.md §3/§5）。 */
 import { useNavigate, useSearchParams } from 'react-router';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
 import { useBack } from '../back.js';
 import { soloStore } from '../solo/local-store.js';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Session } from '../session.js';
 import { AuthorLabel } from './vote-buttons.js';
 import { openOrGetLobby } from '../rooms/create-lobby.js';
 import { compactVoteCount } from './vote-count.js';
+import { CatalogPagination } from './pagination.js';
 
 interface PuzzleItem {
   id: string;
@@ -27,11 +28,21 @@ interface PuzzleItem {
   downCount: number;
 }
 
+interface PuzzlePage {
+  items: PuzzleItem[];
+  total: number;
+  totalPages: number;
+  page: number;
+}
+
 export function LibraryPage({ session }: { session: Session | null }) {
   const { copy, language } = useLanguage();
   const navigate = useNavigate();
   const back = useBack('/');
   const [params, setParams] = useSearchParams();
+  const requestedPage = Number(params.get('page') ?? 1);
+  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const gridRef = useRef<HTMLDivElement>(null);
   const mode = params.get('mode') === 'select' ? 'select' : 'solo';
   const sort = params.get('sort') === 'popular' ? 'popular' : 'latest';
   const difficultyParam = params.get('difficulty');
@@ -46,20 +57,21 @@ export function LibraryPage({ session }: { session: Session | null }) {
   const [followupError, setFollowupError] = useState<string | null>(null);
   const [openingPuzzleId, setOpeningPuzzleId] = useState<string | null>(null);
 
-  // 每页沿接口游标继续读取；筛选和排序各自缓存完整的分页列表。
-  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetching, isFetchingNextPage, isFetchNextPageError } = useInfiniteQuery({
-    queryKey: ['puzzles', 'pages', language, sort, difficulty, category],
-    initialPageParam: null as string | null,
-    queryFn: ({ pageParam, signal }) => {
-      const qs = new URLSearchParams({ language, sort, limit: '50' });
+  // 按页直接请求，翻页期间保留列表位置并暂停旧题目的操作。
+  const listKey = ['puzzles', 'numbered', language, sort, difficulty, category] as const;
+  const { data, isLoading, error, isFetching, isPlaceholderData, refetch } = useQuery<PuzzlePage>({
+    queryKey: [...listKey, page],
+    queryFn: ({ signal }) => {
+      const qs = new URLSearchParams({ language, sort, limit: '50', page: String(page) });
       if (difficulty) qs.set('difficulty', difficulty);
       if (category) qs.set('category', category);
-      if (pageParam) qs.set('cursor', pageParam);
-      return api<{ items: PuzzleItem[]; nextCursor: string | null }>(`/puzzles?${qs.toString()}`, { signal });
+      return api<PuzzlePage>(`/puzzles?${qs.toString()}`, { signal });
     },
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey.slice(0, -1).every((value, index) => value === listKey[index])
+        ? keepPreviousData(previousData) : undefined,
   });
-  const items = useMemo(() => data?.pages.flatMap((page) => page.items) ?? [], [data]);
+  const items = data?.items;
 
   // 本地已玩标记：单人历史不上传，只在浏览器提示本人
   useEffect(() => {
@@ -97,7 +109,11 @@ export function LibraryPage({ session }: { session: Session | null }) {
 
   /** 建等待室后直接带上这道题；登录回跳保留题目与语言。 */
   const openRoomWithPuzzle = async (puzzle: PuzzleItem) => {
-    const selection = `/library?mode=select&pick=${encodeURIComponent(puzzle.id)}&lang=${language}`;
+    const selectionParams = new URLSearchParams(params);
+    selectionParams.set('mode', 'select');
+    selectionParams.set('pick', puzzle.id);
+    selectionParams.set('lang', language);
+    const selection = `/library?${selectionParams.toString()}`;
     if (!session) {
       navigate(`/login?next=${encodeURIComponent(selection)}`);
       return;
@@ -117,7 +133,7 @@ export function LibraryPage({ session }: { session: Session | null }) {
 
   useEffect(() => {
     const pick = params.get('pick');
-    if (!pick || !session || !items.some((item) => item.id === pick)) return;
+    if (!pick || !session || isPlaceholderData || !items?.some((item) => item.id === pick)) return;
     const puzzle = items.find((item) => item.id === pick)!;
     const next = new URLSearchParams(params);
     next.delete('pick');
@@ -125,11 +141,12 @@ export function LibraryPage({ session }: { session: Session | null }) {
     void openRoomWithPuzzle(puzzle);
     // 登录回跳只处理一次，按钮仍由用户主动触发。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, session, params]);
+  }, [items, session, params, isPlaceholderData]);
 
   const setSort = (value: 'latest' | 'popular') => {
     const next = new URLSearchParams(params);
     next.set('sort', value);
+    next.delete('page');
     setParams(next, { replace: true });
   };
 
@@ -137,6 +154,7 @@ export function LibraryPage({ session }: { session: Session | null }) {
     const next = new URLSearchParams(params);
     if (value === null) next.delete('difficulty');
     else next.set('difficulty', value);
+    next.delete('page');
     setParams(next, { replace: true });
   };
 
@@ -144,7 +162,16 @@ export function LibraryPage({ session }: { session: Session | null }) {
     const next = new URLSearchParams(params);
     if (value === null) next.delete('category');
     else next.set('category', value);
+    next.delete('page');
     setParams(next, { replace: true });
+  };
+
+  /** 更新网址中的页码，翻页后把视线带回新列表的开头。 */
+  const setPage = (value: number) => {
+    const next = new URLSearchParams(params);
+    next.set('page', String(value));
+    setParams(next);
+    gridRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
 
   return (
@@ -192,10 +219,10 @@ export function LibraryPage({ session }: { session: Session | null }) {
         </button>
       </div>
       {isLoading && <p className="muted">{copy.libraryLoading}</p>}
-      {error && !isFetchNextPageError && <p className="error-text">{copy.libraryLoadFail}</p>}
+      {error && <div role="alert"><p className="error-text">{copy.libraryLoadFail}</p><button className="btn btn-sm" onClick={() => void refetch()}>{copy.retry}</button></div>}
       {followupError && <p className="error-text" role="alert">{followupError}</p>}
-      <div className="puzzle-grid">
-        {items.map((puzzle) => (
+      <div ref={gridRef} className={`puzzle-grid${isPlaceholderData ? ' is-page-loading' : ''}`} aria-busy={isFetching}>
+        {items?.map((puzzle) => (
           <article key={puzzle.id} className="panel puzzle-card">
             <div className="puzzle-card-heading">
               <h2>{puzzle.title}</h2>
@@ -219,21 +246,14 @@ export function LibraryPage({ session }: { session: Session | null }) {
                 </span>
               </div>
               <div className="puzzle-card-actions">
-                <button className="btn btn-sm btn-primary" onClick={() => onPick(puzzle)}>{mode === 'select' ? copy.selectPuzzle : copy.solo}</button>
-                {mode !== 'select' && <button className="btn btn-sm btn-compact" disabled={openingPuzzleId !== null} onClick={() => void openRoomWithPuzzle(puzzle)}>{openingPuzzleId === puzzle.id ? copy.creating : copy.catalogOpenRoom}</button>}
+                <button className="btn btn-sm btn-primary" disabled={isPlaceholderData} onClick={() => onPick(puzzle)}>{mode === 'select' ? copy.selectPuzzle : copy.solo}</button>
+                {mode !== 'select' && <button className="btn btn-sm btn-compact" disabled={isPlaceholderData || openingPuzzleId !== null} onClick={() => void openRoomWithPuzzle(puzzle)}>{openingPuzzleId === puzzle.id ? copy.creating : copy.catalogOpenRoom}</button>}
               </div>
             </footer>
           </article>
         ))}
       </div>
-      {isFetchNextPageError && <p className="error-text" role="alert">{copy.libraryMoreLoadFail}</p>}
-      {hasNextPage && (
-        <div className="library-pagination">
-          <button className="btn" disabled={isFetching} onClick={() => void fetchNextPage()}>
-            {isFetchingNextPage ? copy.libraryLoading : isFetchNextPageError ? copy.retry : copy.libraryLoadMore}
-          </button>
-        </div>
-      )}
+      {data && <CatalogPagination page={page} totalPages={data.totalPages} total={data.total} busy={isFetching} onPage={setPage} />}
       {!session && mode === 'select' && (
         <p className="muted">{copy.libraryNeedLogin}</p>
       )}

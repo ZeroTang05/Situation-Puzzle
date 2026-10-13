@@ -169,9 +169,18 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
     catch (error) { setSubmitError(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
   };
+  /** 先保存并同步编辑页缓存，再进入私人试题；返回时恢复这份草稿。 */
   const preview = async () => {
     setBusy(true); setFieldErrors({}); setSubmitError(null);
-    try { const saved = editable ? await persist() : detail!; setDirty(false); navigate(`/creations/${saved.puzzleId}/preview`); }
+    try {
+      const saved = editable ? await persist() : detail!;
+      setDirty(false);
+      client.setQueryData(['creation', session.user.id, saved.puzzleId], saved);
+      await client.invalidateQueries({ queryKey: ['creations', session.user.id] });
+      // 用已保存草稿的地址替换当前编辑页，让浏览器返回也能继续编辑。
+      navigate(`/creations/${saved.puzzleId}`, { replace: true });
+      navigate(`/creations/${saved.puzzleId}/preview`);
+    }
     catch (error) { if (!(error instanceof Error) || error.message !== '字段未通过校验') setSubmitError(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
   };
