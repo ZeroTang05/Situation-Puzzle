@@ -13,7 +13,10 @@ const esc = (value) => String(value).replace(/'/g, "''");
 const BUILT_AT = '2026-09-24T00:00:00.000Z';
 
 const rows = library.map((soup) => `  ('${esc(soup.id)}','${esc(soup.title)}','${esc(soup.story)}','${esc(soup.answer)}','${esc(JSON.stringify(soup.hints))}','Jev 题库','published','${BUILT_AT}','${BUILT_AT}','zh','seed')`);
-const insert = `INSERT INTO soups (id,title,story,answer,hints,author_name,status,created_at,published_at,language,creator_token) VALUES\n${rows.join(',\n')};`;
+// 每题独立写入，让每条 SQL 都在 D1 的 100 KB 限制内。
+const insertPrefix = 'INSERT INTO soups (id,title,story,answer,hints,author_name,status,created_at,published_at,language,creator_token) VALUES';
+const inserts = rows.map((row) => `${insertPrefix}\n${row}`);
+const insert = inserts.map((statement) => `${statement};`).join('\n');
 
 const migrationPath = join(root, 'worker', 'migrations', '0001_initial.sql');
 const BEGIN = '-- >>> seed-data（由 scripts/sync-seed-sql.mjs 生成，勿手改）';
@@ -30,10 +33,10 @@ const ids = library.map((soup) => `'${esc(soup.id)}'`).join(',');
 const refresh = `-- 由 pnpm sync:seed 生成，仅更新 creator_token='seed' 的内置题，不修改玩家投稿或统计表。
 -- 旧内置题标记 deleted，保留数据与审核记录；同 ID 题目保留原有审核状态。
 UPDATE soups SET status='deleted' WHERE creator_token='seed' AND id NOT IN (${ids}) AND status<>'deleted';
-${insert.slice(0, -1)}
+${inserts.map((statement) => `${statement}
 ON CONFLICT(id) DO UPDATE SET
   title=excluded.title, story=excluded.story, answer=excluded.answer, hints=excluded.hints
-WHERE soups.creator_token='seed';
+WHERE soups.creator_token='seed';`).join('\n')}
 `;
 await writeFile(join(root, 'worker', 'refresh-seeds.sql'), refresh);
 console.log('已有数据库更新文件已生成：worker/refresh-seeds.sql（尚未执行）');

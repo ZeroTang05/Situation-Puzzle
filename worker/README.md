@@ -50,14 +50,13 @@ pnpm sync:xiaohongshu
 # 本地 D1
 pnpm --dir worker exec wrangler d1 execute Situation-Puzzle --local --file=refresh-seeds.sql
 
-# 线上 D1：通过在线查询更新题库；直接调用 Node，避免 Windows 批处理命令长度限制
-$seedSql = Get-Content -Raw -Encoding utf8 worker/refresh-seeds.sql
-node worker/node_modules/wrangler/bin/wrangler.js --cwd worker d1 execute Situation-Puzzle --remote "--command=$seedSql"
+# 线上 D1：从 SQL 文件导入更新
+pnpm --dir worker exec wrangler d1 execute Situation-Puzzle --remote --file=refresh-seeds.sql
 ```
 
 更新文件只处理 `creator_token='seed'` 的内置题：新增题目、更新保留题的汤面/汤底/提示、将移出题库的旧题标记为 `deleted`。旧题数据和审核记录保留；玩家投稿、投稿统计和同 ID 题目的管理员审核状态保持不变。脚本可重复执行。
 
-线上更新使用 `--command` 的查询接口。`--file` 走批量导入流程，期间数据库可能暂时无法接收查询，不适合不停机更新。操作前用 `pnpm --dir worker exec wrangler d1 time-travel info Situation-Puzzle` 记录恢复点，并备份待替换的内置题。
+生成器为每题生成独立的 SQL 语句，满足 D1 单条语句 100 KB 的限制。`--file` 走批量导入流程，期间数据库可能暂时无法接收查询，建议在低流量时更新。操作前用 `pnpm --dir worker exec wrangler d1 time-travel info Situation-Puzzle` 记录恢复点，并备份待替换的内置题。
 
 还需重新部署 Worker（其中包含英文题库和内置题排序），并重建发布所使用的网页、小红书或 B 站 Toy 前端。仅再次执行初始化迁移不会更新已迁移数据库中的题目。
 
