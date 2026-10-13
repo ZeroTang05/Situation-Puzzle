@@ -37,6 +37,12 @@ Jev 调用集中在 `../lib/jev.ts`：投稿审核、提问判断、还原真相
 
 提示词分别位于 `lib/prompts/question.ts` 与 `lib/prompts/solution.ts`；只返回结构化判定，破解成功后由接口下发汤底。网页与 B站 Toy 共用开关，小红书小组件也提供同样的开关。修改后需重建并发布各端。
 
+### 在后台核对 MiniMax 调用
+
+Cloudflare 后台进入 Workers & Pages → `situation-puzzle-api` → Observability（可观测性），筛选日志 `minimax.response`。每次成功收到上游响应时，会记录实际响应的 HTTP 状态、模型名、请求 ID、消息 ID、token 用量及耗时；`task` 为 `solve` 表示还原判题，`question` 表示提问补判。上游未提供请求 ID 时，该字段为空，可使用消息 ID 与调用时间定位。
+
+`minimax.request` 仅表示准备发送请求；`minimax.response` 表示 SDK 已收到上游响应。需要独立核对时，再到 MiniMax 控制台查看对应时间的 API 调用与用量记录。日志中不保存密钥、汤底或玩家输入。
+
 ```powershell
 # 在项目根目录执行
 pnpm --dir worker db:migrate:local

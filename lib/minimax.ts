@@ -19,12 +19,30 @@ async function requestJudgment(config: MiniMaxConfig, system: string, input: Rec
     maxRetries: 0,
     timeout: 60_000,
   });
-  const message = await client.messages.create({
-    model: config.MINIMAX_MODEL || 'MiniMax-M3.1-Flash',
+  const model = config.MINIMAX_MODEL || 'MiniMax-M3.1-Flash';
+  const task = 'solution' in input ? 'solve' : 'question';
+  const startedAt = Date.now();
+  console.log(JSON.stringify({ event: 'minimax.request', task, model, host: new URL(client.baseURL).hostname }));
+  const { data: message, response, request_id } = await client.messages.create({
+    model,
     max_tokens: 4096,
     system,
     messages: [{ role: 'user', content: JSON.stringify(input) }],
-  });
+  }).withResponse();
+  // 直接记录 SDK 收到的上游响应元数据，不记录密钥、汤底或玩家输入。
+  console.log(JSON.stringify({
+    event: 'minimax.response',
+    task,
+    host: new URL(response.url).hostname,
+    status: response.status,
+    requested_model: model,
+    upstream_model: message.model,
+    upstream_request_id: request_id,
+    message_id: message.id,
+    usage: message.usage,
+    stop_reason: message.stop_reason,
+    duration_ms: Date.now() - startedAt,
+  }));
   if (message.stop_reason !== 'end_turn') throw new Error(`MiniMax 判题未完成：${message.stop_reason}`);
   const text = message.content.filter((block) => block.type === 'text').map((block) => block.text).join('');
   return JSON.parse(text);
