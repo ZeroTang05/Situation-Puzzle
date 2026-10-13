@@ -6,10 +6,12 @@
  *  - Admin 通过 next=/admin 反代由 web 端 login 走完登录回到后台，保持单一口令 + cookie。
  */
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { authClient } from '../api/auth-client.js';
 import { translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
+import { BrandHeading } from '../brand-heading.js';
+import { authStepHref, loginDestination } from './login-navigation.js';
 import { useBack } from '../back.js';
 import { format } from '@jev/i18n';
 import { otpCooldownKey, readOtpDeadline, remainingOtpSeconds, sendOtpCode, OtpSendError } from './otp-cooldown.js';
@@ -20,10 +22,9 @@ type Stage = 'email' | 'code';
 
 export function LoginPage() {
   const { copy, language, setLanguage } = useLanguage();
-  const navigate = useNavigate();
   const back = useBack('/');
   const [params] = useSearchParams();
-  const next = params.get('next') ?? '/';
+  const next = loginDestination(params.get('next'), location.origin);
 
   const [mode, setMode] = useState<Mode>('signin');
   const [method, setMethod] = useState<Method>('password');
@@ -91,7 +92,7 @@ export function LoginPage() {
       setError(verifyError.message ?? copy.otpInvalid);
       return;
     }
-    navigate(next, { replace: true });
+    window.location.replace(next);
   };
 
   // 注册只检查 OTP，验证通过后不存在的账号返回稳定 USER_NOT_FOUND 错误码。
@@ -125,7 +126,7 @@ export function LoginPage() {
       setError(pwError.message ?? copy.signinFail);
       return;
     }
-    navigate(next, { replace: true });
+    window.location.replace(next);
   };
 
   // ---------- 注册：必须在 OTP 通过后才能提交 ----------
@@ -157,7 +158,7 @@ export function LoginPage() {
       setNotice(copy.signupSuccessSignin);
       return;
     }
-    navigate(next, { replace: true });
+    window.location.replace(next);
   };
 
   // ---------- 第三方 OAuth（Google / LINUX DO） ----------
@@ -196,7 +197,7 @@ export function LoginPage() {
     <main className="shell narrow">
       <header className="topbar">
         <button type="button" className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
-        <h1 className="brand">{copy.brand}</h1>
+        <BrandHeading>{copy.brand}</BrandHeading>
         <button
           type="button"
           className="btn btn-sm btn-ghost lang-switch"
@@ -261,7 +262,7 @@ export function LoginPage() {
                   {copy.login}
                 </button>
                 <p className="muted" style={{ textAlign: 'center' }}>
-                  {copy.forgotPassword}？ <a href="/forgot-password">{copy.forgotPasswordLink}</a>
+                  {copy.forgotPassword}？ <a href={authStepHref('/forgot-password', params.get('next'))}>{copy.forgotPasswordLink}</a>
                 </p>
               </div>
             )}

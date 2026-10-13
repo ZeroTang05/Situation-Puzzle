@@ -4,12 +4,15 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { authClient } from '../api/auth-client.js';
 import { useLanguage } from '../state/language.js';
 import { useBack } from '../back.js';
+import { BrandHeading } from '../brand-heading.js';
+import { authStepHref } from './login-navigation.js';
 
 export function ResetPasswordPage() {
   const { copy } = useLanguage();
   const navigate = useNavigate();
-  const back = useBack('/login');
   const [params] = useSearchParams();
+  const next = params.get('next');
+  const back = useBack(authStepHref('/login', next));
   const token = params.get('token') ?? '';
 
   const [password, setPassword] = useState('');
@@ -30,21 +33,21 @@ export function ResetPasswordPage() {
       setError(resetError.message ?? copy.resetFail);
       return;
     }
-    navigate('/login?reset=1', { replace: true });
+    navigate(authStepHref('/login?reset=1', next), { replace: true });
   };
 
   return (
     <main className="shell narrow">
       <header className="topbar">
         <button type="button" className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
-        <h1 className="brand">{copy.brand}</h1>
+        <BrandHeading>{copy.brand}</BrandHeading>
       </header>
       <section className="panel stack">
         <h2>{copy.resetPasswordTitle}</h2>
         {!token ? (
           <>
             <p className="error-text">{copy.resetPasswordInvalid}</p>
-            <button className="btn btn-primary" onClick={() => navigate('/forgot-password')}>
+            <button className="btn btn-primary" onClick={() => navigate(authStepHref('/forgot-password', next))}>
               {copy.reapply}
             </button>
           </>

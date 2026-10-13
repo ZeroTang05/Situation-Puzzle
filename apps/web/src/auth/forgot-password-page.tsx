@@ -1,14 +1,18 @@
 /** 忘记密码：输入注册邮箱 → 发送重置邮件；成功后只展示统一提示（防账号枚举）。 */
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { authClient } from '../api/auth-client.js';
 import { useLanguage } from '../state/language.js';
 import { useBack } from '../back.js';
+import { BrandHeading } from '../brand-heading.js';
+import { authStepHref } from './login-navigation.js';
 
 export function ForgotPasswordPage() {
   const { copy, language, setLanguage } = useLanguage();
   const navigate = useNavigate();
-  const back = useBack('/login');
+  const [params] = useSearchParams();
+  const next = params.get('next');
+  const back = useBack(authStepHref('/login', next));
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
@@ -20,7 +24,7 @@ export function ForgotPasswordPage() {
     const { error: resetError } = await authClient.requestPasswordReset({
       email,
       // 重置邮件里的链接落回本站的重置页
-      redirectTo: `${location.origin}/reset-password`,
+      redirectTo: `${location.origin}${authStepHref('/reset-password', next)}`,
     });
     setBusy(false);
     if (resetError) {
@@ -34,7 +38,7 @@ export function ForgotPasswordPage() {
     <main className="shell narrow">
       <header className="topbar">
         <button type="button" className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
-        <h1 className="brand">{copy.brand}</h1>
+        <BrandHeading>{copy.brand}</BrandHeading>
         <button
           type="button"
           className="btn btn-sm btn-ghost lang-switch"
@@ -49,7 +53,7 @@ export function ForgotPasswordPage() {
         {sent ? (
           <>
             <p className="muted">{copy.resetEmailSent}</p>
-            <button className="btn btn-primary" onClick={() => navigate('/login')}>
+            <button className="btn btn-primary" onClick={() => navigate(authStepHref('/login', next))}>
               {copy.backToLogin}
             </button>
           </>

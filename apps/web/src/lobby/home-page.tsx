@@ -7,6 +7,7 @@ import { openOrGetLobby } from '../rooms/create-lobby.js';
 import { useLanguage } from '../state/language.js';
 import type { Session } from '../session.js';
 import { creationCopy } from '../creations/copy.js';
+import { BrandHeading } from '../brand-heading.js';
 
 export function HomePage({ session }: { session: Session | null }) {
   const { copy, language, setLanguage } = useLanguage();
@@ -32,7 +33,7 @@ export function HomePage({ session }: { session: Session | null }) {
   return (
     <main className="shell">
       <header className="topbar">
-        <h1 className="brand">{copy.brand}</h1>
+        <BrandHeading>{copy.brand}</BrandHeading>
         <div className="topbar-actions">
           <button className="btn btn-ghost btn-sm" onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}>
             {language === 'zh' ? copy.languageSwitchToEn : copy.languageSwitchToZh}
@@ -50,7 +51,7 @@ export function HomePage({ session }: { session: Session | null }) {
       </header>
 
       <section className="hero-card">
-        <p className="accent tagline">🐢 {copy.tagline}</p>
+        <p className="accent tagline">{copy.tagline}</p>
         <div className="stack">
           <button className="btn btn-primary btn-lg" onClick={() => navigate('/library?mode=solo')}>
             {copy.solo}

@@ -66,7 +66,7 @@ export function CreationListPage({ session }: { session: Session | null }) {
     )}
     {query.isSuccess && items.length === 0 && (
       <section className="creation-empty">
-        <span className="creation-empty-icon" aria-hidden>🐢</span>
+        <img className="creation-empty-icon" src="/icon.svg" width={48} height={48} alt="" aria-hidden="true" />
         <p>{text.empty}</p>
         <Link className="btn btn-primary" to="/creations/new">{text.create}</Link>
       </section>

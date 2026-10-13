@@ -11,6 +11,7 @@ import { api } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
 import type { Session } from '../session.js';
 import { format } from '@jev/i18n';
+import { loginHref } from '../auth/login-navigation.js';
 
 interface RatingState {
   choice: 'up' | 'down' | null;
@@ -53,7 +54,7 @@ export function VoteButtons({
     if (busy) return;
     if (!session) {
       // 未登录：去登录并回原题（保留当前路径）
-      navigate(`/login?next=${encodeURIComponent(location.pathname + location.search)}`);
+      navigate(loginHref(location));
       return;
     }
     const previous = state;

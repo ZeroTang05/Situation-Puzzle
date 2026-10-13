@@ -2,7 +2,7 @@
  * 邀请落地页：展示房间/等待室信息，登录后加入。
  * 路径 /lobby/invite/:token 与 /room/invite/:token 各自走固定的后端 endpoint，无 fallback。
  */
-import { useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { api, translateApiError } from '../api/client.js';
@@ -10,6 +10,7 @@ import { useLanguage } from '../state/language.js';
 import { useBack } from '../back.js';
 import { format } from '@jev/i18n';
 import type { Session } from '../session.js';
+import { loginHref } from '../auth/login-navigation.js';
 
 interface LobbyPreview {
   lobbyId: string;
@@ -31,6 +32,7 @@ export function InvitePage({ session, kind }: { session: Session | null; kind: '
   const { token } = useParams();
   const { copy, language } = useLanguage();
   const navigate = useNavigate();
+  const source = useLocation();
   const back = useBack('/');
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +110,7 @@ export function InvitePage({ session, kind }: { session: Session | null; kind: '
             {joining ? copy.joining : copy.joinRoom}
           </button>
         ) : (
-          <button className="btn btn-primary" onClick={() => navigate(`/login?next=${encodeURIComponent(location.pathname)}`, { replace: true })}>
+          <button className="btn btn-primary" onClick={() => navigate(loginHref(source), { replace: true })}>
             {copy.loginAndJoin}
           </button>
         )}

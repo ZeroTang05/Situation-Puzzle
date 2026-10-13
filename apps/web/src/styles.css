@@ -4,6 +4,10 @@
 /* 页面统一使用纯色背景，加载期间沿用相同样式。 */
 html, body { background: var(--bg); }
 
+/* 品牌标识与标题在首页和认证页面保持相同尺寸。 */
+.brand-identity { display: inline-flex; align-items: center; min-width: 0; gap: 8px; }
+.brand-mark { display: block; flex: 0 0 28px; border-radius: 7px; }
+
 /* 全站链接一律不加下划线（含按钮形态的 <a>），可点性靠颜色与形态区分 */
 a { text-decoration: none; }
 
@@ -33,7 +37,7 @@ a { text-decoration: none; }
 .mode-tab-count { margin-left: 5px; font-size: 12px; opacity: .65; font-variant-numeric: tabular-nums; }
 .creation-filter-empty { margin: 0; padding: 16px 4px; }
 .creation-load-error { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-.creation-empty-icon { font-size: 40px; line-height: 1; opacity: .5; }
+.creation-empty-icon { width: 48px; height: 48px; opacity: .5; }
 
 /* 「我的」页面：账号卡片（与创作中心同款面板）+ 扁平历史列表 */
 .me-card { display: flex; flex-direction: column; gap: 16px; margin-top: 8px; padding: 20px 16px; border: 1px solid rgba(115, 191, 220, .22); border-radius: 16px; background: rgba(9, 39, 62, .7); }
@@ -287,13 +291,14 @@ a { text-decoration: none; }
 }
 
 .hero-card::after {
-  content: '🐢';
+  content: '';
   position: absolute;
   right: 8px;
-  bottom: -12px;
-  font-size: 64px;
+  bottom: 8px;
+  width: 64px;
+  height: 64px;
+  background: url('/icon.svg') center / contain no-repeat;
   opacity: 0.22;
-  transform: rotate(-9deg);
   pointer-events: none;
 }
 

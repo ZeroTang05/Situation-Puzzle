@@ -14,6 +14,7 @@ import { useJevSession } from './api/auth-client.js';
 import { CreationListPage } from './creations/creation-list-page.js';
 import { CreationEditorPage } from './creations/creation-editor-page.js';
 import { CreationPreviewPage } from './creations/creation-preview-page.js';
+import { RequireSession } from './auth/require-session.js';
 
 export function App() {
   const { session, isPending } = useJevSession();
@@ -27,15 +28,15 @@ export function App() {
       <Route path="/" element={<HomePage session={session} />} />
       <Route path="/library" element={<LibraryPage session={session} />} />
       <Route path="/solo/:puzzleId" element={<SoloPage session={session} />} />
-      <Route path="/rooms/:roomId" element={<RoomPage session={session} />} />
-      <Route path="/lobbies/:lobbyId" element={<LobbyPage session={session} />} />
+      <Route path="/rooms/:roomId" element={<RequireSession session={session}><RoomPage session={session} /></RequireSession>} />
+      <Route path="/lobbies/:lobbyId" element={<RequireSession session={session}><LobbyPage session={session} /></RequireSession>} />
       <Route path="/lobby/invite/:token" element={<InvitePage kind="lobby" session={session} />} />
       <Route path="/room/invite/:token" element={<InvitePage kind="room" session={session} />} />
-      <Route path="/me" element={<MePage session={session} />} />
-      <Route path="/creations" element={<CreationListPage session={session} />} />
-      <Route path="/creations/new" element={<CreationEditorPage session={session} />} />
-      <Route path="/creations/:puzzleId" element={<CreationEditorPage session={session} />} />
-      <Route path="/creations/:puzzleId/preview" element={<CreationPreviewPage session={session} />} />
+      <Route path="/me" element={<RequireSession session={session}><MePage session={session} /></RequireSession>} />
+      <Route path="/creations" element={<RequireSession session={session}><CreationListPage session={session} /></RequireSession>} />
+      <Route path="/creations/new" element={<RequireSession session={session}><CreationEditorPage session={session} /></RequireSession>} />
+      <Route path="/creations/:puzzleId" element={<RequireSession session={session}><CreationEditorPage session={session} /></RequireSession>} />
+      <Route path="/creations/:puzzleId/preview" element={<RequireSession session={session}><CreationPreviewPage session={session} /></RequireSession>} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />

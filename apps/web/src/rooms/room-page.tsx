@@ -4,7 +4,7 @@
  */
 import { useDialog } from '@jev/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api, ApiError, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
@@ -21,12 +21,14 @@ import { VoteButtons } from '../catalog/vote-buttons.js';
 import type { Session } from '../session.js';
 import { MessageDelivery } from './message-delivery.js';
 import { RoomShell } from './room-shell.js';
+import { loginHref } from '../auth/login-navigation.js';
 
 export function RoomPage({ session }: { session: Session | null }) {
   const { roomId } = useParams();
   const dialog = useDialog();
   const { copy, language } = useLanguage();
   const navigate = useNavigate();
+  const login = loginHref(useLocation());
   // 房间页的"返回"键严格走 history 栈：
   // - 从 lobby start 过来：栈里有 lobby，按返回回 lobby（栈自然行为，无需硬塞 state）
   // - 从「我的」/首页/继续我的房间 进来：栈里只有上一页，按返回回那一页
@@ -136,7 +138,7 @@ export function RoomPage({ session }: { session: Session | null }) {
     return (
       <main className="shell">
         <p className="muted">{copy.needLoginForRoom}</p>
-        <button className="btn btn-primary" onClick={() => navigate(`/login?next=/rooms/${roomId}`)}>{copy.login}</button>
+        <button className="btn btn-primary" onClick={() => navigate(login)}>{copy.login}</button>
       </main>
     );
   }
@@ -144,7 +146,7 @@ export function RoomPage({ session }: { session: Session | null }) {
     return (
       <main className="shell page-loading">
         <p className="muted">{status === 'auth_required' ? copy.authExpired : status === 'offline' ? copy.offline : copy.loadingRound}</p>
-        {status === 'auth_required' && <a className="btn" href={`/login?next=/rooms/${roomId}`}>{copy.reconnect}</a>}
+        {status === 'auth_required' && <a className="btn" href={login}>{copy.reconnect}</a>}
       </main>
     );
   }
