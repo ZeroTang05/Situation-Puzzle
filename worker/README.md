@@ -33,7 +33,7 @@ Jev 调用集中在 `../lib/jev.ts`：投稿审核、提问判断、还原真相
 
 默认使用 `MiniMax-M3.1-Flash` 和 `https://api.minimax.cn/anthropic`；可通过 `MINIMAX_MODEL`、`MINIMAX_BASE_URL` 覆盖。线上可将这两个非密钥变量写入 `wrangler.jsonc` 的 `vars`。
 
-普通提问在 Jev 置信度低于阈值时自动调用 MiniMax。还原接口接收布尔字段 `useLargeModel`，默认 `false`；开启后直接用 MiniMax 判题。连接错误或无效响应会返回请求失败。
+普通提问与还原判题在 Jev 置信度低于阈值时自动调用 MiniMax。还原接口接收布尔字段 `useLargeModel`，默认 `false`；开启后直接用 MiniMax 判题。连接错误或无效响应会返回请求失败。
 
 提示词分别位于 `lib/prompts/question.ts` 与 `lib/prompts/solution.ts`；只返回结构化判定，破解成功后由接口下发汤底。网页与 B站 Toy 共用开关，小红书小组件也提供同样的开关。修改后需重建并发布各端。
 

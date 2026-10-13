@@ -1,4 +1,4 @@
-/** 判题路由规则：提问低置信度自动补判，还原按玩家开关选择模型。 */
+/** 判题路由规则：Jev 低置信度时自动补判，还原开关可直接选择大模型。 */
 import { judgeQuestionWithJev, solveWithJev, JEV_CONFIDENCE_THRESHOLD, type Language } from './jev';
 import { judgeQuestionWithMiniMax, solveWithMiniMax, type MiniMaxConfig } from './minimax';
 
@@ -16,8 +16,10 @@ export async function judgeQuestion(config: JudgmentConfig, story: string, answe
   return { ...result, model: 'jev' as const };
 }
 
-/** 开关开启后直接用 MiniMax 比较完整还原，避免 Jev 的判定影响结果。 */
+/** 开关开启后直接用 MiniMax；关闭时由 Jev 先判，低置信度再补判。 */
 export async function solve(config: JudgmentConfig, story: string, answer: string, solution: string, useLargeModel: boolean, threshold = JEV_CONFIDENCE_THRESHOLD, language: Language = 'zh') {
   if (useLargeModel) return solveWithMiniMax(config, story, answer, solution, language);
-  return { ...await solveWithJev(config.OPENCODE_API_KEY ?? '', story, answer, solution, threshold, language), model: 'jev' as const };
+  const result = await solveWithJev(config.OPENCODE_API_KEY ?? '', story, answer, solution, threshold, language);
+  if (result.confidence < threshold) return solveWithMiniMax(config, story, answer, solution, language);
+  return { ...result, model: 'jev' as const };
 }
