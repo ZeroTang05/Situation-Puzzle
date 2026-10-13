@@ -30,3 +30,6 @@ Thumbs.db
 .vercel
 
 docs/video-assets
+
+data/curated
+data/reference

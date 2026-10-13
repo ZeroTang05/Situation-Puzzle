@@ -9,279 +9,279 @@
 | # | ID | 题名 | 批次 | 来源 |
 | --- | --- | --- | --- | --- |
 | 1 | real-finish-line | 终点线 | 天堂 | 原作《终点线》（饭堂时刻文字稿）· 优化改写 |
-| 2 | seed-unlit-applause | 返场 | 首发 | 平台原创 |
-| 3 | seed-scratched-window | 窗外 | 首发 | 平台原创 |
-| 4 | seed-empty-witness-chair | 守灵 | 首发 | 平台原创 |
-| 5 | seed-ten-minute-mirror | 镜子慢了一步 | 首发 | 平台原创 |
-| 6 | seed-one-day-repair | 修补匠 | 首发 | 平台原创 |
-| 7 | seed-last-book-reader | 读完再睡 | 首发 | 平台原创 |
-| 8 | seed-unpainted-door | 门后的海 | 首发 | 平台原创 |
-| 9 | seed-no-return-umbrellas | 借伞 | 首发 | 平台原创 |
-| 10 | seed-missing-stair-noise | 第七级 | 首发 | 手法参考许二木《宿舍规则怪谈》 |
-| 11 | seed-wrong-way-signature | 值夜 | 首发 | 平台原创 |
-| 12 | seed-unopened-postcards | 家书 | 首发 | 平台原创 |
-| 13 | seed-ferry-of-unkept-promises | 渡口 | 首发 | 平台原创 |
-| 14 | seed-shadow-at-noon | 别开灯 | 首发 | 平台原创 |
-| 15 | seed-snow-inside-the-frame | 全村的雪 | 首发 | 平台原创 |
-| 16 | seed-borrowed-sleep | 轮到你睡了 | 首发 | 平台原创 |
-| 17 | seed-zero-complaints | 隔壁的歌 | 首发 | 平台原创 |
-| 18 | seed-cut-curtain | 喜帘 | 首发 | 平台原创 |
-| 19 | seed-returned-luggage-tags | 失物招领 | 首发 | 平台原创 |
-| 20 | seed-two-empty-pockets | 门链 | 首发 | 手法参考许二木《宿舍规则怪谈》 |
-| 21 | seed-rented-rain | 求雨 | 首发 | 平台原创 |
-| 22 | seed-echo-wedding | 应声 | 首发 | 平台原创 |
-| 23 | seed-prisoners-keyhole | 牢门 | 首发 | 平台原创 |
-| 24 | seed-saved-footprints | 回来的人 | 首发 | 平台原创 |
-| 25 | seed-torn-audition-number | 面试 | 首发 | 平台原创 |
-| 26 | seed-two-balcony-photos | 最后一张合影 | 首发 | 平台原创 |
-| 27 | seed-silent-rehearsal | 咳嗽 | 首发 | 平台原创 |
-| 28 | seed-unopened-cake-box | 第十八支蜡烛 | 首发 | 平台原创 |
-| 29 | seed-missing-caption | 照片外的人 | 首发 | 平台原创 |
-| 30 | seed-three-bells-at-dawn | 第三声钟 | 首发 | 平台原创 |
-| 31 | seed-road-to-the-name | 喊魂 | 首发 | 平台原创 |
-| 32 | seed-blank-tomorrow-card | 明天的讣告 | 首发 | 平台原创 |
-| 33 | seed-ghost-in-the-audience | 最后一排 | 首发 | 平台原创 |
-| 34 | seed-drawn-wrinkles | 替她长大 | 首发 | 平台原创 |
-| 35 | seed-arrow-behind-the-sign | 路标 | 首发 | 平台原创 |
-| 36 | seed-cleaned-observation-window | 观景窗 | 首发 | 平台原创 |
-| 37 | seed-fifteen-minute-queue | 最后一班 | 首发 | 平台原创 |
-| 38 | seed-window-without-a-face | 别拍到脸 | 首发 | 平台原创 |
-| 39 | seed-frozen-handshake | 握紧 | 首发 | 平台原创 |
-| 40 | seed-three-heroine-names | 认亲 | 首发 | 平台原创 |
-| 41 | seed-photographer-under-the-table | 桌下 | 首发 | 平台原创 |
-| 42 | seed-bell-after-the-last-bus | 末班车 | 首发 | 平台原创 |
-| 43 | seed-hundred-empty-tins | 空罐头 | 首发 | 平台原创 |
-| 44 | seed-empty-violin-case | 琴盒 | 首发 | 平台原创 |
-| 45 | seed-brightest-bedroom | 灯火通明 | 首发 | 平台原创 |
-| 46 | seed-nine-minute-alibi | 九分钟 | 首发 | 手法参考许二木《宿舍规则怪谈》 |
-| 47 | seed-king-without-a-name | 无名王 | 首发 | 平台原创 |
-| 48 | seed-stolen-yesterday | 卖掉昨天 | 首发 | 平台原创 |
-| 49 | seed-one-way-window | 窗后的儿子 | 首发 | 平台原创 |
-| 50 | seed-different-last-page | 最后一页 | 首发 | 平台原创 |
-| 51 | seed-uncut-tailor-thread | 缝在里面 | 首发 | 平台原创 |
-| 52 | seed-library-weight-limit | 带走重的那本 | 首发 | 平台原创 |
-| 53 | seed-earliest-wrong-turn | 带路的人 | 首发 | 平台原创 |
-| 54 | seed-door-for-the-youngest | 最小的孩子 | 首发 | 平台原创 |
-| 55 | seed-silent-truth-stone | 真话 | 首发 | 平台原创 |
-| 56 | seed-lost-shadow-market | 影子铺 | 首发 | 平台原创 |
-| 57 | seed-memory-of-an-empty-room | 空房间 | 首发 | 平台原创 |
-| 58 | seed-upside-down-clocktower | 倒影 | 首发 | 平台原创 |
-| 59 | seed-seat-behind-the-pillar | 贵宾席 | 首发 | 平台原创 |
-| 60 | seed-staple-through-the-date | 第三天 | 首发 | 平台原创 |
-| 61 | seed-no-music-in-the-video | 收声 | 首发 | 平台原创 |
-| 62 | seed-library-of-unwritten-books | 借阅记录 | 首发 | 思路参考许二木《信》 |
-| 63 | seed-statue-that-blinks | 二号地球 | 首发 | 手法参考许二木《双鱼》 |
-| 64 | seed-wishes-on-loan | 三个愿望 | 首发 | 平台原创 |
-| 65 | seed-compass-to-the-last-touch | 归航针 | 首发 | 平台原创 |
-| 66 | seed-rain-that-waits | 雨一直没停 | 首发 | 平台原创 |
-| 67 | seed-last-sentence-of-the-curse | 最后一句 | 首发 | 平台原创 |
-| 68 | seed-teacher-keeps-the-mistake | 篝火 | 首发 | 平台原创 |
-| 69 | seed-white-line-on-the-jacket | 白线 | 首发 | 平台原创 |
-| 70 | seed-lantern-that-holds-one-sound | 灯里有人 | 首发 | 平台原创 |
-| 71 | seed-equal-weight-gate | 称重 | 首发 | 平台原创 |
-| 72 | seed-sleeping-road | 休眠者 | 首发 | 思路参考许二木《信》 |
-| 73 | seed-second-copy-of-the-ring | 第二枚婚戒 | 首发 | 平台原创 |
-| 74 | seed-silent-auction-of-voices | 拍卖你的声音 | 首发 | 平台原创 |
-| 75 | seed-map-of-the-moving-city | 地图边缘 | 首发 | 平台原创 |
-| 76 | seed-statue-in-the-warm-van | 融化之前 | 首发 | 平台原创 |
-| 77 | seed-signature-on-the-gift-wrap | 礼物上的名字 | 首发 | 平台原创 |
-| 78 | seed-one-letter-a-hundred-times | 一百封求救信 | 首发 | 手法参考许二木《双鱼》 |
-| 79 | seed-bottled-silence | 安静一点 | 首发 | 平台原创 |
-| 80 | seed-bread-for-someone-else | 分食 | 首发 | 平台原创 |
-| 81 | seed-window-packed-for-winter | 极夜温室 | 首发 | 平台原创 |
-| 82 | seed-coins-that-go-home | 找零 | 首发 | 平台原创 |
-| 83 | seed-clock-that-counts-visitors | 第四名乘员 | 首发 | 平台原创 |
-| 84 | seed-gardeners-last-watch | 最后一个守夜人 | 首发 | 平台原创 |
-| 85 | seed-diving-bell-air | 请保持进水 | 扩展 | 结构参考 Paul Sloane 十大横向思维谜题 |
-| 86 | seed-rescue-countdown | 倒数第三声 | 扩展 | 平台原创 |
-| 87 | seed-white-room-rivets | 铆钉 | 扩展 | 结构参考 Paul Sloane 十大横向思维谜题 |
-| 88 | seed-empty-lifeboat-tow | 谁在划船 | 扩展 | 平台原创 |
-| 89 | seed-shelter-outside-bolt | 卸门 | 扩展 | 平台原创 |
-| 90 | seed-frozen-footprints-return | 鞋底朝天 | 扩展 | 平台原创 |
-| 91 | seed-elevator-second-weight | 下井的人 | 扩展 | 平台原创 |
-| 92 | seed-counted-breaths-cave | 少喘一口 | 扩展 | 平台原创 |
-| 93 | seed-quarantine-window-smile | 不要康复 | 扩展 | 平台原创 |
-| 94 | seed-archived-rescue-voice | 救援已结束 | 扩展 | 平台原创 |
-| 95 | seed-station-silent-whistle | 无声的汽笛 | 扩展 | 平台原创 |
-| 96 | seed-last-dividend-fingers | 分红 | 扩展 | 平台原创 |
-| 97 | seed-funeral-second-portrait | 向左转 | 扩展 | 平台原创 |
-| 98 | seed-loaned-night-hours | 替班 | 扩展 | 平台原创 |
-| 99 | seed-closed-mouth-jury | 宣判之前 | 扩展 | 平台原创 |
-| 100 | seed-museum-monster-label | 更换展签 | 扩展 | 结构参考 Puzzling SE《The Evicted Tenant》 |
-| 101 | seed-ferryman-unused-return | 返程联 | 扩展 | 平台原创 |
-| 102 | seed-ghost-room-temperature | 再冷一点 | 扩展 | 平台原创 |
-| 103 | seed-night-market-unused-teeth | 试咬 | 扩展 | 平台原创 |
-| 104 | seed-empty-town-vote | 一致通过 | 扩展 | 平台原创 |
-| 105 | seed-castle-inward-arrow | 墙上的箭 | 扩展 | 平台原创 |
-| 106 | seed-war-radio-familiar-song | 第八个字 | 扩展 | 平台原创 |
-| 107 | seed-prison-paper-snow | 院里的雪 | 扩展 | 平台原创 |
-| 108 | seed-sarcophagus-red-thread | 缠住的线 | 扩展 | 结构参考 Puzzling SE《How did the police know?》 |
-| 109 | seed-film-clapper-dead-clock | 报纸放下以后 | 扩展 | 结构参考 Puzzling SE《How did the police know?》 |
-| 110 | seed-escape-room-final-actor | 别给五星 | 扩展 | 平台原创 |
-| 111 | seed-salt-road-waterbag | 皮袋里的敲门声 | 扩展 | 平台原创 |
-| 112 | seed-abandoned-observatory-pulse | 天上的灯 | 扩展 | 结构参考 Paul Sloane 十大横向思维谜题 |
-| 113 | seed-hotel-extra-shower | 热水还在流 | 扩展 | 平台原创 |
-| 114 | seed-city-first-sunrise | 人造黎明 | 扩展 | 平台原创 |
-| 115 | seed-snowglobe-summer-rain | 玻璃罩里的暴雨 | 扩展 | 平台原创 |
-| 116 | seed-puppet-unused-knees | 跪不下去的人 | 扩展 | 平台原创 |
-| 117 | seed-memory-forest-surveyor | 树上的门牌 | 扩展 | 平台原创 |
-| 118 | seed-midnight-postage-due | 念信的人 | 扩展 | 平台原创 |
-| 119 | seed-two-suns-last-noon | 第二次正午 | 扩展 | 平台原创 |
-| 120 | seed-surgeon-empty-scar | 伤口租约 | 扩展 | 平台原创 |
-| 121 | seed-city-applause-meter | 掌声停下以后 | 扩展 | 平台原创 |
-| 122 | seed-gallows-shorter-shadow | 赦免 | 扩展 | 平台原创 |
-| 123 | seed-ocean-bottom-sky-door | 井盖上的云 | 扩展 | 平台原创 |
-| 124 | seed-icebreaker-black-wall | 前方有岸 | 扩展 | 结构参考 Paul Sloane 十大横向思维谜题；冰山翻转机制经 NASA/NSIDC 资料核对 |
-| 125 | seed-siege-empty-kitchen | 第一锅饭 | 扩展 | 平台原创 |
-| 126 | seed-spaceship-empty-arrival | 欢迎回来 | 扩展 | 平台原创 |
-| 127 | seed-robot-ancestral-grave | 墓地扩建 | 扩展 | 结构参考 Puzzling SE《The Evicted Tenant》 |
-| 128 | seed-mars-suit-scratches | 朝里的划痕 | 扩展 | 平台原创 |
-| 129 | seed-colony-five-minute-delay | 别按重播 | 扩展 | 平台原创 |
-| 130 | seed-first-contact-translation-pause | 请先回答 | 扩展 | 平台原创 |
-| 131 | seed-zoo-evacuation-striped-coat | 笼子空着 | 扩展 | 平台原创 |
-| 132 | seed-desert-buried-boat | 沙里的船锚 | 扩展 | 平台原创 |
-| 133 | seed-planet-oxygen-withdrawal | 空气退货 | 扩展 | 平台原创 |
-| 134 | seed-hanged-bell-rope | 钟绳 | 扩展 | 平台原创 |
-| 135 | seed-demon-own-doormat | 欢迎光临 | 扩展 | 平台原创 |
-| 136 | seed-paper-crane-return-address | 别折最后一只 | 扩展 | 平台原创 |
-| 137 | seed-river-stones-spoken-debt | 河底的座位 | 扩展 | 平台原创 |
-| 138 | seed-lantern-festival-daylight | 白天的灯会 | 扩展 | 平台原创 |
-| 139 | seed-saint-second-confession | 再说一次 | 扩展 | 平台原创 |
-| 140 | seed-blind-king-new-window | 国王复明 | 扩展 | 平台原创 |
-| 141 | seed-mountain-tax-empty-basket | 轻下来的贡品 | 扩展 | 平台原创 |
-| 142 | seed-cemetery-second-birth | 满月酒 | 扩展 | 平台原创 |
-| 143 | seed-witch-oven-bread-number | 烤焦的面包 | 扩展 | 平台原创 |
-| 144 | seed-ice-hotel-warm-room | 暖房 | 扩展 | 平台原创 |
-| 145 | seed-last-procession-numbered-shoes | 鞋上的编号 | 扩展 | 平台原创 |
-| 146 | seed-orchestra-wrong-page | 空白总谱 | 扩展 | 平台原创 |
-| 147 | seed-circus-unlocked-cage | 请进笼子 | 扩展 | 平台原创 |
-| 148 | seed-cell-ceiling-chalk | 天花板上的正字 | 扩展 | 平台原创 |
-| 149 | seed-forger-negative-signature | 签名反了 | 扩展 | 平台原创 |
-| 150 | seed-smugglers-rusty-rail | 崭新的铁锈 | 扩展 | 平台原创 |
-| 151 | seed-memorial-photo-uniform | 少一枚勋章 | 扩展 | 平台原创 |
-| 152 | seed-automated-station-final-ticket | 请取走您的遗物 | 扩展 | 平台原创 |
-| 153 | seed-hospital-discharge-blanket | 出院时请熄灯 | 扩展 | 平台原创 |
-| 154 | seed-prison-last-saved-day | 保存成功 | 扩展 | 平台原创 |
-| 155 | seed-future-window-wet-letter | 明天别救我 | 扩展 | 平台原创 |
-| 156 | seed-time-archive-erased-victim | 空白证词 | 扩展 | 平台原创 |
-| 157 | seed-theatre-subtitle-full-stop | 句号 | 扩展 | 平台原创 |
-| 158 | seed-rewind-museum-egg | 返青 | 扩展 | 平台原创 |
-| 159 | seed-calendar-missing-april | 被撕掉的一月 | 扩展 | 平台原创 |
-| 160 | seed-dream-inspector-shared-wall | 别梦见门 | 扩展 | 平台原创 |
-| 161 | seed-first-photo-camera-reflection | 第一张脸 | 扩展 | 平台原创 |
-| 162 | seed-dead-language-living-mouth | 复原发音 | 扩展 | 平台原创 |
-| 163 | seed-monday-unspent-coins | 星期一的硬币 | 扩展 | 平台原创 |
-| 164 | seed-mask-ball-last-face | 面具背面 | 扩展 | 平台原创 |
-| 165 | seed-aquarium-handwritten-menu | 今日投喂 | 扩展 | 平台原创 |
-| 166 | seed-confiscated-name-calligraphy | 最后一笔 | 扩展 | 平台原创 |
-| 167 | seed-city-no-yesterday-trash | 垃圾收集日 | 扩展 | 平台原创 |
-| 168 | seed-inheritance-house-heartbeat | 房子的心跳 | 扩展 | 平台原创 |
-| 169 | seed-lost-painting-eyelids | 请勿修复 | 扩展 | 平台原创 |
-| 170 | seed-undertaker-counting-rings | 年轮 | 扩展 | 平台原创 |
-| 171 | seed-ghost-auction-silence | 三次落槌 | 扩展 | 平台原创 |
-| 172 | seed-smallpox-free-town-statue | 铜像睁眼 | 扩展 | 平台原创 |
-| 173 | seed-cemetery-outward-skulls | 脸朝外 | 扩展 | 平台原创 |
-| 174 | seed-desert-court-wet-seal | 最后一口水 | 扩展 | 平台原创 |
-| 175 | seed-extinction-certificate-rejected | 灭绝证明 | 扩展 | 结构参考 Puzzling SE《The Evicted Tenant》 |
-| 176 | seed-apocalypse-keep-fearing | 警报别停 | 扩展 | 平台原创 |
-| 177 | seed-one-way-mirror-witness | 请指认自己 | 扩展 | 平台原创 |
-| 178 | seed-carnival-entrance-height | 长高以后再来 | 扩展 | 平台原创 |
-| 179 | seed-night-watch-false-alarm | 第零个敌人 | 扩展 | 结构参考 Puzzling SE《The Evicted Tenant》 |
-| 180 | seed-winter-orphan-no-shadow | 春天的名单 | 扩展 | 平台原创 |
-| 181 | seed-final-story-unwritten-name | 留一个空位 | 扩展 | 平台原创 |
-| 182 | real-five-seconds | 54321 | 天堂 | 原作《54321》（饭堂时刻文字稿）· 优化改写 |
-| 183 | real-fathers-salary | 爸爸的工资 | 天堂 | 原作《爸爸的工资》（饭堂时刻文字稿）· 原样收录 |
-| 184 | real-graduation-candy | 毕业的糖果 | 天堂 | 原作《毕业的糖果》（饭堂时刻文字稿）· 优化改写 |
-| 185 | real-trick-or-treat | 不给糖就捣蛋 | 天堂 | 原作《不给糖就捣蛋》（饭堂时刻文字稿）· 原样收录 |
-| 186 | real-unfunny-joke | 不好笑的笑话 | 天堂 | 原作《不好笑的笑话》（饭堂时刻文字稿）· 原样收录 |
-| 187 | real-just-like-you | 不愧是你 | 天堂 | 原作《不愧是你》（饭堂时刻文字稿）· 优化改写 |
-| 188 | real-endless-thuds | 不消停的咚声 | 天堂 | 原作《不消停的咚声》（饭堂时刻文字稿）· 优化改写 |
-| 189 | real-distrust-number-one | 不要相信一号 | 天堂 | 原作《不要相信一号》（饭堂时刻文字稿）· 原样收录 |
-| 190 | real-silent-boyfriend | 沉默的男友 | 天堂 | 原作《沉默的男友》（饭堂时刻文字稿）· 原样收录 |
-| 191 | real-people-on-the-boat | 船上人数之谜 | 天堂 | 原作《船上人数之谜》（饭堂时刻文字稿）· 优化改写 |
-| 192 | real-voice-at-the-window | 窗边的声音 | 天堂 | 原作《窗边的声音》（饭堂时刻文字稿）· 优化改写 |
-| 193 | real-great-treasure | 大宝贝 | 天堂 | 原作《大宝贝》（饭堂时刻文字稿）· 优化改写 |
-| 194 | real-second-robbery | 第二次打劫 | 天堂 | 原作《第二次打劫》（饭堂时刻文字稿）· 原样收录 |
-| 195 | real-seventh-night-call | 第七天的电话 | 天堂 | 原作《第七天的电话》（饭堂时刻文字稿）· 原样收录 |
-| 196 | real-tumbling-dream | 翻滚的梦 | 天堂 | 原作《翻滚的梦》（饭堂时刻文字稿）· 优化改写 |
-| 197 | real-as-if-possessed | 仿佛中邪 | 天堂 | 原作《仿佛中邪》（饭堂时刻文字稿）· 优化改写 |
-| 198 | real-useless-power | 废物能力 | 天堂 | 原作《废物能力》（饭堂时刻文字稿）· 优化改写 |
-| 199 | real-breakup-call | 分手电话 | 天堂 | 原作《分手电话》（饭堂时刻文字稿）· 原样收录 |
-| 200 | real-feel-what-you-feel | 感同身受 | 天堂 | 原作《感同身受》（饭堂时刻文字稿）· 优化改写 |
-| 201 | real-brothers-name | 哥哥死了我活着 | 天堂 | 原作《哥哥死了我活着》（饭堂时刻文字稿）· 原样收录 |
-| 202 | real-offerings-to-an-old-god | 古神的贡品 | 天堂 | 原作《古神的贡品》（饭堂时刻文字稿）· 优化改写 |
-| 203 | real-strange-hand-gesture | 怪异的手势 | 天堂 | 原作《怪异的手势》（饭堂时刻文字稿）· 优化改写 |
-| 204 | real-fourteen-left | 还剩十四个 | 天堂 | 原作《还剩十四个》（饭堂时刻文字稿）· 原样收录 |
-| 205 | real-meagre-offerings | 寒酸的补给 | 天堂 | 原作《寒酸的补给》（饭堂时刻文字稿）· 优化改写 |
-| 206 | real-woman-in-red | 红衣女子 | 天堂 | 原作《红衣女子》（饭堂时刻文字稿）· 原样收录 |
-| 207 | real-waves-and-thuds | 哗啦哗啦嘭 | 天堂 | 原作《哗啦哗啦嘭》（饭堂时刻文字稿）· 原样收录 |
-| 208 | real-returned-photo | 交换照片 | 天堂 | 原作《交换照片》（饭堂时刻文字稿）· 原样收录 |
-| 209 | real-sisters-toys | 姐姐的玩具 | 天堂 | 原作《姐姐的玩具》（饭堂时刻文字稿）· 优化改写 |
-| 210 | real-that-was-quick | 来得这么快 | 天堂 | 原作《来得这么快》（饭堂时刻文字稿）· 优化改写 |
-| 211 | real-calendar-of-love | 恋爱月历 | 天堂 | 原作《恋爱月历》（饭堂时刻文字稿）· 原样收录 |
-| 212 | real-two-certificates | 两份文件 | 天堂 | 原作《两份文件》（饭堂时刻文字稿）· 原样收录 |
-| 213 | real-two-athletes | 两个体育生 | 天堂 | 原作《两个体育生》（饭堂时刻文字稿）· 原样收录 |
-| 214 | real-wish-on-a-meteor | 流星愿望 | 天堂 | 原作《流星愿望》（饭堂时刻文字稿）· 原样收录 |
-| 215 | real-six-farewell-notes | 六遍告别信 | 天堂 | 原作《六遍告别信》（饭堂时刻文字稿）· 优化改写 |
-| 216 | real-wonderful-journey | 美妙的旅行 | 天堂 | 原作《美妙的旅行》（饭堂时刻文字稿）· 优化改写 |
-| 217 | real-last-image | 陌生的图案 | 天堂 | 原作《陌生的图案》（饭堂时刻文字稿）· 优化改写 |
-| 218 | real-that-sound | 那个声音 | 天堂 | 原作《那个声音》（饭堂时刻文字稿）· 原样收录 |
-| 219 | real-murmured-name | 呢喃的名字 | 天堂 | 原作《呢喃的名字》（饭堂时刻文字稿）· 原样收录 |
-| 220 | real-what-are-you-doing | 你要干什么 | 天堂 | 原作《你要干什么》（饭堂时刻文字稿）· 原样收录 |
-| 221 | real-change-my-ending | 逆转结局 | 天堂 | 原作《逆转结局》（饭堂时刻文字稿）· 原样收录 |
-| 222 | real-daughters-voice | 女儿的声音 | 天堂 | 原作《女儿的声音》（饭堂时刻文字稿）· 原样收录 |
-| 223 | real-woman-at-car-window | 拍车窗的女人 | 天堂 | 原作《拍车窗的女人》（饭堂时刻文字稿）· 优化改写 |
-| 224 | real-plea-for-help | 求救短信 | 天堂 | 原作《求救短信》（饭堂时刻文字稿）· 原样收录 |
-| 225 | real-abandon-ship | 全体弃舰 | 天堂 | 原作《全体弃舰》（饭堂时刻文字稿）· 优化改写 |
-| 226 | real-two-people-on-the-pole | 上面有两个人 | 天堂 | 原作《上面有两个人》（饭堂时刻文字稿）· 原样收录 |
-| 227 | real-whose-flashlight | 谁的手电筒 | 天堂 | 原作《谁的手电筒》（饭堂时刻文字稿）· 优化改写 |
-| 228 | real-monsters-behind-us | 身后的怪物 | 天堂 | 原作《身后的怪物》（饭堂时刻文字稿）· 优化改写 |
-| 229 | real-midnight-suitcase | 深夜的行李箱 | 天堂 | 原作《深夜的行李箱》（饭堂时刻文字稿）· 优化改写 |
-| 230 | real-failed-detector | 失败作 | 天堂 | 原作《失败作》（饭堂时刻文字稿）· 优化改写 |
-| 231 | real-invisible-death | 失踪名单 | 天堂 | 原作《失踪名单》（饭堂时刻文字稿）· 优化改写 |
-| 232 | real-fortunetellers-prediction | 算命人的预言 | 天堂 | 原作《算命人的预言》（饭堂时刻文字稿）· 原样收录 |
-| 233 | real-he-was-counting-too | 他也在数数 | 天堂 | 原作《他也在数数》（饭堂时刻文字稿）· 优化改写 |
-| 234 | real-red-shadow-in-morgue | 太平间的红影 | 天堂 | 原作《太平间的红影》（饭堂时刻文字稿）· 优化改写 |
-| 235 | real-photographed-photographer | 螳螂捕蝉 | 天堂 | 原作《螳螂捕蝉》（饭堂时刻文字稿）· 原样收录 |
-| 236 | real-ants-on-ceiling | 天花板上的蚂蚁 | 天堂 | 原作《天花板上的蚂蚁》（饭堂时刻文字稿）· 优化改写 |
-| 237 | real-dancing-bystander | 跳舞的旁观者 | 天堂 | 原作《跳舞的旁观者》（饭堂时刻文字稿）· 原样收录 |
-| 238 | real-your-delivery | 外卖到了 | 天堂 | 原作《外卖到了》（饭堂时刻文字稿）· 优化改写 |
-| 239 | real-as-blank-as-paper | 宛如白纸 | 天堂 | 原作《宛如白纸》（饭堂时刻文字稿）· 优化改写 |
-| 240 | real-no-one-disturbed-us | 晚上可怎么办 | 天堂 | 原作《晚上可怎么办》（饭堂时刻文字稿）· 优化改写 |
-| 241 | real-only-survivor | 唯一的幸存者 | 天堂 | 原作《唯一的幸存者》（饭堂时刻文字稿）· 优化改写 |
-| 242 | real-gentle-father | 温柔的爸爸 | 天堂 | 原作《温柔的爸爸》（饭堂时刻文字稿）· 优化改写 |
-| 243 | real-cosy-home | 温馨的家 | 天堂 | 原作《温馨的家》（饭堂时刻文字稿）· 优化改写 |
-| 244 | real-i-appeared | 我出现了 | 天堂 | 原作《我出现了》（饭堂时刻文字稿）· 优化改写 |
-| 245 | real-my-heroes | 我的英雄 | 天堂 | 原作《我的英雄》（饭堂时刻文字稿）· 原样收录 |
-| 246 | real-i-looked-at-myself | 我看向了我 | 天堂 | 原作《我看向了我》（饭堂时刻文字稿）· 优化改写 |
-| 247 | real-i-killed-myself | 我杀死了我 | 天堂 | 原作《我杀死了我》（饭堂时刻文字稿）· 优化改写 |
-| 248 | real-found-you | 我找到你了 | 天堂 | 原作《我找到你了》（饭堂时刻文字稿）· 原样收录 |
-| 249 | real-bloodstains-in-midair | 消失在半空的血痕 | 天堂 | 原作《消失在半空的血痕》（饭堂时刻文字稿）· 原样收录 |
-| 250 | real-thank-you | 谢谢你 | 天堂 | 原作《谢谢你》（饭堂时刻文字稿）· 原样收录 |
-| 251 | real-new-stock-listed | 新货已上架 | 天堂 | 原作《新货已上架》（饭堂时刻文字稿）· 原样收录 |
-| 252 | real-repairmans-repayment | 修理工 | 天堂 | 原作《修理工》（饭堂时刻文字稿）· 优化改写 |
-| 253 | real-wishing-well | 许愿井 | 天堂 | 原作《许愿井》（饭堂时刻文字稿）· 优化改写 |
-| 254 | real-looking-for-santa | 寻找圣诞老人 | 天堂 | 原作《寻找圣诞老人》（饭堂时刻文字稿）· 原样收录 |
-| 255 | real-three-summer-days | 炎夏三日 | 天堂 | 原作《炎夏三日》（饭堂时刻文字稿）· 优化改写 |
-| 256 | real-one-hundred-agents | 一百个特工 | 天堂 | 原作《一百个特工》（饭堂时刻文字稿）· 优化改写 |
-| 257 | real-one-two-three-seven | 一二三七 | 天堂 | 原作《一二三七》（饭堂时刻文字稿）· 原样收录 |
-| 258 | real-unlock-in-one-minute | 一分钟后再解锁 | 天堂 | 原作《一分钟后再解锁》（饭堂时刻文字稿）· 优化改写 |
-| 259 | real-one-match | 一根火柴 | 天堂 | 原作《一根火柴》（饭堂时刻文字稿）· 优化改写 |
-| 260 | real-always-black | 一直都是黑的 | 天堂 | 原作《一直都是黑的》（饭堂时刻文字稿）· 原样收录 |
-| 261 | real-door-one-week-ahead | 一周后的门 | 天堂 | 原作《一周后的门》（饭堂时刻文字稿）· 优化改写 |
-| 262 | real-should-be-red | 应该是红的 | 天堂 | 原作《应该是红的》（饭堂时刻文字稿）· 优化改写 |
-| 263 | real-a-little-wasteful | 有点浪费 | 天堂 | 原作《有点浪费》（饭堂时刻文字稿）· 优化改写 |
-| 264 | real-cockroach | 有蟑螂 | 天堂 | 原作《有蟑螂》（饭堂时刻文字稿）· 原样收录 |
-| 265 | real-another-milk-tea | 又一杯奶茶 | 天堂 | 原作《又一杯奶茶》（饭堂时刻文字稿）· 优化改写 |
-| 266 | real-one-more-bottle | 再来一瓶 | 天堂 | 原作《再来一瓶》（饭堂时刻文字稿）· 原样收录 |
-| 267 | real-every-answer-is-right | 怎么回答都是对的 | 天堂 | 原作《怎么回答都是对的》（饭堂时刻文字稿）· 原样收录 |
-| 268 | real-why-is-it-you | 怎么是你 | 天堂 | 原作《怎么是你》（饭堂时刻文字稿）· 原样收录 |
-| 269 | real-when-i-knew-the-killer | 知道凶手的那一刻 | 天堂 | 原作《知道凶手的那一刻》（饭堂时刻文字稿）· 优化改写 |
-| 270 | real-fatal-message | 致命短信 | 天堂 | 原作《致命短信》（饭堂时刻文字稿）· 优化改写 |
-| 271 | seed-toll-of-one-secret | 过路费 | 首发 | 平台原创 |
-| 272 | real-secret-in-the-pigsty | 猪圈里的秘密 | 天堂 | 原作《猪圈里的秘密》（饭堂时刻文字稿）· 优化改写 |
-| 273 | real-luck-bead | 转运珠 | 天堂 | 原作《转运珠》（饭堂时刻文字稿）· 优化改写 |
-| 274 | real-last-silver-bullet | 最后一发子弹 | 天堂 | 原作《最后一发子弹》（饭堂时刻文字稿）· 优化改写 |
+| 2 | real-five-seconds | 54321 | 天堂 | 原作《54321》（饭堂时刻文字稿）· 优化改写 |
+| 3 | real-fathers-salary | 爸爸的工资 | 天堂 | 原作《爸爸的工资》（饭堂时刻文字稿）· 原样收录 |
+| 4 | real-graduation-candy | 毕业的糖果 | 天堂 | 原作《毕业的糖果》（饭堂时刻文字稿）· 优化改写 |
+| 5 | real-trick-or-treat | 不给糖就捣蛋 | 天堂 | 原作《不给糖就捣蛋》（饭堂时刻文字稿）· 原样收录 |
+| 6 | real-unfunny-joke | 不好笑的笑话 | 天堂 | 原作《不好笑的笑话》（饭堂时刻文字稿）· 原样收录 |
+| 7 | real-just-like-you | 不愧是你 | 天堂 | 原作《不愧是你》（饭堂时刻文字稿）· 优化改写 |
+| 8 | real-endless-thuds | 不消停的咚声 | 天堂 | 原作《不消停的咚声》（饭堂时刻文字稿）· 优化改写 |
+| 9 | real-distrust-number-one | 不要相信一号 | 天堂 | 原作《不要相信一号》（饭堂时刻文字稿）· 原样收录 |
+| 10 | real-silent-boyfriend | 沉默的男友 | 天堂 | 原作《沉默的男友》（饭堂时刻文字稿）· 原样收录 |
+| 11 | real-people-on-the-boat | 船上人数之谜 | 天堂 | 原作《船上人数之谜》（饭堂时刻文字稿）· 优化改写 |
+| 12 | real-voice-at-the-window | 窗边的声音 | 天堂 | 原作《窗边的声音》（饭堂时刻文字稿）· 优化改写 |
+| 13 | real-great-treasure | 大宝贝 | 天堂 | 原作《大宝贝》（饭堂时刻文字稿）· 优化改写 |
+| 14 | real-second-robbery | 第二次打劫 | 天堂 | 原作《第二次打劫》（饭堂时刻文字稿）· 原样收录 |
+| 15 | real-seventh-night-call | 第七天的电话 | 天堂 | 原作《第七天的电话》（饭堂时刻文字稿）· 原样收录 |
+| 16 | real-tumbling-dream | 翻滚的梦 | 天堂 | 原作《翻滚的梦》（饭堂时刻文字稿）· 优化改写 |
+| 17 | real-as-if-possessed | 仿佛中邪 | 天堂 | 原作《仿佛中邪》（饭堂时刻文字稿）· 优化改写 |
+| 18 | real-useless-power | 废物能力 | 天堂 | 原作《废物能力》（饭堂时刻文字稿）· 优化改写 |
+| 19 | real-breakup-call | 分手电话 | 天堂 | 原作《分手电话》（饭堂时刻文字稿）· 原样收录 |
+| 20 | real-feel-what-you-feel | 感同身受 | 天堂 | 原作《感同身受》（饭堂时刻文字稿）· 优化改写 |
+| 21 | real-brothers-name | 哥哥死了我活着 | 天堂 | 原作《哥哥死了我活着》（饭堂时刻文字稿）· 原样收录 |
+| 22 | real-offerings-to-an-old-god | 古神的贡品 | 天堂 | 原作《古神的贡品》（饭堂时刻文字稿）· 优化改写 |
+| 23 | real-strange-hand-gesture | 怪异的手势 | 天堂 | 原作《怪异的手势》（饭堂时刻文字稿）· 优化改写 |
+| 24 | real-fourteen-left | 还剩十四个 | 天堂 | 原作《还剩十四个》（饭堂时刻文字稿）· 原样收录 |
+| 25 | real-meagre-offerings | 寒酸的补给 | 天堂 | 原作《寒酸的补给》（饭堂时刻文字稿）· 优化改写 |
+| 26 | real-woman-in-red | 红衣女子 | 天堂 | 原作《红衣女子》（饭堂时刻文字稿）· 原样收录 |
+| 27 | real-waves-and-thuds | 哗啦哗啦嘭 | 天堂 | 原作《哗啦哗啦嘭》（饭堂时刻文字稿）· 原样收录 |
+| 28 | real-returned-photo | 交换照片 | 天堂 | 原作《交换照片》（饭堂时刻文字稿）· 原样收录 |
+| 29 | real-sisters-toys | 姐姐的玩具 | 天堂 | 原作《姐姐的玩具》（饭堂时刻文字稿）· 优化改写 |
+| 30 | real-that-was-quick | 来得这么快 | 天堂 | 原作《来得这么快》（饭堂时刻文字稿）· 优化改写 |
+| 31 | real-calendar-of-love | 恋爱月历 | 天堂 | 原作《恋爱月历》（饭堂时刻文字稿）· 原样收录 |
+| 32 | real-two-certificates | 两份文件 | 天堂 | 原作《两份文件》（饭堂时刻文字稿）· 原样收录 |
+| 33 | real-two-athletes | 两个体育生 | 天堂 | 原作《两个体育生》（饭堂时刻文字稿）· 原样收录 |
+| 34 | real-wish-on-a-meteor | 流星愿望 | 天堂 | 原作《流星愿望》（饭堂时刻文字稿）· 原样收录 |
+| 35 | real-six-farewell-notes | 六遍告别信 | 天堂 | 原作《六遍告别信》（饭堂时刻文字稿）· 优化改写 |
+| 36 | real-wonderful-journey | 美妙的旅行 | 天堂 | 原作《美妙的旅行》（饭堂时刻文字稿）· 优化改写 |
+| 37 | real-last-image | 陌生的图案 | 天堂 | 原作《陌生的图案》（饭堂时刻文字稿）· 优化改写 |
+| 38 | real-that-sound | 那个声音 | 天堂 | 原作《那个声音》（饭堂时刻文字稿）· 原样收录 |
+| 39 | real-murmured-name | 呢喃的名字 | 天堂 | 原作《呢喃的名字》（饭堂时刻文字稿）· 原样收录 |
+| 40 | real-what-are-you-doing | 你要干什么 | 天堂 | 原作《你要干什么》（饭堂时刻文字稿）· 原样收录 |
+| 41 | real-change-my-ending | 逆转结局 | 天堂 | 原作《逆转结局》（饭堂时刻文字稿）· 原样收录 |
+| 42 | real-daughters-voice | 女儿的声音 | 天堂 | 原作《女儿的声音》（饭堂时刻文字稿）· 原样收录 |
+| 43 | real-woman-at-car-window | 拍车窗的女人 | 天堂 | 原作《拍车窗的女人》（饭堂时刻文字稿）· 优化改写 |
+| 44 | real-plea-for-help | 求救短信 | 天堂 | 原作《求救短信》（饭堂时刻文字稿）· 原样收录 |
+| 45 | real-abandon-ship | 全体弃舰 | 天堂 | 原作《全体弃舰》（饭堂时刻文字稿）· 优化改写 |
+| 46 | real-two-people-on-the-pole | 上面有两个人 | 天堂 | 原作《上面有两个人》（饭堂时刻文字稿）· 原样收录 |
+| 47 | real-whose-flashlight | 谁的手电筒 | 天堂 | 原作《谁的手电筒》（饭堂时刻文字稿）· 优化改写 |
+| 48 | real-monsters-behind-us | 身后的怪物 | 天堂 | 原作《身后的怪物》（饭堂时刻文字稿）· 优化改写 |
+| 49 | real-midnight-suitcase | 深夜的行李箱 | 天堂 | 原作《深夜的行李箱》（饭堂时刻文字稿）· 优化改写 |
+| 50 | real-failed-detector | 失败作 | 天堂 | 原作《失败作》（饭堂时刻文字稿）· 优化改写 |
+| 51 | real-invisible-death | 失踪名单 | 天堂 | 原作《失踪名单》（饭堂时刻文字稿）· 优化改写 |
+| 52 | real-fortunetellers-prediction | 算命人的预言 | 天堂 | 原作《算命人的预言》（饭堂时刻文字稿）· 原样收录 |
+| 53 | real-he-was-counting-too | 他也在数数 | 天堂 | 原作《他也在数数》（饭堂时刻文字稿）· 优化改写 |
+| 54 | real-red-shadow-in-morgue | 太平间的红影 | 天堂 | 原作《太平间的红影》（饭堂时刻文字稿）· 优化改写 |
+| 55 | real-photographed-photographer | 螳螂捕蝉 | 天堂 | 原作《螳螂捕蝉》（饭堂时刻文字稿）· 原样收录 |
+| 56 | real-ants-on-ceiling | 天花板上的蚂蚁 | 天堂 | 原作《天花板上的蚂蚁》（饭堂时刻文字稿）· 优化改写 |
+| 57 | real-dancing-bystander | 跳舞的旁观者 | 天堂 | 原作《跳舞的旁观者》（饭堂时刻文字稿）· 原样收录 |
+| 58 | real-your-delivery | 外卖到了 | 天堂 | 原作《外卖到了》（饭堂时刻文字稿）· 优化改写 |
+| 59 | real-as-blank-as-paper | 宛如白纸 | 天堂 | 原作《宛如白纸》（饭堂时刻文字稿）· 优化改写 |
+| 60 | real-no-one-disturbed-us | 晚上可怎么办 | 天堂 | 原作《晚上可怎么办》（饭堂时刻文字稿）· 优化改写 |
+| 61 | real-only-survivor | 唯一的幸存者 | 天堂 | 原作《唯一的幸存者》（饭堂时刻文字稿）· 优化改写 |
+| 62 | real-gentle-father | 温柔的爸爸 | 天堂 | 原作《温柔的爸爸》（饭堂时刻文字稿）· 优化改写 |
+| 63 | real-cosy-home | 温馨的家 | 天堂 | 原作《温馨的家》（饭堂时刻文字稿）· 优化改写 |
+| 64 | real-i-appeared | 我出现了 | 天堂 | 原作《我出现了》（饭堂时刻文字稿）· 优化改写 |
+| 65 | real-my-heroes | 我的英雄 | 天堂 | 原作《我的英雄》（饭堂时刻文字稿）· 原样收录 |
+| 66 | real-i-looked-at-myself | 我看向了我 | 天堂 | 原作《我看向了我》（饭堂时刻文字稿）· 优化改写 |
+| 67 | real-i-killed-myself | 我杀死了我 | 天堂 | 原作《我杀死了我》（饭堂时刻文字稿）· 优化改写 |
+| 68 | real-found-you | 我找到你了 | 天堂 | 原作《我找到你了》（饭堂时刻文字稿）· 原样收录 |
+| 69 | real-bloodstains-in-midair | 消失在半空的血痕 | 天堂 | 原作《消失在半空的血痕》（饭堂时刻文字稿）· 原样收录 |
+| 70 | real-thank-you | 谢谢你 | 天堂 | 原作《谢谢你》（饭堂时刻文字稿）· 原样收录 |
+| 71 | real-new-stock-listed | 新货已上架 | 天堂 | 原作《新货已上架》（饭堂时刻文字稿）· 原样收录 |
+| 72 | real-repairmans-repayment | 修理工 | 天堂 | 原作《修理工》（饭堂时刻文字稿）· 优化改写 |
+| 73 | real-wishing-well | 许愿井 | 天堂 | 原作《许愿井》（饭堂时刻文字稿）· 优化改写 |
+| 74 | real-looking-for-santa | 寻找圣诞老人 | 天堂 | 原作《寻找圣诞老人》（饭堂时刻文字稿）· 原样收录 |
+| 75 | real-three-summer-days | 炎夏三日 | 天堂 | 原作《炎夏三日》（饭堂时刻文字稿）· 优化改写 |
+| 76 | real-one-hundred-agents | 一百个特工 | 天堂 | 原作《一百个特工》（饭堂时刻文字稿）· 优化改写 |
+| 77 | real-one-two-three-seven | 一二三七 | 天堂 | 原作《一二三七》（饭堂时刻文字稿）· 原样收录 |
+| 78 | real-unlock-in-one-minute | 一分钟后再解锁 | 天堂 | 原作《一分钟后再解锁》（饭堂时刻文字稿）· 优化改写 |
+| 79 | real-one-match | 一根火柴 | 天堂 | 原作《一根火柴》（饭堂时刻文字稿）· 优化改写 |
+| 80 | real-always-black | 一直都是黑的 | 天堂 | 原作《一直都是黑的》（饭堂时刻文字稿）· 原样收录 |
+| 81 | real-door-one-week-ahead | 一周后的门 | 天堂 | 原作《一周后的门》（饭堂时刻文字稿）· 优化改写 |
+| 82 | real-should-be-red | 应该是红的 | 天堂 | 原作《应该是红的》（饭堂时刻文字稿）· 优化改写 |
+| 83 | real-a-little-wasteful | 有点浪费 | 天堂 | 原作《有点浪费》（饭堂时刻文字稿）· 优化改写 |
+| 84 | real-cockroach | 有蟑螂 | 天堂 | 原作《有蟑螂》（饭堂时刻文字稿）· 原样收录 |
+| 85 | real-another-milk-tea | 又一杯奶茶 | 天堂 | 原作《又一杯奶茶》（饭堂时刻文字稿）· 优化改写 |
+| 86 | real-one-more-bottle | 再来一瓶 | 天堂 | 原作《再来一瓶》（饭堂时刻文字稿）· 原样收录 |
+| 87 | real-every-answer-is-right | 怎么回答都是对的 | 天堂 | 原作《怎么回答都是对的》（饭堂时刻文字稿）· 原样收录 |
+| 88 | real-why-is-it-you | 怎么是你 | 天堂 | 原作《怎么是你》（饭堂时刻文字稿）· 原样收录 |
+| 89 | real-when-i-knew-the-killer | 知道凶手的那一刻 | 天堂 | 原作《知道凶手的那一刻》（饭堂时刻文字稿）· 优化改写 |
+| 90 | real-fatal-message | 致命短信 | 天堂 | 原作《致命短信》（饭堂时刻文字稿）· 优化改写 |
+| 91 | real-secret-in-the-pigsty | 猪圈里的秘密 | 天堂 | 原作《猪圈里的秘密》（饭堂时刻文字稿）· 优化改写 |
+| 92 | real-luck-bead | 转运珠 | 天堂 | 原作《转运珠》（饭堂时刻文字稿）· 优化改写 |
+| 93 | real-last-silver-bullet | 最后一发子弹 | 天堂 | 原作《最后一发子弹》（饭堂时刻文字稿）· 优化改写 |
+| 94 | seed-unlit-applause | 返场 | 首发 | 平台原创 |
+| 95 | seed-scratched-window | 窗外 | 首发 | 平台原创 |
+| 96 | seed-empty-witness-chair | 守灵 | 首发 | 平台原创 |
+| 97 | seed-ten-minute-mirror | 镜子慢了一步 | 首发 | 平台原创 |
+| 98 | seed-one-day-repair | 修补匠 | 首发 | 平台原创 |
+| 99 | seed-last-book-reader | 读完再睡 | 首发 | 平台原创 |
+| 100 | seed-unpainted-door | 门后的海 | 首发 | 平台原创 |
+| 101 | seed-no-return-umbrellas | 借伞 | 首发 | 平台原创 |
+| 102 | seed-missing-stair-noise | 第七级 | 首发 | 手法参考许二木《宿舍规则怪谈》 |
+| 103 | seed-wrong-way-signature | 值夜 | 首发 | 平台原创 |
+| 104 | seed-unopened-postcards | 家书 | 首发 | 平台原创 |
+| 105 | seed-ferry-of-unkept-promises | 渡口 | 首发 | 平台原创 |
+| 106 | seed-shadow-at-noon | 别开灯 | 首发 | 平台原创 |
+| 107 | seed-snow-inside-the-frame | 全村的雪 | 首发 | 平台原创 |
+| 108 | seed-borrowed-sleep | 轮到你睡了 | 首发 | 平台原创 |
+| 109 | seed-zero-complaints | 隔壁的歌 | 首发 | 平台原创 |
+| 110 | seed-cut-curtain | 喜帘 | 首发 | 平台原创 |
+| 111 | seed-returned-luggage-tags | 失物招领 | 首发 | 平台原创 |
+| 112 | seed-two-empty-pockets | 门链 | 首发 | 手法参考许二木《宿舍规则怪谈》 |
+| 113 | seed-rented-rain | 求雨 | 首发 | 平台原创 |
+| 114 | seed-echo-wedding | 应声 | 首发 | 平台原创 |
+| 115 | seed-prisoners-keyhole | 牢门 | 首发 | 平台原创 |
+| 116 | seed-saved-footprints | 回来的人 | 首发 | 平台原创 |
+| 117 | seed-torn-audition-number | 面试 | 首发 | 平台原创 |
+| 118 | seed-two-balcony-photos | 最后一张合影 | 首发 | 平台原创 |
+| 119 | seed-silent-rehearsal | 咳嗽 | 首发 | 平台原创 |
+| 120 | seed-unopened-cake-box | 第十八支蜡烛 | 首发 | 平台原创 |
+| 121 | seed-missing-caption | 照片外的人 | 首发 | 平台原创 |
+| 122 | seed-three-bells-at-dawn | 第三声钟 | 首发 | 平台原创 |
+| 123 | seed-road-to-the-name | 喊魂 | 首发 | 平台原创 |
+| 124 | seed-blank-tomorrow-card | 明天的讣告 | 首发 | 平台原创 |
+| 125 | seed-ghost-in-the-audience | 最后一排 | 首发 | 平台原创 |
+| 126 | seed-drawn-wrinkles | 替她长大 | 首发 | 平台原创 |
+| 127 | seed-arrow-behind-the-sign | 路标 | 首发 | 平台原创 |
+| 128 | seed-cleaned-observation-window | 观景窗 | 首发 | 平台原创 |
+| 129 | seed-fifteen-minute-queue | 最后一班 | 首发 | 平台原创 |
+| 130 | seed-window-without-a-face | 别拍到脸 | 首发 | 平台原创 |
+| 131 | seed-frozen-handshake | 握紧 | 首发 | 平台原创 |
+| 132 | seed-three-heroine-names | 认亲 | 首发 | 平台原创 |
+| 133 | seed-photographer-under-the-table | 桌下 | 首发 | 平台原创 |
+| 134 | seed-bell-after-the-last-bus | 末班车 | 首发 | 平台原创 |
+| 135 | seed-hundred-empty-tins | 空罐头 | 首发 | 平台原创 |
+| 136 | seed-empty-violin-case | 琴盒 | 首发 | 平台原创 |
+| 137 | seed-brightest-bedroom | 灯火通明 | 首发 | 平台原创 |
+| 138 | seed-nine-minute-alibi | 九分钟 | 首发 | 手法参考许二木《宿舍规则怪谈》 |
+| 139 | seed-king-without-a-name | 无名王 | 首发 | 平台原创 |
+| 140 | seed-stolen-yesterday | 卖掉昨天 | 首发 | 平台原创 |
+| 141 | seed-one-way-window | 窗后的儿子 | 首发 | 平台原创 |
+| 142 | seed-different-last-page | 最后一页 | 首发 | 平台原创 |
+| 143 | seed-uncut-tailor-thread | 缝在里面 | 首发 | 平台原创 |
+| 144 | seed-library-weight-limit | 带走重的那本 | 首发 | 平台原创 |
+| 145 | seed-earliest-wrong-turn | 带路的人 | 首发 | 平台原创 |
+| 146 | seed-door-for-the-youngest | 最小的孩子 | 首发 | 平台原创 |
+| 147 | seed-silent-truth-stone | 真话 | 首发 | 平台原创 |
+| 148 | seed-lost-shadow-market | 影子铺 | 首发 | 平台原创 |
+| 149 | seed-memory-of-an-empty-room | 空房间 | 首发 | 平台原创 |
+| 150 | seed-upside-down-clocktower | 倒影 | 首发 | 平台原创 |
+| 151 | seed-seat-behind-the-pillar | 贵宾席 | 首发 | 平台原创 |
+| 152 | seed-staple-through-the-date | 第三天 | 首发 | 平台原创 |
+| 153 | seed-no-music-in-the-video | 收声 | 首发 | 平台原创 |
+| 154 | seed-library-of-unwritten-books | 借阅记录 | 首发 | 思路参考许二木《信》 |
+| 155 | seed-statue-that-blinks | 二号地球 | 首发 | 手法参考许二木《双鱼》 |
+| 156 | seed-wishes-on-loan | 三个愿望 | 首发 | 平台原创 |
+| 157 | seed-compass-to-the-last-touch | 归航针 | 首发 | 平台原创 |
+| 158 | seed-rain-that-waits | 雨一直没停 | 首发 | 平台原创 |
+| 159 | seed-last-sentence-of-the-curse | 最后一句 | 首发 | 平台原创 |
+| 160 | seed-teacher-keeps-the-mistake | 篝火 | 首发 | 平台原创 |
+| 161 | seed-white-line-on-the-jacket | 白线 | 首发 | 平台原创 |
+| 162 | seed-lantern-that-holds-one-sound | 灯里有人 | 首发 | 平台原创 |
+| 163 | seed-equal-weight-gate | 称重 | 首发 | 平台原创 |
+| 164 | seed-sleeping-road | 休眠者 | 首发 | 思路参考许二木《信》 |
+| 165 | seed-second-copy-of-the-ring | 第二枚婚戒 | 首发 | 平台原创 |
+| 166 | seed-silent-auction-of-voices | 拍卖你的声音 | 首发 | 平台原创 |
+| 167 | seed-map-of-the-moving-city | 地图边缘 | 首发 | 平台原创 |
+| 168 | seed-statue-in-the-warm-van | 融化之前 | 首发 | 平台原创 |
+| 169 | seed-signature-on-the-gift-wrap | 礼物上的名字 | 首发 | 平台原创 |
+| 170 | seed-one-letter-a-hundred-times | 一百封求救信 | 首发 | 手法参考许二木《双鱼》 |
+| 171 | seed-bottled-silence | 安静一点 | 首发 | 平台原创 |
+| 172 | seed-bread-for-someone-else | 分食 | 首发 | 平台原创 |
+| 173 | seed-window-packed-for-winter | 极夜温室 | 首发 | 平台原创 |
+| 174 | seed-coins-that-go-home | 找零 | 首发 | 平台原创 |
+| 175 | seed-clock-that-counts-visitors | 第四名乘员 | 首发 | 平台原创 |
+| 176 | seed-gardeners-last-watch | 最后一个守夜人 | 首发 | 平台原创 |
+| 177 | seed-diving-bell-air | 请保持进水 | 扩展 | 结构参考 Paul Sloane 十大横向思维谜题 |
+| 178 | seed-rescue-countdown | 倒数第三声 | 扩展 | 平台原创 |
+| 179 | seed-white-room-rivets | 铆钉 | 扩展 | 结构参考 Paul Sloane 十大横向思维谜题 |
+| 180 | seed-empty-lifeboat-tow | 谁在划船 | 扩展 | 平台原创 |
+| 181 | seed-shelter-outside-bolt | 卸门 | 扩展 | 平台原创 |
+| 182 | seed-frozen-footprints-return | 鞋底朝天 | 扩展 | 平台原创 |
+| 183 | seed-elevator-second-weight | 下井的人 | 扩展 | 平台原创 |
+| 184 | seed-counted-breaths-cave | 少喘一口 | 扩展 | 平台原创 |
+| 185 | seed-quarantine-window-smile | 不要康复 | 扩展 | 平台原创 |
+| 186 | seed-archived-rescue-voice | 救援已结束 | 扩展 | 平台原创 |
+| 187 | seed-station-silent-whistle | 无声的汽笛 | 扩展 | 平台原创 |
+| 188 | seed-last-dividend-fingers | 分红 | 扩展 | 平台原创 |
+| 189 | seed-funeral-second-portrait | 向左转 | 扩展 | 平台原创 |
+| 190 | seed-loaned-night-hours | 替班 | 扩展 | 平台原创 |
+| 191 | seed-closed-mouth-jury | 宣判之前 | 扩展 | 平台原创 |
+| 192 | seed-museum-monster-label | 更换展签 | 扩展 | 结构参考 Puzzling SE《The Evicted Tenant》 |
+| 193 | seed-ferryman-unused-return | 返程联 | 扩展 | 平台原创 |
+| 194 | seed-ghost-room-temperature | 再冷一点 | 扩展 | 平台原创 |
+| 195 | seed-night-market-unused-teeth | 试咬 | 扩展 | 平台原创 |
+| 196 | seed-empty-town-vote | 一致通过 | 扩展 | 平台原创 |
+| 197 | seed-castle-inward-arrow | 墙上的箭 | 扩展 | 平台原创 |
+| 198 | seed-war-radio-familiar-song | 第八个字 | 扩展 | 平台原创 |
+| 199 | seed-prison-paper-snow | 院里的雪 | 扩展 | 平台原创 |
+| 200 | seed-sarcophagus-red-thread | 缠住的线 | 扩展 | 结构参考 Puzzling SE《How did the police know?》 |
+| 201 | seed-film-clapper-dead-clock | 报纸放下以后 | 扩展 | 结构参考 Puzzling SE《How did the police know?》 |
+| 202 | seed-escape-room-final-actor | 别给五星 | 扩展 | 平台原创 |
+| 203 | seed-salt-road-waterbag | 皮袋里的敲门声 | 扩展 | 平台原创 |
+| 204 | seed-abandoned-observatory-pulse | 天上的灯 | 扩展 | 结构参考 Paul Sloane 十大横向思维谜题 |
+| 205 | seed-hotel-extra-shower | 热水还在流 | 扩展 | 平台原创 |
+| 206 | seed-city-first-sunrise | 人造黎明 | 扩展 | 平台原创 |
+| 207 | seed-snowglobe-summer-rain | 玻璃罩里的暴雨 | 扩展 | 平台原创 |
+| 208 | seed-puppet-unused-knees | 跪不下去的人 | 扩展 | 平台原创 |
+| 209 | seed-memory-forest-surveyor | 树上的门牌 | 扩展 | 平台原创 |
+| 210 | seed-midnight-postage-due | 念信的人 | 扩展 | 平台原创 |
+| 211 | seed-two-suns-last-noon | 第二次正午 | 扩展 | 平台原创 |
+| 212 | seed-surgeon-empty-scar | 伤口租约 | 扩展 | 平台原创 |
+| 213 | seed-city-applause-meter | 掌声停下以后 | 扩展 | 平台原创 |
+| 214 | seed-gallows-shorter-shadow | 赦免 | 扩展 | 平台原创 |
+| 215 | seed-ocean-bottom-sky-door | 井盖上的云 | 扩展 | 平台原创 |
+| 216 | seed-icebreaker-black-wall | 前方有岸 | 扩展 | 结构参考 Paul Sloane 十大横向思维谜题；冰山翻转机制经 NASA/NSIDC 资料核对 |
+| 217 | seed-siege-empty-kitchen | 第一锅饭 | 扩展 | 平台原创 |
+| 218 | seed-spaceship-empty-arrival | 欢迎回来 | 扩展 | 平台原创 |
+| 219 | seed-robot-ancestral-grave | 墓地扩建 | 扩展 | 结构参考 Puzzling SE《The Evicted Tenant》 |
+| 220 | seed-mars-suit-scratches | 朝里的划痕 | 扩展 | 平台原创 |
+| 221 | seed-colony-five-minute-delay | 别按重播 | 扩展 | 平台原创 |
+| 222 | seed-first-contact-translation-pause | 请先回答 | 扩展 | 平台原创 |
+| 223 | seed-zoo-evacuation-striped-coat | 笼子空着 | 扩展 | 平台原创 |
+| 224 | seed-desert-buried-boat | 沙里的船锚 | 扩展 | 平台原创 |
+| 225 | seed-planet-oxygen-withdrawal | 空气退货 | 扩展 | 平台原创 |
+| 226 | seed-hanged-bell-rope | 钟绳 | 扩展 | 平台原创 |
+| 227 | seed-demon-own-doormat | 欢迎光临 | 扩展 | 平台原创 |
+| 228 | seed-paper-crane-return-address | 别折最后一只 | 扩展 | 平台原创 |
+| 229 | seed-river-stones-spoken-debt | 河底的座位 | 扩展 | 平台原创 |
+| 230 | seed-lantern-festival-daylight | 白天的灯会 | 扩展 | 平台原创 |
+| 231 | seed-saint-second-confession | 再说一次 | 扩展 | 平台原创 |
+| 232 | seed-blind-king-new-window | 国王复明 | 扩展 | 平台原创 |
+| 233 | seed-mountain-tax-empty-basket | 轻下来的贡品 | 扩展 | 平台原创 |
+| 234 | seed-cemetery-second-birth | 满月酒 | 扩展 | 平台原创 |
+| 235 | seed-witch-oven-bread-number | 烤焦的面包 | 扩展 | 平台原创 |
+| 236 | seed-ice-hotel-warm-room | 暖房 | 扩展 | 平台原创 |
+| 237 | seed-last-procession-numbered-shoes | 鞋上的编号 | 扩展 | 平台原创 |
+| 238 | seed-orchestra-wrong-page | 空白总谱 | 扩展 | 平台原创 |
+| 239 | seed-circus-unlocked-cage | 请进笼子 | 扩展 | 平台原创 |
+| 240 | seed-cell-ceiling-chalk | 天花板上的正字 | 扩展 | 平台原创 |
+| 241 | seed-forger-negative-signature | 签名反了 | 扩展 | 平台原创 |
+| 242 | seed-smugglers-rusty-rail | 崭新的铁锈 | 扩展 | 平台原创 |
+| 243 | seed-memorial-photo-uniform | 少一枚勋章 | 扩展 | 平台原创 |
+| 244 | seed-automated-station-final-ticket | 请取走您的遗物 | 扩展 | 平台原创 |
+| 245 | seed-hospital-discharge-blanket | 出院时请熄灯 | 扩展 | 平台原创 |
+| 246 | seed-prison-last-saved-day | 保存成功 | 扩展 | 平台原创 |
+| 247 | seed-future-window-wet-letter | 明天别救我 | 扩展 | 平台原创 |
+| 248 | seed-time-archive-erased-victim | 空白证词 | 扩展 | 平台原创 |
+| 249 | seed-theatre-subtitle-full-stop | 句号 | 扩展 | 平台原创 |
+| 250 | seed-rewind-museum-egg | 返青 | 扩展 | 平台原创 |
+| 251 | seed-calendar-missing-april | 被撕掉的一月 | 扩展 | 平台原创 |
+| 252 | seed-dream-inspector-shared-wall | 别梦见门 | 扩展 | 平台原创 |
+| 253 | seed-first-photo-camera-reflection | 第一张脸 | 扩展 | 平台原创 |
+| 254 | seed-dead-language-living-mouth | 复原发音 | 扩展 | 平台原创 |
+| 255 | seed-monday-unspent-coins | 星期一的硬币 | 扩展 | 平台原创 |
+| 256 | seed-mask-ball-last-face | 面具背面 | 扩展 | 平台原创 |
+| 257 | seed-aquarium-handwritten-menu | 今日投喂 | 扩展 | 平台原创 |
+| 258 | seed-confiscated-name-calligraphy | 最后一笔 | 扩展 | 平台原创 |
+| 259 | seed-city-no-yesterday-trash | 垃圾收集日 | 扩展 | 平台原创 |
+| 260 | seed-inheritance-house-heartbeat | 房子的心跳 | 扩展 | 平台原创 |
+| 261 | seed-lost-painting-eyelids | 请勿修复 | 扩展 | 平台原创 |
+| 262 | seed-undertaker-counting-rings | 年轮 | 扩展 | 平台原创 |
+| 263 | seed-ghost-auction-silence | 三次落槌 | 扩展 | 平台原创 |
+| 264 | seed-smallpox-free-town-statue | 铜像睁眼 | 扩展 | 平台原创 |
+| 265 | seed-cemetery-outward-skulls | 脸朝外 | 扩展 | 平台原创 |
+| 266 | seed-desert-court-wet-seal | 最后一口水 | 扩展 | 平台原创 |
+| 267 | seed-extinction-certificate-rejected | 灭绝证明 | 扩展 | 结构参考 Puzzling SE《The Evicted Tenant》 |
+| 268 | seed-apocalypse-keep-fearing | 警报别停 | 扩展 | 平台原创 |
+| 269 | seed-one-way-mirror-witness | 请指认自己 | 扩展 | 平台原创 |
+| 270 | seed-carnival-entrance-height | 长高以后再来 | 扩展 | 平台原创 |
+| 271 | seed-night-watch-false-alarm | 第零个敌人 | 扩展 | 结构参考 Puzzling SE《The Evicted Tenant》 |
+| 272 | seed-winter-orphan-no-shadow | 春天的名单 | 扩展 | 平台原创 |
+| 273 | seed-final-story-unwritten-name | 留一个空位 | 扩展 | 平台原创 |
+| 274 | seed-toll-of-one-secret | 过路费 | 首发 | 平台原创 |
 | 275 | xxye-0001 | 1000米 | 小小耶 | 原作《1000米》（小小耶文字稿）· 优化改写 |
 | 276 | xxye-0006 | 8月1日 | 小小耶 | 原作《8月1日》（小小耶文字稿）· 优化改写 |
 | 277 | xxye-0007 | 9527 | 小小耶 | 原作《9527》（小小耶文字稿）· 优化改写 |
