@@ -1,6 +1,6 @@
 /** Jev 的统一入口：集中处理模型连接、选择题结果和置信度。 */
 // OpenCode Zen 的 SystemOne 接口：Jev 是「判题模型」，传 state 和带选项的问题，返回选项+概率
-const SYSTEMONE_URL = 'https://opencode.ai/zen/v1/systemone';
+const SYSTEMONE_URL = 'https://ai-proxy.xiaobaozi.cn/opencode.ai/zen/v1/systemone';
 const MODEL_ID = 'jev-1.13';
 const MAX_RETRIES = 2;
 export const JEV_CONFIDENCE_THRESHOLD = 0.4;
@@ -36,6 +36,8 @@ async function requestChoice<T extends string>(apiKey: string, state: Record<str
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
+      // 请求未压缩 JSON，保证代理响应可直接解析。
+      'Accept-Encoding': 'identity',
     },
     body: JSON.stringify({ model: MODEL_ID, state, questions: { [questionName]: question } }),
   });

@@ -88,7 +88,7 @@ pnpm --dir worker exec wrangler deploy     # 部署后端到 Cloudflare
 - **Worker 环境变量只认字符串**：wrangler.jsonc 里写数组会被序列化成拼接文本。多值一律用逗号分隔字符串，`corsOrigin()` 按列表解析。
 - **NEXT_PUBLIC_ 变量编译期内联**：改 `.env.local` 后页面行为没变，重启 `pnpm dev`（Turbopack 偶尔端着旧编译）；Vercel 上同理要 Redeploy。
 - **换 database_id 后本地库变空库**：本地模拟 D1 按 database_id 存放，wrangler.jsonc 换成真实 ID 后本地是全新空库，要重跑 `pnpm --dir worker run db:migrate:local`。
-- **判题走 OpenCode Zen**：`lib/jev.ts` 请求 `https://opencode.ai/zen/v1/systemone`，密钥为 `OPENCODE_API_KEY`（opencode.ai 获取）。判题批量失败先 curl 该接口确认，别急着查代码。
+- **判题走 OpenCode Zen 代理**：`lib/jev.ts` 请求 `https://ai-proxy.xiaobaozi.cn/opencode.ai/zen/v1/systemone`，密钥为 `OPENCODE_API_KEY`（opencode.ai 获取）。请求使用 `Accept-Encoding: identity`，让代理返回未压缩 JSON。
 - **React StrictMode 开发期 effect 双触发**：所有合并/追加逻辑必须幂等。
 - **迁移文件**：表结构统一在 `0001_initial.sql`，不追加补丁式迁移；改表直接改这份并按需重建本地库。
 
