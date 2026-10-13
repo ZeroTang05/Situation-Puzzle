@@ -21,7 +21,7 @@ packages/i18n        稳定枚举/错误码 → 中英文案
 packages/ui          设计变量（深海色系、16px 正文、44px 触控）
 infra/               web/admin/api/jobs 各自 Dockerfile（apps/web+apps/admin 静态烘进 nginx，api 容器启动自动跑迁移）、web.nginx.conf / admin.nginx.conf
 scripts/             冒烟与端到端联调脚本（smoke-new-system.sh、e2e-run.sh、dev-env.sh、dev-mailsink.mjs）
-data/                题库 JSON 导入源：根 library.json / library.en.json 同 ID 配套（顺序须一致，当前 514 题 = 首批重写 84 + 中文扩展 97 + 天堂精选 93 + 小小耶精选 240；2026-10-13 累计下架 61 题并见 sources.md「已下架」——38 题代词指代诡计 + 23 题用户指定；zh 条目 category 本格/变格由导入映射为 puzzle_category 枚举 honkaku/henkaku）；sources.md 全库来源总览与逐题对照（编号保留下架前位置）；scoring/ 打分口径与全部批次评分（续写）；curated/ 各 UP 主批逐篇评审与存档（天堂/小小耶两批普通题均已并入根库，特殊玩法与未采用稿留存于各自目录）；reference/ 真实游玩素材（group 原始字幕 → real 抽取稿，按 UP 主分目录）
+data/                题库 JSON 导入源：根 library.json / library.en.json 同 ID 配套（顺序须一致，当前 514 题 = 首批重写 84 + 中文扩展 97 + 天堂精选 93 + 小小耶精选 240；2026-10-13 下架 61 题——38 题代词指代诡计 + 23 题用户指定，题库、sources.md、scores.md 三处同步移除；zh 条目 category 本格/变格由导入映射为 puzzle_category 枚举 honkaku/henkaku）；sources.md 全库来源总览与逐题对照（编号按整库 575 题位置，跳号处即已删除的题）；scoring/ 打分口径与全部批次评分（续写）；curated/ 各 UP 主批逐篇评审与存档（天堂/小小耶两批普通题均已并入根库，特殊玩法与未采用稿留存于各自目录）；reference/ 真实游玩素材（group 原始字幕 → real 抽取稿，按 UP 主分目录）
 docs/rebuild/        产品与架构设计文档（01~12：10 房间生命周期修订、11 赞踩署名、12 连接体验）
 ```
 

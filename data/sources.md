@@ -1,15 +1,15 @@
 # 题库来源总览
 
-逐题对照按 2026-10-12 整库（575 题）时的题库位置编号；2026-10-13 起现役题库为 514 题，累计下架 61 题（见文末「已下架」），主表序号保持不变以便对照 scores.md 打分记录。`library.en.json` 为同 ID 同序的英文翻译。更新日期：2026-10-13。
+逐题对照按 2026-10-12 整库（575 题）时的位置编号，编号不连续处即已删除的题（2026-10-13 下架 61 题，条目不再保留）；现役 514 题与根 library.json 一一对应。`library.en.json` 为同 ID 同序的英文翻译。更新日期：2026-10-13。
 
 ## 按批统计
 
 | 批次 | 序号范围 | 数量 | 来源性质 | 明细文件 |
 | --- | --- | --- | --- | --- |
-| 首发 | #1–100 | 100 | 平台原创；写作手法参考许二木等公开节目材料 | 本表（批次存档已删） |
-| 扩展 | #101–200 | 100 | 平台原创；谜题结构参考 Puzzling StackExchange 与 Paul Sloane | 本表（批次存档已删） |
-| 天堂 | #201–307 | 107 | 改编自 UP 主「尕丶天堂」饭堂时刻系列投稿文字稿 | `curated/天堂/` |
-| 小小耶 | #308–575 | 268 | 改编自 UP 主「小小耶」海龟汤视频投稿文字稿 | `curated/小小耶/` |
+| 首发 | #1–100 | 84 | 平台原创；写作手法参考许二木等公开节目材料 | 本表（批次存档已删） |
+| 扩展 | #101–200 | 97 | 平台原创；谜题结构参考 Puzzling StackExchange 与 Paul Sloane | 本表（批次存档已删） |
+| 天堂 | #201–307 | 93 | 改编自 UP 主「尕丶天堂」饭堂时刻系列投稿文字稿 | `curated/天堂/` |
+| 小小耶 | #308–575 | 240 | 改编自 UP 主「小小耶」海龟汤视频投稿文字稿 | `curated/小小耶/` |
 
 首发、扩展两批中明确标注了参考对象的题目在下表「来源」列给出，其余为该批原创稿。
 
@@ -24,18 +24,14 @@
 | 1 | seed-three-heroine-names | 认亲 | 首发 | 平台原创 |
 | 2 | seed-unlit-applause | 返场 | 首发 | 平台原创 |
 | 3 | seed-scratched-window | 窗外 | 首发 | 平台原创 |
-| 4 | seed-blank-underpage | 墙上的指甲 | 首发 | 平台原创 |
-| 5 | seed-sold-out-portraits | 替身 | 首发 | 平台原创 |
 | 6 | seed-empty-witness-chair | 守灵 | 首发 | 平台原创 |
 | 7 | seed-ten-minute-mirror | 镜子慢了一步 | 首发 | 平台原创 |
 | 8 | seed-one-day-repair | 修补匠 | 首发 | 平台原创 |
 | 9 | seed-last-book-reader | 读完再睡 | 首发 | 平台原创 |
 | 10 | seed-unpainted-door | 门后的海 | 首发 | 平台原创 |
-| 11 | seed-awning-in-the-rain | 雨棚 | 首发 | 平台原创 |
 | 12 | seed-no-return-umbrellas | 借伞 | 首发 | 平台原创 |
 | 13 | seed-missing-stair-noise | 第七级 | 首发 | 手法参考许二木《宿舍规则怪谈》 |
 | 14 | seed-wrong-way-signature | 值夜 | 首发 | 平台原创 |
-| 15 | seed-fourth-place-ribbon | 第四名 | 首发 | 平台原创 |
 | 16 | seed-unopened-postcards | 家书 | 首发 | 平台原创 |
 | 17 | seed-ferry-of-unkept-promises | 渡口 | 首发 | 平台原创 |
 | 18 | seed-shadow-at-noon | 别开灯 | 首发 | 平台原创 |
@@ -53,7 +49,6 @@
 | 30 | seed-two-balcony-photos | 最后一张合影 | 首发 | 平台原创 |
 | 31 | seed-silent-rehearsal | 咳嗽 | 首发 | 平台原创 |
 | 32 | seed-unopened-cake-box | 第十八支蜡烛 | 首发 | 平台原创 |
-| 33 | seed-unworn-rain-boots | 上岸 | 首发 | 平台原创 |
 | 34 | seed-missing-caption | 照片外的人 | 首发 | 平台原创 |
 | 35 | seed-three-bells-at-dawn | 第三声钟 | 首发 | 平台原创 |
 | 36 | seed-road-to-the-name | 喊魂 | 首发 | 平台原创 |
@@ -62,18 +57,12 @@
 | 39 | seed-drawn-wrinkles | 替她长大 | 首发 | 平台原创 |
 | 40 | seed-arrow-behind-the-sign | 路标 | 首发 | 平台原创 |
 | 41 | seed-cleaned-observation-window | 观景窗 | 首发 | 平台原创 |
-| 42 | seed-last-package-first | 第七个包裹 | 首发 | 平台原创 |
 | 43 | seed-fifteen-minute-queue | 最后一班 | 首发 | 平台原创 |
-| 44 | seed-left-at-the-hat-shop | 量头围 | 首发 | 平台原创 |
 | 45 | seed-window-without-a-face | 别拍到脸 | 首发 | 平台原创 |
-| 46 | seed-unread-newspaper | 旧报纸 | 首发 | 平台原创 |
 | 47 | seed-frozen-handshake | 握紧 | 首发 | 平台原创 |
 | 48 | seed-toll-of-one-secret | 过路费 | 首发 | 平台原创 |
-| 49 | seed-half-sized-monster | 它变小了 | 首发 | 平台原创 |
-| 50 | seed-unopened-future-safe | 保险箱 | 首发 | 平台原创 |
 | 51 | seed-photographer-under-the-table | 桌下 | 首发 | 平台原创 |
 | 52 | seed-bell-after-the-last-bus | 末班车 | 首发 | 平台原创 |
-| 53 | seed-lower-hemline | 裙摆 | 首发 | 平台原创 |
 | 54 | seed-hundred-empty-tins | 空罐头 | 首发 | 平台原创 |
 | 55 | seed-empty-violin-case | 琴盒 | 首发 | 平台原创 |
 | 56 | seed-brightest-bedroom | 灯火通明 | 首发 | 平台原创 |
@@ -81,8 +70,6 @@
 | 58 | seed-king-without-a-name | 无名王 | 首发 | 平台原创 |
 | 59 | seed-stolen-yesterday | 卖掉昨天 | 首发 | 平台原创 |
 | 60 | seed-one-way-window | 窗后的儿子 | 首发 | 平台原创 |
-| 61 | seed-unused-microphone | 请开麦 | 首发 | 平台原创 |
-| 62 | seed-extra-seat-on-the-boat | 空出一个位置 | 首发 | 平台原创 |
 | 63 | seed-different-last-page | 最后一页 | 首发 | 平台原创 |
 | 64 | seed-uncut-tailor-thread | 缝在里面 | 首发 | 平台原创 |
 | 65 | seed-library-weight-limit | 带走重的那本 | 首发 | 平台原创 |
@@ -103,17 +90,14 @@
 | 80 | seed-last-sentence-of-the-curse | 最后一句 | 首发 | 平台原创 |
 | 81 | seed-teacher-keeps-the-mistake | 篝火 | 首发 | 平台原创 |
 | 82 | seed-white-line-on-the-jacket | 白线 | 首发 | 平台原创 |
-| 83 | seed-ticket-without-a-destination | 单程票 | 首发 | 平台原创 |
 | 84 | seed-lantern-that-holds-one-sound | 灯里有人 | 首发 | 平台原创 |
 | 85 | seed-equal-weight-gate | 称重 | 首发 | 平台原创 |
 | 86 | seed-sleeping-road | 休眠者 | 首发 | 思路参考许二木《信》 |
 | 87 | seed-second-copy-of-the-ring | 第二枚婚戒 | 首发 | 平台原创 |
 | 88 | seed-silent-auction-of-voices | 拍卖你的声音 | 首发 | 平台原创 |
 | 89 | seed-map-of-the-moving-city | 地图边缘 | 首发 | 平台原创 |
-| 90 | seed-necromancers-wooden-house | 请你敲门 | 首发 | 平台原创 |
 | 91 | seed-statue-in-the-warm-van | 融化之前 | 首发 | 平台原创 |
 | 92 | seed-signature-on-the-gift-wrap | 礼物上的名字 | 首发 | 平台原创 |
-| 93 | seed-last-empty-line | 最后一个名字 | 首发 | 平台原创 |
 | 94 | seed-one-letter-a-hundred-times | 一百封求救信 | 首发 | 手法参考许二木《双鱼》 |
 | 95 | seed-bottled-silence | 安静一点 | 首发 | 平台原创 |
 | 96 | seed-bread-for-someone-else | 分食 | 首发 | 平台原创 |
@@ -145,7 +129,6 @@
 | 122 | seed-war-radio-familiar-song | 第八个字 | 扩展 | 平台原创 |
 | 123 | seed-prison-paper-snow | 院里的雪 | 扩展 | 平台原创 |
 | 124 | seed-sarcophagus-red-thread | 缠住的线 | 扩展 | 结构参考 Puzzling SE《How did the police know?》 |
-| 125 | seed-theatre-cut-curtain | 幕布下面 | 扩展 | 平台原创 |
 | 126 | seed-film-clapper-dead-clock | 报纸放下以后 | 扩展 | 结构参考 Puzzling SE《How did the police know?》 |
 | 127 | seed-escape-room-final-actor | 别给五星 | 扩展 | 平台原创 |
 | 128 | seed-salt-road-waterbag | 皮袋里的敲门声 | 扩展 | 平台原创 |
@@ -203,7 +186,6 @@
 | 180 | seed-monday-unspent-coins | 星期一的硬币 | 扩展 | 平台原创 |
 | 181 | seed-mask-ball-last-face | 面具背面 | 扩展 | 平台原创 |
 | 182 | seed-aquarium-handwritten-menu | 今日投喂 | 扩展 | 平台原创 |
-| 183 | seed-bloodless-duel-scabbard | 挥空三次 | 扩展 | 平台原创 |
 | 184 | seed-confiscated-name-calligraphy | 最后一笔 | 扩展 | 平台原创 |
 | 185 | seed-city-no-yesterday-trash | 垃圾收集日 | 扩展 | 平台原创 |
 | 186 | seed-inheritance-house-heartbeat | 房子的心跳 | 扩展 | 平台原创 |
@@ -212,7 +194,6 @@
 | 189 | seed-ghost-auction-silence | 三次落槌 | 扩展 | 平台原创 |
 | 190 | seed-smallpox-free-town-statue | 铜像睁眼 | 扩展 | 平台原创 |
 | 191 | seed-cemetery-outward-skulls | 脸朝外 | 扩展 | 平台原创 |
-| 192 | seed-last-runway-landing-lights | 熄灭跑道 | 扩展 | 平台原创 |
 | 193 | seed-desert-court-wet-seal | 最后一口水 | 扩展 | 平台原创 |
 | 194 | seed-extinction-certificate-rejected | 灭绝证明 | 扩展 | 结构参考 Puzzling SE《The Evicted Tenant》 |
 | 195 | seed-apocalypse-keep-fearing | 警报别停 | 扩展 | 平台原创 |
@@ -247,7 +228,6 @@
 | 224 | real-meagre-offerings | 寒酸的补给 | 天堂 | [原作《寒酸的补给》](reference/real/天堂/寒酸的补给.md)（饭堂时刻文字稿）· 优化改写 |
 | 225 | real-woman-in-red | 红衣女子 | 天堂 | [原作《红衣女子》](reference/real/天堂/红衣女子.md)（饭堂时刻文字稿）· 原样收录 |
 | 226 | real-waves-and-thuds | 哗啦哗啦嘭 | 天堂 | [原作《哗啦哗啦嘭》](reference/real/天堂/哗啦哗啦嘭.md)（饭堂时刻文字稿）· 原样收录 |
-| 227 | real-survived-as-another | 活下来的我 | 天堂 | [原作《活下来的我》](reference/real/天堂/活下来的我.md)（饭堂时刻文字稿）· 原样收录 |
 | 228 | real-returned-photo | 交换照片 | 天堂 | [原作《交换照片》](reference/real/天堂/交换照片.md)（饭堂时刻文字稿）· 原样收录 |
 | 229 | real-sisters-toys | 姐姐的玩具 | 天堂 | [原作《姐姐的玩具》](reference/real/天堂/姐姐的玩具.md)（饭堂时刻文字稿）· 优化改写 |
 | 230 | real-that-was-quick | 来得这么快 | 天堂 | [原作《来得这么快》](reference/real/天堂/来得这么快.md)（饭堂时刻文字稿）· 优化改写 |
@@ -259,7 +239,6 @@
 | 236 | real-wonderful-journey | 美妙的旅行 | 天堂 | [原作《美妙的旅行》](reference/real/天堂/美妙的旅行.md)（饭堂时刻文字稿）· 优化改写 |
 | 237 | real-last-image | 陌生的图案 | 天堂 | [原作《陌生的图案》](reference/real/天堂/陌生的图案.md)（饭堂时刻文字稿）· 优化改写 |
 | 238 | real-that-sound | 那个声音 | 天堂 | [原作《那个声音》](reference/real/天堂/那个声音.md)（饭堂时刻文字稿）· 原样收录 |
-| 239 | real-mr-pumpkin | 南瓜先生 | 天堂 | [原作《南瓜先生》](reference/real/天堂/南瓜先生.md)（饭堂时刻文字稿）· 优化改写 |
 | 240 | real-murmured-name | 呢喃的名字 | 天堂 | [原作《呢喃的名字》](reference/real/天堂/呢喃的名字.md)（饭堂时刻文字稿）· 原样收录 |
 | 241 | real-what-are-you-doing | 你要干什么 | 天堂 | [原作《你要干什么》](reference/real/天堂/你要干什么.md)（饭堂时刻文字稿）· 原样收录 |
 | 242 | real-change-my-ending | 逆转结局 | 天堂 | [原作《逆转结局》](reference/real/天堂/逆转结局.md)（饭堂时刻文字稿）· 原样收录 |
@@ -267,20 +246,14 @@
 | 244 | real-woman-at-car-window | 拍车窗的女人 | 天堂 | [原作《拍车窗的女人》](reference/real/天堂/拍车窗的女人.md)（饭堂时刻文字稿）· 优化改写 |
 | 245 | real-plea-for-help | 求救短信 | 天堂 | [原作《求救短信》](reference/real/天堂/求救短信.md)（饭堂时刻文字稿）· 原样收录 |
 | 246 | real-abandon-ship | 全体弃舰 | 天堂 | [原作《全体弃舰》](reference/real/天堂/全体弃舰.md)（饭堂时刻文字稿）· 优化改写 |
-| 247 | real-three-falls | 三次坠崖 | 天堂 | [原作《三次坠崖》](reference/real/天堂/三次坠崖.md)（饭堂时刻文字稿）· 原样收录 |
-| 248 | real-three-airplanes | 三架飞机 | 天堂 | [原作《三架飞机》](reference/real/天堂/三架飞机.md)（饭堂时刻文字稿）· 原样收录 |
 | 249 | real-two-people-on-the-pole | 上面有两个人 | 天堂 | [原作《上面有两个人》](reference/real/天堂/上面有两个人.md)（饭堂时刻文字稿）· 原样收录 |
 | 250 | real-whose-flashlight | 谁的手电筒 | 天堂 | [原作《谁的手电筒》](reference/real/天堂/谁的手电筒.md)（饭堂时刻文字稿）· 优化改写 |
 | 251 | real-monsters-behind-us | 身后的怪物 | 天堂 | [原作《身后的怪物》](reference/real/天堂/身后的怪物.md)（饭堂时刻文字稿）· 优化改写 |
 | 252 | real-midnight-suitcase | 深夜的行李箱 | 天堂 | [原作《深夜的行李箱》](reference/real/天堂/深夜的行李箱.md)（饭堂时刻文字稿）· 优化改写 |
 | 253 | real-failed-detector | 失败作 | 天堂 | [原作《失败作》](reference/real/天堂/失败作.md)（饭堂时刻文字稿）· 优化改写 |
 | 254 | real-invisible-death | 失踪名单 | 天堂 | [原作《失踪名单》](reference/real/天堂/失踪名单.md)（饭堂时刻文字稿）· 优化改写 |
-| 255 | real-november-diary | 十一月日记 | 天堂 | [原作《十一月日记》](reference/real/天堂/十一月日记.md)（饭堂时刻文字稿）· 优化改写 |
-| 256 | real-a-testing-reply | 试探的回复 | 天堂 | [原作《试探的回复》](reference/real/天堂/试探的回复.md)（饭堂时刻文字稿）· 原样收录 |
 | 257 | real-fortunetellers-prediction | 算命人的预言 | 天堂 | [原作《算命人的预言》](reference/real/天堂/算命人的预言.md)（饭堂时刻文字稿）· 原样收录 |
-| 258 | real-he-came-back | 他回来了 | 天堂 | [原作《他回来了》](reference/real/天堂/他回来了.md)（饭堂时刻文字稿）· 优化改写 |
 | 259 | real-he-was-counting-too | 他也在数数 | 天堂 | [原作《他也在数数》](reference/real/天堂/他也在数数.md)（饭堂时刻文字稿）· 优化改写 |
-| 260 | real-finally-dead | 他终于死了 | 天堂 | [原作《他终于死了》](reference/real/天堂/他终于死了.md)（饭堂时刻文字稿）· 优化改写 |
 | 261 | real-red-shadow-in-morgue | 太平间的红影 | 天堂 | [原作《太平间的红影》](reference/real/天堂/太平间的红影.md)（饭堂时刻文字稿）· 优化改写 |
 | 262 | real-photographed-photographer | 螳螂捕蝉 | 天堂 | [原作《螳螂捕蝉》](reference/real/天堂/螳螂捕蝉.md)（饭堂时刻文字稿）· 原样收录 |
 | 263 | real-ants-on-ceiling | 天花板上的蚂蚁 | 天堂 | [原作《天花板上的蚂蚁》](reference/real/天堂/天花板上的蚂蚁.md)（饭堂时刻文字稿）· 优化改写 |
@@ -294,7 +267,6 @@
 | 271 | real-i-appeared | 我出现了 | 天堂 | [原作《我出现了》](reference/real/天堂/我出现了.md)（饭堂时刻文字稿）· 优化改写 |
 | 272 | real-my-heroes | 我的英雄 | 天堂 | [原作《我的英雄》](reference/real/天堂/我的英雄.md)（饭堂时刻文字稿）· 原样收录 |
 | 273 | real-i-looked-at-myself | 我看向了我 | 天堂 | [原作《我看向了我》](reference/real/天堂/我看向了我.md)（饭堂时刻文字稿）· 优化改写 |
-| 274 | real-seven-years-old | 我七岁了 | 天堂 | [原作《我七岁了》](reference/real/天堂/我七岁了.md)（饭堂时刻文字稿）· 优化改写 |
 | 275 | real-i-killed-myself | 我杀死了我 | 天堂 | [原作《我杀死了我》](reference/real/天堂/我杀死了我.md)（饭堂时刻文字稿）· 优化改写 |
 | 276 | real-found-you | 我找到你了 | 天堂 | [原作《我找到你了》](reference/real/天堂/我找到你了.md)（饭堂时刻文字稿）· 原样收录 |
 | 277 | real-bloodstains-in-midair | 消失在半空的血痕 | 天堂 | [原作《消失在半空的血痕》](reference/real/天堂/消失在半空的血痕.md)（饭堂时刻文字稿）· 原样收录 |
@@ -311,20 +283,15 @@
 | 288 | real-always-black | 一直都是黑的 | 天堂 | [原作《一直都是黑的》](reference/real/天堂/一直都是黑的.md)（饭堂时刻文字稿）· 原样收录 |
 | 289 | real-door-one-week-ahead | 一周后的门 | 天堂 | [原作《一周后的门》](reference/real/天堂/一周后的门.md)（饭堂时刻文字稿）· 优化改写 |
 | 290 | real-should-be-red | 应该是红的 | 天堂 | [原作《应该是红的》](reference/real/天堂/应该是红的.md)（饭堂时刻文字稿）· 优化改写 |
-| 291 | real-together-forever | 永远在一起 | 天堂 | [原作《永远在一起》](reference/real/天堂/永远在一起.md)（饭堂时刻文字稿）· 优化改写 |
 | 292 | real-a-little-wasteful | 有点浪费 | 天堂 | [原作《有点浪费》](reference/real/天堂/有点浪费.md)（饭堂时刻文字稿）· 优化改写 |
 | 293 | real-cockroach | 有蟑螂 | 天堂 | [原作《有蟑螂》](reference/real/天堂/有蟑螂.md)（饭堂时刻文字稿）· 原样收录 |
 | 294 | real-another-milk-tea | 又一杯奶茶 | 天堂 | [原作《又一杯奶茶》](reference/real/天堂/又一杯奶茶.md)（饭堂时刻文字稿）· 优化改写 |
-| 295 | real-moonlit-monster | 月夜怪物 | 天堂 | [原作《月夜怪物》](reference/real/天堂/月夜怪物.md)（饭堂时刻文字稿）· 原样收录 |
 | 296 | real-one-more-bottle | 再来一瓶 | 天堂 | [原作《再来一瓶》](reference/real/天堂/再来一瓶.md)（饭堂时刻文字稿）· 原样收录 |
 | 297 | real-every-answer-is-right | 怎么回答都是对的 | 天堂 | [原作《怎么回答都是对的》](reference/real/天堂/怎么回答都是对的.md)（饭堂时刻文字稿）· 原样收录 |
 | 298 | real-why-is-it-you | 怎么是你 | 天堂 | [原作《怎么是你》](reference/real/天堂/怎么是你.md)（饭堂时刻文字稿）· 原样收录 |
-| 299 | real-possessiveness | 占有欲 | 天堂 | [原作《占有欲》](reference/real/天堂/占有欲.md)（饭堂时刻文字稿）· 优化改写 |
-| 300 | real-tidy-bedroom | 整理好的卧室 | 天堂 | [原作《整理好的卧室》](reference/real/天堂/整理好的卧室.md)（饭堂时刻文字稿）· 优化改写 |
 | 301 | real-when-i-knew-the-killer | 知道凶手的那一刻 | 天堂 | [原作《知道凶手的那一刻》](reference/real/天堂/知道凶手的那一刻.md)（饭堂时刻文字稿）· 优化改写 |
 | 302 | real-fatal-message | 致命短信 | 天堂 | [原作《致命短信》](reference/real/天堂/致命短信.md)（饭堂时刻文字稿）· 优化改写 |
 | 303 | real-finish-line | 终点线 | 天堂 | [原作《终点线》](reference/real/天堂/终点线.md)（饭堂时刻文字稿）· 优化改写 |
-| 304 | real-homeward-procession | 终于回家了 | 天堂 | [原作《终于回家了》](reference/real/天堂/终于回家了.md)（饭堂时刻文字稿）· 原样收录 |
 | 305 | real-secret-in-the-pigsty | 猪圈里的秘密 | 天堂 | [原作《猪圈里的秘密》](reference/real/天堂/猪圈里的秘密.md)（饭堂时刻文字稿）· 优化改写 |
 | 306 | real-luck-bead | 转运珠 | 天堂 | [原作《转运珠》](reference/real/天堂/转运珠.md)（饭堂时刻文字稿）· 优化改写 |
 | 307 | real-last-silver-bullet | 最后一发子弹 | 天堂 | [原作《最后一发子弹》](reference/real/天堂/最后一发子弹.md)（饭堂时刻文字稿）· 优化改写 |
@@ -332,7 +299,6 @@
 | 309 | xxye-0006 | 8月1日 | 小小耶 | [原作《8月1日》](reference/real/小小耶/8月1日.md)（小小耶文字稿）· 优化改写 |
 | 310 | xxye-0007 | 9527 | 小小耶 | [原作《9527》](reference/real/小小耶/9527.md)（小小耶文字稿）· 优化改写 |
 | 311 | xxye-0009 | 爱的囚笼 | 小小耶 | [原作《爱的囚笼》](reference/real/小小耶/爱的囚笼.md)（小小耶文字稿）· 优化改写 |
-| 312 | xxye-0012 | 按摩师 | 小小耶 | [原作《按摩师》](reference/real/小小耶/按摩师.md)（小小耶文字稿）· 优化改写 |
 | 313 | xxye-0017 | 帮忙 | 小小耶 | [原作《帮忙》](reference/real/小小耶/帮忙.md)（小小耶文字稿）· 优化改写 |
 | 314 | xxye-0018 | 保密 | 小小耶 | [原作《保密》](reference/real/小小耶/保密.md)（小小耶文字稿）· 原样保留 |
 | 315 | xxye-0019 | 背后一个人 | 小小耶 | [原作《背后一个人》](reference/real/小小耶/背后一个人.md)（小小耶文字稿）· 优化改写 |
@@ -350,13 +316,9 @@
 | 327 | xxye-0045 | 仇恨之书 | 小小耶 | [原作《仇恨之书》](reference/real/小小耶/仇恨之书.md)（小小耶文字稿）· 优化改写 |
 | 328 | xxye-0047 | 出不去的厕所 | 小小耶 | [原作《出不去的厕所》](reference/real/小小耶/出不去的厕所.md)（小小耶文字稿）· 优化改写 |
 | 329 | xxye-0048 | 来吃火锅 | 小小耶 | [原作《来吃火锅》](reference/real/小小耶/除醛火锅.md)（小小耶文字稿）· 优化改写 |
-| 330 | xxye-0049 | 穿越日记 | 小小耶 | [原作《穿越日记》](reference/real/小小耶/穿越日记.md)（小小耶文字稿）· 优化改写 |
 | 331 | xxye-0051 | 靠窗的床 | 小小耶 | [原作《靠窗的床》](reference/real/小小耶/窗外是墙.md)（小小耶文字稿）· 优化改写 |
 | 332 | xxye-0052 | 床底 | 小小耶 | [原作《床底》](reference/real/小小耶/床底.md)（小小耶文字稿）· 优化改写 |
 | 333 | xxye-0056 | 瓷器 | 小小耶 | [原作《瓷器》](reference/real/小小耶/瓷器.md)（小小耶文字稿）· 优化改写 |
-| 334 | xxye-0057 | 辞职回山 | 小小耶 | [原作《辞职回山》](reference/real/小小耶/辞职回山.md)（小小耶文字稿）· 优化改写 |
-| 335 | xxye-0059 | 村庄 | 小小耶 | [原作《村庄》](reference/real/小小耶/村庄.md)（小小耶文字稿）· 优化改写 |
-| 336 | xxye-0064 | 带绳而来 | 小小耶 | [原作《带绳而来》](reference/real/小小耶/带绳而来.md)（小小耶文字稿）· 原样保留 |
 | 337 | xxye-0065 | 倒地的她 | 小小耶 | [原作《倒地的她》](reference/real/小小耶/倒地的他.md)（小小耶文字稿）· 优化改写 |
 | 338 | xxye-0066 | 倒数第二排的女人 | 小小耶 | [原作《倒数第二排的女人》](reference/real/小小耶/倒数第二排的女人.md)（小小耶文字稿）· 优化改写 |
 | 339 | xxye-0069 | 等月色 | 小小耶 | [原作《等月色》](reference/real/小小耶/等月色.md)（小小耶文字稿）· 优化改写 |
@@ -365,16 +327,12 @@
 | 342 | xxye-0076 | 咚咚咚 | 小小耶 | [原作《咚咚咚》](reference/real/小小耶/咚咚咚.md)（小小耶文字稿）· 优化改写 |
 | 343 | xxye-0077 | 谁笑了 | 小小耶 | [原作《谁笑了》](reference/real/小小耶/逗笑老王.md)（小小耶文字稿）· 优化改写 |
 | 344 | xxye-0078 | 堆雪人 | 小小耶 | [原作《堆雪人》](reference/real/小小耶/堆雪人.md)（小小耶文字稿）· 优化改写 |
-| 345 | xxye-0079 | 夺舍 | 小小耶 | [原作《夺舍》](reference/real/小小耶/夺舍.md)（小小耶文字稿）· 优化改写 |
 | 346 | xxye-0081 | 恩爱 | 小小耶 | [原作《恩爱》](reference/real/小小耶/恩爱.md)（小小耶文字稿）· 优化改写 |
-| 347 | xxye-0083 | 法医 | 小小耶 | [原作《法医》](reference/real/小小耶/法医.md)（小小耶文字稿）· 优化改写 |
 | 348 | xxye-0086 | 放火烧山 | 小小耶 | [原作《放火烧山》](reference/real/小小耶/放火烧山.md)（小小耶文字稿）· 优化改写 |
 | 349 | xxye-0088 | 放羊 | 小小耶 | [原作《放羊》](reference/real/小小耶/放羊.md)（小小耶文字稿）· 优化改写 |
-| 350 | xxye-0089 | 飞来横祸 | 小小耶 | [原作《飞来横祸》](reference/real/小小耶/飞来横祸.md)（小小耶文字稿）· 优化改写 |
 | 351 | xxye-0090 | 天上来敌 | 小小耶 | [原作《天上来敌》](reference/real/小小耶/飞升是陷阱.md)（小小耶文字稿）· 优化改写 |
 | 352 | xxye-0091 | 跟谁 | 小小耶 | [原作《跟谁》](reference/real/小小耶/分成两半.md)（小小耶文字稿）· 优化改写 |
 | 353 | xxye-0092 | 分享爱好 | 小小耶 | [原作《分享爱好》](reference/real/小小耶/分享爱好.md)（小小耶文字稿）· 优化改写 |
-| 354 | xxye-0094 | 疯女人 | 小小耶 | [原作《疯女人》](reference/real/小小耶/疯女人.md)（小小耶文字稿）· 优化改写 |
 | 355 | xxye-0097 | 高三那年 | 小小耶 | [原作《高三那年》](reference/real/小小耶/高三那年.md)（小小耶文字稿）· 优化改写 |
 | 356 | xxye-0099 | 告白 | 小小耶 | [原作《告白》](reference/real/小小耶/告白.md)（小小耶文字稿）· 优化改写 |
 | 357 | xxye-0102 | 给我擦皮鞋 | 小小耶 | [原作《给我擦皮鞋》](reference/real/小小耶/给我擦皮鞋.md)（小小耶文字稿）· 优化改写 |
@@ -383,7 +341,6 @@
 | 360 | xxye-0106 | 孤寡老人 | 小小耶 | [原作《孤寡老人》](reference/real/小小耶/孤寡老人.md)（小小耶文字稿）· 优化改写 |
 | 361 | xxye-0107 | 远离水 | 小小耶 | [原作《远离水》](reference/real/小小耶/谷仓淹死.md)（小小耶文字稿）· 优化改写 |
 | 362 | xxye-0108 | 鼓掌 | 小小耶 | [原作《鼓掌》](reference/real/小小耶/鼓掌.md)（小小耶文字稿）· 优化改写 |
-| 363 | xxye-0110 | 关机去见你 | 小小耶 | [原作《关机去见你》](reference/real/小小耶/关机去见你.md)（小小耶文字稿）· 优化改写 |
 | 364 | xxye-0111 | 接应的人 | 小小耶 | [原作《接应的人》](reference/real/小小耶/棺材里的火柴.md)（小小耶文字稿）· 优化改写 |
 | 365 | xxye-0113 | 主持人的纸条 | 小小耶 | [原作《主持人的纸条》](reference/real/小小耶/规则怪谈.md)（小小耶文字稿）· 优化改写 |
 | 366 | xxye-0114 | 闺蜜家的网络 | 小小耶 | [原作《闺蜜家的网络》](reference/real/小小耶/闺蜜家WiFi.md)（小小耶文字稿）· 优化改写 |
@@ -407,7 +364,6 @@
 | 384 | xxye-0146 | 荒郊大巴 | 小小耶 | [原作《荒郊大巴》](reference/real/小小耶/荒郊大巴.md)（小小耶文字稿）· 优化改写 |
 | 385 | xxye-0149 | 恢复视力 | 小小耶 | [原作《恢复视力》](reference/real/小小耶/恢复视力.md)（小小耶文字稿）· 优化改写 |
 | 386 | xxye-0152 | 会响的字幕 | 小小耶 | [原作《会响的字幕》](reference/real/小小耶/会响的字幕.md)（小小耶文字稿）· 优化改写 |
-| 387 | xxye-0154 | 婚礼 | 小小耶 | [原作《婚礼》](reference/real/小小耶/婚礼.md)（小小耶文字稿）· 优化改写 |
 | 388 | xxye-0155 | 喊爸爸 | 小小耶 | [原作《喊爸爸》](reference/real/小小耶/活爹.md)（小小耶文字稿）· 优化改写 |
 | 389 | xxye-0159 | 忌日杀戮 | 小小耶 | [原作《忌日杀戮》](reference/real/小小耶/忌日杀戮.md)（小小耶文字稿）· 优化改写 |
 | 390 | xxye-0161 | 叫家长 | 小小耶 | [原作《叫家长》](reference/real/小小耶/假爸爸.md)（小小耶文字稿）· 优化改写 |
@@ -454,7 +410,6 @@
 | 431 | xxye-0239 | 妹妹的秘密 | 小小耶 | [原作《妹妹的秘密》](reference/real/小小耶/妹妹的秘密.md)（小小耶文字稿）· 优化改写 |
 | 432 | xxye-0240 | 梦见坠机 | 小小耶 | [原作《梦见坠机》](reference/real/小小耶/梦见坠机.md)（小小耶文字稿）· 优化改写 |
 | 433 | xxye-0243 | 密码锁 | 小小耶 | [原作《密码锁》](reference/real/小小耶/密码锁.md)（小小耶文字稿）· 优化改写 |
-| 434 | xxye-0244 | 敏锐 | 小小耶 | [原作《敏锐》](reference/real/小小耶/敏锐.md)（小小耶文字稿）· 优化改写 |
 | 435 | xxye-0245 | 明明有的 | 小小耶 | [原作《明明有的》](reference/real/小小耶/明明有的.md)（小小耶文字稿）· 优化改写 |
 | 436 | xxye-0248 | 魔力牧场 | 小小耶 | [原作《魔力牧场》](reference/real/小小耶/魔力牧场.md)（小小耶文字稿）· 优化改写 |
 | 437 | xxye-0249 | 魔术师 | 小小耶 | [原作《魔术师》](reference/real/小小耶/魔术师.md)（小小耶文字稿）· 优化改写 |
@@ -471,23 +426,17 @@
 | 448 | xxye-0269 | 破碎的家 | 小小耶 | [原作《破碎的家》](reference/real/小小耶/破碎的家.md)（小小耶文字稿）· 优化改写 |
 | 449 | xxye-0271 | 破咒 | 小小耶 | [原作《破咒》](reference/real/小小耶/破咒.md)（小小耶文字稿）· 优化改写 |
 | 450 | xxye-0272 | 葡萄 | 小小耶 | [原作《葡萄》](reference/real/小小耶/葡萄.md)（小小耶文字稿）· 优化改写 |
-| 451 | xxye-0274 | 妻子爱上他 | 小小耶 | [原作《妻子爱上他》](reference/real/小小耶/妻子爱上他.md)（小小耶文字稿）· 优化改写 |
 | 452 | xxye-0278 | 奇怪的咒语 | 小小耶 | [原作《奇怪的咒语》](reference/real/小小耶/奇怪的咒语.md)（小小耶文字稿）· 优化改写 |
 | 453 | xxye-0281 | 钱包 | 小小耶 | [原作《钱包》](reference/real/小小耶/钱包.md)（小小耶文字稿）· 优化改写 |
 | 454 | xxye-0283 | 潜艇棋局 | 小小耶 | [原作《潜艇棋局》](reference/real/小小耶/潜艇棋局.md)（小小耶文字稿）· 优化改写 |
 | 455 | xxye-0284 | 墙上的血 | 小小耶 | [原作《墙上的血》](reference/real/小小耶/墙上的血.md)（小小耶文字稿）· 优化改写 |
 | 456 | xxye-0285 | 音乐停了 | 小小耶 | [原作《音乐停了》](reference/real/小小耶/抢椅子.md)（小小耶文字稿）· 优化改写 |
-| 457 | xxye-0288 | 求婚 | 小小耶 | [原作《求婚》](reference/real/小小耶/求婚.md)（小小耶文字稿）· 优化改写 |
 | 458 | xxye-0290 | 人皮鼓 | 小小耶 | [原作《人皮鼓》](reference/real/小小耶/人皮鼓.md)（小小耶文字稿）· 优化改写 |
 | 459 | xxye-0291 | 人鱼血书 | 小小耶 | [原作《人鱼血书》](reference/real/小小耶/人鱼血书.md)（小小耶文字稿）· 优化改写 |
-| 460 | xxye-0295 | 刀拔不出 | 小小耶 | [原作《刀拔不出》](reference/real/小小耶/塞进去_BV16thBziEg1.md)（小小耶文字稿）· 优化改写 |
 | 461 | xxye-0296 | 点钞 | 小小耶 | [原作《点钞》](reference/real/小小耶/塞进去_BV1ABKH6EEV9.md)（小小耶文字稿）· 优化改写 |
-| 462 | xxye-0298 | 礼物里的人 | 小小耶 | [原作《礼物里的人》](reference/real/小小耶/塞进去_BV1BppUz3E9s.md)（小小耶文字稿）· 优化改写 |
 | 463 | xxye-0312 | 三个孩子 | 小小耶 | [原作《三个孩子》](reference/real/小小耶/三个小孩.md)（小小耶文字稿）· 优化改写 |
 | 464 | xxye-0313 | 三楼画像 | 小小耶 | [原作《三楼画像》](reference/real/小小耶/三楼画像.md)（小小耶文字稿）· 优化改写 |
-| 465 | xxye-0314 | 三明治 | 小小耶 | [原作《三明治》](reference/real/小小耶/三明治.md)（小小耶文字稿）· 优化改写 |
 | 466 | xxye-0316 | 闪灯陷阱 | 小小耶 | [原作《闪灯陷阱》](reference/real/小小耶/闪灯陷阱.md)（小小耶文字稿）· 优化改写 |
-| 467 | xxye-0318 | 上楼 | 小小耶 | [原作《上楼》](reference/real/小小耶/上楼.md)（小小耶文字稿）· 优化改写 |
 | 468 | xxye-0320 | 谁关的灯 | 小小耶 | [原作《谁关的灯》](reference/real/小小耶/谁关的灯.md)（小小耶文字稿）· 优化改写 |
 | 469 | xxye-0321 | 伸出的脚 | 小小耶 | [原作《伸出的脚》](reference/real/小小耶/伸出的脚.md)（小小耶文字稿）· 优化改写 |
 | 470 | xxye-0322 | 深夜琴声 | 小小耶 | [原作《深夜琴声》](reference/real/小小耶/深夜琴声.md)（小小耶文字稿）· 优化改写 |
@@ -501,7 +450,6 @@
 | 478 | xxye-0334 | 十个太阳 | 小小耶 | [原作《十个太阳》](reference/real/小小耶/十个太阳.md)（小小耶文字稿）· 优化改写 |
 | 479 | xxye-0335 | 再来一局 | 小小耶 | [原作《再来一局》](reference/real/小小耶/石头剪刀布_BV1xTyXBeErj.md)（小小耶文字稿）· 优化改写 |
 | 480 | xxye-0336 | 石头剪刀布 | 小小耶 | [原作《石头剪刀布》](reference/real/小小耶/石头剪刀布.md)（小小耶文字稿）· 优化改写 |
-| 481 | xxye-0337 | 时空滑梯 | 小小耶 | [原作《时空滑梯》](reference/real/小小耶/时空滑梯.md)（小小耶文字稿）· 优化改写 |
 | 482 | xxye-0338 | 室友的恶作剧 | 小小耶 | [原作《室友的恶作剧》](reference/real/小小耶/室友的恶作剧.md)（小小耶文字稿）· 优化改写 |
 | 483 | xxye-0341 | 收音机 | 小小耶 | [原作《收音机》](reference/real/小小耶/收音机.md)（小小耶文字稿）· 优化改写 |
 | 484 | xxye-0343 | 先逃出去的人 | 小小耶 | [原作《先逃出去的人》](reference/real/小小耶/手榴弹.md)（小小耶文字稿）· 优化改写 |
@@ -518,18 +466,14 @@
 | 495 | xxye-0365 | 台阶上的声音 | 小小耶 | [原作《台阶上的声音》](reference/real/小小耶/台阶什么声音.md)（小小耶文字稿）· 优化改写 |
 | 496 | xxye-0367 | 糖果诱骗 | 小小耶 | [原作《糖果诱骗》](reference/real/小小耶/糖果诱骗.md)（小小耶文字稿）· 优化改写 |
 | 497 | xxye-0368 | 逃过一劫 | 小小耶 | [原作《逃过一劫》](reference/real/小小耶/逃过一劫.md)（小小耶文字稿）· 优化改写 |
-| 498 | xxye-0371 | 替代它 | 小小耶 | [原作《替代它》](reference/real/小小耶/替代它.md)（小小耶文字稿）· 优化改写 |
 | 499 | xxye-0373 | 跳楼的女人 | 小小耶 | [原作《跳楼的女人》](reference/real/小小耶/跳楼的女人.md)（小小耶文字稿）· 优化改写 |
 | 500 | xxye-0374 | 通风口的爸爸 | 小小耶 | [原作《通风口的爸爸》](reference/real/小小耶/通风口的爸爸.md)（小小耶文字稿）· 优化改写 |
 | 501 | xxye-0375 | 吐药 | 小小耶 | [原作《吐药》](reference/real/小小耶/吐药.md)（小小耶文字稿）· 优化改写 |
 | 502 | xxye-0377 | 外面有鬼 | 小小耶 | [原作《外面有鬼》](reference/real/小小耶/外面有鬼.md)（小小耶文字稿）· 优化改写 |
 | 503 | xxye-0379 | 完美笔录 | 小小耶 | [原作《完美笔录》](reference/real/小小耶/完美笔录.md)（小小耶文字稿）· 优化改写 |
-| 504 | xxye-0380 | 完美的手术 | 小小耶 | [原作《完美的手术》](reference/real/小小耶/完美的手术.md)（小小耶文字稿）· 优化改写 |
-| 505 | xxye-0381 | 完美机器 | 小小耶 | [原作《完美机器》](reference/real/小小耶/完美机器.md)（小小耶文字稿）· 优化改写 |
 | 506 | xxye-0383 | 王叔叔好 | 小小耶 | [原作《王叔叔好》](reference/real/小小耶/王叔叔好.md)（小小耶文字稿）· 优化改写 |
 | 507 | xxye-0384 | 网购 | 小小耶 | [原作《网购》](reference/real/小小耶/网购.md)（小小耶文字稿）· 优化改写 |
 | 508 | xxye-0391 | 我妈赢了 | 小小耶 | [原作《我妈赢了》](reference/real/小小耶/我妈赢了.md)（小小耶文字稿）· 优化改写 |
-| 509 | xxye-0393 | 无力回天 | 小小耶 | [原作《无力回天》](reference/real/小小耶/无力回天.md)（小小耶文字稿）· 优化改写 |
 | 510 | xxye-0394 | 无人阻拦 | 小小耶 | [原作《无人阻拦》](reference/real/小小耶/无人阻拦.md)（小小耶文字稿）· 优化改写 |
 | 511 | xxye-0395 | 无声的仪式 | 小小耶 | [原作《无声的仪式》](reference/real/小小耶/无声的仪式.md)（小小耶文字稿）· 优化改写 |
 | 512 | xxye-0396 | 午夜列车 | 小小耶 | [原作《午夜列车》](reference/real/小小耶/午夜列车.md)（小小耶文字稿）· 优化改写 |
@@ -543,7 +487,6 @@
 | 520 | xxye-0407 | 香水 | 小小耶 | [原作《香水》](reference/real/小小耶/香水_BV1WZQoBhE44.md)（小小耶文字稿）· 优化改写 |
 | 521 | xxye-0409 | 想喝一碗汤 | 小小耶 | [原作《想喝一碗汤》](reference/real/小小耶/想喝一碗汤.md)（小小耶文字稿）· 优化改写 |
 | 522 | xxye-0410 | 换个哥哥 | 小小耶 | [原作《换个哥哥》](reference/real/小小耶/想要哥哥的男孩.md)（小小耶文字稿）· 优化改写 |
-| 523 | xxye-0414 | 消失的他 | 小小耶 | [原作《消失的他》](reference/real/小小耶/消失的他.md)（小小耶文字稿）· 优化改写 |
 | 524 | xxye-0415 | 开春以后 | 小小耶 | [原作《开春以后》](reference/real/小小耶/消失的凶器.md)（小小耶文字稿）· 优化改写 |
 | 525 | xxye-0416 | 最后一格 | 小小耶 | [原作《最后一格》](reference/real/小小耶/消失的一行.md)（小小耶文字稿）· 优化改写 |
 | 526 | xxye-0418 | 一声晚安 | 小小耶 | [原作《一声晚安》](reference/real/小小耶/小爱密室.md)（小小耶文字稿）· 优化改写 |
@@ -551,7 +494,6 @@
 | 528 | xxye-0420 | 糕点与枪声 | 小小耶 | [原作《糕点与枪声》](reference/real/小小耶/小红帽.md)（小小耶文字稿）· 优化改写 |
 | 529 | xxye-0425 | 贼的仓库 | 小小耶 | [原作《贼的仓库》](reference/real/小小耶/小偷被偷家.md)（小小耶文字稿）· 优化改写 |
 | 530 | xxye-0426 | 笑容 | 小小耶 | [原作《笑容》](reference/real/小小耶/笑容.md)（小小耶文字稿）· 优化改写 |
-| 531 | xxye-0428 | 鞋里的秘密 | 小小耶 | [原作《鞋里的秘密》](reference/real/小小耶/鞋里的秘密.md)（小小耶文字稿）· 优化改写 |
 | 532 | xxye-0429 | 新衣服 | 小小耶 | [原作《新衣服》](reference/real/小小耶/新衣服.md)（小小耶文字稿）· 优化改写 |
 | 533 | xxye-0430 | 醒过来 | 小小耶 | [原作《醒过来》](reference/real/小小耶/醒过来.md)（小小耶文字稿）· 优化改写 |
 | 534 | xxye-0433 | 胸针 | 小小耶 | [原作《胸针》](reference/real/小小耶/胸针.md)（小小耶文字稿）· 优化改写 |
@@ -563,10 +505,8 @@
 | 540 | xxye-0452 | 第四个房间 | 小小耶 | [原作《第四个房间》](reference/real/小小耶/耶的日常.md)（小小耶文字稿）· 优化改写 |
 | 541 | xxye-0453 | 一个亿 | 小小耶 | [原作《一个亿》](reference/real/小小耶/一个亿.md)（小小耶文字稿）· 优化改写 |
 | 542 | xxye-0456 | 一墙奖状 | 小小耶 | [原作《一墙奖状》](reference/real/小小耶/一墙奖状.md)（小小耶文字稿）· 原样保留 |
-| 543 | xxye-0458 | 一样的东西 | 小小耶 | [原作《一样的东西》](reference/real/小小耶/一样的东西.md)（小小耶文字稿）· 优化改写 |
 | 544 | xxye-0459 | 遗憾 | 小小耶 | [原作《遗憾》](reference/real/小小耶/遗憾.md)（小小耶文字稿）· 优化改写 |
 | 545 | xxye-0460 | 挪车电话 | 小小耶 | [原作《挪车电话》](reference/real/小小耶/意外来电.md)（小小耶文字稿）· 优化改写 |
-| 546 | xxye-0461 | 阴晴不定 | 小小耶 | [原作《阴晴不定》](reference/real/小小耶/阴晴不定.md)（小小耶文字稿）· 优化改写 |
 | 547 | xxye-0462 | 最后一拍 | 小小耶 | [原作《最后一拍》](reference/real/小小耶/音乐停了.md)（小小耶文字稿）· 优化改写 |
 | 548 | xxye-0463 | 引诱 | 小小耶 | [原作《引诱》](reference/real/小小耶/引诱.md)（小小耶文字稿）· 优化改写 |
 | 549 | xxye-0464 | 学得真像 | 小小耶 | [原作《学得真像》](reference/real/小小耶/鹦鹉学惨.md)（小小耶文字稿）· 优化改写 |
@@ -574,7 +514,6 @@
 | 551 | xxye-0466 | 船就在旁边 | 小小耶 | [原作《船就在旁边》](reference/real/小小耶/游艇梯子.md)（小小耶文字稿）· 优化改写 |
 | 552 | xxye-0477 | 约定 | 小小耶 | [原作《约定》](reference/real/小小耶/约定.md)（小小耶文字稿）· 优化改写 |
 | 553 | xxye-0478 | 月牙 | 小小耶 | [原作《月牙》](reference/real/小小耶/月牙.md)（小小耶文字稿）· 优化改写 |
-| 554 | xxye-0480 | 再见 | 小小耶 | [原作《再见》](reference/real/小小耶/再见.md)（小小耶文字稿）· 优化改写 |
 | 555 | xxye-0482 | 早恋 | 小小耶 | [原作《早恋》](reference/real/小小耶/早恋.md)（小小耶文字稿）· 优化改写 |
 | 556 | xxye-0483 | 长不大 | 小小耶 | [原作《长不大》](reference/real/小小耶/长不大.md)（小小耶文字稿）· 优化改写 |
 | 557 | xxye-0485 | 掌心里的数字 | 小小耶 | [原作《掌心里的数字》](reference/real/小小耶/掌心里的数字.md)（小小耶文字稿）· 优化改写 |
@@ -596,81 +535,6 @@
 | 573 | xxye-0516 | 十七楼 | 小小耶 | [原作《十七楼》](reference/real/小小耶/走楼梯.md)（小小耶文字稿）· 优化改写 |
 | 574 | xxye-0519 | 最爱 | 小小耶 | [原作《最爱》](reference/real/小小耶/最爱.md)（小小耶文字稿）· 优化改写 |
 | 575 | xxye-0529 | 木梯上的眼泪 | 小小耶 | [原作《木梯上的眼泪》](reference/real/小小耶/T上之泪.md)（小小耶文字稿）· 原样保留 |
-
-## 已下架
-
-2026-10-13 代词指代诡计清理：谜底核心依赖「某个人称代词实际指代的对象与读者默认理解不同」的题目整体下架——这类题在 AI 主持人的是/否问答模式下无法公平判题（提问里的「他/她」在主持人与玩家各自理解中指不同的人）。下表 38 题，编号为下架前在 `library.json` 中的位置；主表与 scores.md 的编号均按下架前位置保留，不随现役题库移动。题面存档仍在 `curated/` 各批目录中。
-
-| # | ID | 题名 | 批次 |
-| --- | --- | --- | --- |
-| 33 | seed-unworn-rain-boots | 上岸 | 首发 |
-| 49 | seed-half-sized-monster | 它变小了 | 首发 |
-| 50 | seed-unopened-future-safe | 保险箱 | 首发 |
-| 61 | seed-unused-microphone | 请开麦 | 首发 |
-| 90 | seed-necromancers-wooden-house | 请你敲门 | 首发 |
-| 227 | real-survived-as-another | 活下来的我 | 天堂 |
-| 239 | real-mr-pumpkin | 南瓜先生 | 天堂 |
-| 255 | real-november-diary | 十一月日记 | 天堂 |
-| 256 | real-a-testing-reply | 试探的回复 | 天堂 |
-| 258 | real-he-came-back | 他回来了 | 天堂 |
-| 260 | real-finally-dead | 他终于死了 | 天堂 |
-| 291 | real-together-forever | 永远在一起 | 天堂 |
-| 295 | real-moonlit-monster | 月夜怪物 | 天堂 |
-| 300 | real-tidy-bedroom | 整理好的卧室 | 天堂 |
-| 304 | real-homeward-procession | 终于回家了 | 天堂 |
-| 312 | xxye-0012 | 按摩师 | 小小耶 |
-| 330 | xxye-0049 | 穿越日记 | 小小耶 |
-| 335 | xxye-0059 | 村庄 | 小小耶 |
-| 336 | xxye-0064 | 带绳而来 | 小小耶 |
-| 345 | xxye-0079 | 夺舍 | 小小耶 |
-| 347 | xxye-0083 | 法医 | 小小耶 |
-| 350 | xxye-0089 | 飞来横祸 | 小小耶 |
-| 354 | xxye-0094 | 疯女人 | 小小耶 |
-| 363 | xxye-0110 | 关机去见你 | 小小耶 |
-| 387 | xxye-0154 | 婚礼 | 小小耶 |
-| 451 | xxye-0274 | 妻子爱上他 | 小小耶 |
-| 457 | xxye-0288 | 求婚 | 小小耶 |
-| 460 | xxye-0295 | 刀拔不出 | 小小耶 |
-| 465 | xxye-0314 | 三明治 | 小小耶 |
-| 467 | xxye-0318 | 上楼 | 小小耶 |
-| 481 | xxye-0337 | 时空滑梯 | 小小耶 |
-| 498 | xxye-0371 | 替代它 | 小小耶 |
-| 504 | xxye-0380 | 完美的手术 | 小小耶 |
-| 505 | xxye-0381 | 完美机器 | 小小耶 |
-| 523 | xxye-0414 | 消失的他 | 小小耶 |
-| 531 | xxye-0428 | 鞋里的秘密 | 小小耶 |
-| 543 | xxye-0458 | 一样的东西 | 小小耶 |
-| 546 | xxye-0461 | 阴晴不定 | 小小耶 |
-
-### 2026-10-13 用户指定下架（data/delete.txt）
-
-用户复核后指定下架的 23 题（清单原 25 题，其中「上岸」「求婚」已见于上表）。编号同为下架前位置；题面存档仍在 `curated/` 各批目录中。
-
-| # | ID | 题名 | 批次 |
-| --- | --- | --- | --- |
-| 4 | seed-blank-underpage | 墙上的指甲 | 首发 |
-| 5 | seed-sold-out-portraits | 替身 | 首发 |
-| 11 | seed-awning-in-the-rain | 雨棚 | 首发 |
-| 15 | seed-fourth-place-ribbon | 第四名 | 首发 |
-| 42 | seed-last-package-first | 第七个包裹 | 首发 |
-| 44 | seed-left-at-the-hat-shop | 量头围 | 首发 |
-| 46 | seed-unread-newspaper | 旧报纸 | 首发 |
-| 53 | seed-lower-hemline | 裙摆 | 首发 |
-| 62 | seed-extra-seat-on-the-boat | 空出一个位置 | 首发 |
-| 83 | seed-ticket-without-a-destination | 单程票 | 首发 |
-| 93 | seed-last-empty-line | 最后一个名字 | 首发 |
-| 125 | seed-theatre-cut-curtain | 幕布下面 | 扩展 |
-| 183 | seed-bloodless-duel-scabbard | 挥空三次 | 扩展 |
-| 192 | seed-last-runway-landing-lights | 熄灭跑道 | 扩展 |
-| 247 | real-three-falls | 三次坠崖 | 天堂 |
-| 248 | real-three-airplanes | 三架飞机 | 天堂 |
-| 274 | real-seven-years-old | 我七岁了 | 天堂 |
-| 299 | real-possessiveness | 占有欲 | 天堂 |
-| 334 | xxye-0057 | 辞职回山 | 小小耶 |
-| 434 | xxye-0244 | 敏锐 | 小小耶 |
-| 462 | xxye-0298 | 礼物里的人 | 小小耶 |
-| 509 | xxye-0393 | 无力回天 | 小小耶 |
-| 554 | xxye-0480 | 再见 | 小小耶 |
 
 ## 未并入主题库存档
 
