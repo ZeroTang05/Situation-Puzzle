@@ -29,7 +29,7 @@ jev-turtle-soup/
 │  ├─ admin-auth.ts        admin 请求鉴权
 │  └─ api-url.ts           worker 地址解析
 ├─ data/                   题库数据（唯一数据源）
-│  ├─ library.json         中文题库（约 30 题 × 3 条提示）
+│  ├─ library.json         中文题库（514 题 × 3 条提示）
 │  ├─ library.en.json      英文题库（与中文共用题目 ID）
 │  └─ library-sources.md   题源与改写说明
 ├─ worker/                 后端（Cloudflare Worker + D1），部署细节见 worker/README.md

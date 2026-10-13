@@ -1,47 +1,524 @@
 # 题库来源与整理说明
 
-题库固定为 30 道已有谜题：保留 12 道经典题，新增 18 道流传谜题；此前的 18 道原创题已移出中英文题库。核对日期：2026-09-25。
+题库包含 514 道海龟汤，每题提供三条提示；中英文使用相同 ID 和排列顺序。更新日期：2026-10-13。
 
-沿用来源中的核心情节与谜底，中文采用简短整理，英文为对应译写。标题可按中文阅读习惯调整；每题三条提示由本项目重新整理，分别补充人物、环境、物品、动机或时间关系中的事实，均与该题汤底一致。
+题目包含平台原创和公开节目材料改编。来源记录保留原题库编号，编号空缺对应已下架题目。原作者和原视频链接尚未核验的作品不补写署名或链接。
 
-来源链接表示可核对的流传版本，不等同于首发证明或商业转载授权。投稿者仅按页面所示注明；未确认原作者的题目不署为项目原创。这里不收录付费题本原文，不把开源程序的许可证视为其收集故事的授权。
+## 逐题来源
 
-| 题目编号 | 题名 | 参考版本 | 本项目整理说明 |
-| --- | --- | --- | --- |
-| seed-classic-albatross | 海鸟汤 | [Minute Mysteries（一分钟谜题集），第 10 题](https://www.scribd.com/document/323597925/One-Minute-Mysteries) | 采用妻子在海难后死去的版本；补入向同伴确认的情节，避免仅凭口味就断定肉的来源。 |
-| seed-classic-short-match | 半根火柴 | [Minute Mysteries（一分钟谜题集），第 14 题](https://www.scribd.com/document/323597925/One-Minute-Mysteries) | 保留热气球失高、丢弃重物、抽短签的因果关系。 |
-| seed-classic-lighthouse | 熄灯之后 | [Jed Hartman 情境谜题档案，第 1.91 题](https://www.kith.org/jed/situation-puzzles/answers/1-91-html/) | 保留熄灭航标导致船难的谜底，结尾止于发现事故。 |
-| seed-classic-music-stopped | 音乐停止以后 | [Braingle：The Music Stopped（音乐停止）](https://www.braingle.com/brainteasers/1049/the-music-stopped.html) | 采用蒙眼表演、乐队意外提前停奏的版本。 |
-| seed-classic-iced-drinks | 喝得慢的人 | [Puzzling Stack Exchange：Poisoned Iced Tea（有毒的冰茶）](https://puzzling.stackexchange.com/questions/2980/poisoned-iced-tea) | 保留冰块融化与饮用速度的机关；快喝者摄入较少，避免声称冰块完全不会融化。 |
-| seed-classic-rewound-tape | 倒回开头的遗言 | [TalkBass：Riddle time（猜谜时间），2008 年讨论](https://www.talkbass.com/threads/riddle-time.426785/) | 明确手动倒带条件；汤面表述为发现现场被操作的线索，汤底给出凶手布置过程。 |
-| seed-classic-one-way-ticket | 没有回程的旅客 | [Jed Hartman 情境谜题档案，第 1.3 题](https://www.kith.org/jed/situation-puzzles/answers-to-jeds-list-of-situation-puzzles/) | 补入丈夫声称共同返程的条件，将购票记录表述为调查线索。 |
-| seed-classic-subway-pact | 地铁上的旧约 | [Braingle：Subway Meeting（地铁相遇）](https://www.braingle.com/brainteasers/teaser.php?comm=1&id=2652&op=2) | 采用最后一人获救后逃走、拒绝履约的版本，省略伤害细节。 |
-| seed-classic-birthday-surprise | 门后的生日快乐 | [Minute Mysteries（一分钟谜题集），第 24 题](https://www.scribd.com/document/323597925/One-Minute-Mysteries) | 保留杀妻者撞见妻子安排的派对这一反转，结尾改为计划暴露。 |
-| seed-classic-dark-motel | 唯一没亮的房间 | [Two Plus Two：汽车喇叭情境谜题讨论](https://forumserver.twoplustwo.com/59/puzzles-other-games/situational-puzzle-revengeance-room-car-honk-1315356/index4.html?s=d0be9410495aaef6872871cf01a0eebd) | 明确当晚客满及其他房客实际亮灯，避免将所有人的反应当成必然规律。 |
-| seed-classic-unopened-pack | 来不及打开的包 | [ThePuzzleLabs：Lateral Thinking Puzzles（情境推理题），第 1 题](https://www.thepuzzlelabs.com/deduction/lateral-thinking-puzzles) | 保留伞包未能展开、死者从空中到达现场的机关。 |
-| seed-classic-sunken-cards | 赢家先死 | [Jed Hartman 情境谜题档案，第 1.14 题](https://www.kith.org/jed/situation-puzzles/answers-to-jeds-list-of-situation-puzzles/) | 采用潜水员发现沉船舱室的版本，保留牌局“赢家”的反转。 |
-| seed-classic-bar-hiccups | 酒保的枪 | [Braingle：A Glass of Water（一杯水）；投稿 jerry1](https://www.braingle.com/brainteasers/165/a-glass-of-water.html) | 保留打嗝与惊吓的机关。 |
-| seed-classic-rainy-elevator | 下雨才到家 | [Tease Your Brain：The Man in the Elevator（电梯里的男人）](https://teaseyourbrain.com/logic-puzzles/the-man-in-the-elevator/) | 采用七楼、十楼和雨伞的版本。 |
-| seed-classic-broken-fishbowl | 安东尼与克莉奥佩特拉 | [Diario de WKR：Antonio y Cleopatra（安东尼与克莉奥佩特拉），2015](https://labsk.net/wkr/archives/18046/) | 采用狗碰倒鱼缸的版本。 |
-| seed-classic-silent-phone-call | 一句话也没说 | [Marcia's Musings：The Phone Call（电话），2008](https://marciasmusingsonline.blogspot.com/2008/11/riddle-31-phone-call.html) | 保留旅馆鼾声与铃声叫醒的机关。 |
-| seed-classic-night-watchman | 救命之后被解雇 | [Crazy Stuff：The Night Watchman（守夜人）](https://www.crazy-stuff.net/en/entertainment/riddles/the-night-watchman) | 保留预警应验、获酬后被解雇的版本。 |
-| seed-classic-sawdust-cane | 地上的木屑 | [rec.puzzles：Hopefully New riddle（希望是新谜题），1996 年讨论](https://groups.google.com/g/rec.puzzles/c/MZXZUa0miB8) | 采用竞争者锯短手杖的流传版本，省略自伤过程。 |
-| seed-classic-tunnel-light | 隧道里的一点火光 | [School of Educators：Lateral Thinking（横向思维）教学材料](https://schoolofeducators.com/wp-content/uploads/2012/05/Lateral_Thinking_Puzzles.pdf) | 采用香烟火光让复明者意识到自己仍看得见的获救版本。 |
-| seed-classic-melted-support | 空房间里的水 | [Braingle：The Room（房间）；投稿 Mr. G](https://www.braingle.com/brainteasers/teaser.php?comm=1&id=163&op=1) | 保留融化支撑物的密室机关，省略尺寸与自伤操作。 |
-| seed-classic-fifty-three-cards | 第五十三张牌 | [Riddles.com：Unlucky 53（不幸的五十三），1999](https://www.riddles.com/archives/4542) | 沿用多一张牌暴露作弊的谜底；去除 Bicycle 品牌的英文双关。 |
-| seed-classic-mountain-cabin | 山上的小舱室 | [Minute Mysteries（一分钟谜题）：Two Men Found Dead in a Cabin（舱内的两名死者）](https://dragon.sleepdeprived.ca/games/minute_mystery/minute_mystery_5.htm) | 将 cabin 译为小舱室，保留交通工具误认，避免谎称木屋。 |
-| seed-classic-second-funeral | 再办一次葬礼 | [Braingle：Funeral（葬礼）；投稿 bmotts](https://www.braingle.com/brainteasers/6677/funeral.html) | 仅采用虚构谜题情节，不采用来源的心理测试说法。 |
-| seed-classic-counting-floors | 对面的手指 | [Reddit r/riddles：This one's kinda dark（一道有些黑暗的谜题），2020](https://www.reddit.com/r/riddles/comments/jteb7x/) | 采用数楼层版本，保留讨论中补充的双方室内亮灯条件。 |
-| seed-classic-window-portraits | 木屋里的肖像 | [Creepypasta：The Portraits（肖像），2009；页面标注匿名](https://www.creepypasta.com/the-portraits/) | 对流传短篇作情节摘要，保留窗户反转，不复制原文段落。 |
-| seed-classic-fatal-ringtone | 最后一通电话 | [OpenReview：论文附录中收录的情境谜题（富翁给妻子打电话）](https://openreview.net/pdf?id=2mbDATzUOt) | 采用附录列出的入侵者、藏身、来电暴露位置的情节。 |
-| seed-classic-five-in-rain | 雨中的五个人 | [Puzzle Prime：Five Men in the Rain（雨中的五个人）；页面标注作者不详](https://www.puzzleprime.com/puzzles/brain-teasers/lateral/five-men-in-the-rain/) | 保留抬棺与雨水机关，澄清第五个人随棺移动。 |
-| seed-classic-bodies-in-well | 井里最后一个人 | [Scary for Kids：Bodies in the Well（井里的尸体），2012](https://www.scaryforkids.com/bodies-in-the-well/) | 压缩多次犯罪为概要，保留母亲包庇与最后一次失效。 |
-| seed-classic-missing-bride | 没有离开的新娘 | [槲寄生枝传说（Legend of the Mistletoe Bough）条目及其列举的传统版本](https://en.wikipedia.org/wiki/Legend_of_the_Mistletoe_Bough) | 传统失踪新娘故事的情节摘要，保留阁楼箱子机关。 |
-| seed-classic-two-pills | 总能活下来的那个人 | [Braingle：Murder by Poison（毒杀）；投稿 Marple](https://www.braingle.com/brainteasers/52143/murder-by-poison.html) | 明确有毒药是绑匪的说法，采用各自一杯水的版本。 |
-
-## 题库维护
-
-- `library.json` 和 `library.en.json` 共用题目 ID，保持相同顺序、相同情节和每题三条提示。
-- 保留的 12 道经典题沿用旧 ID；替换题使用新 ID，防止旧题的已答记录被误认为新题的记录。
-- 更新后运行 `pnpm sync:seed` 和 `pnpm sync:xiaohongshu`。前者同时生成新库种子与现有数据库的题库更新 SQL；后者更新小红书共享数据。
-- 现有 D1 数据库的更新方法见 `../worker/README.md`。替换题库不需要清空数据库，也不修改玩家投稿。
+| # | ID | 题名 | 批次 | 来源 |
+| --- | --- | --- | --- | --- |
+| 1 | seed-three-heroine-names | 认亲 | 首发 | 平台原创 |
+| 2 | seed-unlit-applause | 返场 | 首发 | 平台原创 |
+| 3 | seed-scratched-window | 窗外 | 首发 | 平台原创 |
+| 6 | seed-empty-witness-chair | 守灵 | 首发 | 平台原创 |
+| 7 | seed-ten-minute-mirror | 镜子慢了一步 | 首发 | 平台原创 |
+| 8 | seed-one-day-repair | 修补匠 | 首发 | 平台原创 |
+| 9 | seed-last-book-reader | 读完再睡 | 首发 | 平台原创 |
+| 10 | seed-unpainted-door | 门后的海 | 首发 | 平台原创 |
+| 12 | seed-no-return-umbrellas | 借伞 | 首发 | 平台原创 |
+| 13 | seed-missing-stair-noise | 第七级 | 首发 | 手法参考许二木《宿舍规则怪谈》 |
+| 14 | seed-wrong-way-signature | 值夜 | 首发 | 平台原创 |
+| 16 | seed-unopened-postcards | 家书 | 首发 | 平台原创 |
+| 17 | seed-ferry-of-unkept-promises | 渡口 | 首发 | 平台原创 |
+| 18 | seed-shadow-at-noon | 别开灯 | 首发 | 平台原创 |
+| 19 | seed-snow-inside-the-frame | 全村的雪 | 首发 | 平台原创 |
+| 20 | seed-borrowed-sleep | 轮到你睡了 | 首发 | 平台原创 |
+| 21 | seed-zero-complaints | 隔壁的歌 | 首发 | 平台原创 |
+| 22 | seed-cut-curtain | 喜帘 | 首发 | 平台原创 |
+| 23 | seed-returned-luggage-tags | 失物招领 | 首发 | 平台原创 |
+| 24 | seed-two-empty-pockets | 门链 | 首发 | 手法参考许二木《宿舍规则怪谈》 |
+| 25 | seed-rented-rain | 求雨 | 首发 | 平台原创 |
+| 26 | seed-echo-wedding | 应声 | 首发 | 平台原创 |
+| 27 | seed-prisoners-keyhole | 牢门 | 首发 | 平台原创 |
+| 28 | seed-saved-footprints | 回来的人 | 首发 | 平台原创 |
+| 29 | seed-torn-audition-number | 面试 | 首发 | 平台原创 |
+| 30 | seed-two-balcony-photos | 最后一张合影 | 首发 | 平台原创 |
+| 31 | seed-silent-rehearsal | 咳嗽 | 首发 | 平台原创 |
+| 32 | seed-unopened-cake-box | 第十八支蜡烛 | 首发 | 平台原创 |
+| 34 | seed-missing-caption | 照片外的人 | 首发 | 平台原创 |
+| 35 | seed-three-bells-at-dawn | 第三声钟 | 首发 | 平台原创 |
+| 36 | seed-road-to-the-name | 喊魂 | 首发 | 平台原创 |
+| 37 | seed-blank-tomorrow-card | 明天的讣告 | 首发 | 平台原创 |
+| 38 | seed-ghost-in-the-audience | 最后一排 | 首发 | 平台原创 |
+| 39 | seed-drawn-wrinkles | 替她长大 | 首发 | 平台原创 |
+| 40 | seed-arrow-behind-the-sign | 路标 | 首发 | 平台原创 |
+| 41 | seed-cleaned-observation-window | 观景窗 | 首发 | 平台原创 |
+| 43 | seed-fifteen-minute-queue | 最后一班 | 首发 | 平台原创 |
+| 45 | seed-window-without-a-face | 别拍到脸 | 首发 | 平台原创 |
+| 47 | seed-frozen-handshake | 握紧 | 首发 | 平台原创 |
+| 48 | seed-toll-of-one-secret | 过路费 | 首发 | 平台原创 |
+| 51 | seed-photographer-under-the-table | 桌下 | 首发 | 平台原创 |
+| 52 | seed-bell-after-the-last-bus | 末班车 | 首发 | 平台原创 |
+| 54 | seed-hundred-empty-tins | 空罐头 | 首发 | 平台原创 |
+| 55 | seed-empty-violin-case | 琴盒 | 首发 | 平台原创 |
+| 56 | seed-brightest-bedroom | 灯火通明 | 首发 | 平台原创 |
+| 57 | seed-nine-minute-alibi | 九分钟 | 首发 | 手法参考许二木《宿舍规则怪谈》 |
+| 58 | seed-king-without-a-name | 无名王 | 首发 | 平台原创 |
+| 59 | seed-stolen-yesterday | 卖掉昨天 | 首发 | 平台原创 |
+| 60 | seed-one-way-window | 窗后的儿子 | 首发 | 平台原创 |
+| 63 | seed-different-last-page | 最后一页 | 首发 | 平台原创 |
+| 64 | seed-uncut-tailor-thread | 缝在里面 | 首发 | 平台原创 |
+| 65 | seed-library-weight-limit | 带走重的那本 | 首发 | 平台原创 |
+| 66 | seed-earliest-wrong-turn | 带路的人 | 首发 | 平台原创 |
+| 67 | seed-door-for-the-youngest | 最小的孩子 | 首发 | 平台原创 |
+| 68 | seed-silent-truth-stone | 真话 | 首发 | 平台原创 |
+| 69 | seed-lost-shadow-market | 影子铺 | 首发 | 平台原创 |
+| 70 | seed-memory-of-an-empty-room | 空房间 | 首发 | 平台原创 |
+| 71 | seed-upside-down-clocktower | 倒影 | 首发 | 平台原创 |
+| 72 | seed-seat-behind-the-pillar | 贵宾席 | 首发 | 平台原创 |
+| 73 | seed-staple-through-the-date | 第三天 | 首发 | 平台原创 |
+| 74 | seed-no-music-in-the-video | 收声 | 首发 | 平台原创 |
+| 75 | seed-library-of-unwritten-books | 借阅记录 | 首发 | 思路参考许二木《信》 |
+| 76 | seed-statue-that-blinks | 二号地球 | 首发 | 手法参考许二木《双鱼》 |
+| 77 | seed-wishes-on-loan | 三个愿望 | 首发 | 平台原创 |
+| 78 | seed-compass-to-the-last-touch | 归航针 | 首发 | 平台原创 |
+| 79 | seed-rain-that-waits | 雨一直没停 | 首发 | 平台原创 |
+| 80 | seed-last-sentence-of-the-curse | 最后一句 | 首发 | 平台原创 |
+| 81 | seed-teacher-keeps-the-mistake | 篝火 | 首发 | 平台原创 |
+| 82 | seed-white-line-on-the-jacket | 白线 | 首发 | 平台原创 |
+| 84 | seed-lantern-that-holds-one-sound | 灯里有人 | 首发 | 平台原创 |
+| 85 | seed-equal-weight-gate | 称重 | 首发 | 平台原创 |
+| 86 | seed-sleeping-road | 休眠者 | 首发 | 思路参考许二木《信》 |
+| 87 | seed-second-copy-of-the-ring | 第二枚婚戒 | 首发 | 平台原创 |
+| 88 | seed-silent-auction-of-voices | 拍卖你的声音 | 首发 | 平台原创 |
+| 89 | seed-map-of-the-moving-city | 地图边缘 | 首发 | 平台原创 |
+| 91 | seed-statue-in-the-warm-van | 融化之前 | 首发 | 平台原创 |
+| 92 | seed-signature-on-the-gift-wrap | 礼物上的名字 | 首发 | 平台原创 |
+| 94 | seed-one-letter-a-hundred-times | 一百封求救信 | 首发 | 手法参考许二木《双鱼》 |
+| 95 | seed-bottled-silence | 安静一点 | 首发 | 平台原创 |
+| 96 | seed-bread-for-someone-else | 分食 | 首发 | 平台原创 |
+| 97 | seed-window-packed-for-winter | 极夜温室 | 首发 | 平台原创 |
+| 98 | seed-coins-that-go-home | 找零 | 首发 | 平台原创 |
+| 99 | seed-clock-that-counts-visitors | 第四名乘员 | 首发 | 平台原创 |
+| 100 | seed-gardeners-last-watch | 最后一个守夜人 | 首发 | 平台原创 |
+| 101 | seed-diving-bell-air | 请保持进水 | 扩展 | 结构参考 Paul Sloane 十大横向思维谜题 |
+| 102 | seed-rescue-countdown | 倒数第三声 | 扩展 | 平台原创 |
+| 103 | seed-white-room-rivets | 铆钉 | 扩展 | 结构参考 Paul Sloane 十大横向思维谜题 |
+| 104 | seed-empty-lifeboat-tow | 谁在划船 | 扩展 | 平台原创 |
+| 105 | seed-shelter-outside-bolt | 卸门 | 扩展 | 平台原创 |
+| 106 | seed-frozen-footprints-return | 鞋底朝天 | 扩展 | 平台原创 |
+| 107 | seed-elevator-second-weight | 下井的人 | 扩展 | 平台原创 |
+| 108 | seed-counted-breaths-cave | 少喘一口 | 扩展 | 平台原创 |
+| 109 | seed-quarantine-window-smile | 不要康复 | 扩展 | 平台原创 |
+| 110 | seed-archived-rescue-voice | 救援已结束 | 扩展 | 平台原创 |
+| 111 | seed-station-silent-whistle | 无声的汽笛 | 扩展 | 平台原创 |
+| 112 | seed-last-dividend-fingers | 分红 | 扩展 | 平台原创 |
+| 113 | seed-funeral-second-portrait | 向左转 | 扩展 | 平台原创 |
+| 114 | seed-loaned-night-hours | 替班 | 扩展 | 平台原创 |
+| 115 | seed-closed-mouth-jury | 宣判之前 | 扩展 | 平台原创 |
+| 116 | seed-museum-monster-label | 更换展签 | 扩展 | 结构参考 Puzzling SE《The Evicted Tenant》 |
+| 117 | seed-ferryman-unused-return | 返程联 | 扩展 | 平台原创 |
+| 118 | seed-ghost-room-temperature | 再冷一点 | 扩展 | 平台原创 |
+| 119 | seed-night-market-unused-teeth | 试咬 | 扩展 | 平台原创 |
+| 120 | seed-empty-town-vote | 一致通过 | 扩展 | 平台原创 |
+| 121 | seed-castle-inward-arrow | 墙上的箭 | 扩展 | 平台原创 |
+| 122 | seed-war-radio-familiar-song | 第八个字 | 扩展 | 平台原创 |
+| 123 | seed-prison-paper-snow | 院里的雪 | 扩展 | 平台原创 |
+| 124 | seed-sarcophagus-red-thread | 缠住的线 | 扩展 | 结构参考 Puzzling SE《How did the police know?》 |
+| 126 | seed-film-clapper-dead-clock | 报纸放下以后 | 扩展 | 结构参考 Puzzling SE《How did the police know?》 |
+| 127 | seed-escape-room-final-actor | 别给五星 | 扩展 | 平台原创 |
+| 128 | seed-salt-road-waterbag | 皮袋里的敲门声 | 扩展 | 平台原创 |
+| 129 | seed-abandoned-observatory-pulse | 天上的灯 | 扩展 | 结构参考 Paul Sloane 十大横向思维谜题 |
+| 130 | seed-hotel-extra-shower | 热水还在流 | 扩展 | 平台原创 |
+| 131 | seed-city-first-sunrise | 人造黎明 | 扩展 | 平台原创 |
+| 132 | seed-snowglobe-summer-rain | 玻璃罩里的暴雨 | 扩展 | 平台原创 |
+| 133 | seed-puppet-unused-knees | 跪不下去的人 | 扩展 | 平台原创 |
+| 134 | seed-memory-forest-surveyor | 树上的门牌 | 扩展 | 平台原创 |
+| 135 | seed-midnight-postage-due | 念信的人 | 扩展 | 平台原创 |
+| 136 | seed-two-suns-last-noon | 第二次正午 | 扩展 | 平台原创 |
+| 137 | seed-surgeon-empty-scar | 伤口租约 | 扩展 | 平台原创 |
+| 138 | seed-city-applause-meter | 掌声停下以后 | 扩展 | 平台原创 |
+| 139 | seed-gallows-shorter-shadow | 赦免 | 扩展 | 平台原创 |
+| 140 | seed-ocean-bottom-sky-door | 井盖上的云 | 扩展 | 平台原创 |
+| 141 | seed-icebreaker-black-wall | 前方有岸 | 扩展 | 结构参考 Paul Sloane 十大横向思维谜题；冰山翻转机制经 NASA/NSIDC 资料核对 |
+| 142 | seed-siege-empty-kitchen | 第一锅饭 | 扩展 | 平台原创 |
+| 143 | seed-spaceship-empty-arrival | 欢迎回来 | 扩展 | 平台原创 |
+| 144 | seed-robot-ancestral-grave | 墓地扩建 | 扩展 | 结构参考 Puzzling SE《The Evicted Tenant》 |
+| 145 | seed-mars-suit-scratches | 朝里的划痕 | 扩展 | 平台原创 |
+| 146 | seed-colony-five-minute-delay | 别按重播 | 扩展 | 平台原创 |
+| 147 | seed-first-contact-translation-pause | 请先回答 | 扩展 | 平台原创 |
+| 148 | seed-zoo-evacuation-striped-coat | 笼子空着 | 扩展 | 平台原创 |
+| 149 | seed-desert-buried-boat | 沙里的船锚 | 扩展 | 平台原创 |
+| 150 | seed-planet-oxygen-withdrawal | 空气退货 | 扩展 | 平台原创 |
+| 151 | seed-hanged-bell-rope | 钟绳 | 扩展 | 平台原创 |
+| 152 | seed-demon-own-doormat | 欢迎光临 | 扩展 | 平台原创 |
+| 153 | seed-paper-crane-return-address | 别折最后一只 | 扩展 | 平台原创 |
+| 154 | seed-river-stones-spoken-debt | 河底的座位 | 扩展 | 平台原创 |
+| 155 | seed-lantern-festival-daylight | 白天的灯会 | 扩展 | 平台原创 |
+| 156 | seed-saint-second-confession | 再说一次 | 扩展 | 平台原创 |
+| 157 | seed-blind-king-new-window | 国王复明 | 扩展 | 平台原创 |
+| 158 | seed-mountain-tax-empty-basket | 轻下来的贡品 | 扩展 | 平台原创 |
+| 159 | seed-cemetery-second-birth | 满月酒 | 扩展 | 平台原创 |
+| 160 | seed-witch-oven-bread-number | 烤焦的面包 | 扩展 | 平台原创 |
+| 161 | seed-ice-hotel-warm-room | 暖房 | 扩展 | 平台原创 |
+| 162 | seed-last-procession-numbered-shoes | 鞋上的编号 | 扩展 | 平台原创 |
+| 163 | seed-orchestra-wrong-page | 空白总谱 | 扩展 | 平台原创 |
+| 164 | seed-circus-unlocked-cage | 请进笼子 | 扩展 | 平台原创 |
+| 165 | seed-cell-ceiling-chalk | 天花板上的正字 | 扩展 | 平台原创 |
+| 166 | seed-forger-negative-signature | 签名反了 | 扩展 | 平台原创 |
+| 167 | seed-smugglers-rusty-rail | 崭新的铁锈 | 扩展 | 平台原创 |
+| 168 | seed-memorial-photo-uniform | 少一枚勋章 | 扩展 | 平台原创 |
+| 169 | seed-automated-station-final-ticket | 请取走您的遗物 | 扩展 | 平台原创 |
+| 170 | seed-hospital-discharge-blanket | 出院时请熄灯 | 扩展 | 平台原创 |
+| 171 | seed-prison-last-saved-day | 保存成功 | 扩展 | 平台原创 |
+| 172 | seed-future-window-wet-letter | 明天别救我 | 扩展 | 平台原创 |
+| 173 | seed-time-archive-erased-victim | 空白证词 | 扩展 | 平台原创 |
+| 174 | seed-theatre-subtitle-full-stop | 句号 | 扩展 | 平台原创 |
+| 175 | seed-rewind-museum-egg | 返青 | 扩展 | 平台原创 |
+| 176 | seed-calendar-missing-april | 被撕掉的一月 | 扩展 | 平台原创 |
+| 177 | seed-dream-inspector-shared-wall | 别梦见门 | 扩展 | 平台原创 |
+| 178 | seed-first-photo-camera-reflection | 第一张脸 | 扩展 | 平台原创 |
+| 179 | seed-dead-language-living-mouth | 复原发音 | 扩展 | 平台原创 |
+| 180 | seed-monday-unspent-coins | 星期一的硬币 | 扩展 | 平台原创 |
+| 181 | seed-mask-ball-last-face | 面具背面 | 扩展 | 平台原创 |
+| 182 | seed-aquarium-handwritten-menu | 今日投喂 | 扩展 | 平台原创 |
+| 184 | seed-confiscated-name-calligraphy | 最后一笔 | 扩展 | 平台原创 |
+| 185 | seed-city-no-yesterday-trash | 垃圾收集日 | 扩展 | 平台原创 |
+| 186 | seed-inheritance-house-heartbeat | 房子的心跳 | 扩展 | 平台原创 |
+| 187 | seed-lost-painting-eyelids | 请勿修复 | 扩展 | 平台原创 |
+| 188 | seed-undertaker-counting-rings | 年轮 | 扩展 | 平台原创 |
+| 189 | seed-ghost-auction-silence | 三次落槌 | 扩展 | 平台原创 |
+| 190 | seed-smallpox-free-town-statue | 铜像睁眼 | 扩展 | 平台原创 |
+| 191 | seed-cemetery-outward-skulls | 脸朝外 | 扩展 | 平台原创 |
+| 193 | seed-desert-court-wet-seal | 最后一口水 | 扩展 | 平台原创 |
+| 194 | seed-extinction-certificate-rejected | 灭绝证明 | 扩展 | 结构参考 Puzzling SE《The Evicted Tenant》 |
+| 195 | seed-apocalypse-keep-fearing | 警报别停 | 扩展 | 平台原创 |
+| 196 | seed-one-way-mirror-witness | 请指认自己 | 扩展 | 平台原创 |
+| 197 | seed-carnival-entrance-height | 长高以后再来 | 扩展 | 平台原创 |
+| 198 | seed-night-watch-false-alarm | 第零个敌人 | 扩展 | 结构参考 Puzzling SE《The Evicted Tenant》 |
+| 199 | seed-winter-orphan-no-shadow | 春天的名单 | 扩展 | 平台原创 |
+| 200 | seed-final-story-unwritten-name | 留一个空位 | 扩展 | 平台原创 |
+| 201 | real-five-seconds | 54321 | 天堂 | 原作《54321》（饭堂时刻文字稿）· 优化改写 |
+| 202 | real-fathers-salary | 爸爸的工资 | 天堂 | 原作《爸爸的工资》（饭堂时刻文字稿）· 原样收录 |
+| 203 | real-graduation-candy | 毕业的糖果 | 天堂 | 原作《毕业的糖果》（饭堂时刻文字稿）· 优化改写 |
+| 204 | real-trick-or-treat | 不给糖就捣蛋 | 天堂 | 原作《不给糖就捣蛋》（饭堂时刻文字稿）· 原样收录 |
+| 205 | real-unfunny-joke | 不好笑的笑话 | 天堂 | 原作《不好笑的笑话》（饭堂时刻文字稿）· 原样收录 |
+| 206 | real-just-like-you | 不愧是你 | 天堂 | 原作《不愧是你》（饭堂时刻文字稿）· 优化改写 |
+| 207 | real-endless-thuds | 不消停的咚声 | 天堂 | 原作《不消停的咚声》（饭堂时刻文字稿）· 优化改写 |
+| 208 | real-distrust-number-one | 不要相信一号 | 天堂 | 原作《不要相信一号》（饭堂时刻文字稿）· 原样收录 |
+| 209 | real-silent-boyfriend | 沉默的男友 | 天堂 | 原作《沉默的男友》（饭堂时刻文字稿）· 原样收录 |
+| 210 | real-people-on-the-boat | 船上人数之谜 | 天堂 | 原作《船上人数之谜》（饭堂时刻文字稿）· 优化改写 |
+| 211 | real-voice-at-the-window | 窗边的声音 | 天堂 | 原作《窗边的声音》（饭堂时刻文字稿）· 优化改写 |
+| 212 | real-great-treasure | 大宝贝 | 天堂 | 原作《大宝贝》（饭堂时刻文字稿）· 优化改写 |
+| 213 | real-second-robbery | 第二次打劫 | 天堂 | 原作《第二次打劫》（饭堂时刻文字稿）· 原样收录 |
+| 214 | real-seventh-night-call | 第七天的电话 | 天堂 | 原作《第七天的电话》（饭堂时刻文字稿）· 原样收录 |
+| 215 | real-tumbling-dream | 翻滚的梦 | 天堂 | 原作《翻滚的梦》（饭堂时刻文字稿）· 优化改写 |
+| 216 | real-as-if-possessed | 仿佛中邪 | 天堂 | 原作《仿佛中邪》（饭堂时刻文字稿）· 优化改写 |
+| 217 | real-useless-power | 废物能力 | 天堂 | 原作《废物能力》（饭堂时刻文字稿）· 优化改写 |
+| 218 | real-breakup-call | 分手电话 | 天堂 | 原作《分手电话》（饭堂时刻文字稿）· 原样收录 |
+| 219 | real-feel-what-you-feel | 感同身受 | 天堂 | 原作《感同身受》（饭堂时刻文字稿）· 优化改写 |
+| 220 | real-brothers-name | 哥哥死了我活着 | 天堂 | 原作《哥哥死了我活着》（饭堂时刻文字稿）· 原样收录 |
+| 221 | real-offerings-to-an-old-god | 古神的贡品 | 天堂 | 原作《古神的贡品》（饭堂时刻文字稿）· 优化改写 |
+| 222 | real-strange-hand-gesture | 怪异的手势 | 天堂 | 原作《怪异的手势》（饭堂时刻文字稿）· 优化改写 |
+| 223 | real-fourteen-left | 还剩十四个 | 天堂 | 原作《还剩十四个》（饭堂时刻文字稿）· 原样收录 |
+| 224 | real-meagre-offerings | 寒酸的补给 | 天堂 | 原作《寒酸的补给》（饭堂时刻文字稿）· 优化改写 |
+| 225 | real-woman-in-red | 红衣女子 | 天堂 | 原作《红衣女子》（饭堂时刻文字稿）· 原样收录 |
+| 226 | real-waves-and-thuds | 哗啦哗啦嘭 | 天堂 | 原作《哗啦哗啦嘭》（饭堂时刻文字稿）· 原样收录 |
+| 228 | real-returned-photo | 交换照片 | 天堂 | 原作《交换照片》（饭堂时刻文字稿）· 原样收录 |
+| 229 | real-sisters-toys | 姐姐的玩具 | 天堂 | 原作《姐姐的玩具》（饭堂时刻文字稿）· 优化改写 |
+| 230 | real-that-was-quick | 来得这么快 | 天堂 | 原作《来得这么快》（饭堂时刻文字稿）· 优化改写 |
+| 231 | real-calendar-of-love | 恋爱月历 | 天堂 | 原作《恋爱月历》（饭堂时刻文字稿）· 原样收录 |
+| 232 | real-two-certificates | 两份文件 | 天堂 | 原作《两份文件》（饭堂时刻文字稿）· 原样收录 |
+| 233 | real-two-athletes | 两个体育生 | 天堂 | 原作《两个体育生》（饭堂时刻文字稿）· 原样收录 |
+| 234 | real-wish-on-a-meteor | 流星愿望 | 天堂 | 原作《流星愿望》（饭堂时刻文字稿）· 原样收录 |
+| 235 | real-six-farewell-notes | 六遍告别信 | 天堂 | 原作《六遍告别信》（饭堂时刻文字稿）· 优化改写 |
+| 236 | real-wonderful-journey | 美妙的旅行 | 天堂 | 原作《美妙的旅行》（饭堂时刻文字稿）· 优化改写 |
+| 237 | real-last-image | 陌生的图案 | 天堂 | 原作《陌生的图案》（饭堂时刻文字稿）· 优化改写 |
+| 238 | real-that-sound | 那个声音 | 天堂 | 原作《那个声音》（饭堂时刻文字稿）· 原样收录 |
+| 240 | real-murmured-name | 呢喃的名字 | 天堂 | 原作《呢喃的名字》（饭堂时刻文字稿）· 原样收录 |
+| 241 | real-what-are-you-doing | 你要干什么 | 天堂 | 原作《你要干什么》（饭堂时刻文字稿）· 原样收录 |
+| 242 | real-change-my-ending | 逆转结局 | 天堂 | 原作《逆转结局》（饭堂时刻文字稿）· 原样收录 |
+| 243 | real-daughters-voice | 女儿的声音 | 天堂 | 原作《女儿的声音》（饭堂时刻文字稿）· 原样收录 |
+| 244 | real-woman-at-car-window | 拍车窗的女人 | 天堂 | 原作《拍车窗的女人》（饭堂时刻文字稿）· 优化改写 |
+| 245 | real-plea-for-help | 求救短信 | 天堂 | 原作《求救短信》（饭堂时刻文字稿）· 原样收录 |
+| 246 | real-abandon-ship | 全体弃舰 | 天堂 | 原作《全体弃舰》（饭堂时刻文字稿）· 优化改写 |
+| 249 | real-two-people-on-the-pole | 上面有两个人 | 天堂 | 原作《上面有两个人》（饭堂时刻文字稿）· 原样收录 |
+| 250 | real-whose-flashlight | 谁的手电筒 | 天堂 | 原作《谁的手电筒》（饭堂时刻文字稿）· 优化改写 |
+| 251 | real-monsters-behind-us | 身后的怪物 | 天堂 | 原作《身后的怪物》（饭堂时刻文字稿）· 优化改写 |
+| 252 | real-midnight-suitcase | 深夜的行李箱 | 天堂 | 原作《深夜的行李箱》（饭堂时刻文字稿）· 优化改写 |
+| 253 | real-failed-detector | 失败作 | 天堂 | 原作《失败作》（饭堂时刻文字稿）· 优化改写 |
+| 254 | real-invisible-death | 失踪名单 | 天堂 | 原作《失踪名单》（饭堂时刻文字稿）· 优化改写 |
+| 257 | real-fortunetellers-prediction | 算命人的预言 | 天堂 | 原作《算命人的预言》（饭堂时刻文字稿）· 原样收录 |
+| 259 | real-he-was-counting-too | 他也在数数 | 天堂 | 原作《他也在数数》（饭堂时刻文字稿）· 优化改写 |
+| 261 | real-red-shadow-in-morgue | 太平间的红影 | 天堂 | 原作《太平间的红影》（饭堂时刻文字稿）· 优化改写 |
+| 262 | real-photographed-photographer | 螳螂捕蝉 | 天堂 | 原作《螳螂捕蝉》（饭堂时刻文字稿）· 原样收录 |
+| 263 | real-ants-on-ceiling | 天花板上的蚂蚁 | 天堂 | 原作《天花板上的蚂蚁》（饭堂时刻文字稿）· 优化改写 |
+| 264 | real-dancing-bystander | 跳舞的旁观者 | 天堂 | 原作《跳舞的旁观者》（饭堂时刻文字稿）· 原样收录 |
+| 265 | real-your-delivery | 外卖到了 | 天堂 | 原作《外卖到了》（饭堂时刻文字稿）· 优化改写 |
+| 266 | real-as-blank-as-paper | 宛如白纸 | 天堂 | 原作《宛如白纸》（饭堂时刻文字稿）· 优化改写 |
+| 267 | real-no-one-disturbed-us | 晚上可怎么办 | 天堂 | 原作《晚上可怎么办》（饭堂时刻文字稿）· 优化改写 |
+| 268 | real-only-survivor | 唯一的幸存者 | 天堂 | 原作《唯一的幸存者》（饭堂时刻文字稿）· 优化改写 |
+| 269 | real-gentle-father | 温柔的爸爸 | 天堂 | 原作《温柔的爸爸》（饭堂时刻文字稿）· 优化改写 |
+| 270 | real-cosy-home | 温馨的家 | 天堂 | 原作《温馨的家》（饭堂时刻文字稿）· 优化改写 |
+| 271 | real-i-appeared | 我出现了 | 天堂 | 原作《我出现了》（饭堂时刻文字稿）· 优化改写 |
+| 272 | real-my-heroes | 我的英雄 | 天堂 | 原作《我的英雄》（饭堂时刻文字稿）· 原样收录 |
+| 273 | real-i-looked-at-myself | 我看向了我 | 天堂 | 原作《我看向了我》（饭堂时刻文字稿）· 优化改写 |
+| 275 | real-i-killed-myself | 我杀死了我 | 天堂 | 原作《我杀死了我》（饭堂时刻文字稿）· 优化改写 |
+| 276 | real-found-you | 我找到你了 | 天堂 | 原作《我找到你了》（饭堂时刻文字稿）· 原样收录 |
+| 277 | real-bloodstains-in-midair | 消失在半空的血痕 | 天堂 | 原作《消失在半空的血痕》（饭堂时刻文字稿）· 原样收录 |
+| 278 | real-thank-you | 谢谢你 | 天堂 | 原作《谢谢你》（饭堂时刻文字稿）· 原样收录 |
+| 279 | real-new-stock-listed | 新货已上架 | 天堂 | 原作《新货已上架》（饭堂时刻文字稿）· 原样收录 |
+| 280 | real-repairmans-repayment | 修理工 | 天堂 | 原作《修理工》（饭堂时刻文字稿）· 优化改写 |
+| 281 | real-wishing-well | 许愿井 | 天堂 | 原作《许愿井》（饭堂时刻文字稿）· 优化改写 |
+| 282 | real-looking-for-santa | 寻找圣诞老人 | 天堂 | 原作《寻找圣诞老人》（饭堂时刻文字稿）· 原样收录 |
+| 283 | real-three-summer-days | 炎夏三日 | 天堂 | 原作《炎夏三日》（饭堂时刻文字稿）· 优化改写 |
+| 284 | real-one-hundred-agents | 一百个特工 | 天堂 | 原作《一百个特工》（饭堂时刻文字稿）· 优化改写 |
+| 285 | real-one-two-three-seven | 一二三七 | 天堂 | 原作《一二三七》（饭堂时刻文字稿）· 原样收录 |
+| 286 | real-unlock-in-one-minute | 一分钟后再解锁 | 天堂 | 原作《一分钟后再解锁》（饭堂时刻文字稿）· 优化改写 |
+| 287 | real-one-match | 一根火柴 | 天堂 | 原作《一根火柴》（饭堂时刻文字稿）· 优化改写 |
+| 288 | real-always-black | 一直都是黑的 | 天堂 | 原作《一直都是黑的》（饭堂时刻文字稿）· 原样收录 |
+| 289 | real-door-one-week-ahead | 一周后的门 | 天堂 | 原作《一周后的门》（饭堂时刻文字稿）· 优化改写 |
+| 290 | real-should-be-red | 应该是红的 | 天堂 | 原作《应该是红的》（饭堂时刻文字稿）· 优化改写 |
+| 292 | real-a-little-wasteful | 有点浪费 | 天堂 | 原作《有点浪费》（饭堂时刻文字稿）· 优化改写 |
+| 293 | real-cockroach | 有蟑螂 | 天堂 | 原作《有蟑螂》（饭堂时刻文字稿）· 原样收录 |
+| 294 | real-another-milk-tea | 又一杯奶茶 | 天堂 | 原作《又一杯奶茶》（饭堂时刻文字稿）· 优化改写 |
+| 296 | real-one-more-bottle | 再来一瓶 | 天堂 | 原作《再来一瓶》（饭堂时刻文字稿）· 原样收录 |
+| 297 | real-every-answer-is-right | 怎么回答都是对的 | 天堂 | 原作《怎么回答都是对的》（饭堂时刻文字稿）· 原样收录 |
+| 298 | real-why-is-it-you | 怎么是你 | 天堂 | 原作《怎么是你》（饭堂时刻文字稿）· 原样收录 |
+| 301 | real-when-i-knew-the-killer | 知道凶手的那一刻 | 天堂 | 原作《知道凶手的那一刻》（饭堂时刻文字稿）· 优化改写 |
+| 302 | real-fatal-message | 致命短信 | 天堂 | 原作《致命短信》（饭堂时刻文字稿）· 优化改写 |
+| 303 | real-finish-line | 终点线 | 天堂 | 原作《终点线》（饭堂时刻文字稿）· 优化改写 |
+| 305 | real-secret-in-the-pigsty | 猪圈里的秘密 | 天堂 | 原作《猪圈里的秘密》（饭堂时刻文字稿）· 优化改写 |
+| 306 | real-luck-bead | 转运珠 | 天堂 | 原作《转运珠》（饭堂时刻文字稿）· 优化改写 |
+| 307 | real-last-silver-bullet | 最后一发子弹 | 天堂 | 原作《最后一发子弹》（饭堂时刻文字稿）· 优化改写 |
+| 308 | xxye-0001 | 1000米 | 小小耶 | 原作《1000米》（小小耶文字稿）· 优化改写 |
+| 309 | xxye-0006 | 8月1日 | 小小耶 | 原作《8月1日》（小小耶文字稿）· 优化改写 |
+| 310 | xxye-0007 | 9527 | 小小耶 | 原作《9527》（小小耶文字稿）· 优化改写 |
+| 311 | xxye-0009 | 爱的囚笼 | 小小耶 | 原作《爱的囚笼》（小小耶文字稿）· 优化改写 |
+| 313 | xxye-0017 | 帮忙 | 小小耶 | 原作《帮忙》（小小耶文字稿）· 优化改写 |
+| 314 | xxye-0018 | 保密 | 小小耶 | 原作《保密》（小小耶文字稿）· 原样保留 |
+| 315 | xxye-0019 | 背后一个人 | 小小耶 | 原作《背后一个人》（小小耶文字稿）· 优化改写 |
+| 316 | xxye-0020 | 背上的女孩 | 小小耶 | 原作《背上的女孩》（小小耶文字稿）· 优化改写 |
+| 317 | xxye-0024 | 笔仙 | 小小耶 | 原作《笔仙》（小小耶文字稿）· 优化改写 |
+| 318 | xxye-0025 | 憋不住了 | 小小耶 | 原作《憋不住了》（小小耶文字稿）· 优化改写 |
+| 319 | xxye-0027 | 慢慢喝 | 小小耶 | 原作《慢慢喝》（小小耶文字稿）· 优化改写 |
+| 320 | xxye-0028 | 冰淇淋 | 小小耶 | 原作《冰淇淋》（小小耶文字稿）· 原样保留 |
+| 321 | xxye-0029 | 冰水 | 小小耶 | 原作《冰水》（小小耶文字稿）· 原样保留 |
+| 322 | xxye-0035 | 厕所惊魂 | 小小耶 | 原作《厕所惊魂》（小小耶文字稿）· 优化改写 |
+| 323 | xxye-0038 | 沉船宝藏 | 小小耶 | 原作《沉船宝藏》（小小耶文字稿）· 优化改写 |
+| 324 | xxye-0039 | 沉默 | 小小耶 | 原作《沉默》（小小耶文字稿）· 优化改写 |
+| 325 | xxye-0040 | 沉默的父爱 | 小小耶 | 原作《沉默的父爱》（小小耶文字稿）· 优化改写 |
+| 326 | xxye-0043 | 承诺 | 小小耶 | 原作《承诺》（小小耶文字稿）· 原样保留 |
+| 327 | xxye-0045 | 仇恨之书 | 小小耶 | 原作《仇恨之书》（小小耶文字稿）· 优化改写 |
+| 328 | xxye-0047 | 出不去的厕所 | 小小耶 | 原作《出不去的厕所》（小小耶文字稿）· 优化改写 |
+| 329 | xxye-0048 | 来吃火锅 | 小小耶 | 原作《来吃火锅》（小小耶文字稿）· 优化改写 |
+| 331 | xxye-0051 | 靠窗的床 | 小小耶 | 原作《靠窗的床》（小小耶文字稿）· 优化改写 |
+| 332 | xxye-0052 | 床底 | 小小耶 | 原作《床底》（小小耶文字稿）· 优化改写 |
+| 333 | xxye-0056 | 瓷器 | 小小耶 | 原作《瓷器》（小小耶文字稿）· 优化改写 |
+| 337 | xxye-0065 | 倒地的她 | 小小耶 | 原作《倒地的她》（小小耶文字稿）· 优化改写 |
+| 338 | xxye-0066 | 倒数第二排的女人 | 小小耶 | 原作《倒数第二排的女人》（小小耶文字稿）· 优化改写 |
+| 339 | xxye-0069 | 等月色 | 小小耶 | 原作《等月色》（小小耶文字稿）· 优化改写 |
+| 340 | xxye-0071 | 电梯 | 小小耶 | 原作《电梯》（小小耶文字稿）· 优化改写 |
+| 341 | xxye-0074 | 丢垃圾 | 小小耶 | 原作《丢垃圾》（小小耶文字稿）· 原样保留 |
+| 342 | xxye-0076 | 咚咚咚 | 小小耶 | 原作《咚咚咚》（小小耶文字稿）· 优化改写 |
+| 343 | xxye-0077 | 谁笑了 | 小小耶 | 原作《谁笑了》（小小耶文字稿）· 优化改写 |
+| 344 | xxye-0078 | 堆雪人 | 小小耶 | 原作《堆雪人》（小小耶文字稿）· 优化改写 |
+| 346 | xxye-0081 | 恩爱 | 小小耶 | 原作《恩爱》（小小耶文字稿）· 优化改写 |
+| 348 | xxye-0086 | 放火烧山 | 小小耶 | 原作《放火烧山》（小小耶文字稿）· 优化改写 |
+| 349 | xxye-0088 | 放羊 | 小小耶 | 原作《放羊》（小小耶文字稿）· 优化改写 |
+| 351 | xxye-0090 | 天上来敌 | 小小耶 | 原作《天上来敌》（小小耶文字稿）· 优化改写 |
+| 352 | xxye-0091 | 跟谁 | 小小耶 | 原作《跟谁》（小小耶文字稿）· 优化改写 |
+| 353 | xxye-0092 | 分享爱好 | 小小耶 | 原作《分享爱好》（小小耶文字稿）· 优化改写 |
+| 355 | xxye-0097 | 高三那年 | 小小耶 | 原作《高三那年》（小小耶文字稿）· 优化改写 |
+| 356 | xxye-0099 | 告白 | 小小耶 | 原作《告白》（小小耶文字稿）· 优化改写 |
+| 357 | xxye-0102 | 给我擦皮鞋 | 小小耶 | 原作《给我擦皮鞋》（小小耶文字稿）· 优化改写 |
+| 358 | xxye-0103 | 跟紧大人 | 小小耶 | 原作《跟紧大人》（小小耶文字稿）· 优化改写 |
+| 359 | xxye-0105 | 公交车 | 小小耶 | 原作《公交车》（小小耶文字稿）· 优化改写 |
+| 360 | xxye-0106 | 孤寡老人 | 小小耶 | 原作《孤寡老人》（小小耶文字稿）· 优化改写 |
+| 361 | xxye-0107 | 远离水 | 小小耶 | 原作《远离水》（小小耶文字稿）· 优化改写 |
+| 362 | xxye-0108 | 鼓掌 | 小小耶 | 原作《鼓掌》（小小耶文字稿）· 优化改写 |
+| 364 | xxye-0111 | 接应的人 | 小小耶 | 原作《接应的人》（小小耶文字稿）· 优化改写 |
+| 365 | xxye-0113 | 主持人的纸条 | 小小耶 | 原作《主持人的纸条》（小小耶文字稿）· 优化改写 |
+| 366 | xxye-0114 | 闺蜜家的网络 | 小小耶 | 原作《闺蜜家的网络》（小小耶文字稿）· 优化改写 |
+| 367 | xxye-0116 | 小白的咳嗽 | 小小耶 | 原作《咳嗽》（小小耶文字稿）· 优化改写 |
+| 368 | xxye-0117 | 还活着 | 小小耶 | 原作《还活着》（小小耶文字稿）· 优化改写 |
+| 369 | xxye-0118 | 海景房 | 小小耶 | 原作《海景房》（小小耶文字稿）· 优化改写 |
+| 370 | xxye-0120 | 吵闹的邻居 | 小小耶 | 原作《吵闹的邻居》（小小耶文字稿）· 优化改写 |
+| 371 | xxye-0122 | 选好的日子 | 小小耶 | 原作《选好的日子》（小小耶文字稿）· 优化改写 |
+| 372 | xxye-0124 | 好孩子 | 小小耶 | 原作《好孩子》（小小耶文字稿）· 优化改写 |
+| 373 | xxye-0127 | 好心人 | 小小耶 | 原作《好心人》（小小耶文字稿）· 优化改写 |
+| 374 | xxye-0128 | 和睦 | 小小耶 | 原作《和睦》（小小耶文字稿）· 优化改写 |
+| 375 | xxye-0129 | 河边惨案 | 小小耶 | 原作《河边惨案》（小小耶文字稿）· 优化改写 |
+| 376 | xxye-0130 | 黑猫 | 小小耶 | 原作《黑猫》（小小耶文字稿）· 优化改写 |
+| 377 | xxye-0131 | 黑色巨人 | 小小耶 | 原作《黑色巨人》（小小耶文字稿）· 优化改写 |
+| 378 | xxye-0132 | 红裙子 | 小小耶 | 原作《红裙子》（小小耶文字稿）· 优化改写 |
+| 379 | xxye-0133 | 她选了我 | 小小耶 | 原作《她选了我》（小小耶文字稿）· 优化改写 |
+| 380 | xxye-0138 | 台上的新人 | 小小耶 | 原作《台上的新人》（小小耶文字稿）· 优化改写 |
+| 381 | xxye-0139 | 化妆师 | 小小耶 | 原作《化妆师》（小小耶文字稿）· 优化改写 |
+| 382 | xxye-0140 | 画中魔眼 | 小小耶 | 原作《画中魔眼》（小小耶文字稿）· 优化改写 |
+| 383 | xxye-0141 | 他的“孩子” | 小小耶 | 原作《他的“孩子”》（小小耶文字稿）· 优化改写 |
+| 384 | xxye-0146 | 荒郊大巴 | 小小耶 | 原作《荒郊大巴》（小小耶文字稿）· 优化改写 |
+| 385 | xxye-0149 | 恢复视力 | 小小耶 | 原作《恢复视力》（小小耶文字稿）· 优化改写 |
+| 386 | xxye-0152 | 会响的字幕 | 小小耶 | 原作《会响的字幕》（小小耶文字稿）· 优化改写 |
+| 388 | xxye-0155 | 喊爸爸 | 小小耶 | 原作《喊爸爸》（小小耶文字稿）· 优化改写 |
+| 389 | xxye-0159 | 忌日杀戮 | 小小耶 | 原作《忌日杀戮》（小小耶文字稿）· 优化改写 |
+| 390 | xxye-0161 | 叫家长 | 小小耶 | 原作《叫家长》（小小耶文字稿）· 优化改写 |
+| 391 | xxye-0163 | 葬礼上的谢谢 | 小小耶 | 原作《葬礼上的谢谢》（小小耶文字稿）· 优化改写 |
+| 392 | xxye-0164 | 早饭之前 | 小小耶 | 原作《早饭之前》（小小耶文字稿）· 优化改写 |
+| 393 | xxye-0165 | 间谍护士 | 小小耶 | 原作《间谍护士》（小小耶文字稿）· 优化改写 |
+| 394 | xxye-0166 | 带刀赴约 | 小小耶 | 原作《带刀赴约》（小小耶文字稿）· 优化改写 |
+| 395 | xxye-0167 | 见光 | 小小耶 | 原作《见光》（小小耶文字稿）· 优化改写 |
+| 396 | xxye-0170 | 郊外裸男 | 小小耶 | 原作《郊外裸男》（小小耶文字稿）· 优化改写 |
+| 397 | xxye-0171 | 骄傲 | 小小耶 | 原作《骄傲》（小小耶文字稿）· 原样保留 |
+| 398 | xxye-0177 | 新的老师 | 小小耶 | 原作《新的老师》（小小耶文字稿）· 优化改写 |
+| 399 | xxye-0178 | 借针线的画师 | 小小耶 | 原作《借针线的画师》（小小耶文字稿）· 优化改写 |
+| 400 | xxye-0180 | 金属雨 | 小小耶 | 原作《金属雨》（小小耶文字稿）· 优化改写 |
+| 401 | xxye-0183 | 镜中猜拳 | 小小耶 | 原作《镜中猜拳》（小小耶文字稿）· 优化改写 |
+| 402 | xxye-0185 | 九秒八 | 小小耶 | 原作《九秒八》（小小耶文字稿）· 优化改写 |
+| 403 | xxye-0186 | 旧伞 | 小小耶 | 原作《旧伞》（小小耶文字稿）· 优化改写 |
+| 404 | xxye-0187 | 救援电话 | 小小耶 | 原作《救援电话》（小小耶文字稿）· 优化改写 |
+| 405 | xxye-0188 | 绝版签名 | 小小耶 | 原作《绝版签名》（小小耶文字稿）· 优化改写 |
+| 406 | xxye-0189 | 军训墙倒 | 小小耶 | 原作《军训墙倒》（小小耶文字稿）· 优化改写 |
+| 407 | xxye-0191 | 最后一道光 | 小小耶 | 原作《最后一道光》（小小耶文字稿）· 优化改写 |
+| 408 | xxye-0192 | 开心一家人 | 小小耶 | 原作《开心一家人》（小小耶文字稿）· 优化改写 |
+| 409 | xxye-0194 | 考场第一 | 小小耶 | 原作《考场第一》（小小耶文字稿）· 优化改写 |
+| 410 | xxye-0198 | 空酒馆 | 小小耶 | 原作《空酒馆》（小小耶文字稿）· 优化改写 |
+| 411 | xxye-0204 | 来自未来的答案 | 小小耶 | 原作《来自未来的答案》（小小耶文字稿）· 优化改写 |
+| 412 | xxye-0206 | 懒惰的保姆 | 小小耶 | 原作《懒惰的保姆》（小小耶文字稿）· 优化改写 |
+| 413 | xxye-0207 | 天亮了 | 小小耶 | 原作《天亮了》（小小耶文字稿）· 优化改写 |
+| 414 | xxye-0208 | 金色的墓碑 | 小小耶 | 原作《金色的墓碑》（小小耶文字稿）· 优化改写 |
+| 415 | xxye-0212 | 离婚 | 小小耶 | 原作《离婚》（小小耶文字稿）· 优化改写 |
+| 416 | xxye-0214 | 连体兄弟 | 小小耶 | 原作《连体兄弟》（小小耶文字稿）· 优化改写 |
+| 417 | xxye-0217 | 亮灯的房间 | 小小耶 | 原作《亮灯的房间》（小小耶文字稿）· 优化改写 |
+| 418 | xxye-0218 | 林夕 | 小小耶 | 原作《林夕》（小小耶文字稿）· 优化改写 |
+| 419 | xxye-0220 | 凌晨来电 | 小小耶 | 原作《凌晨来电》（小小耶文字稿）· 优化改写 |
+| 420 | xxye-0221 | 流浪狗 | 小小耶 | 原作《流浪狗》（小小耶文字稿）· 优化改写 |
+| 421 | xxye-0223 | 又是这张脸 | 小小耶 | 原作《又是这张脸》（小小耶文字稿）· 优化改写 |
+| 422 | xxye-0224 | 旅行 | 小小耶 | 原作《旅行》（小小耶文字稿）· 优化改写 |
+| 423 | xxye-0225 | 乱石堆 | 小小耶 | 原作《乱石堆》（小小耶文字稿）· 优化改写 |
+| 424 | xxye-0228 | 妈妈的味道 | 小小耶 | 原作《妈妈的味道》（小小耶文字稿）· 优化改写 |
+| 425 | xxye-0229 | 妈妈和伯伯 | 小小耶 | 原作《妈妈和伯伯》（小小耶文字稿）· 优化改写 |
+| 426 | xxye-0230 | 麻烦 | 小小耶 | 原作《麻烦》（小小耶文字稿）· 优化改写 |
+| 427 | xxye-0231 | 慢车竞赛 | 小小耶 | 原作《慢车竞赛》（小小耶文字稿）· 优化改写 |
+| 428 | xxye-0232 | 芒果 | 小小耶 | 原作《芒果》（小小耶文字稿）· 优化改写 |
+| 429 | xxye-0234 | 同类 | 小小耶 | 原作《同类》（小小耶文字稿）· 优化改写 |
+| 430 | xxye-0237 | 美食 | 小小耶 | 原作《美食》（小小耶文字稿）· 优化改写 |
+| 431 | xxye-0239 | 妹妹的秘密 | 小小耶 | 原作《妹妹的秘密》（小小耶文字稿）· 优化改写 |
+| 432 | xxye-0240 | 梦见坠机 | 小小耶 | 原作《梦见坠机》（小小耶文字稿）· 优化改写 |
+| 433 | xxye-0243 | 密码锁 | 小小耶 | 原作《密码锁》（小小耶文字稿）· 优化改写 |
+| 435 | xxye-0245 | 明明有的 | 小小耶 | 原作《明明有的》（小小耶文字稿）· 优化改写 |
+| 436 | xxye-0248 | 魔力牧场 | 小小耶 | 原作《魔力牧场》（小小耶文字稿）· 优化改写 |
+| 437 | xxye-0249 | 魔术师 | 小小耶 | 原作《魔术师》（小小耶文字稿）· 优化改写 |
+| 438 | xxye-0250 | 胸口的照片 | 小小耶 | 原作《胸口的照片》（小小耶文字稿）· 优化改写 |
+| 439 | xxye-0251 | 末日 | 小小耶 | 原作《末日》（小小耶文字稿）· 优化改写 |
+| 440 | xxye-0253 | 目的地 | 小小耶 | 原作《目的地》（小小耶文字稿）· 优化改写 |
+| 441 | xxye-0257 | 内裤 | 小小耶 | 原作《内裤》（小小耶文字稿）· 优化改写 |
+| 442 | xxye-0258 | 内线电话 | 小小耶 | 原作《内线电话》（小小耶文字稿）· 优化改写 |
+| 443 | xxye-0260 | 你的名字 | 小小耶 | 原作《你的名字》（小小耶文字稿）· 优化改写 |
+| 444 | xxye-0263 | 暖冬童话 | 小小耶 | 原作《暖冬童话》（小小耶文字稿）· 优化改写 |
+| 445 | xxye-0264 | 拍卖会 | 小小耶 | 原作《拍卖会》（小小耶文字稿）· 优化改写 |
+| 446 | xxye-0265 | 牌没有问题 | 小小耶 | 原作《牌没有问题》（小小耶文字稿）· 优化改写 |
+| 447 | xxye-0268 | 再浇一点 | 小小耶 | 原作《再浇一点》（小小耶文字稿）· 优化改写 |
+| 448 | xxye-0269 | 破碎的家 | 小小耶 | 原作《破碎的家》（小小耶文字稿）· 优化改写 |
+| 449 | xxye-0271 | 破咒 | 小小耶 | 原作《破咒》（小小耶文字稿）· 优化改写 |
+| 450 | xxye-0272 | 葡萄 | 小小耶 | 原作《葡萄》（小小耶文字稿）· 优化改写 |
+| 452 | xxye-0278 | 奇怪的咒语 | 小小耶 | 原作《奇怪的咒语》（小小耶文字稿）· 优化改写 |
+| 453 | xxye-0281 | 钱包 | 小小耶 | 原作《钱包》（小小耶文字稿）· 优化改写 |
+| 454 | xxye-0283 | 潜艇棋局 | 小小耶 | 原作《潜艇棋局》（小小耶文字稿）· 优化改写 |
+| 455 | xxye-0284 | 墙上的血 | 小小耶 | 原作《墙上的血》（小小耶文字稿）· 优化改写 |
+| 456 | xxye-0285 | 音乐停了 | 小小耶 | 原作《音乐停了》（小小耶文字稿）· 优化改写 |
+| 458 | xxye-0290 | 人皮鼓 | 小小耶 | 原作《人皮鼓》（小小耶文字稿）· 优化改写 |
+| 459 | xxye-0291 | 人鱼血书 | 小小耶 | 原作《人鱼血书》（小小耶文字稿）· 优化改写 |
+| 461 | xxye-0296 | 点钞 | 小小耶 | 原作《点钞》（小小耶文字稿）· 优化改写 |
+| 463 | xxye-0312 | 三个孩子 | 小小耶 | 原作《三个孩子》（小小耶文字稿）· 优化改写 |
+| 464 | xxye-0313 | 三楼画像 | 小小耶 | 原作《三楼画像》（小小耶文字稿）· 优化改写 |
+| 466 | xxye-0316 | 闪灯陷阱 | 小小耶 | 原作《闪灯陷阱》（小小耶文字稿）· 优化改写 |
+| 468 | xxye-0320 | 谁关的灯 | 小小耶 | 原作《谁关的灯》（小小耶文字稿）· 优化改写 |
+| 469 | xxye-0321 | 伸出的脚 | 小小耶 | 原作《伸出的脚》（小小耶文字稿）· 优化改写 |
+| 470 | xxye-0322 | 深夜琴声 | 小小耶 | 原作《深夜琴声》（小小耶文字稿）· 优化改写 |
+| 471 | xxye-0324 | 三场生日 | 小小耶 | 原作《三场生日》（小小耶文字稿）· 优化改写 |
+| 472 | xxye-0325 | 生日掌声 | 小小耶 | 原作《生日掌声》（小小耶文字稿）· 优化改写 |
+| 473 | xxye-0327 | 睡吧 | 小小耶 | 原作《睡吧》（小小耶文字稿）· 优化改写 |
+| 474 | xxye-0328 | 失眠 | 小小耶 | 原作《失眠》（小小耶文字稿）· 优化改写 |
+| 475 | xxye-0330 | 失散 | 小小耶 | 原作《失散》（小小耶文字稿）· 优化改写 |
+| 476 | xxye-0331 | 失望 | 小小耶 | 原作《失望》（小小耶文字稿）· 优化改写 |
+| 477 | xxye-0333 | 十二生肖出国 | 小小耶 | 原作《十二生肖出国》（小小耶文字稿）· 优化改写 |
+| 478 | xxye-0334 | 十个太阳 | 小小耶 | 原作《十个太阳》（小小耶文字稿）· 优化改写 |
+| 479 | xxye-0335 | 再来一局 | 小小耶 | 原作《再来一局》（小小耶文字稿）· 优化改写 |
+| 480 | xxye-0336 | 石头剪刀布 | 小小耶 | 原作《石头剪刀布》（小小耶文字稿）· 优化改写 |
+| 482 | xxye-0338 | 室友的恶作剧 | 小小耶 | 原作《室友的恶作剧》（小小耶文字稿）· 优化改写 |
+| 483 | xxye-0341 | 收音机 | 小小耶 | 原作《收音机》（小小耶文字稿）· 优化改写 |
+| 484 | xxye-0343 | 先逃出去的人 | 小小耶 | 原作《先逃出去的人》（小小耶文字稿）· 优化改写 |
+| 485 | xxye-0344 | 书是借的 | 小小耶 | 原作《书是借的》（小小耶文字稿）· 优化改写 |
+| 486 | xxye-0345 | 熟悉的眼睛 | 小小耶 | 原作《熟悉的眼睛》（小小耶文字稿）· 优化改写 |
+| 487 | xxye-0346 | 数台阶 | 小小耶 | 原作《数台阶》（小小耶文字稿）· 优化改写 |
+| 488 | xxye-0348 | 水草 | 小小耶 | 原作《水草》（小小耶文字稿）· 优化改写 |
+| 489 | xxye-0349 | 水手 | 小小耶 | 原作《水手》（小小耶文字稿）· 优化改写 |
+| 490 | xxye-0352 | 私生子 | 小小耶 | 原作《私生子》（小小耶文字稿）· 优化改写 |
+| 491 | xxye-0356 | 四岁的妈妈 | 小小耶 | 原作《四岁的妈妈》（小小耶文字稿）· 优化改写 |
+| 492 | xxye-0357 | 回到营地 | 小小耶 | 原作《回到营地》（小小耶文字稿）· 优化改写 |
+| 493 | xxye-0359 | 他的皮 | 小小耶 | 原作《他的皮》（小小耶文字稿）· 优化改写 |
+| 494 | xxye-0362 | 她喜欢我 | 小小耶 | 原作《她喜欢我》（小小耶文字稿）· 优化改写 |
+| 495 | xxye-0365 | 台阶上的声音 | 小小耶 | 原作《台阶上的声音》（小小耶文字稿）· 优化改写 |
+| 496 | xxye-0367 | 糖果诱骗 | 小小耶 | 原作《糖果诱骗》（小小耶文字稿）· 优化改写 |
+| 497 | xxye-0368 | 逃过一劫 | 小小耶 | 原作《逃过一劫》（小小耶文字稿）· 优化改写 |
+| 499 | xxye-0373 | 跳楼的女人 | 小小耶 | 原作《跳楼的女人》（小小耶文字稿）· 优化改写 |
+| 500 | xxye-0374 | 通风口的爸爸 | 小小耶 | 原作《通风口的爸爸》（小小耶文字稿）· 优化改写 |
+| 501 | xxye-0375 | 吐药 | 小小耶 | 原作《吐药》（小小耶文字稿）· 优化改写 |
+| 502 | xxye-0377 | 外面有鬼 | 小小耶 | 原作《外面有鬼》（小小耶文字稿）· 优化改写 |
+| 503 | xxye-0379 | 完美笔录 | 小小耶 | 原作《完美笔录》（小小耶文字稿）· 优化改写 |
+| 506 | xxye-0383 | 王叔叔好 | 小小耶 | 原作《王叔叔好》（小小耶文字稿）· 优化改写 |
+| 507 | xxye-0384 | 网购 | 小小耶 | 原作《网购》（小小耶文字稿）· 优化改写 |
+| 508 | xxye-0391 | 我妈赢了 | 小小耶 | 原作《我妈赢了》（小小耶文字稿）· 优化改写 |
+| 510 | xxye-0394 | 无人阻拦 | 小小耶 | 原作《无人阻拦》（小小耶文字稿）· 优化改写 |
+| 511 | xxye-0395 | 无声的仪式 | 小小耶 | 原作《无声的仪式》（小小耶文字稿）· 优化改写 |
+| 512 | xxye-0396 | 午夜列车 | 小小耶 | 原作《午夜列车》（小小耶文字稿）· 优化改写 |
+| 513 | xxye-0398 | 生日的诅咒 | 小小耶 | 原作《生日的诅咒》（小小耶文字稿）· 优化改写 |
+| 514 | xxye-0399 | 摇篮旁的血 | 小小耶 | 原作《摇篮旁的血》（小小耶文字稿）· 原样保留 |
+| 515 | xxye-0400 | 吸铁石 | 小小耶 | 原作《吸铁石》（小小耶文字稿）· 优化改写 |
+| 516 | xxye-0401 | 人群里的幸运 | 小小耶 | 原作《人群里的幸运》（小小耶文字稿）· 优化改写 |
+| 517 | xxye-0404 | 喜欢的作者 | 小小耶 | 原作《喜欢的作者》（小小耶文字稿）· 优化改写 |
+| 518 | xxye-0405 | 下雨 | 小小耶 | 原作《下雨》（小小耶文字稿）· 优化改写 |
+| 519 | xxye-0406 | 相见不如怀念 | 小小耶 | 原作《相见不如怀念》（小小耶文字稿）· 优化改写 |
+| 520 | xxye-0407 | 香水 | 小小耶 | 原作《香水》（小小耶文字稿）· 优化改写 |
+| 521 | xxye-0409 | 想喝一碗汤 | 小小耶 | 原作《想喝一碗汤》（小小耶文字稿）· 优化改写 |
+| 522 | xxye-0410 | 换个哥哥 | 小小耶 | 原作《换个哥哥》（小小耶文字稿）· 优化改写 |
+| 524 | xxye-0415 | 开春以后 | 小小耶 | 原作《开春以后》（小小耶文字稿）· 优化改写 |
+| 525 | xxye-0416 | 最后一格 | 小小耶 | 原作《最后一格》（小小耶文字稿）· 优化改写 |
+| 526 | xxye-0418 | 一声晚安 | 小小耶 | 原作《一声晚安》（小小耶文字稿）· 优化改写 |
+| 527 | xxye-0419 | 小不点来了 | 小小耶 | 原作《小不点来了》（小小耶文字稿）· 优化改写 |
+| 528 | xxye-0420 | 糕点与枪声 | 小小耶 | 原作《糕点与枪声》（小小耶文字稿）· 优化改写 |
+| 529 | xxye-0425 | 贼的仓库 | 小小耶 | 原作《贼的仓库》（小小耶文字稿）· 优化改写 |
+| 530 | xxye-0426 | 笑容 | 小小耶 | 原作《笑容》（小小耶文字稿）· 优化改写 |
+| 532 | xxye-0429 | 新衣服 | 小小耶 | 原作《新衣服》（小小耶文字稿）· 优化改写 |
+| 533 | xxye-0430 | 醒过来 | 小小耶 | 原作《醒过来》（小小耶文字稿）· 优化改写 |
+| 534 | xxye-0433 | 胸针 | 小小耶 | 原作《胸针》（小小耶文字稿）· 优化改写 |
+| 535 | xxye-0434 | 锈蚀的扶手 | 小小耶 | 原作《锈蚀的扶手》（小小耶文字稿）· 优化改写 |
+| 536 | xxye-0439 | 选择题 | 小小耶 | 原作《选择题》（小小耶文字稿）· 优化改写 |
+| 537 | xxye-0444 | 崖顶冰箱 | 小小耶 | 原作《崖顶冰箱》（小小耶文字稿）· 优化改写 |
+| 538 | xxye-0445 | 阳台上的人影 | 小小耶 | 原作《阳台上的人影》（小小耶文字稿）· 优化改写 |
+| 539 | xxye-0449 | 要洒了 | 小小耶 | 原作《要洒了》（小小耶文字稿）· 优化改写 |
+| 540 | xxye-0452 | 第四个房间 | 小小耶 | 原作《第四个房间》（小小耶文字稿）· 优化改写 |
+| 541 | xxye-0453 | 一个亿 | 小小耶 | 原作《一个亿》（小小耶文字稿）· 优化改写 |
+| 542 | xxye-0456 | 一墙奖状 | 小小耶 | 原作《一墙奖状》（小小耶文字稿）· 原样保留 |
+| 544 | xxye-0459 | 遗憾 | 小小耶 | 原作《遗憾》（小小耶文字稿）· 优化改写 |
+| 545 | xxye-0460 | 挪车电话 | 小小耶 | 原作《挪车电话》（小小耶文字稿）· 优化改写 |
+| 547 | xxye-0462 | 最后一拍 | 小小耶 | 原作《最后一拍》（小小耶文字稿）· 优化改写 |
+| 548 | xxye-0463 | 引诱 | 小小耶 | 原作《引诱》（小小耶文字稿）· 优化改写 |
+| 549 | xxye-0464 | 学得真像 | 小小耶 | 原作《学得真像》（小小耶文字稿）· 优化改写 |
+| 550 | xxye-0465 | 萤火虫 | 小小耶 | 原作《萤火虫》（小小耶文字稿）· 优化改写 |
+| 551 | xxye-0466 | 船就在旁边 | 小小耶 | 原作《船就在旁边》（小小耶文字稿）· 优化改写 |
+| 552 | xxye-0477 | 约定 | 小小耶 | 原作《约定》（小小耶文字稿）· 优化改写 |
+| 553 | xxye-0478 | 月牙 | 小小耶 | 原作《月牙》（小小耶文字稿）· 优化改写 |
+| 555 | xxye-0482 | 早恋 | 小小耶 | 原作《早恋》（小小耶文字稿）· 优化改写 |
+| 556 | xxye-0483 | 长不大 | 小小耶 | 原作《长不大》（小小耶文字稿）· 优化改写 |
+| 557 | xxye-0485 | 掌心里的数字 | 小小耶 | 原作《掌心里的数字》（小小耶文字稿）· 优化改写 |
+| 558 | xxye-0487 | 找朋友 | 小小耶 | 原作《找朋友》（小小耶文字稿）· 优化改写 |
+| 559 | xxye-0490 | 折返 | 小小耶 | 原作《折返》（小小耶文字稿）· 优化改写 |
+| 560 | xxye-0492 | 陪嫁的将军 | 小小耶 | 原作《陪嫁的将军》（小小耶文字稿）· 优化改写 |
+| 561 | xxye-0493 | 拯救 | 小小耶 | 原作《拯救》（小小耶文字稿）· 优化改写 |
+| 562 | xxye-0495 | 只有我醒来 | 小小耶 | 原作《只有我醒来》（小小耶文字稿）· 优化改写 |
+| 563 | xxye-0496 | 治病 | 小小耶 | 原作《治病》（小小耶文字稿）· 优化改写 |
+| 564 | xxye-0497 | 致命的电话 | 小小耶 | 原作《致命的电话》（小小耶文字稿）· 优化改写 |
+| 565 | xxye-0498 | 致命的话 | 小小耶 | 原作《致命的话》（小小耶文字稿）· 优化改写 |
+| 566 | xxye-0501 | 终于吃饱了 | 小小耶 | 原作《终于吃饱了》（小小耶文字稿）· 优化改写 |
+| 567 | xxye-0505 | 蛛丝小镇 | 小小耶 | 原作《蛛丝小镇》（小小耶文字稿）· 优化改写 |
+| 568 | xxye-0508 | 找到姐姐了 | 小小耶 | 原作《找到姐姐了》（小小耶文字稿）· 优化改写 |
+| 569 | xxye-0509 | 我来当鬼 | 小小耶 | 原作《我来当鬼》（小小耶文字稿）· 优化改写 |
+| 570 | xxye-0511 | 自拍 | 小小耶 | 原作《自拍》（小小耶文字稿）· 优化改写 |
+| 571 | xxye-0512 | 自行车坏了 | 小小耶 | 原作《自行车坏了》（小小耶文字稿）· 优化改写 |
+| 572 | xxye-0514 | 钥匙没错 | 小小耶 | 原作《钥匙没错》（小小耶文字稿）· 优化改写 |
+| 573 | xxye-0516 | 十七楼 | 小小耶 | 原作《十七楼》（小小耶文字稿）· 优化改写 |
+| 574 | xxye-0519 | 最爱 | 小小耶 | 原作《最爱》（小小耶文字稿）· 优化改写 |
+| 575 | xxye-0529 | 木梯上的眼泪 | 小小耶 | 原作《木梯上的眼泪》（小小耶文字稿）· 原样保留 |
