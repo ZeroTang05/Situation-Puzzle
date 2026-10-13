@@ -1,13 +1,13 @@
 [
   {
-    "id": "seed-toll-of-one-secret",
-    "title": "The Toll",
-    "story": "The old man on the bridge would take no money — only a secret I had never told a living soul. I told one, and he smiled and let me pass. At the middle of the bridge, the corpses in the river suddenly rolled over, every one of them watching me. Only then did I remember: the secret I had just spoken had never mentioned the river. Then how had they heard it?",
-    "answer": "Beneath the bridge lie the dead of many murders that could never be pinned on a killer. The old man has the power to carry a sincerely spoken secret to every dead soul the secret concerns, all at once. I had killed my victims and sunk the bodies, one by one, in this river; to the old man I admitted only 'the missing people — I killed them all,' believing that leaving out the place would keep the dumping ground safe. I did not know what the toll was for. The dead bound to the confession heard the killer's own mouth confirm the confession, recognized the killer at last, and rose one after another to the surface. The old man had let me walk to the middle of the bridge on purpose, delivering me to the dead who had waited so long for a name.",
+    "id": "real-finish-line",
+    "title": "The Finish Line",
+    "story": "For seven years I never touched that thing. Then by chance I turned it on again, and found that ghosts truly do exist in this world — I smiled with joy. Day after day I worked to close the distance between us, and at last I had the power to do it; I was about to touch it. But this time, I still lost.",
+    "answer": "After Dad died, I left the game console Dad had given me untouched for seven years. When I switched the console on again, I met a “ghost racer” in the racing game: the game saves the fastest lap and replays it beside you in solo races, and the only record this console held was the one Dad had left behind. I chased the ghost racer lap after lap, until one day I pulled ahead of the ghost racer. Just short of the finish, I remembered that the game keeps only one best record — break that record, and every turn and burst of speed Dad had left would be overwritten by mine. I stopped before the finish line and let that car glide past my shoulder. This time, I lost again.",
     "hints": [
-      "The dead below the bridge never knew who their killer was.",
-      "A spoken secret is heard by every ghost it touches.",
-      "He confessed to the killings; even without the place, the victims could know him by the secret."
+      "The “ghost” here comes from a racing game.",
+      "It replays the best driving record left by the late father.",
+      "Setting a new record would overwrite the father’s only one, so the son stopped short of the finish by choice."
     ]
   },
   {
@@ -2970,14 +2970,14 @@
     ]
   },
   {
-    "id": "real-finish-line",
-    "title": "The Finish Line",
-    "story": "For seven years I never touched that thing. Then by chance I turned it on again, and found that ghosts truly do exist in this world — I smiled with joy. Day after day I worked to close the distance between us, and at last I had the power to do it; I was about to touch it. But this time, I still lost.",
-    "answer": "After Dad died, I left the game console Dad had given me untouched for seven years. When I switched the console on again, I met a “ghost racer” in the racing game: the game saves the fastest lap and replays it beside you in solo races, and the only record this console held was the one Dad had left behind. I chased the ghost racer lap after lap, until one day I pulled ahead of the ghost racer. Just short of the finish, I remembered that the game keeps only one best record — break that record, and every turn and burst of speed Dad had left would be overwritten by mine. I stopped before the finish line and let that car glide past my shoulder. This time, I lost again.",
+    "id": "seed-toll-of-one-secret",
+    "title": "The Toll",
+    "story": "The old man on the bridge would take no money — only a secret I had never told a living soul. I told one, and he smiled and let me pass. At the middle of the bridge, the corpses in the river suddenly rolled over, every one of them watching me. Only then did I remember: the secret I had just spoken had never mentioned the river. Then how had they heard it?",
+    "answer": "Beneath the bridge lie the dead of many murders that could never be pinned on a killer. The old man has the power to carry a sincerely spoken secret to every dead soul the secret concerns, all at once. I had killed my victims and sunk the bodies, one by one, in this river; to the old man I admitted only 'the missing people — I killed them all,' believing that leaving out the place would keep the dumping ground safe. I did not know what the toll was for. The dead bound to the confession heard the killer's own mouth confirm the confession, recognized the killer at last, and rose one after another to the surface. The old man had let me walk to the middle of the bridge on purpose, delivering me to the dead who had waited so long for a name.",
     "hints": [
-      "The “ghost” here comes from a racing game.",
-      "It replays the best driving record left by the late father.",
-      "Setting a new record would overwrite the father’s only one, so the son stopped short of the finish by choice."
+      "The dead below the bridge never knew who their killer was.",
+      "A spoken secret is heard by every ghost it touches.",
+      "He confessed to the killings; even without the place, the victims could know him by the secret."
     ]
   },
   {
