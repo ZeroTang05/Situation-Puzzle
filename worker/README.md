@@ -43,6 +43,12 @@ Cloudflare 后台进入 Workers & Pages → `situation-puzzle-api` → Observabi
 
 `minimax.request` 仅表示准备发送请求；`minimax.response` 表示 SDK 已收到上游响应。需要独立核对时，再到 MiniMax 控制台查看对应时间的 API 调用与用量记录。日志中不保存密钥、汤底或玩家输入。
 
+### 在后台核对 Jev 调用
+
+同一日志页面筛选 `jev.response`：记录 OpenCode Zen 代理响应的 HTTP 状态、请求模型、有效选项、上游置信度与耗时；`task` 为 `question`、`solve`、`review` 时分别对应提问、还原、投稿审核。`attempt` 从 1 开始，标明第几次请求。上游未提供请求 ID 或置信度时，对应字段为空或省略。
+
+`jev.request` 表示准备发起请求；成功的 `jev.response` 包含通过校验的判题结果。非成功 HTTP 响应也会记录 `jev.response`，随后沿用现有错误与重试流程。查看同一次 Worker 请求中的 `jev.response` 和 `minimax.response`，可以追踪低置信度时的补判。
+
 ```powershell
 # 在项目根目录执行
 pnpm --dir worker db:migrate:local

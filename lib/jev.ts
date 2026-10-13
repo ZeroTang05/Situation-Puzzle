@@ -19,7 +19,7 @@ async function choose<T extends string>(apiKey: string, state: Record<string, un
   if (!apiKey) throw new Error('缺少 Jev API 密钥');
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      return await requestChoice(apiKey, state, questionName, question);
+      return await requestChoice(apiKey, state, questionName, question, attempt + 1);
     } catch (error) {
       if (attempt === MAX_RETRIES) throw error;
       console.warn(`Jev ${questionName} 调用失败，准备第 ${attempt + 1} 次重试`, error);
@@ -30,7 +30,10 @@ async function choose<T extends string>(apiKey: string, state: Record<string, un
 }
 
 /** 单次模型请求：核对返回选项，确保后续业务只接收有效结果。 */
-async function requestChoice<T extends string>(apiKey: string, state: Record<string, unknown>, questionName: string, question: ChoiceQuestion<T>): Promise<JevChoice<T>> {
+async function requestChoice<T extends string>(apiKey: string, state: Record<string, unknown>, questionName: string, question: ChoiceQuestion<T>, attempt: number): Promise<JevChoice<T>> {
+  const task = questionName === 'verdict' ? 'question' : questionName === 'outcome' ? 'solve' : questionName;
+  const startedAt = Date.now();
+  console.log(JSON.stringify({ event: 'jev.request', task, model: MODEL_ID, host: new URL(SYSTEMONE_URL).hostname, attempt }));
   const response = await fetch(SYSTEMONE_URL, {
     method: 'POST',
     headers: {
@@ -41,12 +44,24 @@ async function requestChoice<T extends string>(apiKey: string, state: Record<str
     },
     body: JSON.stringify({ model: MODEL_ID, state, questions: { [questionName]: question } }),
   });
-  if (!response.ok) throw new Error(`Jev 请求失败：${response.status}`);
+  const responseMetadata = {
+    event: 'jev.response', task, attempt,
+    host: new URL(response.url).hostname,
+    status: response.status,
+    requested_model: MODEL_ID,
+    upstream_request_id: response.headers.get('x-request-id'),
+  };
+  if (!response.ok) {
+    console.error(JSON.stringify({ ...responseMetadata, duration_ms: Date.now() - startedAt }));
+    throw new Error(`Jev 请求失败：${response.status}`);
+  }
   const result = await response.json() as { answers?: Record<string, { choice?: string; probabilities?: Record<string, number> }> };
   const answer = result.answers?.[questionName];
   if (!answer?.choice || !Object.hasOwn(question.criteria, answer.choice)) throw new Error(`Jev 返回无效选项：${answer?.choice ?? '空'}`);
   const confidence = answer.probabilities?.[answer.choice] ?? 0;
   if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) throw new Error(`Jev 返回无效置信度：${confidence}`);
+  // 记录上游返回的有效选项与原始概率，不保存请求中的汤底、玩家输入或密钥。
+  console.log(JSON.stringify({ ...responseMetadata, choice: answer.choice, confidence: answer.probabilities?.[answer.choice], duration_ms: Date.now() - startedAt }));
   return { choice: answer.choice as T, confidence };
 }
 
