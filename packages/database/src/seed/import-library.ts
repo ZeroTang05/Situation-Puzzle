@@ -18,16 +18,22 @@
  * puzzle_rights、puzzle_test_cases、moderation_reviews、puzzle_ratings、rounds、
  * jev_calls 全部级联数据）。生产环境禁止（无 UNDO）。rounds / jev_calls 的 FK
  * cascade 在 0004_purge_cascade.sql 迁移里加上。
+ *
+ * 署名：内置题没有创作者个人，统一以 signature 模式显示「初始题库」
+ * （canonical 名，前端 AuthorLabel 按 i18n 本地化展示），不落 anonymous。
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import { createDb } from '../client.js';
 import { puzzles, puzzleVersions, puzzleRights } from '../schema/content.js';
 
 const IMPORT_SOURCE = 'official' as const;
+
+/** 内置题库统一署名（DB 存 canonical 中文本，前端按语言本地化）。 */
+const LIBRARY_AUTHOR_NAME = '初始题库';
 
 interface LibraryEntry {
   id: string;
@@ -84,6 +90,15 @@ const existingByLegacyId = new Map<string, string>();
 for (const row of existingImported) {
   if (row.legacyId) existingByLegacyId.set(row.legacyId, row.id);
 }
+
+// 回填：早期导入的 official 题默认落了 anonymous，统一改成「初始题库」署名。
+// 条件限定 source='official'，不会碰到玩家投稿的署名选择。
+await db
+  .update(puzzles)
+  .set({ authorDisplayMode: 'signature', authorDisplayName: LIBRARY_AUTHOR_NAME })
+  .where(
+    sql`${puzzles.source} = ${IMPORT_SOURCE} and (${puzzles.authorDisplayMode} != 'signature' or ${puzzles.authorDisplayName} is distinct from ${LIBRARY_AUTHOR_NAME})`,
+  );
 
 // 取出当前 JSON 里的 legacyId 集合
 const desiredLegacyIds = new Set(zh.map((e) => e.id));
@@ -160,6 +175,8 @@ for (const entry of zh) {
     .values({
       source: IMPORT_SOURCE,
       legacyId: entry.id,
+      authorDisplayMode: 'signature',
+      authorDisplayName: LIBRARY_AUTHOR_NAME,
       // currentPublishedVersionId 在下方 versions insert 后回填
     })
     .returning({ id: puzzles.id });
