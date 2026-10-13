@@ -1,6 +1,6 @@
 # Jev 多人海龟汤：开发文档入口
 
-版本：1.1；更新日期：2026-10-01；现有代码基线：`50e60d6`。
+版本：1.2；更新日期：2026-10-13；现有代码基线：`57cc9a0`。
 
 这套文档把单人网页游戏改造成可收费的多人产品。第一阶段交付浏览器版本，前后端部署到自有服务器；后续小程序和 App 共用服务端能力。本轮只编写文档，尚未执行代码迁移、部署或真实支付验证。
 
@@ -53,3 +53,12 @@
 - **创作列表与「我的」** 改为扁平行项（无圆角矩形框、无卡片边框、淡分割线分组），与创作编辑面板共享设计语言。
 - **Auth 页内联超链接** 默认浅蓝色（`#8fc6ff`）+ hover 下划线；语言切换按钮除首页外，也出现在登录、注册、找回密码页的 topbar 右侧。
 - **题目类别** 落地 `category`（本格/变格，pgEnum `puzzle_category`：`honkaku` / `henkaku`）：题库筛选与徽标、单人页徽标、创作表单、判题提示词（ask/solve 携带类别说明）、后台展示、seed 导入（library.json 中文值映射为枚举）全链路接入；判题提示词版本随之升到 `v2-2026-10`。
+
+## 1.2 文档与实现的最新对齐（2026-10-13）
+
+- **房间生命周期 v3** 定稿并落地：会客厅实体下沉数据库（迁移 `0001_lobbies`、`0002_room_followups`），邀请路径拆分为 `/lobby/invite/<hex>` 与 `/room/invite/<hex>`，start 事务提交后实时推送 `lobby.started`。规则见 [10-ROOM-LIFECYCLE-REVISION](10-ROOM-LIFECYCLE-REVISION.md)。
+- **题库重写与治理**：根题库替换为改编版 514 题（首发 84 + 扩展 97 + 天堂 93 + 小小耶 240），2026-10-13 下架 61 题（38 题代词指代诡计 + 23 题用户指定）；排序调整为天堂批次置前、第一题固定《终点线》，其余批次保持原序；seed 导入统一署名「初始题库」（signature 模式，前端按语言本地化），详见 [11-VOTES-AND-AUTHORSHIP §4](11-VOTES-AND-AUTHORSHIP.md)。`data/sources.md` 逐题编号保留下架前的整库位置（跳号即已删题）。
+- **题库硬删模式**：导入脚本支持 `--purge-stale` 硬删消失题，`rounds` / `jev_calls` 相关外键补 `ON DELETE CASCADE`（迁移 `0004_purge_cascade`）；软删为默认。运维口径见仓库 `README.md`「题库导入与维护」。
+- **题库分页**：`GET /puzzles` 支持 `page`（页码直达）或 `cursor`（连续读取）二选一，`limit` 默认 20、最大 100；page 模式返回 `total` / `totalPages`。玩家端提供「加载更多」与直达页码两种浏览方式。详见 [03-SPEC §6](03-SPEC.md)。
+- **Jev 出站默认走 ai-proxy**：`JEV_BASE_URL` 默认 `https://ai-proxy.xiaobaozi.cn/opencode.ai/zen/v1/systemone`，可指回官方源。
+- **大模型补判**：Jev 置信度不足时自动调用 MiniMax 补判（单人、多人、创作试题的提问与还原均接入）；还原时可手动开启「判题不准？试试大模型判题」，多人提交的选择存 `turns.use_large_model`（迁移 `0005_large_model_judgment`），任务按提交时选择执行；判题提示词版本升到 `v3-2026-10`（`minimax-question.ts` / `minimax-solution.ts`）。判题协议补充见 [04-ROOM-JEV §7](04-ROOM-JEV.md)。

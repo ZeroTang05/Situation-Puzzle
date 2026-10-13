@@ -16,12 +16,12 @@ apps/jobs       pg-boss 任务进程：dispatch-room / process-turn / review-puz
 packages/contracts   跨端 Zod 契约：HTTP 请求响应、WS 事件、稳定错误码（客户端只准引用这里）
 packages/domain      纯业务规则：房间状态机、排队容量、赞助自然月算法、授权来源判定（配单测）
 packages/database    Drizzle 表结构（40 张表）、追加式迁移（drizzle/）、房间事务封装（rooms-tx）、题库导入
-packages/jev         Jev SystemOne 适配：20s 超时、错误分类、缺概率=协议错误、阈值 0.5、配置版本号
+packages/jev         Jev SystemOne 适配：20s 超时、错误分类、缺概率=协议错误、阈值 0.5、配置版本号；MiniMax 大模型补判（置信度不足自动补判，还原可手动切换，提示词版本 v3-2026-10）
 packages/i18n        稳定枚举/错误码 → 中英文案
 packages/ui          设计变量（深海色系、16px 正文、44px 触控）
 infra/               web/admin/api/jobs 各自 Dockerfile（apps/web+apps/admin 静态烘进 nginx，api 容器启动自动跑迁移）、web.nginx.conf / admin.nginx.conf
 scripts/             冒烟与端到端联调脚本（smoke-new-system.sh、e2e-run.sh、dev-env.sh、dev-mailsink.mjs）
-data/                题库 JSON 导入源：根 library.json / library.en.json 同 ID 配套（顺序须一致，当前 514 题 = 首批重写 84 + 中文扩展 97 + 天堂精选 93 + 小小耶精选 240；2026-10-13 下架 61 题——38 题代词指代诡计 + 23 题用户指定，题库、sources.md、scores.md 三处同步移除；zh 条目 category 本格/变格由导入映射为 puzzle_category 枚举 honkaku/henkaku）；sources.md 全库来源总览与逐题对照（编号按整库 575 题位置，跳号处即已删除的题）；scoring/ 打分口径与全部批次评分（续写）；curated/ 各 UP 主批逐篇评审与存档（天堂/小小耶两批普通题均已并入根库，特殊玩法与未采用稿留存于各自目录）；reference/ 真实游玩素材（group 原始字幕 → real 抽取稿，按 UP 主分目录）
+data/                题库 JSON 导入源：根 library.json / library.en.json 同 ID 配套（顺序须一致，当前 514 题 = 首批重写 84 + 中文扩展 97 + 天堂精选 93 + 小小耶精选 240；2026-10-13 下架 61 题——38 题代词指代诡计 + 23 题用户指定，题库、sources.md、scores.md 三处同步移除；zh 条目 category 本格/变格由导入映射为 puzzle_category 枚举 honkaku/henkaku；排序：天堂批次（real- 93 题）置前、第一题固定「终点线」，其余批次保持原序；seed 导入统一署名「初始题库」（signature 模式，前端按语言本地化））；sources.md 全库来源总览与逐题对照（编号按整库 575 题位置，跳号处即已删除的题）；scoring/ 打分口径与全部批次评分（续写）；curated/ 各 UP 主批逐篇评审与存档（天堂/小小耶两批普通题均已并入根库，特殊玩法与未采用稿留存于各自目录）；reference/ 真实游玩素材（group 原始字幕 → real 抽取稿，按 UP 主分目录）
 docs/rebuild/        产品与架构设计文档（01~12：10 房间生命周期修订、11 赞踩署名、12 连接体验）
 ```
 
@@ -58,7 +58,8 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
 - **单人隐私**：`/solo/*` 匿名凭证（jose）、不落任何业务表；新规则不按 IP 或题目做业务限流；
   客户端 `credentials: 'omit'`
 - **判题**：阈值只能服务端读；`uncertain` 是有效判定；缺概率是协议错误不编造；
-  每局固定 `jevConfigVersion`
+  每局固定 `jevConfigVersion`；置信度不足自动用 MiniMax 大模型补判，多人还原可
+  手动指定大模型（`turns.use_large_model` 随提交落库，任务按提交时选择执行）
 - **认证**：Better Auth（邮箱/密码 + Email OTP + Google + LINUX DO）；`trustedOrigins` 来自 `PUBLIC_BASE_URL`，
   改来源先看 `apps/api/src/auth/auth.instance.ts`
 - **邮件通道**：`MAIL_TRANSPORT` 显式二选一（`apps/api/src/auth/mailer.ts`）——
@@ -87,8 +88,10 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
 - **Windows CRLF**：shell 脚本入库加 `.gitattributes`；容器内执行前 `sed -i 's/\r$//'`（Dockerfile 已处理）
 - **开发期邮箱**：本地联调用 `scripts/dev-mailsink.mjs`（真实 SMTP 协议收信台）+
   `MAIL_TRANSPORT=smtp`，不要把控制台打印验证码当已接入邮箱
-- **两个出站节点别混用**：`ai-proxy.xiaobaozi.cn` 是 Groq/OpenAI 通用反代
+- **两个出站节点别混用**：`ai-proxy.xiaobaozi.cn` 是通用反代
   （`<代理>/<上游域名>/<路径>` 形状，对 `*.googleapis.com` 的 POST 会崩 500）；
+  Jev 判题默认也走它（`JEV_BASE_URL` 默认
+  `ai-proxy.xiaobaozi.cn/opencode.ai/zen/v1/systemone`，可用环境变量指回官方源）；
   OAuth 走的是独立部署的 `oauth-relay.xiaobaozi.cn`（专用路径
   `/oauth/google/token|userinfo` + `X-Relay-Token`，无 JWKS 路由）。
   本地到 Deno 节点的链路偶发抖动，探针脚本已带重试

@@ -200,6 +200,34 @@ docker compose up -d --build
 - i18n 新增：`emailField` / `passwordField` / `langSwitchAria` / `roundStatus{Active,Solved,Revealed,Abandoned,Aborted}`；「我的」历史中的 round 状态由后端枚举翻译为用户文案。
 - 本次以 `pnpm --filter @jev/web exec tsc -p tsconfig.json --noEmit` 单工作区类型检查通过；未新增单测、未部署、未跑端到端。
 
+### 迁移序列合并说明（2026-10-01）
+
+旧迁移 0000~0008 九个文件合并为单文件 `0000_consolidated.sql`（`9e40357`），此后恢复追加式，新变更从 `0001_lobbies` 起重新编号。本文件早期条目引用的迁移编号（如 `0003_otp_send_quota`、`0004_creation_origin`、`0006_puzzle_difficulty_enum`）属旧序列，内容已并入 0000；现役迁移为 `0000_consolidated` + `0001_lobbies` ~ `0005_large_model_judgment`。
+
+### 房间生命周期 v3 与出站通道（2026-10-02 ~ 10-12）
+
+- 房间生命周期 v3 定稿并落地：会客厅实体下沉数据库（迁移 `0001_lobbies`、`0002_room_followups`），邀请路径拆分 `/lobby/invite/<hex>` 与 `/room/invite/<hex>`，start 单事务建房后向 lobby 订阅者实时推送 `lobby.started`（`947ab43`、`0fb1604`）。规则以 [10-ROOM-LIFECYCLE-REVISION](10-ROOM-LIFECYCLE-REVISION.md) 为准。
+- Jev 客户端默认经 ai-proxy 出站：`JEV_BASE_URL` 默认 `https://ai-proxy.xiaobaozi.cn/opencode.ai/zen/v1/systemone`，可指回官方源（`48e6478`）。
+
+### 题库硬删、类别与数据整编（2026-10-08 ~ 10-12）
+
+- 导入脚本支持 `--purge-stale` 硬删消失题；`rounds.puzzle_version_id`、`jev_calls.review_version_id` 两条外键补 `ON DELETE CASCADE`（迁移 `0004_purge_cascade`，`712dd82`）。
+- 题目类别 `category`（本格/变格 → `honkaku`/`henkaku`）全链路接入，判题提示词升 `v2-2026-10`（`5682f59`；规则对齐见[文档入口 §1.1](README.md)）。
+- 题库数据与来源文档整编：sources / scoring / curated 收敛到 `data/` 目录三处（`5f6598b`）；根题库替换为改编版 514 题、汤底表述清晰度修订（`291176a`、`76abacc`）。
+
+### 题库分页、排序与署名（2026-10-13）
+
+- `GET /puzzles` 分页：`page`（页码直达，返回 `total`/`totalPages`）或 `cursor`（连续读取）二选一，`limit` 默认 20、最大 100（契约 `catalogListQuerySchema`）；玩家端提供「加载更多」与直达页码，新增 `apps/web/test/catalog-pagination.test.tsx`（`2ead077`、`537fb28`）。
+- 内置题排序调整：天堂批次（`real-` 93 题）置前、第一题固定《终点线》，其余批次保持原序；中英题库与 `sources.md` 逐题表同步重排，# 列保留整库历史编号（`adb49cc`）。
+- 下架 61 题（38 题代词指代诡计 + 23 题用户指定），题库、`sources.md`、`scoring/scores.md` 三处同步移除（`7b4ca29`）；内置题统一署名「初始题库」（signature 模式，seed 导入写入并回填，前端按语言本地化，`57cc9a0`），见 [11-VOTES-AND-AUTHORSHIP §4](11-VOTES-AND-AUTHORSHIP.md)。
+
+### 大模型补判与品牌刷新（2026-10-13）
+
+- `JudgmentClient` 统一编排（`packages/jev/src/judgment.ts`）：Jev 置信度低于阈值时自动改用 MiniMax 补判，总期限 45 秒内 Jev 最多占用 25 秒；还原可手动指定大模型（单人、多人、创作试题预览共用 `LargeModelToggle`），多人提交的选择存 `turns.use_large_model`（迁移 `0005_large_model_judgment`）；投稿机审不补判（`b099894`）。
+- MiniMax 走 Anthropic SDK（`MINIMAX_API_KEY` / `MINIMAX_BASE_URL` / `MINIMAX_MODEL`，默认 `api.minimax.cn/anthropic`、`MiniMax-M2.7`），提示词 `minimax-question.ts`、`minimax-solution.ts`，判题提示词版本升 `v3-2026-10`。
+- 玩家端品牌图标刷新、登录导航统一与分享助手（`fa9a0d1`、`3b82381`）。
+- 以上条目按提交记录与当前代码整理；本轮仅同步文档，未改动业务代码。
+
 ## 5. 已知边界与下一步
 
 - **M0 外部通道**（阻塞真实登录/判题/支付）：SMTP 发信、Google 凭据、OPENCODE_API_KEY、微信商户。代码就绪，凭据就绪后即可联调。

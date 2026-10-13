@@ -161,6 +161,12 @@ sequenceDiagram
 
 服务器只向玩家返回规定枚举和自身状态文案，不能原样透传模型自由输出。提示与汤底按游戏状态控制，不让模型决定是否泄露。模型不持有数据库工具、支付权限或房间管理权限。
 
+### 大模型补判（MiniMax）
+
+Jev 判定置信度低于阈值时，自动改用 MiniMax 大模型补判（`packages/jev/src/judgment.ts` 的统一编排）。提问与还原两条路径都接入；还原时玩家可手动开启「判题不准？试试大模型判题」直接使用 MiniMax，多人提交的选择存 `turns.use_large_model`（迁移 `0005_large_model_judgment`），排队与重试沿用提交时的同一选择。投稿机审（review）不补判。
+
+补判共用原有执行期限：总期限默认 45 秒，Jev 最多占用 25 秒，剩余时间留给 MiniMax。MiniMax 走 Anthropic SDK（默认 `https://api.minimax.cn/anthropic`，模型 `MiniMax-M2.7`，可用 `MINIMAX_*` 环境变量覆盖），密钥只在 API 与 jobs 进程内使用。补判结果沿用与 Jev 相同的稳定枚举与校验（选项合法、结果不编造），提示词独立维护（`packages/jev/src/prompts/minimax-question.ts`、`minimax-solution.ts`，版本 `v3-2026-10`）；补判失败按下方错误分类处理，不伪造判定。两种判题均允许省略不影响核心真相的细节。
+
 ### 错误分类与重试
 
 | 情况 | 处理 |
