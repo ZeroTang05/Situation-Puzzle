@@ -7,13 +7,14 @@ import { and, eq, sql } from 'drizzle-orm';
 import { freeRoomAccounts, roomCreditLedger, roomEntitlements, roomMembers, rooms, sponsorGrants } from '@jev/database';
 import { DomainError, resolveEntitlementSource } from '@jev/domain';
 import { app } from '../context.js';
+import { jevConfigVersion } from '@jev/jev';
 
 type Tx = Parameters<Parameters<import('@jev/database').Database['transaction']>[0]>[0];
 
 /** 局固定的判题配置版本标识（开局时点一次定型）。 */
 export function jevConfigVersionOf(): string {
   const jev = app().jev;
-  return `${jev.model}@${jev.promptVersion}@t${jev.threshold}@${jev.language}`;
+  return jevConfigVersion(jev);
 }
 
 export async function createRoomWithEntitlementTx(

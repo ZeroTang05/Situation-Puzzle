@@ -4,6 +4,7 @@ import { SignJWT } from 'jose';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { puzzleRights, puzzleVersions, puzzles, moderationReviews, type Database } from '@jev/database';
 import { DomainError } from '@jev/domain';
+import { jevConfigVersion } from '@jev/jev';
 import { authorDisplaySettingSchema, creationDraftSchema, creationSaveRequestSchema, creationCompleteSchema, creationSubmitRequestSchema, creationRevisionRequestSchema, type CreationDraft } from '@jev/contracts';
 import { z } from 'zod';
 import { app } from '../context.js';
@@ -149,7 +150,7 @@ export class CreationsController {
       if (!puzzle) throw new DomainError('NOT_FOUND', '作品不存在或已停用');
       const [latest] = await tx.select().from(puzzleVersions).where(eq(puzzleVersions.puzzleId, puzzleId)).orderBy(desc(puzzleVersions.versionNo), asc(puzzleVersions.language)).limit(1);
       if (!latest || !latest.surface.trim() || !latest.answer.trim()) throw new DomainError('VALIDATION_FAILED', '请先保存汤面和汤底再试题');
-      const context = app(); const contentHash = previewContentHash(latest); const configVersion = `${context.jev.model}@${context.jev.promptVersion}@t${context.jev.threshold}`;
+      const context = app(); const contentHash = previewContentHash(latest); const configVersion = jevConfigVersion({ ...context.jev, language: z.enum(['zh', 'en']).parse(latest.language) });
       const token = await new SignJWT({ purpose: 'solo_preview', pv: latest.id, lang: latest.language, cfg: configVersion, contentHash }).setProtectedHeader({ alg: 'HS256' }).setIssuer('jev-solo').setIssuedAt().setExpirationTime('2h').sign(new TextEncoder().encode(context.env.SOLO_TOKEN_SECRET));
       return { token, versionId: latest.id, language: latest.language, title: latest.title, surface: latest.surface, hintsTotal: latest.hints.length, configVersion, contentHash };
     });

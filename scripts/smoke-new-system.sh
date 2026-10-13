@@ -4,6 +4,9 @@ set -e
 cd "$(dirname "$0")/.."
 
 export NODE_ENV=development
+export MINIMAX_API_KEY=$(node --env-file=.env.local -p "process.env.MINIMAX_API_KEY || ''")
+export MINIMAX_BASE_URL=$(node --env-file=.env.local -p "process.env.MINIMAX_BASE_URL || 'https://api.minimax.cn/anthropic'")
+export MINIMAX_MODEL=$(node --env-file=.env.local -p "process.env.MINIMAX_MODEL || 'MiniMax-M2.7'")
 export DATABASE_URL=postgresql://jev:jev@localhost:54329/jev
 
 echo "== 启动一次性 PostgreSQL =="

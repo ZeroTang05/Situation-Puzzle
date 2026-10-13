@@ -45,6 +45,10 @@ const envSchema = z.object({
   JEV_MODEL: z.string().optional(),
   JEV_THRESHOLD: z.string().optional(),
   JEV_LANGUAGE: z.enum(['zh', 'en']).default('zh'),
+  JEV_PROMPT_VERSION: z.string().optional(),
+  MINIMAX_API_KEY: z.string().min(1, '缺少 MINIMAX_API_KEY'),
+  MINIMAX_BASE_URL: z.url().optional(),
+  MINIMAX_MODEL: z.string().min(1).optional(),
 
   // 支付：未配置时订单创建返回通道不可用（收费入口保持关闭）
   WECHAT_PAY_MCHID: z.string().optional(),

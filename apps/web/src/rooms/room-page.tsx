@@ -16,6 +16,7 @@ import type { InputMode } from './room-local.js';
 import { HintCapsule } from '../game/hint-capsule.js';
 import { GameHeader } from '../game/game-header.js';
 import { ChatInput } from '../game/chat-input.js';
+import { LargeModelToggle } from '../game/large-model-toggle.js';
 import { inviteUrl, confidenceLabel } from '../game/game-display.js';
 import { VoteButtons } from '../catalog/vote-buttons.js';
 import type { Session } from '../session.js';
@@ -40,6 +41,7 @@ export function RoomPage({ session }: { session: Session | null }) {
 
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [useLargeModel, setUseLargeModel] = useState(false);
   const tab = outbox.local?.tab ?? 'qa';
   const inputMode = outbox.local?.mode ?? 'ask';
   const text = outbox.local?.drafts[inputMode] ?? '';
@@ -110,7 +112,7 @@ export function RoomPage({ session }: { session: Session | null }) {
 
   const send = async () => {
     if (!state?.round || !text.trim() || busy || pendingCurrent || status !== 'ready') return;
-    await run(inputMode, { text: text.trim() }, state.round.roundId);
+    await run(inputMode, { text: text.trim(), ...(inputMode === 'solve' ? { useLargeModel } : {}) }, state.round.roundId);
   };
 
   // 每次读取最新令牌，重置邀请后立即使用新链接。
@@ -256,6 +258,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                   {copy.discuss}
                 </button>
               </div>
+              {inputMode === 'solve' && <LargeModelToggle checked={useLargeModel} disabled={busy || pendingCurrent || status !== 'ready'} onChange={setUseLargeModel} />}
               <div className="composer-row">
                 <ChatInput
                   maxLength={inputMode === 'ask' ? 500 : inputMode === 'discussion' ? 1000 : 1500}

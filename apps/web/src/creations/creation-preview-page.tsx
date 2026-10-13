@@ -11,6 +11,7 @@ import { HintCapsule } from '../game/hint-capsule.js';
 import { TurnCard, type PreviewTurn } from '../game/turn-card.js';
 import { GameHeader } from '../game/game-header.js';
 import { ChatInput } from '../game/chat-input.js';
+import { LargeModelToggle } from '../game/large-model-toggle.js';
 import { creationCopy } from './copy.js';
 
 export function CreationPreviewPage({ session: account }: { session: Session | null }) {
@@ -19,6 +20,7 @@ export function CreationPreviewPage({ session: account }: { session: Session | n
   const [preview, setPreview] = useState<CreationPreview | null>(null); const [local, setLocal] = useState<SoloSessionRow | null>(null);
   const [turns, setTurns] = useState<PreviewTurn[]>([]); const [input, setInput] = useState(''); const [mode, setMode] = useState<'ask' | 'solve'>('ask');
   const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null); const [revision, setRevision] = useState(0);
+  const [useLargeModel, setUseLargeModel] = useState(false);
   const forceNew = useRef(false); const chatRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!account || !puzzleId) return;
@@ -48,7 +50,7 @@ export function CreationPreviewPage({ session: account }: { session: Session | n
     const id = await soloStore.addTurn({ localSessionId: local.localSessionId, kind: mode, text: question });
     setTurns(await soloStore.listTurns(local.localSessionId) as PreviewTurn[]);
     try {
-      const result = await api<{ result: string; confidence: number; answer?: string }>(mode === 'ask' ? '/solo/judge' : '/solo/solve', { method: 'POST', body: mode === 'ask' ? { token: preview.token, question } : { token: preview.token, solution: question }, credentials: 'omit' });
+      const result = await api<{ result: string; confidence: number; answer?: string }>(mode === 'ask' ? '/solo/judge' : '/solo/solve', { method: 'POST', body: mode === 'ask' ? { token: preview.token, question } : { token: preview.token, solution: question, useLargeModel }, credentials: 'omit' });
       await soloStore.finishTurn(id, { status: 'succeeded', result: result.result, confidence: result.confidence });
       if (result.answer) { await soloStore.updateSession(local.localSessionId, { revealedAnswer: result.answer }); setLocal({ ...local, revealedAnswer: result.answer }); }
       await soloStore.saveDraft(local.localSessionId, mode, ''); setInput('');
@@ -145,6 +147,7 @@ export function CreationPreviewPage({ session: account }: { session: Session | n
 
         {!solved && !local.revealedAnswer && (
           <footer className="composer solo-composer">
+            {mode === 'solve' && <LargeModelToggle checked={useLargeModel} disabled={busy} onChange={setUseLargeModel} />}
             <div className="composer-row">
               <ChatInput
                 aria-label={mode === 'ask' ? text.ask : text.solve}

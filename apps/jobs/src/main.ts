@@ -36,8 +36,9 @@ import {
   auditLogs,
 } from '@jev/database';
 import { creationReviewOutcome } from '@jev/domain';
-import { JevClient, jevConfigFromEnv, isInfraFailure, type JevAttemptRecord } from '@jev/jev';
+import { JevClient, JudgmentClient, jevConfigFromEnv, isInfraFailure, type JevAttemptRecord, type JevConfig } from '@jev/jev';
 import { loadEnv } from './env.js';
+import { z } from 'zod';
 import type { DispatchPayload, TurnPayload, ReviewPayload } from './types.js';
 
 const TURN_ATTEMPT_TIMEOUT_MS = 20_000;
@@ -52,6 +53,10 @@ interface Env {
   JEV_MODEL?: string;
   JEV_THRESHOLD?: string;
   JEV_LANGUAGE?: 'zh' | 'en';
+  JEV_PROMPT_VERSION?: string;
+  MINIMAX_API_KEY: string;
+  MINIMAX_BASE_URL?: string;
+  MINIMAX_MODEL?: string;
   WECHAT_PAY_MCHID?: string;
 }
 
@@ -61,7 +66,7 @@ class JobsApp {
   private pool!: Pool;
   private db!: NodePgDatabase<typeof schema>;
   private boss!: PgBoss;
-  private jev!: JevClient;
+  private jevConfig!: JevConfig;
   private env!: Env;
   /** 基础设施熔断：连续失败计数与暂停截止时间（进程内） */
   private infraFailures = 0;
@@ -79,7 +84,7 @@ class JobsApp {
     const jevConfig = jevConfigFromEnv(this.env as unknown as NodeJS.ProcessEnv);
     this.jevModel = jevConfig.model;
     this.jevPromptVersion = jevConfig.promptVersion;
-    this.jev = new JevClient(jevConfig, (record) => void this.recordAttempt(record, jevConfig.model, jevConfig.promptVersion));
+    this.jevConfig = jevConfig;
 
     await this.boss.createQueue('dispatch-room');
     await this.boss.createQueue('process-turn');
@@ -217,8 +222,9 @@ class JobsApp {
       if (this.pausedUntil > Date.now()) throw new Error('Jev 熔断暂停中');
 
       let verdict;
+      const judge = new JudgmentClient({ ...this.jevConfig, language: z.enum(['zh', 'en']).parse(version.language) }, (record) => void this.recordAttempt(record, record.model, record.promptVersion));
       if (turn.kind === 'ask') {
-        verdict = await this.jev.ask({
+        verdict = await judge.ask({
           title: version.title,
           surface: version.surface,
           answer: version.answer,
@@ -228,14 +234,14 @@ class JobsApp {
         });
         await this.completeTurn(payload, verdict.result, String(verdict.confidence));
       } else {
-        verdict = await this.jev.solve({
+        verdict = await judge.solve({
           title: version.title,
           surface: version.surface,
           answer: version.answer,
           coreFacts: version.coreFacts,
           category: version.category,
           solution: turn.text,
-        });
+        }, turn.useLargeModel);
         await this.completeTurn(payload, verdict.result, String(verdict.confidence), verdict.result === 'solved');
       }
       this.infraFailures = 0;

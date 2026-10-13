@@ -97,6 +97,7 @@ export const soloJudgeResponseSchema = z.object({
 export const soloSolveRequestSchema = z.object({
   token: z.string(),
   solution: z.string().min(1).max(1500),
+  useLargeModel: z.boolean().default(false),
 });
 
 export const soloSolveResponseSchema = z.object({
@@ -279,7 +280,7 @@ export type CommandType = (typeof commandTypes)[number];
 /** 命令 payload 按类型分派，由请求契约统一校验。 */
 export const commandPayloadSchemas = {
   ask: z.object({ text: z.string().min(1).max(500) }),
-  solve: z.object({ text: z.string().min(1).max(1500) }),
+  solve: z.object({ text: z.string().min(1).max(1500), useLargeModel: z.boolean().optional() }),
   cancel_turn: z.object({ turnId: z.string().uuid() }),
   discussion: z.object({ text: z.string().min(1).max(1000) }),
   reveal_hint: z.object({}),

@@ -13,9 +13,10 @@ export function jevConfigFromEnv(env: NodeJS.ProcessEnv = process.env): JevConfi
     baseUrl: env.JEV_BASE_URL ?? 'https://ai-proxy.xiaobaozi.cn/opencode.ai/zen/v1/systemone',
     model: env.JEV_MODEL ?? 'jev-1.13',
     threshold,
-    promptVersion: env.JEV_PROMPT_VERSION ?? 'v2-2026-10',
+    promptVersion: env.JEV_PROMPT_VERSION ?? 'v3-2026-10',
     attemptTimeoutMs: 20_000,
     totalDeadlineMs: 45_000,
     language,
+    minimax: { apiKey: env.MINIMAX_API_KEY ?? '', baseUrl: env.MINIMAX_BASE_URL ?? 'https://api.minimax.cn/anthropic', model: env.MINIMAX_MODEL ?? 'MiniMax-M2.7' },
   };
 }

@@ -16,6 +16,14 @@ export type ReviewVerdict = 'review_pass' | 'review_reject' | 'review_uncertain'
 export type JevPurpose = 'ask' | 'solve' | 'review';
 
 export type Language = 'zh' | 'en';
+export const MINIMAX_PROMPT_VERSION = 'v1-2026-10';
+
+/** MiniMax 服务端连接配置，密钥只在 API/jobs 进程内使用。 */
+export interface MiniMaxConfig {
+  readonly apiKey: string;
+  readonly baseUrl: string;
+  readonly model: string;
+}
 
 /** 判题配置：每局开局固定一个版本，配置变更不改变进行中的局。 */
 export interface JevConfig {
@@ -33,11 +41,12 @@ export interface JevConfig {
   readonly totalDeadlineMs: number;
   /** 语言 */
   readonly language: Language;
+  readonly minimax?: MiniMaxConfig;
 }
 
 /** 判题配置版本号：进入 rounds.jevConfigVersion，用于一致性核对。 */
 export function jevConfigVersion(config: JevConfig): string {
-  return `${config.model}@${config.promptVersion}@t${config.threshold}@${config.language}`;
+  return `${config.model}@${config.promptVersion}@t${config.threshold}@${config.language}${config.minimax ? `@minimax:${config.minimax.model}@${MINIMAX_PROMPT_VERSION}` : ''}`;
 }
 
 /** 单次真实尝试的记录：多人写入 jev_calls，单人仅匿名汇总。 */

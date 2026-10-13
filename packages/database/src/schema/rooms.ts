@@ -322,6 +322,8 @@ export const turns = pgTable(
       .notNull()
       .references(() => user.id),
     kind: turnKindEnum('kind').notNull(),
+    /** 还原提交时确定模型，排队和重试沿用同一选择。 */
+    useLargeModel: boolean('use_large_model').notNull().default(false),
     text: text('text').notNull(),
     /** 受理顺序：房间事件 seq，同局排队按它递增，不按客户端时间 */
     acceptedSeq: bigint('accepted_seq', { mode: 'number' }).notNull(),

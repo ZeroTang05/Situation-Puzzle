@@ -510,6 +510,9 @@ a { text-decoration: none; }
   max-width: 88%;
 }
 
+.large-model-toggle { display:flex; align-items:center; gap:8px; min-height:44px; font-size:14px; color:var(--muted); }
+.large-model-toggle input { width:18px; height:18px; margin:0; accent-color:var(--accent); }
+
 .turn-ask {
   align-self: flex-end;
   align-items: flex-end;

@@ -36,6 +36,13 @@
       "when": 1795000000000,
       "tag": "0004_purge_cascade",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1796000000000,
+      "tag": "0005_large_model_judgment",
+      "breakpoints": true
     }
   ]
 }

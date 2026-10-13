@@ -18,6 +18,7 @@ import { canRateSoloPuzzle } from './rating-visibility.js';
 import { selectUnplayedPuzzle } from './unplayed-puzzle.js';
 import { GameHeader } from '../game/game-header.js';
 import { ChatInput } from '../game/chat-input.js';
+import { LargeModelToggle } from '../game/large-model-toggle.js';
 import { TurnCard } from '../game/turn-card.js';
 
 type InputMode = 'ask' | 'solve';
@@ -44,6 +45,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
   const [changingPuzzle, setChangingPuzzle] = useState(false);
   const [revealing, setRevealing] = useState(false);
   const [inputMode, setInputMode] = useState<InputMode>('ask');
+  const [useLargeModel, setUseLargeModel] = useState(false);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -153,7 +155,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
       const result =
         inputMode === 'ask'
           ? await api<{ result: string; confidence: number }>('/solo/judge', { method: 'POST', body: { token: session.token, question: submittedText }, credentials: 'omit' })
-          : await api<{ result: string; confidence: number; answer?: string }>('/solo/solve', { method: 'POST', body: { token: session.token, solution: submittedText }, credentials: 'omit' });
+          : await api<{ result: string; confidence: number; answer?: string }>('/solo/solve', { method: 'POST', body: { token: session.token, solution: submittedText, useLargeModel }, credentials: 'omit' });
 
       // 3. 回写结果
       await soloStore.finishTurn(localTurnId, { status: 'succeeded', result: result.result, confidence: result.confidence });
@@ -350,6 +352,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
 
         {!solved && !session.revealedAnswer && (
           <footer className="composer solo-composer">
+            {inputMode === 'solve' && <LargeModelToggle checked={useLargeModel} disabled={changingPuzzle || sending} onChange={setUseLargeModel} />}
             <div className="composer-row">
               <ChatInput
                 aria-label={inputMode === 'ask' ? copy.ask : copy.solve}

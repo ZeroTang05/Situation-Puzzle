@@ -1,5 +1,5 @@
 /**
- * 判题提示词：从旧 lib/jev.ts 提取，保留三项用途与中英文规则原文。
+ * Jev 的中英文判题提示词：提问、还原和审核；还原允许省略不影响真相的细节。
  * 调整提示词必须换 promptVersion 并先过评测（docs/rebuild/04-ROOM-JEV.md §8）。
  *
  * state 的键名与旧系统逐字段一致（保留判题语义），ask/solve 新增可选的核心事实。
@@ -82,21 +82,21 @@ export function solveQuestion(language: Language): ChoiceQuestion {
     return {
       type: 'choice',
       instructions:
-        "Compare the player's reconstruction with the answer. Focus on the core event, key reasons and causal chain. Exact wording is not required.",
+        "Compare the player's reconstruction with the answer. Focus on the core event, key reasons and causal chain that explain the mystery. Accept equivalent wording, different narrative order and omission of details that do not affect the core truth. Names, exact times and locations are required only when essential to the explanation. A complete core causal chain counts as solved even if incidental details are omitted.",
       criteria: {
-        Solved: 'The player covers the core event, key reasons and causal connections.',
-        Close: 'The player has the main idea but misses a key reason or causal step.',
-        'Not yet': 'The explanation conflicts with the central facts of the answer.',
+        Solved: 'The player covers the core event, key reasons and causal connections; incidental detail omissions and differences are allowed.',
+        Close: 'The player has the main idea but misses a fact, reason or causal step essential to explaining the mystery.',
+        'Not yet': 'The explanation conflicts with central facts. Incidental detail differences alone do not qualify.',
       },
     };
   }
   return {
     type: 'choice',
-    instructions: '判断玩家是否还原了汤底的核心事件、关键原因和因果链。仅根据汤底判断，不要求逐字一致。',
+    instructions: '根据汤底判断玩家是否还原了解释谜团所需的核心事件、关键原因和因果链。允许同义表达、不同叙述顺序，以及省略不影响核心真相的细节。姓名、时间、地点等仅在影响核心解释时才需覆盖。核心因果链完整时，即使省略装饰细节也应判成功。',
     criteria: {
-      破解成功: '玩家覆盖了汤底的核心事件、关键原因与因果关系。',
-      接近真相: '玩家抓住了主要方向，但遗漏一个关键原因或因果环节。',
-      还没猜对: '玩家的解释与汤底核心事实不一致。',
+      破解成功: '玩家覆盖了汤底的核心事件、关键原因与因果关系；允许省略不影响真相的细节或存在装饰细节差异。',
+      接近真相: '玩家抓住主要方向，但遗漏了解释谜团必需的关键事实、原因或因果环节。',
+      还没猜对: '玩家的解释与汤底核心事实冲突。仅有装饰细节差异不足以判为还没猜对。',
     },
   };
 }

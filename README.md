@@ -11,7 +11,7 @@ AI 主持的海龟汤（情境猜谜）游戏。玩家围绕一道悬疑故事�
 
 ## 快速开始（本地开发）
 
-前置：Node.js 22+、pnpm 10、Docker（本地数据库）、一个 Resend 账号（登录验证码邮件）。
+前置：Node.js 22+、pnpm 10、Docker（本地数据库）、一个 Resend 账号（登录验证码邮件），以及 Jev 和 MiniMax 的 API 密钥。
 
 ```bash
 pnpm install
@@ -43,6 +43,14 @@ docker compose up -d --build
 （正式环境须走内容权利审核）。
 
 升级版本：`git pull && docker compose up -d --build`。
+
+### MiniMax 补判
+
+在部署用的根 `.env` 中填写 `MINIMAX_API_KEY`，本地使用 `.env.local`。默认模型为 `MiniMax-M2.7`，接口为 `https://api.minimax.cn/anthropic`；可用 `MINIMAX_MODEL`、`MINIMAX_BASE_URL` 修改。API 和 jobs 共用这些服务端配置，前端不接触密钥。
+
+单人、多人和创作试题的提问与还原均在 Jev 置信度不足时自动补判。还原时可开启“判题不准？试试大模型判题”，直接使用 MiniMax。两种判题均允许省略不影响核心真相的细节，只有破解成功或主动揭晓时才展示汤底。
+
+多人提交的模型选择保存在任务中，排队与重试沿用同一选择。升级需要执行新增的 `0005_large_model_judgment` 迁移；API 容器启动时会自动执行，本地使用 `pnpm db:migrate`。提问与还原的 MiniMax 提示词分别位于 `packages/jev/src/prompts/minimax-question.ts`、`minimax-solution.ts`。
 
 ### 题库导入与维护
 

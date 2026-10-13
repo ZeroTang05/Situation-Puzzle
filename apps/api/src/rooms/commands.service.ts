@@ -237,6 +237,7 @@ export class CommandsService {
             kind: input.type === 'ask' ? 'ask' : 'solve',
             text,
             acceptedSeq: event.seq,
+            useLargeModel: input.type === 'solve' && payload.useLargeModel === true,
             status: 'queued',
             deadlineAt: new Date(Date.now() + 45_000),
             jevConfigVersion: round.jevConfigVersion,
