@@ -1,8 +1,10 @@
 import library from '../../data/library.json';
 import englishLibrary from '../../data/library.en.json';
-import { judgeQuestionWithJev, reviewSoupWithJev, solveWithJev, type Language } from '../../lib/jev';
+import { reviewSoupWithJev, type Language } from '../../lib/jev';
+import { judgeQuestion, solve } from '../../lib/judgment';
+import type { MiniMaxConfig } from '../../lib/minimax';
 
-interface Env {
+interface Env extends MiniMaxConfig {
   DB: D1Database;
   OPENCODE_API_KEY: string;
   ADMIN_TOKEN: string;
@@ -67,8 +69,8 @@ export default {
       if (request.method === 'GET' && parts.length === 3 && parts[0] === 'api' && parts[1] === 'soups') return publicSoup(parts[2], request, env, origin);
       if (request.method === 'POST' && url.pathname === '/api/soups') return createSoup(request, env, origin);
       if (request.method === 'GET' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'soups' && parts[3] === 'answer') return revealAnswer(parts[2], request, env, origin);
-      if (request.method === 'POST' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'soups' && parts[3] === 'judge') return judgeSoup(parts[2], request, env, origin);
-      if (request.method === 'POST' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'soups' && parts[3] === 'solve') return solveSoup(parts[2], request, env, origin);
+      if (request.method === 'POST' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'soups' && parts[3] === 'judge') return await judgeSoup(parts[2], request, env, origin);
+      if (request.method === 'POST' && parts.length === 4 && parts[0] === 'api' && parts[1] === 'soups' && parts[3] === 'solve') return await solveSoup(parts[2], request, env, origin);
       if (parts[0] === 'api' && parts[1] === 'admin') return admin(request, parts, env, origin);
       return json({ error: '路由不存在' }, 404, origin);
     } catch (error) {
@@ -138,19 +140,20 @@ async function judgeSoup(soupId: string, request: Request, env: Env, origin: str
   const soup = row ? localizedSoup(parseHints([row])[0], language) : null;
   if (!soup) return json({ error: '题目不存在或尚未公开' }, 404, origin);
   if (soup.status !== 'published' && request.headers.get('X-Creator-Token') !== soup.creator_token) return json({ error: '题目尚未公开' }, 403, origin);
-  const result = await judgeQuestionWithJev(env.OPENCODE_API_KEY, soup.story, soup.answer, input.question.trim().slice(0, 500), Number(env.JEV_CONFIDENCE_THRESHOLD), language);
+  const result = await judgeQuestion(env, soup.story, soup.answer, input.question.trim().slice(0, 500), Number(env.JEV_CONFIDENCE_THRESHOLD), language);
   return json(result, 200, origin);
 }
 
 /** 结局判断：玩家写出完整推理，Jev 对照汤底判断核心因果是否已被还原。 */
 async function solveSoup(soupId: string, request: Request, env: Env, origin: string) {
-  const input = await request.json() as { solution?: string };
+  const input = await request.json() as { solution?: string; useLargeModel?: boolean };
+  if (input.useLargeModel !== undefined && typeof input.useLargeModel !== 'boolean') return json({ error: 'useLargeModel 必须是布尔值' }, 400, origin);
   if (!input.solution?.trim()) return json({ error: '请先写出你的推理' }, 400, origin);
   const row = await env.DB.prepare('SELECT * FROM soups WHERE id = ? AND status = ?').bind(soupId, 'published').first<SoupRow>();
   const language = row?.creator_token === 'seed' ? requestLanguage(request) : row?.language ?? 'zh';
   const soup = row ? localizedSoup(parseHints([row])[0], language) : null;
   if (!soup) return json({ error: '题目不存在或尚未公开' }, 404, origin);
-  const result = await solveWithJev(env.OPENCODE_API_KEY, soup.story, soup.answer, input.solution.trim().slice(0, 1500), Number(env.JEV_CONFIDENCE_THRESHOLD), language);
+  const result = await solve(env, soup.story, soup.answer, input.solution.trim().slice(0, 1500), input.useLargeModel ?? false, Number(env.JEV_CONFIDENCE_THRESHOLD), language);
   // 破解成功后才在这次回复中下发汤底，供还原真相对话直接展示。
   return json({ ...result, ...(result.outcome === '破解成功' || result.outcome === 'Solved' ? { answer: soup.answer } : {}) }, 200, origin);
 }

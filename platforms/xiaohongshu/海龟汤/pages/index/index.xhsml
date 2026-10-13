@@ -32,6 +32,7 @@
     <view xhs:if="{{solveOpen}}" class="panel-head">
       <text>{{t.solve}}</text><button bindtap="closeSolve">{{t.exitSolve}}</button>
     </view>
+    <view xhs:if="{{solveOpen}}" class="model-choice"><text>{{t.largeModel}}</text><switch checked="{{useLargeModel}}" disabled="{{busy}}" bindchange="toggleLargeModel" /></view>
     <scroll-view scroll-y="{{true}}" scroll-into-view="{{solveOpen ? 'solve-end' : 'chat-end'}}" class="chat">
       <view xhs:if="{{!solveOpen && messages.length === 0}}" class="host"><text class="avatar">🐢</text><text>{{t.hostIntro}}</text></view>
       <view xhs:if="{{solveOpen && solveMessages.length === 0}}" class="host">{{t.solvePlaceholder}}</view>

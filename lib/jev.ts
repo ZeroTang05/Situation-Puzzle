@@ -107,22 +107,22 @@ export async function solveWithJev(apiKey: string, story: string, answer: string
   if (language === 'en') {
     const result = await choose(apiKey, { story, answer, playerSolution: solution }, 'outcome', {
       type: 'choice',
-      instructions: "Compare the player's reconstruction with the answer. Focus on the core event, key reasons and causal chain. Exact wording is not required.",
+      instructions: "Compare the player's reconstruction with the answer. Focus on the core event, key reasons and causal chain that explain the mystery. Accept equivalent wording, a different narrative order and omission of details that do not affect the core truth. Names, exact times, locations and other details are required only when essential to the explanation. A reconstruction that explains the mystery's core causal chain counts as solved even if it omits incidental details.",
       criteria: {
-        Solved: 'The player covers the core event, key reasons and causal connections.',
-        Close: 'The player has the main idea but misses a key reason or causal step.',
-        'Not yet': 'The explanation conflicts with the central facts of the answer.',
+        Solved: 'The player covers the core event, key reasons and causal connections; omissions or differences in incidental details are allowed.',
+        Close: 'The player has the main idea but misses a key fact, reason or causal step needed to explain the mystery.',
+        'Not yet': 'The explanation conflicts with the central facts of the answer. Incidental detail differences alone do not qualify.',
       },
     });
     return { outcome: result.confidence >= threshold ? result.choice : 'Uncertain', confidence: result.confidence, threshold };
   }
   const result = await choose(apiKey, { 汤面: story, 汤底: answer, 玩家还原: solution }, 'outcome', {
     type: 'choice',
-    instructions: '判断玩家是否还原了汤底的核心事件、关键原因和因果链。仅根据汤底判断，不要求逐字一致。',
+    instructions: '根据汤底判断玩家是否还原了解释谜团所需的核心事件、关键原因和因果链。允许同义表达、不同叙述顺序，以及省略不影响核心真相的细节。姓名、具体时间、地点等细节仅在影响核心解释时才需覆盖。玩家已解释核心因果链时，即使省略了装饰细节，也应判为破解成功。',
     criteria: {
-      破解成功: '玩家覆盖了汤底的核心事件、关键原因与因果关系。',
-      接近真相: '玩家抓住了主要方向，但遗漏一个关键原因或因果环节。',
-      还没猜对: '玩家的解释与汤底核心事实不一致。',
+      破解成功: '玩家覆盖了汤底的核心事件、关键原因与因果关系；允许省略不影响真相的细节或存在装饰细节差异。',
+      接近真相: '玩家抓住了主要方向，但遗漏了解释谜团必需的关键事实、原因或因果环节。',
+      还没猜对: '玩家的解释与汤底核心事实冲突。仅有装饰细节差异不足以判为还没猜对。',
     },
   });
   return { outcome: result.confidence >= threshold ? result.choice : '无法确定', confidence: result.confidence, threshold };

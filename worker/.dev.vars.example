@@ -1,2 +1,5 @@
 OPENCODE_API_KEY=""
+MINIMAX_API_KEY=""
+MINIMAX_BASE_URL="https://api.minimax.cn/anthropic"
+MINIMAX_MODEL="MiniMax-M3.1-Flash"
 ADMIN_TOKEN="请换成一段足够长的随机字符串"

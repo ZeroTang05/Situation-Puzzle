@@ -37,7 +37,7 @@ const seedSoups = (language) => library[language].map(({ answer, ...soup }) => s
 Page({
   data: {
     language: 'zh', t: copy.zh, libraryOpen: false, soups: [], currentId: '', soup: null,
-    messages: [], solveMessages: [], solveOpen: false, question: '',
+    messages: [], solveMessages: [], solveOpen: false, useLargeModel: false, question: '',
     hintCount: 0, hintIndex: 0, answer: '', notice: '', loading: true, busy: false,
     records: {},
   },
@@ -132,6 +132,8 @@ Page({
   questionInput(event) { this.setData({ question: event.detail.value }); },
   openSolve() { this.setData({ solveOpen: true, question: '' }); },
   closeSolve() { this.setData({ solveOpen: false, question: '' }); },
+  // 切换仅影响接下来提交的还原；请求进行中禁用开关。
+  toggleLargeModel(event) { if (!this.data.busy) this.setData({ useLargeModel: event.detail.value }); },
 
   async send() {
     const { soup, question, language, solveOpen, busy } = this.data;
@@ -142,7 +144,7 @@ Page({
     this.setData({ [key]: items, question: '', busy: true });
     try {
       const endpoint = solveOpen ? 'solve' : 'judge';
-      const payload = solveOpen ? { solution: value } : { question: value };
+      const payload = solveOpen ? { solution: value, useLargeModel: this.data.useLargeModel } : { question: value };
       const result = await request(`/api/soups/${encodeURIComponent(soup.id)}/${endpoint}?lang=${language}`, 'POST', payload);
       const verdict = solveOpen ? result.outcome : result.verdict;
       const solved = verdict === '破解成功' || verdict === 'Solved';

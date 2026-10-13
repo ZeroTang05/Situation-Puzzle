@@ -2,8 +2,8 @@
 export const copy = {
   zh: {
     brand: '海龟汤', next: '换一题', share: '分享给朋友', tagline: '一问一答，接近真相',
-    solve: '还原真相', exitSolve: '退出还原', solveIntro: '写下你认为完整的故事，Jev 会对照汤底校验。可以多次提交，每次都会给出判断。',
-    confidence: '置信度', solved: '破解成功', close: '接近真相', notYet: '还没猜对', uncertain: '无法确定',
+    solve: '还原真相', exitSolve: '退出还原', solveIntro: '写下你认为完整的故事。可以多次提交，每次都会给出判断。',
+    largeModel: '大模型判题', confidence: '置信度', solved: '破解成功', close: '接近真相', notYet: '还没猜对', uncertain: '无法确定',
     solvedDetail: '恭喜，你已经抓住这碗汤的核心真相。', closeDetail: '方向对了，再补齐关键原因。', notYetDetail: '漏了关键事实，换个思路再提交一次。', uncertainDetail: 'Jev 对这次判断没有足够把握，请换一种说法。',
     answer: '汤底', checking: 'Jev 正在校验…', hostIntro: '我是 Jev，这碗汤的主持人。大胆提问，我只回答「是、否、无关」。', judging: 'Jev 正在判断…',
     hint: '提示', reveal: '公布答案', askPlaceholder: '问问 Jev…', solvePlaceholder: '写下你还原的真相…', send: '发送',
@@ -13,8 +13,8 @@ export const copy = {
     questionFailed: '判断失败，稍后再试。', unsureReply: '这题我拿不准，换个问法试试。', shareUnavailable: '这道题只保存在当前页面，连接后端保存后才能分享。', shared: '分享链接已复制，发给朋友即可游玩。', shareManual: '自动复制失败，请长按复制这个链接：', answerFailed: '汤底获取失败，稍后再试。', createLocalNotice: '本地题目已创建，连接后端后才能公开。', reviewFailed: '审核暂时失败，题目没有公开，请稍后再试。', feedFailed: '公开题库加载失败，请刷新页面重试。', sharedMissing: '分享的题目不存在或已下架。', localMissing: '这道题尚未保存到题库，无法通过链接打开。', },
   en: {
     brand: 'Situation Puzzles', next: 'New puzzle', share: 'Share', tagline: 'One question at a time, uncover the truth',
-    solve: 'Solve the mystery', exitSolve: 'Back to questions', solveIntro: 'Write out your full theory. Jev will compare it with the answer. You can try more than once.',
-    confidence: 'Confidence', solved: 'Solved', close: 'Close', notYet: 'Not yet', uncertain: 'Uncertain',
+    solve: 'Solve the mystery', exitSolve: 'Back to questions', solveIntro: 'Write out your full theory. You can try more than once.',
+    largeModel: 'Use large model', confidence: 'Confidence', solved: 'Solved', close: 'Close', notYet: 'Not yet', uncertain: 'Uncertain',
     solvedDetail: 'You have uncovered the heart of the story.', closeDetail: 'You are on the right track. Find the missing link.', notYetDetail: 'A key fact is missing. Try another angle.', uncertainDetail: 'Jev is not confident enough. Try saying it another way.',
     answer: 'Answer', checking: 'Jev is checking…', hostIntro: 'I am Jev, your host. Ask anything—I will answer Yes, No or Irrelevant.', judging: 'Jev is thinking…',
     hint: 'Hint', reveal: 'Reveal answer', askPlaceholder: 'Ask Jev…', solvePlaceholder: 'Write your theory…', send: 'Send',
