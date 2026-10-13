@@ -1,13 +1,13 @@
 [
   {
-    "id": "seed-three-heroine-names",
-    "title": "Family Reunion",
-    "story": "Three years after my daughter vanished, I saw her in a wedding video from a mountain village. She wore a red bridal gown and kept shaking her head at the camera. I brought the police to that house. The girl who opened the door was her. The moment she saw me, her first words were: “I don’t know this man.” Why?",
-    "answer": "The daughter had been abducted and sold into the mountains, where she bore a child. The family hired a photographer from the city to stage a belated wedding, hoping the video would dress a purchased marriage up as a happy occasion. The daughter shook her head at the camera in the hope that, once the video circulated, someone would notice her plight. By the time I arrived with the police, the buyer had already carried the baby into the backyard and was holding scissors to the child’s throat, forcing the daughter to swear she had stayed of her own free will. The daughter denied me at the doorway while her eyes kept drifting toward the backyard. I thought the daughter had forgotten me; in truth the daughter was trading her own captivity for her child’s life.",
+    "id": "seed-toll-of-one-secret",
+    "title": "The Toll",
+    "story": "The old man on the bridge would take no money — only a secret I had never told a living soul. I told one, and he smiled and let me pass. At the middle of the bridge, the corpses in the river suddenly rolled over, every one of them watching me. Only then did I remember: the secret I had just spoken had never mentioned the river. Then how had they heard it?",
+    "answer": "Beneath the bridge lie the dead of many murders that could never be pinned on a killer. The old man has the power to carry a sincerely spoken secret to every dead soul the secret concerns, all at once. I had killed my victims and sunk the bodies, one by one, in this river; to the old man I admitted only 'the missing people — I killed them all,' believing that leaving out the place would keep the dumping ground safe. I did not know what the toll was for. The dead bound to the confession heard the killer's own mouth confirm the confession, recognized the killer at last, and rose one after another to the surface. The old man had let me walk to the middle of the bridge on purpose, delivering me to the dead who had waited so long for a name.",
     "hints": [
-      "In those three years she had gained a family member she could never have carried away alone.",
-      "The head-shaking in the video and the denial at the door answered two different threats.",
-      "The buyer was holding her child; the denial was forced on her, to make the rescuers leave."
+      "The dead below the bridge never knew who their killer was.",
+      "A spoken secret is heard by every ghost it touches.",
+      "He confessed to the killings; even without the place, the victims could know him by the secret."
     ]
   },
   {
@@ -429,14 +429,14 @@
     ]
   },
   {
-    "id": "seed-toll-of-one-secret",
-    "title": "The Toll",
-    "story": "The old man on the bridge would take no money — only a secret I had never told a living soul. I told one, and he smiled and let me pass. At the middle of the bridge, the corpses in the river suddenly rolled over, every one of them watching me. Only then did I remember: the secret I had just spoken had never mentioned the river. Then how had they heard it?",
-    "answer": "Beneath the bridge lie the dead of many murders that could never be pinned on a killer. The old man has the power to carry a sincerely spoken secret to every dead soul the secret concerns, all at once. I had killed my victims and sunk the bodies, one by one, in this river; to the old man I admitted only 'the missing people — I killed them all,' believing that leaving out the place would keep the dumping ground safe. I did not know what the toll was for. The dead bound to the confession heard the killer's own mouth confirm the confession, recognized the killer at last, and rose one after another to the surface. The old man had let me walk to the middle of the bridge on purpose, delivering me to the dead who had waited so long for a name.",
+    "id": "seed-three-heroine-names",
+    "title": "Family Reunion",
+    "story": "Three years after my daughter vanished, I saw her in a wedding video from a mountain village. She wore a red bridal gown and kept shaking her head at the camera. I brought the police to that house. The girl who opened the door was her. The moment she saw me, her first words were: “I don’t know this man.” Why?",
+    "answer": "The daughter had been abducted and sold into the mountains, where she bore a child. The family hired a photographer from the city to stage a belated wedding, hoping the video would dress a purchased marriage up as a happy occasion. The daughter shook her head at the camera in the hope that, once the video circulated, someone would notice her plight. By the time I arrived with the police, the buyer had already carried the baby into the backyard and was holding scissors to the child’s throat, forcing the daughter to swear she had stayed of her own free will. The daughter denied me at the doorway while her eyes kept drifting toward the backyard. I thought the daughter had forgotten me; in truth the daughter was trading her own captivity for her child’s life.",
     "hints": [
-      "The dead below the bridge never knew who their killer was.",
-      "A spoken secret is heard by every ghost it touches.",
-      "He confessed to the killings; even without the place, the victims could know him by the secret."
+      "In those three years she had gained a family member she could never have carried away alone.",
+      "The head-shaking in the video and the denial at the door answered two different threats.",
+      "The buyer was holding her child; the denial was forced on her, to make the rescuers leave."
     ]
   },
   {
