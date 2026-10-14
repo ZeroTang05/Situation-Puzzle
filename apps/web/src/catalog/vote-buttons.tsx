@@ -108,15 +108,15 @@ export function VoteButtons({
 /** 内置题库署名的 canonical 名（seed 导入固定写入，见 import-library.ts），前端按语言本地化展示。 */
 const PLATFORM_LIBRARY_AUTHOR = '初始题库';
 
-/** 列表/详情里的只读署名展示：署名显示已批准名，匿名显示「匿名作者」；初始题库本地化显示。 */
+/** 列表/详情里的只读署名展示：署名显示已批准名，匿名显示「匿名作者」；初始题库不带「作者：」前缀。 */
 export function AuthorLabel({ mode, name }: { mode: 'anonymous' | 'signature'; name: string | null }) {
   const { copy } = useLanguage();
   return (
     <span className="muted">
       {mode === 'signature' && name
-        ? format(copy.byAuthor, {
-            name: name === PLATFORM_LIBRARY_AUTHOR ? copy.platformLibraryAuthor : name,
-          })
+        ? name === PLATFORM_LIBRARY_AUTHOR
+          ? copy.platformLibraryAuthor
+          : format(copy.byAuthor, { name })
         : copy.anonymousAuthor}
     </span>
   );
