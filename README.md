@@ -20,7 +20,7 @@ docker run -d --name jev-pg -e POSTGRES_USER=jev -e POSTGRES_PASSWORD=jev \
   -e POSTGRES_DB=jev -p 5432:5432 postgres:17
 
 pnpm db:migrate                   # 建表（追加式迁移，可重复执行）
-pnpm db:seed                      # 导入 data/library.json 全部题目（当前 514 题，本地直接发布）
+pnpm db:seed                      # 导入 data/library.json 全部题目（当前 350 题，本地直接发布）
                                  # 硬删：pnpm --dir packages/database run db:import-library -- --purge-stale（不可逆）
 
 pnpm dev:api & pnpm dev:jobs & pnpm dev:web   # 三个进程并行
