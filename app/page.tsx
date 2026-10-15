@@ -84,14 +84,19 @@ export default function Home() {
   useEffect(() => { chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight }); }, [messages, loading, showAnswer]);
   useEffect(() => { solveRef.current?.scrollTo({ top: solveRef.current.scrollHeight }); }, [solveThread, loading]);
 
-  /** 键盘弹出时让游戏容器贴合可见区域，聊天记录占用剩余高度。 */
+  /** 键盘弹出时让游戏容器贴合可见区域，聊天记录占用剩余高度。
+   *  触发条件是「键盘真的弹出」（可视高度大幅缩水），桌面端聚焦输入框不会切换布局，
+   *  避免 overflow/固定定位来回切换造成的布局抖动与背景亮光闪动。 */
   useEffect(() => {
     const viewport = window.visualViewport;
     if (!viewport) return;
     const root = document.documentElement;
+    // 无键盘时的可视高度基线；键盘收起时刷新（覆盖旋转屏幕后高度变化的情况）
+    let fullHeight = Math.max(viewport.height, window.innerHeight);
     const sync = () => {
       const focused = document.activeElement instanceof HTMLInputElement && Boolean(document.activeElement.closest('.play'));
-      if (focused) {
+      if (!focused) fullHeight = Math.max(viewport.height, window.innerHeight);
+      if (focused && fullHeight - viewport.height > 120) {
         root.style.setProperty('--vvh', `${viewport.height}px`);
         root.style.setProperty('--vv-top', `${viewport.offsetTop}px`);
         root.classList.add('keyboard-open');

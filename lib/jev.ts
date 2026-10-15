@@ -3,7 +3,7 @@
 const SYSTEMONE_URL = 'https://ai-proxy.xiaobaozi.cn/opencode.ai/zen/v1/systemone';
 const MODEL_ID = 'jev-1.13';
 const MAX_RETRIES = 2;
-export const JEV_CONFIDENCE_THRESHOLD = 0.4;
+export const JEV_CONFIDENCE_THRESHOLD = 0.6;
 export type Language = 'zh' | 'en';
 
 type ChoiceQuestion<T extends string> = {
