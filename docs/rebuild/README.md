@@ -57,7 +57,7 @@
 ## 1.2 文档与实现的最新对齐（2026-10-13）
 
 - **房间生命周期 v3** 定稿并落地：会客厅实体下沉数据库（迁移 `0001_lobbies`、`0002_room_followups`），邀请路径拆分为 `/lobby/invite/<hex>` 与 `/room/invite/<hex>`，start 事务提交后实时推送 `lobby.started`。规则见 [10-ROOM-LIFECYCLE-REVISION](10-ROOM-LIFECYCLE-REVISION.md)。
-- **题库重写与治理**：根题库替换为改编版 514 题（首发 84 + 扩展 97 + 天堂 93 + 小小耶 240），2026-10-13 下架 61 题（38 题代词指代诡计 + 23 题用户指定）；排序调整为天堂批次置前、第一题固定《终点线》，其余批次保持原序；seed 导入统一署名「初始题库」（signature 模式，前端按语言本地化），详见 [11-VOTES-AND-AUTHORSHIP §4](11-VOTES-AND-AUTHORSHIP.md)。`data/sources.md` 逐题编号保留下架前的整库位置（跳号即已删题）。
+- **题库重写与治理**：根题库现役 446 题（天堂 93 置顶 + 首发 7 + 扩展 10 + 小小耶 240 + 许二木 96），第一题固定《终点线》，其余批次保持批内原序；seed 导入统一署名「初始题库」（signature 模式，前端按语言本地化），详见 [11-VOTES-AND-AUTHORSHIP §4](11-VOTES-AND-AUTHORSHIP.md)。`data/sources.md` 逐题编号=现役库位置（1–446）。
 - **题库硬删模式**：导入脚本支持 `--purge-stale` 硬删消失题，`rounds` / `jev_calls` 相关外键补 `ON DELETE CASCADE`（迁移 `0004_purge_cascade`）；软删为默认。运维口径见仓库 `README.md`「题库导入与维护」。
 - **题库分页**：`GET /puzzles` 支持 `page`（页码直达）或 `cursor`（连续读取）二选一，`limit` 默认 20、最大 100；page 模式返回 `total` / `totalPages`。玩家端提供「加载更多」与直达页码两种浏览方式。详见 [03-SPEC §6](03-SPEC.md)。
 - **Jev 出站默认走 ai-proxy**：`JEV_BASE_URL` 默认 `https://ai-proxy.xiaobaozi.cn/opencode.ai/zen/v1/systemone`，可指回官方源。

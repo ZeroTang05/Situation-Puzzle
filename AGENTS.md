@@ -21,7 +21,7 @@ packages/i18n        稳定枚举/错误码 → 中英文案
 packages/ui          设计变量（深海色系、16px 正文、44px 触控）
 infra/               web/admin/api/jobs 各自 Dockerfile（apps/web+apps/admin 静态烘进 nginx，api 容器启动自动跑迁移）、web.nginx.conf / admin.nginx.conf
 scripts/             冒烟与端到端联调脚本（smoke-new-system.sh、e2e-run.sh、dev-env.sh、dev-mailsink.mjs）
-data/                题库 JSON 导入源：根 library.json / library.en.json 同 ID 配套（顺序须一致，当前 350 题 = 首发 7 + 扩展 10 + 天堂精选 93 + 小小耶精选 240；2026-10-13 下架 61 题——38 题代词指代诡计 + 23 题用户指定，2026-10-15 下架 164 题无参考来源的 seed- 批「平台原创」纯生成稿，均三处同步移除；zh 条目 category 本格/变格由导入映射为 puzzle_category 枚举 honkaku/henkaku；排序：天堂批次（real- 93 题）置前、第一题固定「终点线」，其余批次保持原序；seed 导入统一署名「初始题库」（signature 模式，前端按语言本地化））；sources.md 全库来源总览与逐题对照（编号按整库 575 题位置，跳号处即已删除的题）；scoring/ 打分口径与全部批次评分（续写）；curated/ 各 UP 主批逐篇评审与存档（天堂/小小耶两批普通题均已并入根库，特殊玩法与未采用稿留存于各自目录）；reference/ 真实游玩素材（group 原始字幕 → real 抽取稿，按 UP 主分目录）
+data/                题库 JSON 导入源：根 library.json / library.en.json 同 ID 配套（顺序须一致，当前 446 题 = 天堂精选 93 置顶 + 首发 7 + 扩展 10 + 小小耶精选 240 + 许二木精选 96，许二木批 2026-10-15 入库追加于库尾；zh 条目 category 本格/变格由导入映射为 puzzle_category 枚举 honkaku/henkaku；第一题固定「终点线」，各批次保持批内原序；seed 导入统一署名「初始题库」（signature 模式，前端按语言本地化））；sources.md 全库来源总览与逐题对照（编号=现役库位置 1–446）；scoring/ 打分口径与全部批次评分（编号 1–493 连续续写，与 sources.md 编号相互独立）；curated/ 各 UP 主批逐篇评审与存档（天堂/小小耶/许二木三批普通题均已并入根库，特殊玩法与未采用稿留存于各自目录）；reference/ 真实游玩素材（group 原始字幕 → real 抽取稿，按 UP 主分目录）
 docs/rebuild/        产品与架构设计文档（01~12：10 房间生命周期修订、11 赞踩署名、12 连接体验）
 ```
 
@@ -35,7 +35,7 @@ pnpm dev:jobs           # 任务进程
 pnpm dev:web            # 玩家端 :5173（Vite 代理 /api/v1 与 /ws）
 pnpm dev:admin          # 管理端 :5174
 pnpm db:migrate         # 追加式迁移（可重复执行）
-pnpm db:seed            # 导入 data/library.json 全部题目（当前 350 题），平台自有内容入库即发布（--purge-stale 硬删消失题，生产禁用）
+pnpm db:seed            # 导入 data/library.json 全部题目（当前 446 题），平台自有内容入库即发布（--purge-stale 硬删消失题，生产禁用）
 pnpm smoke              # 冒烟：一次性 PostgreSQL + API + jobs + 接口断言
 pnpm e2e:multiplayer    # 双用户多人 E2E：36 项断言（真实 SMTP 登录 + 真实 Jev）
 pnpm e2e:votes          # 赞踩与署名 E2E（真实 SMTP + 真实 Jev）

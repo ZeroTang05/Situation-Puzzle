@@ -231,7 +231,12 @@ docker compose up -d --build
 ### 题库清理：下架无参考来源的生成稿（2026-10-15）
 
 - seed- 批来源列为「平台原创」（无参考来源、纯 LLM 生成）的 164 题下架（首发 77 / 扩展 87），题库 514 → 350 题（首发 7 + 扩展 10 + 天堂 93 + 小小耶 240）；保留的 17 题均逐题标注参考对象（许二木作品 / Puzzling SE / Paul Sloane）。
-- 同步口径与 2026-10-13 下架相同：`library.json`、`library.en.json` 删题；`sources.md` 删逐题行并更新批统计（# 编号保持整库 575 历史位置）；`scoring/scores.md` 删评分行与榜单中仅引用已删题的条目、排名重编、通用结论保留。已入库环境需重跑 `pnpm db:seed` 触发软删（默认 `unavailable=true`）。
+- 中英两库同步删题，`sources.md` / `scoring/scores.md` 删对应逐题行；已入库环境需重跑 `pnpm db:seed` 触发软删（默认 `unavailable=true`）。
+
+### 许二木批入库与文档编号统一（2026-10-15）
+
+- 新增许二木精选批：B 站合集字幕抽取 → 评分（`scoring/scores.md` 批次五，143 题）→ 按 turtle-soup-writer 规范内化（前 3/4，总分 ≥22，剔除与库内同汤 5 题）后 96 题以 `xerm-` 前缀入库，题库 350 → 446 题；存档与逐题档位见 `data/curated/许二木/`。
+- 文档编号体系改为连续编号：`data/sources.md` 编号 = 现役库位置（1–446），`scoring/scores.md` 编号 = 打分记录连续序号（1–493，含许二木批未入选 47 题），已删除题目不再保留跳号与下架说明。
 
 ## 5. 已知边界与下一步
 
