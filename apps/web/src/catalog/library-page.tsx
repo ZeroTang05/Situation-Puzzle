@@ -44,7 +44,7 @@ export function LibraryPage({ session }: { session: Session | null }) {
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const gridRef = useRef<HTMLDivElement>(null);
   const mode = params.get('mode') === 'select' ? 'select' : 'solo';
-  const sort = params.get('sort') === 'popular' ? 'popular' : 'latest';
+  const sort = params.get('sort') === 'latest' ? 'latest' : 'popular';
   const difficultyParam = params.get('difficulty');
   const difficulty: 'easy' | 'medium' | 'hard' | null =
     difficultyParam === 'easy' || difficultyParam === 'medium' || difficultyParam === 'hard'
@@ -182,13 +182,13 @@ export function LibraryPage({ session }: { session: Session | null }) {
         </button>
         <h1 className="brand">{copy.library}</h1>
       </header>
-      {/* 排序：最新发布 / 最受欢迎（得分 = 赞 − 踩）；零票作品显示 0 */}
+      {/* 排序：最受欢迎（得分 = 赞 − 踩，默认）/ 最新发布；零票作品显示 0 */}
       <div className="mode-tabs" role="tablist" aria-label={copy.sort}>
-        <button className={`mode-tab ${sort === 'latest' ? 'active' : ''}`} role="tab" aria-selected={sort === 'latest'} onClick={() => setSort('latest')}>
-          {copy.sortLatest}
-        </button>
         <button className={`mode-tab ${sort === 'popular' ? 'active' : ''}`} role="tab" aria-selected={sort === 'popular'} onClick={() => setSort('popular')}>
           {copy.sortPopular}
+        </button>
+        <button className={`mode-tab ${sort === 'latest' ? 'active' : ''}`} role="tab" aria-selected={sort === 'latest'} onClick={() => setSort('latest')}>
+          {copy.sortLatest}
         </button>
       </div>
       {/* 难度筛选：catalog 接口支持 difficulty=easy|medium|hard，空=全部 */}
