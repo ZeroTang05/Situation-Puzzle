@@ -38,8 +38,8 @@ export class OrdersService {
       const [monthly] = await db.db.insert(sponsorProducts).values({ type: 'monthly' }).returning();
       const [lifetime] = await db.db.insert(sponsorProducts).values({ type: 'lifetime' }).returning();
       await db.db.insert(productVersions).values([
-        { productId: monthly!.id, versionNo: 1, priceMinor: 600, title: '月度赞助', available: true },
-        { productId: lifetime!.id, versionNo: 1, priceMinor: 2000, title: '永久赞助', available: true },
+        { productId: monthly!.id, versionNo: 1, priceMinor: 600, title: '月度会员', available: true },
+        { productId: lifetime!.id, versionNo: 1, priceMinor: 2000, title: '永久会员', available: true },
       ]);
     }
     return db.db

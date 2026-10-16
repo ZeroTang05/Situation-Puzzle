@@ -41,7 +41,8 @@ export const orderChannelEnum = pgEnum('order_channel', ['wechat_native', 'test'
 
 export const refundStatusEnum = pgEnum('refund_status', ['pending', 'refunded', 'failed', 'cancelled']);
 
-export const grantTypeEnum = pgEnum('grant_type', ['monthly', 'lifetime', 'test']);
+/** signup_bonus：新用户注册礼（一个月赞助），不参与月度续期衔接 */
+export const grantTypeEnum = pgEnum('grant_type', ['monthly', 'lifetime', 'test', 'signup_bonus']);
 
 export const grantStatusEnum = pgEnum('grant_status', ['active', 'frozen', 'revoked']);
 

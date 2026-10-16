@@ -3,7 +3,7 @@
  *
  * - 会话、Cookie、验证码协议全部交给 Better Auth，业务代码不手写
  * - Google 只申请 openid/email/profile；身份按 provider+accountId 唯一识别
- * - 注册钩子：新用户初始化 profile + 免费开房账户 + 赞助账户（每用户一次，唯一约束兜底）
+ * - 注册钩子：新用户初始化 profile + 免费开房账户 + 赞助账户 + 注册礼一个月赞助（每用户一次，唯一约束兜底）
  */
 import { betterAuth } from 'better-auth';
 import { APIError, createAuthMiddleware, isAPIError } from 'better-auth/api';
@@ -18,7 +18,10 @@ import {
   profiles,
   freeRoomAccounts,
   sponsorAccounts,
+  sponsorGrants,
+  sponsorLedger,
 } from '@jev/database';
+import { addMonthsClamped } from '@jev/domain';
 import type { DbHandle } from '@jev/database';
 import type { Env } from '../env.js';
 import { MailDeliveryError, type Mailer } from './mailer.js';
@@ -218,6 +221,27 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
             await db.db.insert(profiles).values({ userId: userRow.id, nickname }).onConflictDoNothing();
             await db.db.insert(freeRoomAccounts).values({ userId: userRow.id }).onConflictDoNothing();
             await db.db.insert(sponsorAccounts).values({ userId: userRow.id }).onConflictDoNothing();
+            // 注册礼：一个月赞助（signup_bonus），授权与流水同事务；不设月度锚点，续购月度时按首购重新起算
+            const now = new Date();
+            await db.tx(async (tx) => {
+              const [grant] = await tx
+                .insert(sponsorGrants)
+                .values({
+                  userId: userRow.id,
+                  type: 'signup_bonus',
+                  status: 'active',
+                  effectiveFrom: now,
+                  effectiveUntil: addMonthsClamped(now, 1),
+                })
+                .returning({ id: sponsorGrants.id });
+              await tx.insert(sponsorLedger).values({
+                userId: userRow.id,
+                action: 'grant',
+                grantId: grant!.id,
+                detail: { signupBonus: true },
+                idempotencyKey: `signup-bonus:${userRow.id}`,
+              });
+            });
           },
         },
       },

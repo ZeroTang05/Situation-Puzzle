@@ -1,10 +1,16 @@
-# AI Situation Puzzles 🐢
+<div align="center">
+  <img src="apps/web/public/icon.svg" width="112" alt="AI Turtle Soup" />
 
-English | [中文](./README.md)
+# AI Turtle Soup
 
-> "I'm Jev, the host of this soup. Ask boldly — I only answer Yes, No, or Irrelevant."
+"I'm Jev, the host of this soup. Ask boldly — I only answer Yes, No, or Irrelevant."
 
-**👉 Play now: <https://sp.xiaobaozi.cn>**
+[![Play now](https://img.shields.io/badge/Play_sp.xiaobaozi.cn-7dd8c6?style=flat-square&labelColor=0a1522)](https://sp.xiaobaozi.cn)
+[![License](https://img.shields.io/badge/License-GPL--3.0-e6c07d?style=flat-square&labelColor=0a1522)](./LICENSE)
+
+[中文](./README.md) | English
+
+</div>
 
 ---
 
@@ -26,7 +32,7 @@ Here, the host is an AI — **Jev**. It never rests, never spoils, and never han
 
 | Mode | For whom |
 |---|---|
-| 🎮 **Solo** | deducing alone, quietly: no sign-in, free, unlimited; progress stays in your own browser |
+| 🎮 **Solo** | deducing alone, quietly: no sign-in, unlimited plays; progress stays in your own browser |
 | 👥 **Multiplayer rooms** | cracking the case with friends: private rooms for up to 8, invite with a single link, questions and reasoning synced live for everyone |
 | ✍️ **Create & share** | be the author: original or reposted puzzles (reposts need the original author's link), reviewed before entering the public library, ready for likes and challenges |
 
@@ -35,7 +41,7 @@ Here, the host is an AI — **Jev**. It never rests, never spoils, and never han
 | | |
 |---|---|
 | 🤖 **An AI host that admits doubt** | every Jev verdict carries a confidence score — when unsure it says "Uncertain" out loud; one tap switches to a large model for a second opinion |
-| 📚 **446 curated puzzles** | suspense, deduction and twists, with every adapted puzzle credited to its original author |
+| 📚 **Curated library** | suspense, deduction and twists, with every adapted puzzle credited to its original author |
 | 🌍 **Bilingual** | switch 中文 / English in one tap — surfaces, answers and hints, all bilingual |
 | 👍 **Player ratings** | like or dislike every puzzle; the community decides what's good |
 | 📱 **Mobile first** | plays straight in your phone browser; puzzles and rooms share with one link |
@@ -47,10 +53,10 @@ Here, the host is an AI — **Jev**. It never rests, never spoils, and never han
 Not for solo mode. Rooms and creating puzzles need an account, and signing up takes nothing more than an email that can receive a code.
 
 **Is it paid?**
-Solo is free forever; joining a friend's room is always free. Creating rooms comes with 10 free credits per account, then sponsorship unlocks unlimited rooms (¥6/month or ¥20 lifetime) — the billing entry stays closed until our WeChat Pay merchant account is approved.
+Solo play is free forever; new users get their first month of membership for free.
 
 **Where do the puzzles come from?**
-Three sources: adapted from the public shows of Bilibili creators 饭堂时刻 and 小小耶 and Douyin creator 许二木 (429 puzzles, each credited), plus 17 platform originals. See the acknowledgments below.
+Adapted from public shows by situation-puzzle creators on Bilibili and Douyin, plus platform originals; every adapted puzzle credits its author — see the acknowledgments below.
 
 **Does it work on my phone?**
 Yes — the page is designed for phones first, and desktop browsers work just as well.
@@ -59,19 +65,13 @@ Yes — the page is designed for phones first, and desktop browsers work just as
 
 ## Acknowledgments
 
-The built-in library (446 puzzles) draws on the following sources; the per-puzzle mapping and rewrite notes live in [`data/sources.md`](./data/sources.md) (Chinese):
+The built-in library is adapted from the public shows of the creators below — thanks for the great stories (per-puzzle credits and mapping live in [`data/sources.md`](./data/sources.md), Chinese):
 
-- **[饭堂时刻](https://space.bilibili.com/216025)** (Bilibili creator 尕丶天堂, 93 puzzles): adapted from, or taken verbatim out of, their public show transcripts.
-- **[小小耶](https://space.bilibili.com/59693163)** (Bilibili creator, 240 puzzles): adapted from, or preserved from, their situation-puzzle video transcripts.
-- **[许二木](https://www.douyin.com/user/MS4wLjABAAAAKurkOY2XLWE80yoCF6NagcyeE-FneMrIYo8oc1vMMVU)** (Douyin creator, 96 puzzles): adapted from their situation-puzzle video subtitles.
-- **17 platform originals**: seven borrow writing techniques from 许二木's works 《宿舍规则怪谈》 (*Dormitory Rules Horror*), 《信》 (*The Letter*) and 《双鱼》 (*Pisces*); ten take structural references from Paul Sloane's lateral thinking puzzles and the [Puzzling Stack Exchange](https://puzzling.stackexchange.com) community.
+- **[饭堂时刻](https://space.bilibili.com/216025)** (Bilibili)
+- **[小小耶](https://space.bilibili.com/59693163)** (Bilibili)
+- **[许二木](https://www.douyin.com/user/MS4wLjABAAAAKurkOY2XLWE80yoCF6NagcyeE-FneMrIYo8oc1vMMVU)** (Douyin)
 
-Technology and community:
-
-- Judging is powered by [OpenCode Zen](https://opencode.ai/zen) (model `jev-1.13`); second opinions come from MiniMax.
-- Thanks to the [Linux.do](https://linux.do/) community for its long-term support and sharing.
-
----
+Judging is powered by [OpenCode Zen](https://opencode.ai/zen); second opinions come from MiniMax. Thanks to the [Linux.do](https://linux.do/) community for its long-term support.
 
 ## For developers
 
@@ -79,4 +79,4 @@ Architecture, deployment and contribution guides: [CONTRIBUTING.md](CONTRIBUTING
 
 ## License
 
-Open source under [GPL-3.0](LICENSE). Puzzle content is licensed separately from the code; sources are documented in [`data/sources.md`](./data/sources.md).
+Open source under [GPL-3.0](LICENSE).

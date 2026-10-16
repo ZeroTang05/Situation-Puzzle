@@ -69,6 +69,17 @@ describe('开房授权来源', () => {
     const grants = [{ type: 'monthly', status: 'frozen', effectiveFrom: new Date(0), effectiveUntil: new Date(Date.now() + 86_400_000) }];
     expect(hasActiveSponsorship(grants as never, new Date())).toBe(false);
   });
+
+  it('注册礼（signup_bonus）算有效赞助，但月度购买不受它衔接、也不要求锚点', () => {
+    const now = new Date();
+    const grants = [{ type: 'signup_bonus', status: 'active', effectiveFrom: now, effectiveUntil: addMonthsClamped(now, 1) }] as const;
+    expect(hasActiveSponsorship(grants as never, now)).toBe(true);
+    expect(resolveEntitlementSource(grants as never, { total: 10, consumed: 10, reserved: 0 }, now).source).toBe('sponsorship');
+    // 注册礼进行中首购月度：按断档首购起算（from=now，重置锚点），不抛「缺少锚点」
+    const plan = planMonthlyGrant(now, null, grants as never);
+    expect(plan.effectiveFrom.toISOString()).toBe(now.toISOString());
+    expect(plan.rebaseAnchor).toBe(true);
+  });
 });
 
 describe('免费次数余量', () => {

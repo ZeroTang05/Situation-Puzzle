@@ -29,9 +29,11 @@ export class MeController {
       context.db.db.select().from(sponsorGrants).where(eq(sponsorGrants.userId, user.userId)),
       context.db.db.select().from(freeRoomAccounts).where(eq(freeRoomAccounts.userId, user.userId)).limit(1),
     ]);
-    const monthlyActive = grants
-      .filter((g) => g.type === 'monthly' && g.status === 'active' && g.effectiveUntil && g.effectiveUntil > now)
-      .sort((a, b) => (a.effectiveUntil!.getTime() > b.effectiveUntil!.getTime() ? -1 : 1))[0];
+    // 有期限授权（月度/注册礼）中最晚的到期日：过期也返回，前端显示「已到期」
+    const termUntil = grants
+      .filter((g) => g.type !== 'lifetime' && g.status === 'active' && g.effectiveUntil)
+      .map((g) => g.effectiveUntil!)
+      .sort((a, b) => (a.getTime() > b.getTime() ? -1 : 1))[0];
     const free = freeRows[0] ?? { total: 10, consumed: 0, reserved: 0 };
 
     return {
@@ -41,7 +43,7 @@ export class MeController {
       emailVerified: user.emailVerified,
       roles: user.roles,
       sponsorship: {
-        monthlyUntil: monthlyActive?.effectiveUntil?.toISOString() ?? null,
+        monthlyUntil: termUntil?.toISOString() ?? null,
         lifetime: hasLifetimeGrant(grants) && hasActiveSponsorship(grants, now),
       },
       freeRooms: {

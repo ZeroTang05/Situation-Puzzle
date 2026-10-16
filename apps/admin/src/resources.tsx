@@ -26,7 +26,7 @@ export function UserList() {
   );
 }
 
-/** 生效赞助到期展示：lifetime=永久赞助，日期文本原样，空为无生效赞助。 */
+/** 生效会员到期展示：lifetime=永久会员，日期文本原样，空为无生效会员。 */
 function SponsorUntilField({ label }: { label: string }) {
   const record = useRecordContext() as { sponsorUntil?: string | null } | undefined;
   const { language } = useLanguage(); const c = copy(language);

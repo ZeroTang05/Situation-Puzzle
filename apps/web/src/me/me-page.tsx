@@ -1,4 +1,4 @@
-/** 「我的」：账号卡片（头像 + 额度/赞助数字）、昵称编辑、退出、多人历史列表。 */
+/** 「我的」：账号卡片（头像 + 额度/会员数字）、昵称编辑、退出、多人历史列表。 */
 import { useNavigate, Link } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -105,7 +105,7 @@ export function MePage({ session }: { session: Session | null }) {
   const lifetime = !!me.data?.sponsorship.lifetime;
   const monthlyUntil = me.data?.sponsorship.monthlyUntil ?? null;
   const monthlyExpired = monthlyUntil !== null && new Date(monthlyUntil) < new Date();
-  // 到期的月度赞助不再给不限次数，展示成「已到期」
+  // 到期的月度会员不再给不限次数，展示成「已到期」
   const hasUnlimited = lifetime || (monthlyUntil !== null && !monthlyExpired);
   const remaining = freeRooms ? freeRooms.total - freeRooms.consumed - freeRooms.reserved : null;
   // 名字与邮箱都来自 /me：没回来就整卡占骨架，回来一起出；不读会话字段，避免分两步加载
@@ -130,7 +130,7 @@ export function MePage({ session }: { session: Session | null }) {
         <h1 className="brand brand-sm">{copy.me}</h1>
       </header>
 
-      {/* 账号卡片：头像 + 昵称 + 额度/赞助两个关键数字 */}
+      {/* 账号卡片：头像 + 昵称 + 额度/会员两个关键数字 */}
       <section className="me-card">
         <div className="me-head">
           <div className="me-id">

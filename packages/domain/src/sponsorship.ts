@@ -1,5 +1,6 @@
 /**
  * 赞助有效期规则（docs/rebuild/05-OPERATIONS.md §3）。
+ * 对外文案统一叫「会员」；代码与表结构沿用 sponsor 命名。
  *
  * - 月度按一个自然月，时间以 Asia/Shanghai 计算（UTC+8，无夏令时）
  * - 记录首次生效的日和时分秒作为锚点；下月无对应日取该月最后一天
@@ -12,7 +13,8 @@ import { DomainError } from './error.js';
 const CST_OFFSET_MS = 8 * 60 * 60 * 1000;
 
 interface GrantLike {
-  type: 'monthly' | 'lifetime' | 'test';
+  /** signup_bonus（注册礼）与 test 一样只看有效期，不参与月度衔接 */
+  type: 'monthly' | 'lifetime' | 'test' | 'signup_bonus';
   status: 'active' | 'frozen' | 'revoked';
   effectiveFrom: Date;
   effectiveUntil: Date | null;

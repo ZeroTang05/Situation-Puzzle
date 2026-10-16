@@ -61,7 +61,7 @@ const errorCopy: Record<ErrorCode, Record<Language, string>> = {
   LOBBY_FULL: { zh: '等待室已经满了。', en: 'The lobby is full.' },
   ROUND_ENDED: { zh: '这一局已经结束了。', en: 'This round has ended.' },
   MEMBER_RESTRICTED: { zh: '你已被移出该房间，需要房主解除限制。', en: 'You were removed. The host must lift the restriction.' },
-  SPONSORSHIP_REQUIRED: { zh: '免费开房次数已用完，赞助后不限次数开房。', en: 'Free room credits exhausted. Sponsor for unlimited rooms.' },
+  SPONSORSHIP_REQUIRED: { zh: '免费开房次数已用完，开通会员后不限次数开房。', en: 'Free room credits exhausted. Get membership for unlimited rooms.' },
   FREE_ROOMS_EXHAUSTED: { zh: '免费开房次数已用完（每账号累计 10 个）。', en: 'All 10 free rooms have been used.' },
   ACCOUNT_NOT_INITIALIZED: { zh: '账号数据异常，请重新登录或联系客服。', en: 'Account data is incomplete. Please sign in again or contact support.' },
   TURN_PENDING: { zh: '你已有一条正在处理的提交，等它完成再发。', en: 'You already have a pending submission.' },
@@ -163,10 +163,10 @@ export const copy = {
     soloViewAnswer: '看汤底',
     playAgain: '再来一局',
     freeRooms: '免费开房',
-    sponsorship: '赞助',
-    monthly: '月度赞助',
-    lifetime: '永久赞助',
-    sponsored: '赞助有效',
+    sponsorship: '会员',
+    monthly: '月度会员',
+    lifetime: '永久会员',
+    sponsored: '会员有效',
     expired: '已到期',
     orders: '订单',
     emailLogin: '邮箱验证码登录',
@@ -194,7 +194,7 @@ export const copy = {
     revealedAnswer: '房主公布了答案',
     meFreeLeft: '剩余 {n} 次',
     unlimited: '不限次数',
-    testSponsor: '测试赞助（不会扣款）',
+    testSponsor: '测试会员（不会扣款）',
     back: '返回',
 
     // ----- auth pages -----
@@ -248,7 +248,7 @@ export const copy = {
     sendCodeAlt: 'Send code',
     signIn: '登录',
     reapply: '重新申请',
-    meRequiresLogin: '登录后查看账号与赞助状态。单人游玩无需登录。',
+    meRequiresLogin: '登录后查看账号与会员状态。单人游玩无需登录。',
 
     // ----- lobby / home -----
     creating: '正在创建…',
@@ -509,10 +509,10 @@ export const copy = {
     soloViewAnswer: 'View answer',
     playAgain: 'Play again',
     freeRooms: 'Free rooms',
-    sponsorship: 'Sponsorship',
-    monthly: 'Monthly',
-    lifetime: 'Lifetime',
-    sponsored: 'Sponsor active',
+    sponsorship: 'Membership',
+    monthly: 'Monthly membership',
+    lifetime: 'Lifetime membership',
+    sponsored: 'Membership active',
     expired: 'Expired',
     orders: 'Orders',
     emailLogin: 'Email code sign-in',
@@ -540,7 +540,7 @@ export const copy = {
     revealedAnswer: 'The host revealed the answer',
     meFreeLeft: '{n} left',
     unlimited: 'Unlimited',
-    testSponsor: 'Test sponsorship (no charge)',
+    testSponsor: 'Test membership (no charge)',
     back: 'Back',
 
     // ----- auth pages -----
@@ -594,7 +594,7 @@ export const copy = {
     sendCodeAlt: 'Send code',
     signIn: 'Sign in',
     reapply: 'Request again',
-    meRequiresLogin: 'Sign in to view your account and sponsorship. Solo play does not require sign in.',
+    meRequiresLogin: 'Sign in to view your account and membership. Solo play does not require sign in.',
 
     // ----- lobby / home -----
     creating: 'Creating…',

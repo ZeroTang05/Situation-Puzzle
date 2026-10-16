@@ -1,10 +1,16 @@
-# AI海龟汤 🐢
+<div align="center">
+  <img src="apps/web/public/icon.svg" width="112" alt="AI海龟汤" />
 
-[English](./README.en.md) | 中文
+# AI海龟汤
 
-> 「我是 Jev，这碗汤的主持人。大胆提问，我只回答『是、否、无关』。」
+「我是 Jev，这碗汤的主持人。大胆提问，我只回答『是、否、无关』。」
 
-**👉 在线畅玩：<https://sp.xiaobaozi.cn>**
+[![在线畅玩](https://img.shields.io/badge/%E5%9C%A8%E7%BA%BF%E7%95%85%E7%8E%A9-sp.xiaobaozi.cn-7dd8c6?style=flat-square&labelColor=0a1522)](https://sp.xiaobaozi.cn)
+[![License](https://img.shields.io/badge/License-GPL--3.0-e6c07d?style=flat-square&labelColor=0a1522)](./LICENSE)
+
+中文 | [English](./README.en.md)
+
+</div>
 
 ---
 
@@ -26,7 +32,7 @@
 
 | 玩法 | 适合谁 |
 |---|---|
-| 🎮 **单人畅玩** | 想一个人安静推理：免登录、免费、不限次数，进度只存在你自己的浏览器里 |
+| 🎮 **单人畅玩** | 想一个人安静推理：免登录、不限次数，进度只存在你自己的浏览器里 |
 | 👥 **多人房间** | 想和朋友一起破案：最多 8 人的私密房间，一个链接邀请入场，提问与推理实时共享，谁问过什么大家都看得见 |
 | ✍️ **出题投稿** | 想当出题人：自制或转载题目（转载需填原作者链接），审核通过后进入公开题库，接受全站玩家的挑战与点赞 |
 
@@ -35,7 +41,7 @@
 | | |
 |---|---|
 | 🤖 **会认怂的 AI 主持人** | Jev 每次判断都带置信度，不够笃定就明说「无法确定」；判题有疑问时还可一键切换大模型复核 |
-| 📚 **446 道精选题库** | 悬疑、推理、反转全覆盖，转载题按真实来源署名，尊重每一位原作者 |
+| 📚 **精选题库** | 悬疑、推理、反转全覆盖，转载题按真实来源逐题署名 |
 | 🌍 **中英双语** | 一键切换中文 / English，题目、汤底、提示全套双语 |
 | 👍 **玩家评分** | 每道题可点赞 / 点踩，好题坏题大家说了算 |
 | 📱 **移动优先** | 手机浏览器打开即玩，题目和房间都能一键分享 |
@@ -47,10 +53,10 @@
 单人模式完全不用。多人房间和出题需要账号，注册只需一个能收验证码的邮箱。
 
 **收费吗？**
-单人永久免费；加入朋友的房间永远免费。开房每个账号有累计 10 次免费额度，之后可通过赞助解锁不限开房（月 6 元 / 永久 20 元）——支付通道开通前，赞助入口暂不可用。
+单人模式永久免费；新用户免费领取一个月会员。
 
 **题目是哪来的？**
-三路来源：改编自 B 站 UP 主「饭堂时刻」「小小耶」与抖音创作者「许二木」的公开节目（共 429 题，逐题署名），加平台原创 17 题。详见下方致谢。
+改编自 B 站、抖音上多位海龟汤创作者的公开节目，加上平台原创；每道转载题都署名原作者，详见下方致谢。
 
 **手机能玩吗？**
 能，页面就是为手机设计的；电脑浏览器同样流畅。
@@ -59,19 +65,13 @@
 
 ## 致谢
 
-内置题库的题目来源如下（446 题，逐题对应与改编方式见 [`data/sources.md`](./data/sources.md)）：
+题库改编自以下创作者的公开节目，感谢他们带来的好故事（逐题署名与对照清单见 [`data/sources.md`](./data/sources.md)）：
 
-- **[饭堂时刻](https://space.bilibili.com/216025)**（B 站 UP 主「尕丶天堂」，93 题）：改编自其公开节目文字稿，或原样收录。
-- **[小小耶](https://space.bilibili.com/59693163)**（B 站 UP 主，240 题）：改编自其海龟汤视频文字稿，或原样保留。
-- **[许二木](https://www.douyin.com/user/MS4wLjABAAAAKurkOY2XLWE80yoCF6NagcyeE-FneMrIYo8oc1vMMVU)**（抖音创作者，96 题）：改编自其海龟汤系列视频字幕稿。
-- **平台原创 17 题**：其中 7 题的写作手法参考许二木的作品《宿舍规则怪谈》《信》《双鱼》，10 题的谜题结构参考 Paul Sloane 的横向思维谜题（要跳出常规思路才能解开的情境谜题）与 [Puzzling Stack Exchange](https://puzzling.stackexchange.com) 社区。
+- **[饭堂时刻](https://space.bilibili.com/216025)**（B 站 UP 主）
+- **[小小耶](https://space.bilibili.com/59693163)**（B 站 UP 主）
+- **[许二木](https://www.douyin.com/user/MS4wLjABAAAAKurkOY2XLWE80yoCF6NagcyeE-FneMrIYo8oc1vMMVU)**（抖音创作者）
 
-技术与社区：
-
-- 判题 AI 由 [OpenCode Zen](https://opencode.ai/zen) 提供（模型 `jev-1.13`），大模型复核由 MiniMax 提供。
-- 感谢 [Linux.do](https://linux.do/) 社区成员长期以来的支持与分享。
-
----
+判题 AI 由 [OpenCode Zen](https://opencode.ai/zen) 提供，大模型复核由 MiniMax 提供；感谢 [Linux.do](https://linux.do/) 社区一直以来的支持。
 
 ## 开发者
 
@@ -79,4 +79,4 @@
 
 ## 许可
 
-本项目采用 [GPL-3.0](LICENSE) 开源。题库内容与代码许可分开管理，题目来源记录在 [`data/sources.md`](./data/sources.md)。
+本项目采用 [GPL-3.0](LICENSE) 开源。

@@ -164,7 +164,8 @@ test('同一用户可同时创建和加入多个房间，退出一间不影响�
       created.push((await response.json()).data);
     }
     expect(created[0]!.roomId).not.toBe(created[1]!.roomId);
-    expect((await getData(context.request, '/rooms/entitlement-preview')).freeRemaining).toBe(8);
+    // 新用户注册即有一个月注册礼赞助，开房走赞助授权，免费次数不消耗
+    expect((await getData(context.request, '/rooms/entitlement-preview')).freeRemaining).toBe(10);
     for (const room of created) {
       const response = await guest.request.post('/api/v1/rooms/join', { data: { token: room.inviteToken } });
       expect(response.ok(), await response.text()).toBe(true);
