@@ -10,6 +10,12 @@
 
 [中文](./README.md) | English
 
+<p align="center">
+  <img src="docs/screenshots/conversation.png" width="240" alt="Gameplay: ask the host Jev and get Yes/No/Irrelevant answers" />
+  <img src="docs/screenshots/library.png" width="240" alt="Puzzle library: browse by difficulty and category" />
+  <img src="docs/screenshots/profile.png" width="240" alt="Profile page: nickname, membership and play history" />
+</p>
+
 </div>
 
 ---

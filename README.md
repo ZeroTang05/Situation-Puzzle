@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="apps/web/public/icon.svg" width="112" alt="AI海龟汤" />
+  <img src="apps/web/public/icon.svg" width="112" alt="AI 海龟汤" />
 
-# AI海龟汤
+# AI 海龟汤
 
 「我是 Jev，这碗汤的主持人。大胆提问，我只回答『是、否、无关』。」
 
@@ -9,6 +9,12 @@
 [![License](https://img.shields.io/badge/License-GPL--3.0-e6c07d?style=flat-square&labelColor=0a1522)](./LICENSE)
 
 中文 | [English](./README.en.md)
+
+<p align="center">
+  <img src="docs/screenshots/conversation.png" width="240" alt="对局界面：向主持人 Jev 提问，得到 是/否/无关 的回答" />
+  <img src="docs/screenshots/library.png" width="240" alt="题库页面：按难度与类别浏览题目" />
+  <img src="docs/screenshots/profile.png" width="240" alt="我的页面：昵称、会员与游玩记录" />
+</p>
 
 </div>
 

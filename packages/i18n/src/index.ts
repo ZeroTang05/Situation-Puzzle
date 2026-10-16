@@ -98,7 +98,7 @@ export function confidenceLabel(value: number, language: Language): string {
 /** 界面固定文案 */
 export const copy = {
   zh: {
-    brand: 'AI海龟汤',
+    brand: 'AI 海龟汤',
     tagline: '和朋友一起，一问一答接近真相',
     solo: '单人游玩',
     multi: '开房间',
@@ -702,9 +702,10 @@ export const copy = {
     easy: 'Easy',
     medium: 'Medium',
     hard: 'Hard',
-    difficultyAll: 'All difficulties',
+    // 「All」不带修饰：行内跟着 Easy/Medium/Hard，组本身有 aria-label，语境已足够
+    difficultyAll: 'All',
     categoryField: 'Category',
-    categoryAll: 'All categories',
+    categoryAll: 'All',
     honkaku: 'Honkaku',
     henkaku: 'Henkaku',
     storyField: 'Puzzle',

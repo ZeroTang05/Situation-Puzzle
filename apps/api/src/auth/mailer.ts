@@ -24,7 +24,7 @@ export function smtpDeliveryOutcome(error: unknown): 'rejected' | 'unknown' {
 }
 
 /** 品牌名：邮件里的发件方称呼（AI 主持人角色仍叫 Jev） */
-const BRAND_ZH = 'AI海龟汤';
+const BRAND_ZH = 'AI 海龟汤';
 const BRAND_EN = 'AI Situation Puzzles';
 
 export interface Mailer {
