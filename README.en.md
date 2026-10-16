@@ -79,7 +79,12 @@ Classics, rewrites and originals live side by side, each with three hints. Sourc
 
 ## Acknowledgments
 
-- Classic situation puzzles come from public community sources (Minute Mysteries, Jed Hartman's situation puzzle archive, Braingle, Puzzling Stack Exchange, and others); sources and rewrite notes are documented in [`data/library-sources.md`](./data/library-sources.md).
+The built-in library draws on the following sources; the per-puzzle mapping and rewrite notes live in [`data/library-sources.md`](./data/library-sources.md) (Chinese):
+
+- **饭堂时刻 (Fantang Shike)** — 93 puzzles, adapted or taken verbatim from their public show transcripts.
+- **小小耶 (Xiaoxiaoye)** — 240 puzzles, adapted or preserved from their public show transcripts.
+- **许二木 (Xu Ermu)** — seven original debut puzzles borrow techniques and ideas from his works 《宿舍规则怪谈》 (*Dormitory Rules Horror*), 《信》 (*The Letter*) and 《双鱼》 (*Pisces*).
+- **Paul Sloane** and **[Puzzling Stack Exchange](https://puzzling.stackexchange.com)** — structural references for ten original extension puzzles, the latter e.g. *The Evicted Tenant* and *How did the police know?*.
 - Judging is powered by [OpenCode Zen](https://opencode.ai/zen), using the `jev-1.13` model.
 - Thanks to the community members of [Linux.do](https://linux.do/) for their long-term support and sharing.
 

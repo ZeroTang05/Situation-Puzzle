@@ -75,7 +75,12 @@ Jev 海龟汤把这个过程搬到了手机网页上：
 
 ## 致谢
 
-- 经典情境谜题来自社区公开资料（Minute Mysteries、Jed Hartman 情境谜题档案、Braingle、Puzzling Stack Exchange 等），题源与本项目改写说明见 [`data/library-sources.md`](./data/library-sources.md)。
+内置题库的题目来源如下，逐题对应与改写方式见 [`data/library-sources.md`](./data/library-sources.md)：
+
+- **饭堂时刻**（93 题）：改编自其公开节目文字稿，或原样收录。
+- **小小耶**（240 题）：改编自其公开节目文字稿，或原样保留。
+- **许二木**：7 道原创首发题的手法与思路参考其作品《宿舍规则怪谈》《信》《双鱼》。
+- **Paul Sloane** 与 **[Puzzling Stack Exchange](https://puzzling.stackexchange.com)**：10 道原创扩展题的结构参考，前者为经典的横向思维谜题（要跳出常规思路才能解开的情境谜题），后者篇目如《The Evicted Tenant》《How did the police know?》。
 - 判题服务由 [OpenCode Zen](https://opencode.ai/zen) 提供，使用 `jev-1.13` 模型。
 - 感谢 [Linux.do](https://linux.do/) 社区成员长期以来的支持与分享。
 
