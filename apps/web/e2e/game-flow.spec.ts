@@ -1,14 +1,12 @@
 /** 真实浏览器 + API + 数据库 + Jev；需要真实服务与已发布的中英文题库。 */
 import { test, expect, type BrowserContext, type Page, type APIRequestContext } from '@playwright/test';
+import { signUpWithOtp } from './auth-helper';
 
 const password = 'Jev-E2E-password-2026';
 
-/** 创建本轮专用账号，通过真实密码登录，Cookie 由浏览器上下文保存。 */
+/** 创建本轮专用账号（真实验证码流程注册），Cookie 由浏览器上下文保存。 */
 async function register(context: BrowserContext, name: string) {
-  const email = `game-${crypto.randomUUID()}@example.com`;
-  const response = await context.request.post('/api/v1/auth/sign-up/email', { data: { email, password, name } });
-  expect(response.ok(), await response.text()).toBe(true);
-  return email;
+  return signUpWithOtp(context, { prefix: 'game', name, password });
 }
 
 /** 读取应用 HTTP 信封，任何接口错误直接使测试失败。 */

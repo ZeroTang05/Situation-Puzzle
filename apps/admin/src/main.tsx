@@ -1,9 +1,9 @@
 import { DialogProvider } from '@jev/ui';
 import '@jev/ui/dialog.css';
 import { t } from '@jev/i18n';
-import { StrictMode } from 'react';
+import { StrictMode, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Admin, Resource, ListGuesser } from 'react-admin';
+import { Admin, Resource, ListGuesser, Layout, AppBar, TitlePortal } from 'react-admin';
 import { authProvider } from './auth-provider.js';
 import { dataProvider } from './data-provider.js';
 import { PuzzleList, VersionDetail } from './puzzles.js';
@@ -11,6 +11,21 @@ import { UserList, RoomList, ReportList, OrderList, Dashboard, LangSwitch } from
 import { AdminLoginRedirect } from './admin-login-redirect.js';
 import { LanguageProvider, useLanguage } from './language.js';
 import { copy } from './copy.js';
+
+/** 顶栏：标题占位（flex:1 占满左侧）+ 右上角中英切换按钮。 */
+function AdminAppBar() {
+  return (
+    <AppBar>
+      <TitlePortal />
+      <LangSwitch />
+    </AppBar>
+  );
+}
+
+/** react-admin 布局：仅替换顶栏，其余保持默认。 */
+function AdminLayout({ children }: { children: ReactNode }) {
+  return <Layout appBar={AdminAppBar}>{children}</Layout>;
+}
 
 function AdminShell() {
   const { language } = useLanguage();
@@ -24,6 +39,7 @@ function AdminShell() {
       // 让 admin 复用 web 端登录入口（EmailOTP / 密码 / Google），共用 cookie。
       loginPage={AdminLoginRedirect}
       requireAuth
+      layout={AdminLayout}
     >
       <Resource name="puzzles" list={PuzzleList} show={VersionDetail} recordRepresentation="title" options={{ label: c.menuPuzzles }} />
       <Resource name="users" list={UserList} recordRepresentation="nickname" options={{ label: c.menuUsers }} />
@@ -38,7 +54,7 @@ function AdminShell() {
 function AdminDialogs() {
   const { language } = useLanguage();
   const labels = t(language);
-  return <DialogProvider confirmLabel={labels.confirm} cancelLabel={labels.cancel}><AdminShell /><LangSwitch /></DialogProvider>;
+  return <DialogProvider confirmLabel={labels.confirm} cancelLabel={labels.cancel}><AdminShell /></DialogProvider>;
 }
 
 function App() {

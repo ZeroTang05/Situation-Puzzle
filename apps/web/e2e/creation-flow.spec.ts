@@ -1,11 +1,11 @@
 /** 真实浏览器、API、任务进程和 Jev 的创作流程；初审通过直接发布，后审测试需真实审核员账号。 */
 import { test, expect, type BrowserContext, type APIRequestContext } from '@playwright/test';
 import { creationDetailSchema, type CreationDetail } from '@jev/contracts';
+import { signUpWithOtp } from './auth-helper';
 
-/** 创建独立作者账号，真实登录会话由浏览器上下文保存。 */
+/** 创建独立作者账号（真实验证码流程注册），登录会话由浏览器上下文保存。 */
 async function register(context: BrowserContext) {
-  const response = await context.request.post('/api/v1/auth/sign-up/email', { data: { email: `creation-${crypto.randomUUID()}@example.com`, password: 'Jev-E2E-password-2026', name: '创作测试作者' } });
-  expect(response.ok(), await response.text()).toBe(true);
+  await signUpWithOtp(context, { prefix: 'creation', name: '创作测试作者', password: 'Jev-E2E-password-2026' });
 }
 async function detail(request: APIRequestContext, id: string): Promise<CreationDetail> {
   const response = await request.get(`/api/v1/creations/${id}`);

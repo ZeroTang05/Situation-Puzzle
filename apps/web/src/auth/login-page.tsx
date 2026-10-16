@@ -138,11 +138,11 @@ export function LoginPage() {
     setBusy(true);
     setError(null);
     // 昵称留空就直接注册：服务端会给「用户+随机编号」的默认昵称（不回退邮箱前缀）
-    const { error: signErr } = await authClient.signUp.email({
-      email: email.trim().toLowerCase(),
-      password,
-      name: name.trim(),
-    });
+    // 验证码随请求头带给服务端闸门原子消费校验（body 由 better-auth 客户端严格定型，走头最稳）
+    const { error: signErr } = await authClient.signUp.email(
+      { email: email.trim().toLowerCase(), password, name: name.trim() },
+      { headers: { 'x-jev-signup-otp': code } },
+    );
     setBusy(false);
     if (signErr) {
       setError(signErr.message ?? copy.signupFail);

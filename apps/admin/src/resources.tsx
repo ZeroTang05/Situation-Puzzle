@@ -213,13 +213,13 @@ export function Dashboard() {
   );
 }
 
-// ---------- 顶部语言切换 ----------
+// ---------- 顶栏语言切换（嵌在 AppBar 右侧） ----------
 
 export function LangSwitch() {
   const { language, setLanguage } = useLanguage(); const c = copy(language);
   return (
     <button
-      style={{ position: 'fixed', bottom: 16, right: 16, padding: '6px 12px', borderRadius: 6, border: '1px solid #ccc', background: '#fff', cursor: 'pointer', zIndex: 1000 }}
+      style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.45)', background: 'transparent', color: 'inherit', cursor: 'pointer', fontSize: 14 }}
       onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
     >
       {c.switchTo}

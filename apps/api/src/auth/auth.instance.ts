@@ -24,6 +24,7 @@ import type { Env } from '../env.js';
 import { MailDeliveryError, type Mailer } from './mailer.js';
 import { OtpSendQuota, otpLimitMessage } from './otp-send-quota.js';
 import { otpRequestContext } from './otp-request-context.js';
+import { consumeSignupOtp, isDisposableEmail } from './signup-otp-gate.js';
 import { z } from 'zod';
 
 export interface AuthDeps {
@@ -56,6 +57,8 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
   const baseURL = new URL('/api/v1/auth', env.PUBLIC_BASE_URL).toString();
   const quota = new OtpSendQuota(db.pool);
   const otpSendPaths = new Set(['/email-otp/send-verification-otp', '/email-otp/request-password-reset', '/forget-password/email-otp', '/email-otp/request-email-change']);
+  // 密码最短长度：emailAndPassword 配置与注册闸门共用一个值
+  const MIN_PASSWORD_LENGTH = 8;
 
   return betterAuth({
     appName: 'Jev',
@@ -73,8 +76,7 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
     }),
     emailAndPassword: {
       enabled: true,
-      // 8+ 字符：避免过短口令撞库，同时不阻用户体验
-      minPasswordLength: 8,
+      minPasswordLength: MIN_PASSWORD_LENGTH,
       // 邮件 OTP 与密码双轨并存：用户首次用 OTP 注册后仍可补建密码
       requireEmailVerification: false,
       // 忘记密码：Better Auth 签发一次性 token，拼成站内重置页链接交给 mailer
@@ -161,14 +163,29 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
     },
     rateLimit: { enabled: true, window: 60, max: 20, customRules: Object.fromEntries([...otpSendPaths].map((path) => [path, false])) },
     hooks: {
-      /** 在生成新验证码前预占；登录和注册按相同邮箱/IP 共用额度。 */
+      /** 注册闸门 + 验证码发送预占：登录和注册按相同邮箱/IP 共用额度。 */
       before: createAuthMiddleware(async (ctx) => {
+        // 注册闸门：密码注册必须当场消费一条有效验证码，堵住「绕开页面直接建号」的口子
+        if (ctx.path === '/sign-up/email') {
+          const parsed = z.email().safeParse(typeof ctx.body?.email === 'string' ? ctx.body.email.trim().toLowerCase() : undefined);
+          if (!parsed.success) throw new APIError('BAD_REQUEST', { code: 'INVALID_EMAIL', message: '邮箱格式不正确' });
+          if (isDisposableEmail(parsed.data)) throw new APIError('BAD_REQUEST', { code: 'DISPOSABLE_EMAIL', message: '不支持一次性邮箱地址' });
+          // 邮箱已注册、密码过短等能在消费验证码之前发现的错误先拒绝，不白烧用户的验证码
+          if (typeof ctx.body?.name !== 'string') throw new APIError('BAD_REQUEST', { message: '昵称不能为空' });
+          if (typeof ctx.body?.password !== 'string' || ctx.body.password.length < MIN_PASSWORD_LENGTH) throw new APIError('BAD_REQUEST', { code: 'INVALID_PASSWORD_LENGTH', message: `密码至少 ${MIN_PASSWORD_LENGTH} 位` });
+          if (await ctx.context.internalAdapter.findUserByEmail(parsed.data)) throw new APIError('BAD_REQUEST', { code: 'USER_ALREADY_EXISTS', message: '该邮箱已注册，请直接登录' });
+          const otp = ctx.headers?.get('x-jev-signup-otp') ?? '';
+          const rejection = await consumeSignupOtp(ctx.context.internalAdapter, parsed.data, otp);
+          if (rejection) throw new APIError('FORBIDDEN', { code: 'SIGNUP_OTP_REQUIRED', message: rejection });
+          return;
+        }
         if (!ctx.path || !otpSendPaths.has(ctx.path)) return;
         const request = otpRequestContext.getStore();
         if (!request) throw new APIError('SERVICE_UNAVAILABLE', { message: '验证码请求缺少客户端地址' });
         const emailField = ctx.path === '/email-otp/request-email-change' ? 'newEmail' : 'email';
         const parsed = z.email().safeParse(typeof ctx.body?.[emailField] === 'string' ? ctx.body[emailField].toLowerCase() : undefined);
         if (!parsed.success) throw new APIError('BAD_REQUEST', { code: 'INVALID_EMAIL', message: '邮箱格式不正确' });
+        if (isDisposableEmail(parsed.data)) throw new APIError('BAD_REQUEST', { code: 'DISPOSABLE_EMAIL', message: '不支持一次性邮箱地址' });
         if (ctx.path === '/email-otp/send-verification-otp' && !['sign-in', 'email-verification', 'forget-password'].includes(ctx.body.type)) throw new APIError('BAD_REQUEST', { message: '验证码用途无效' });
         ctx.body[emailField] = parsed.data;
         const reserved = await quota.reserve(parsed.data, request.ip);
