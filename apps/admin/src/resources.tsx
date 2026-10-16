@@ -84,6 +84,7 @@ export function RoomList() {
       <Datagrid bulkActionButtons={false}>
         <TextField source="roomId" label={c.roomIdCol} />
         <TextField source="puzzleTitle" label={c.puzzleTitleCol} />
+        <HostField label={c.hostCol} />
         <TextField source="status" label={c.statusCol} />
         <TextField source="memberCount" label={c.memberCol} />
         <TextField source="capacity" label={c.capacityCol} />
@@ -94,6 +95,14 @@ export function RoomList() {
       </Datagrid>
     </List>
   );
+}
+
+/** 房主：优先昵称，缺昵称退回截断 ID；悬停显示完整用户 ID。 */
+function HostField({ label }: { label: string }) {
+  const record = useRecordContext() as { hostNickname?: string | null; hostUserId?: string } | undefined;
+  const name = record?.hostNickname || null;
+  const id = record?.hostUserId ?? '';
+  return <span aria-label={label} title={id}>{name || (id ? `${id.slice(0, 8)}…` : '—')}</span>;
 }
 
 function RoomActionsField() {

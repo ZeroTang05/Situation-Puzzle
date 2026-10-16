@@ -22,7 +22,7 @@ async function latestOtp(email: string): Promise<string> {
 /** 发码 → 收信台取码 → 带验证码头注册；登录 Cookie 由传入的浏览器上下文保存。 */
 export async function signUpWithOtp(context: BrowserContext, options: { prefix: string; name: string; password: string }): Promise<string> {
   const email = `${options.prefix}-${crypto.randomUUID()}@${E2E_EMAIL_DOMAIN}`;
-  const sent = await context.request.post('/api/v1/auth/email-otp/send-verification-otp', { data: { email, type: 'sign-in' } });
+  const sent = await context.request.post('/api/v1/auth/email-otp/send-verification-otp', { headers: { 'x-jev-otp-purpose': 'signup' }, data: { email, type: 'sign-in' } });
   if (!sent.ok()) throw new Error(`验证码发送失败：${await sent.text()}`);
   const otp = await latestOtp(email);
   const response = await context.request.post('/api/v1/auth/sign-up/email', {

@@ -4,6 +4,7 @@
  */
 import type { ErrorCode } from '@jev/contracts';
 import { displayError, type Language } from '@jev/i18n';
+import { OtpSendError } from '../auth/otp-cooldown.js';
 
 export class ApiError extends Error {
   constructor(
@@ -58,6 +59,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
  */
 export function translateApiError(error: unknown, language: Language, fallback: string): string {
   if (error instanceof ApiError) return displayError(error.code, language, fallback);
+  if (error instanceof OtpSendError && error.code) return displayError(error.code, language, fallback);
   if (error instanceof Error) return error.message;
   return fallback;
 }

@@ -15,19 +15,25 @@ export function readOtpDeadline(storage: Pick<Storage, 'getItem'>): number {
 
 /** 认证库返回普通 JSON；发送接口额外提供等待秒数与 Retry-After。 */
 export class OtpSendError extends Error {
-  constructor(message: string, public readonly retryAfterSeconds: number) { super(message); }
+  constructor(message: string, public readonly retryAfterSeconds: number, public readonly code?: string) { super(message); }
 }
 
-export async function sendOtpCode(email: string, type: 'sign-in' | 'email-verification'): Promise<number> {
+export async function sendOtpCode(
+  email: string,
+  type: 'sign-in' | 'email-verification',
+  options: { signup?: boolean } = {},
+): Promise<number> {
   const response = await fetch('/api/v1/auth/email-otp/send-verification-otp', {
-    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...(options.signup ? { 'x-jev-otp-purpose': 'signup' } : {}) },
     body: JSON.stringify({ email, type }), signal: AbortSignal.timeout(30_000),
   });
-  const body = await response.json() as { success?: boolean; message?: string; retryAfterSeconds?: number };
+  const body = await response.json() as { success?: boolean; message?: string; code?: string; retryAfterSeconds?: number };
   const retry = body.retryAfterSeconds;
   if (retry !== undefined && (!Number.isInteger(retry) || retry < 0)) throw new Error('验证码接口返回了无效等待时间');
   if (response.status === 429 && (!retry || retry <= 0)) throw new Error('验证码限流响应缺少等待时间');
-  if (!response.ok) throw new OtpSendError(body.message ?? '验证码发送失败，请稍后重试。', retry ?? 0);
+  if (!response.ok) throw new OtpSendError(body.message ?? '验证码发送失败，请稍后重试。', retry ?? 0, body.code);
   if (!body.success || retry === undefined) throw new Error('验证码发送响应格式不正确');
   return retry;
 }

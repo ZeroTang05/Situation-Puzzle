@@ -77,6 +77,8 @@ const errorCopy: Record<ErrorCode, Record<Language, string>> = {
   ORDER_EXPIRED: { zh: '订单已过期，请重新下单。', en: 'The order expired. Please place a new one.' },
   PAYMENT_CHANNEL_UNAVAILABLE: { zh: '支付通道尚未开通。', en: 'Payment channel is not available yet.' },
   ORDER_STATE_CONFLICT: { zh: '订单状态已变化，请刷新查看。', en: 'Order state changed. Please refresh.' },
+  USER_NOT_FOUND: { zh: '该邮箱未注册，请先注册。', en: 'This email is not registered yet. Sign up first.' },
+  USER_ALREADY_EXISTS: { zh: '该邮箱已注册，请直接登录。', en: 'This email is already registered. Please sign in.' },
 };
 
 export function displayError(code: string, language: Language, fallback?: string): string {

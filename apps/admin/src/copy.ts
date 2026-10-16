@@ -30,6 +30,7 @@ export function copy(language: Language) {
     originCol: language === 'zh' ? '转载/自制' : 'Origin',
     difficultyCol: w.difficultyField,
     capacityCol: language === 'zh' ? '容量' : 'Capacity',
+    hostCol: language === 'zh' ? '房主' : 'Host',
     emailVerifiedCol: language === 'zh' ? '邮箱已验证' : 'Email verified',
     sponsorUntilCol: language === 'zh' ? '会员' : 'Membership',
     createdAtCol: language === 'zh' ? '创建时间' : 'Created',

@@ -166,11 +166,11 @@ export function LibraryPage({ session }: { session: Session | null }) {
     setParams(next, { replace: true });
   };
 
-  /** 更新网址中的页码，翻页后把视线带回新列表的开头。 */
+  /** 更新网址中的页码（replace：题库内翻页不占历史栈，返回一次即离开题库），翻页后把视线带回新列表的开头。 */
   const setPage = (value: number) => {
     const next = new URLSearchParams(params);
     next.set('page', String(value));
-    setParams(next);
+    setParams(next, { replace: true });
     gridRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
 

@@ -50,6 +50,20 @@
       "when": 1797000000000,
       "tag": "0006_signup_bonus_grant",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1798000000000,
+      "tag": "0007_signup_email_verified_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1799000000000,
+      "tag": "0008_oauth_email_verified_backfill",
+      "breakpoints": true
     }
   ]
 }

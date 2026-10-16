@@ -1,7 +1,7 @@
 /** 登录/注册页：共用入口；模式切换只通过底部超链接。
  *  (docs/rebuild/05-OPERATIONS.md §2)
- *  - 登录：默认密码 tab；可选「邮箱验证码」tab。
- *  - 注册：固定流程——昵称（可选）→ 邮箱 → 发验证码 → 验证 → 密码 → 提交。
+ *  - 登录：默认密码 tab；可选「邮箱验证码」tab——发码前服务端校验账号已存在。
+ *  - 注册：固定流程——昵称（可选）→ 邮箱 → 发验证码（注册用途，仅未注册邮箱）→ 验证 → 密码 → 提交。
  *    任一环节失败都不会建立账号；邮箱先验证能确保 mailer 出错时立即可见。
  *  - Admin 通过 next=/admin 反代由 web 端 login 走完登录回到后台，保持单一口令 + cookie。
  */
@@ -61,17 +61,17 @@ export function LoginPage() {
   };
 
   // ---------- 验证码发送 ----------
-  const sendCode = async (type: 'sign-in' | 'email-verification') => {
+  const sendCode = async (purpose: 'signin' | 'signup') => {
     if (sendingCode.current || busy || remainingOtpSeconds(sendUntil, Date.now()) > 0) return;
     sendingCode.current = true;
     setBusy(true);
     setError(null);
     try {
-      // sign-in 用途支持尚未注册的邮箱；注册只检查验证码，之后再建账号。
-      const seconds = await sendOtpCode(email.trim().toLowerCase(), 'sign-in');
+      // 共用 sign-in 验证码池；登录/注册用途由服务端按 x-jev-otp-purpose 分别校验账号存在性
+      const seconds = await sendOtpCode(email.trim().toLowerCase(), 'sign-in', { signup: purpose === 'signup' });
       rememberWait(seconds);
       setStage('code');
-      setNotice(type === 'sign-in' ? copy.codeSent : copy.codeSentSignup);
+      setNotice(purpose === 'signin' ? copy.codeSent : copy.codeSentSignup);
     } catch (error) {
       if (error instanceof OtpSendError) rememberWait(error.retryAfterSeconds);
       else rememberWait(60); // 网络中断时发送结果未知，等待期间仍可验证已有验证码。
@@ -283,7 +283,7 @@ export function LoginPage() {
                 <button
                   className="btn btn-primary"
                   disabled={busy || sendWait > 0 || !email.includes('@')}
-                  onClick={() => void sendCode('sign-in')}
+                  onClick={() => void sendCode('signin')}
                 >
                   {sendLabel}
                 </button>
@@ -354,7 +354,7 @@ export function LoginPage() {
                 type="button"
                 className="btn"
                 disabled={busy || sendWait > 0 || !email.includes('@')}
-                onClick={() => void sendCode('email-verification')}
+                onClick={() => void sendCode('signup')}
               >
                 {sendLabel}
               </button>

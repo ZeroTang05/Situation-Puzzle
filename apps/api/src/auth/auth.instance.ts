@@ -3,13 +3,18 @@
  *
  * - 会话、Cookie、验证码协议全部交给 Better Auth，业务代码不手写
  * - Google 只申请 openid/email/profile；身份按 provider+accountId 唯一识别
+ * - 登录端点只登录：/sign-in/email-otp 拒绝未注册邮箱，账号一律经 /sign-up/email 建立
+ * - 发码按用途闸门：登录发码要求账号已存在，注册发码（x-jev-otp-purpose: signup）要求邮箱未注册
  * - 注册钩子：新用户初始化 profile + 免费开房账户 + 赞助账户 + 注册礼一个月赞助（每用户一次，唯一约束兜底）
+ * - 账户关联创建即写 email_verified（credential 经验证码闸门、OAuth 由提供方认证），
+ *   避免日后验证码登录触发 Better Auth 的 revokeUnprovenAccountAccess 清掉密码凭证
  */
 import { betterAuth } from 'better-auth';
 import { APIError, createAuthMiddleware, isAPIError } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { emailOTP, genericOAuth } from 'better-auth/plugins';
 import { randomInt } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import {
   user as userTable,
   session as sessionTable,
@@ -182,6 +187,14 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
           if (rejection) throw new APIError('FORBIDDEN', { code: 'SIGNUP_OTP_REQUIRED', message: rejection });
           return;
         }
+        // 登录端点只登录：账号不存在直接拒绝（发生在验证码消费之前，不烧码），杜绝无密码建号
+        if (ctx.path === '/sign-in/email-otp') {
+          const parsed = z.email().safeParse(typeof ctx.body?.email === 'string' ? ctx.body.email.trim().toLowerCase() : undefined);
+          if (parsed.success && !(await ctx.context.internalAdapter.findUserByEmail(parsed.data))) {
+            throw new APIError('BAD_REQUEST', { code: 'USER_NOT_FOUND', message: '该邮箱未注册，请先注册' });
+          }
+          return;
+        }
         if (!ctx.path || !otpSendPaths.has(ctx.path)) return;
         const request = otpRequestContext.getStore();
         if (!request) throw new APIError('SERVICE_UNAVAILABLE', { message: '验证码请求缺少客户端地址' });
@@ -191,6 +204,15 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
         if (isDisposableEmail(parsed.data)) throw new APIError('BAD_REQUEST', { code: 'DISPOSABLE_EMAIL', message: '不支持一次性邮箱地址' });
         if (ctx.path === '/email-otp/send-verification-otp' && !['sign-in', 'email-verification', 'forget-password'].includes(ctx.body.type)) throw new APIError('BAD_REQUEST', { message: '验证码用途无效' });
         ctx.body[emailField] = parsed.data;
+        // 发码用途闸门：登录发码要求账号已存在；注册发码（x-jev-otp-purpose: signup）要求邮箱未注册
+        if (ctx.path === '/email-otp/send-verification-otp') {
+          const exists = !!(await ctx.context.internalAdapter.findUserByEmail(parsed.data));
+          if (ctx.headers?.get('x-jev-otp-purpose') === 'signup') {
+            if (exists) throw new APIError('BAD_REQUEST', { code: 'USER_ALREADY_EXISTS', message: '该邮箱已注册，请直接登录' });
+          } else if (ctx.body.type === 'sign-in' && !exists) {
+            throw new APIError('BAD_REQUEST', { code: 'USER_NOT_FOUND', message: '该邮箱未注册，请先注册' });
+          }
+        }
         const reserved = await quota.reserve(parsed.data, request.ip);
         if ('retryAfterSeconds' in reserved) {
           ctx.setHeader('Retry-After', String(reserved.retryAfterSeconds));
@@ -242,6 +264,14 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
                 idempotencyKey: `signup-bonus:${userRow.id}`,
               });
             });
+          },
+        },
+      },
+      // 账户关联创建即视为已验证邮箱：credential 走验证码闸门，OAuth（Google/LINUX DO）由提供方认证
+      account: {
+        create: {
+          after: async (accountRow) => {
+            await db.db.update(userTable).set({ emailVerified: true }).where(eq(userTable.id, accountRow.userId));
           },
         },
       },

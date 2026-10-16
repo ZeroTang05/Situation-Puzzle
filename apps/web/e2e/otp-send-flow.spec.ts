@@ -1,7 +1,7 @@
 /** 真实邮件、API 与浏览器验证发送限制；在额度为空的独立开发测试服务上运行。 */
 import { readFile } from 'node:fs/promises';
 import { test, expect } from '@playwright/test';
-import { E2E_EMAIL_DOMAIN } from './auth-helper';
+import { E2E_EMAIL_DOMAIN, signUpWithOtp } from './auth-helper';
 
 test('登录注册共用发送额度，刷新保留倒计时，IP 用完仍可验证旧验证码', async ({ page, context }) => {
   test.setTimeout(180_000);
@@ -21,17 +21,18 @@ test('登录注册共用发送额度，刷新保留倒计时，IP 用完仍可�
   await page.getByRole('button', { name: '邮箱验证码', exact: true }).click();
   await expect(page.getByRole('button', { name: /秒后重试/ })).toBeDisabled();
   await expect(page.getByLabel('验证码', { exact: true })).toBeEnabled();
-  const repeated = await context.request.post('/api/v1/auth/email-otp/send-verification-otp', { data: { email, type: 'sign-in' } });
+  // 直接调发送接口（注册用途：未注册邮箱才发）验证共用额度
+  const repeated = await context.request.post('/api/v1/auth/email-otp/send-verification-otp', { headers: { 'x-jev-otp-purpose': 'signup' }, data: { email, type: 'sign-in' } });
   expect(repeated.status()).toBe(429);
   const repeatedBody = await repeated.json();
   expect(repeatedBody.limitScope).toBe('email');
   expect(repeatedBody.retryAfterSeconds).toBeGreaterThan(0);
   expect(Number(repeated.headers()['retry-after'])).toBe(repeatedBody.retryAfterSeconds);
   for (let index = 0; index < 2; index++) {
-    const response = await context.request.post('/api/v1/auth/email-otp/send-verification-otp', { data: { email: `otp-other-${crypto.randomUUID()}@${E2E_EMAIL_DOMAIN}`, type: 'sign-in' } });
+    const response = await context.request.post('/api/v1/auth/email-otp/send-verification-otp', { headers: { 'x-jev-otp-purpose': 'signup' }, data: { email: `otp-other-${crypto.randomUUID()}@${E2E_EMAIL_DOMAIN}`, type: 'sign-in' } });
     expect(response.ok(), await response.text()).toBe(true);
   }
-  const forged = await context.request.post('/api/v1/auth/email-otp/send-verification-otp', { headers: { 'X-Forwarded-For': '198.51.100.80', 'X-Jev-Client-IP': '198.51.100.81' }, data: { email: `otp-forged-${crypto.randomUUID()}@${E2E_EMAIL_DOMAIN}`, type: 'sign-in' } });
+  const forged = await context.request.post('/api/v1/auth/email-otp/send-verification-otp', { headers: { 'x-jev-otp-purpose': 'signup', 'X-Forwarded-For': '198.51.100.80', 'X-Jev-Client-IP': '198.51.100.81' }, data: { email: `otp-forged-${crypto.randomUUID()}@${E2E_EMAIL_DOMAIN}`, type: 'sign-in' } });
   expect(forged.status()).toBe(429);
   expect((await forged.json()).limitScope).toBe('ip');
   await expect(page.getByRole('button', { name: /秒后重试/ })).toHaveCount(0, { timeout: 70_000 });
@@ -52,4 +53,22 @@ test('登录注册共用发送额度，刷新保留倒计时，IP 用完仍可�
   await page.getByLabel('Password', { exact: true }).fill('Jev-OTP-E2E-password-2026');
   await page.getByRole('button', { name: '注册并登录', exact: true }).click();
   await expect(page).toHaveURL('/');
+});
+
+test('发码用途闸门：登录只对已注册邮箱发码，注册只对未注册邮箱发码', async ({ page, context }) => {
+  if (!process.env.E2E_MAILSINK_PATH) throw new Error('需要 E2E_MAILSINK_PATH 指向真实 SMTP 收信台文件');
+  const email = `otp-gate-${crypto.randomUUID()}@${E2E_EMAIL_DOMAIN}`;
+  await page.goto('/login?lang=zh');
+  // 登录 tab：未注册邮箱拒绝发码
+  await page.getByRole('button', { name: '邮箱验证码', exact: true }).click();
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByRole('button', { name: '发送验证码', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('该邮箱未注册');
+  // 未注册邮箱直接调登录端点同样拒绝，账号不会被建立
+  const signIn = await context.request.post('/api/v1/auth/sign-in/email-otp', { data: { email, otp: '000000' } });
+  expect(signIn.status()).toBe(400);
+  // 注册用途：对已注册邮箱发码被拒
+  const created = await signUpWithOtp(context, { prefix: 'otp-gate-user', name: '发码闸门', password: 'Jev-OTP-Gate-2026-pass' });
+  const registered = await context.request.post('/api/v1/auth/email-otp/send-verification-otp', { headers: { 'x-jev-otp-purpose': 'signup' }, data: { email: created, type: 'sign-in' } });
+  expect(registered.status()).toBe(400);
 });

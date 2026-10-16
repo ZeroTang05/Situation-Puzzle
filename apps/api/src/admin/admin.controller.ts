@@ -363,6 +363,8 @@ export class AdminController {
         activeRoundId: sql<string | null>`(select r.id from rounds r where r.room_id = rooms.id and r.status = 'active' limit 1)`,
         /** 进行中的一局在玩的题目标题：客服定位房间内容用。 */
         puzzleTitle: sql<string | null>`(select pv.title from rounds r join puzzle_versions pv on pv.id = r.puzzle_version_id where r.room_id = rooms.id and r.status = 'active' limit 1)`,
+        /** 房主昵称：后台直接看到是谁的房；无昵称时前端退回截断用户 ID。 */
+        hostNickname: sql<string | null>`(select p.nickname from profiles p where p.user_id = rooms.host_user_id)`,
       })
       .from(rooms)
       .where(where)
