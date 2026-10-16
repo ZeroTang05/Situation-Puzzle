@@ -9,31 +9,84 @@
  * - library.json 里**消失**的 legacyId → 默认软删（unavailable=true + 清 currentPublishedVersionId），
  *   保留所有历史数据（ratings / rounds / reviews）。硬删需要显式 --purge-stale。
  *
- * seed 题入库即发布：库文件本身就是平台自有内容（已签字授权），不像玩家投稿
+ * seed 题入库即发布：库文件属于平台可直接发布的内容，不像玩家投稿
  * 需要走 submitted → checking → pending_review → published 流程。puzzle_rights
  * 直接写 approved、puzzle_versions 直接写 published、puzzles.currentPublishedVersionId
- * 直接指向新增版本，licenseBasis 写明"平台自有"以与玩家投稿区分。
+ * 直接指向新增版本；改编批次按「转载」记录（origin=repost + 原作者链接），
+ * 平台原创写「平台自有」，与玩家投稿的来源口径一致。
  *
  * --purge-stale 把 library.json 里消失的 legacyId 真删（清 puzzle_versions、
  * puzzle_rights、puzzle_test_cases、moderation_reviews、puzzle_ratings、rounds、
  * jev_calls 全部级联数据）。生产环境禁止（无 UNDO）。rounds / jev_calls 的 FK
  * cascade 在 0004_purge_cascade.sql 迁移里加上。
  *
- * 署名：内置题没有创作者个人，统一以 signature 模式显示「初始题库」
- * （canonical 名，前端 AuthorLabel 按 i18n 本地化展示），不落 anonymous。
+ * 署名：按 ID 前缀映射真实来源（见 SOURCE_BY_PREFIX）——改编题署名原作者
+ * （饭堂时刻 / 小小耶 / 许二木），平台原创统一显示「初始题库」（canonical 名，
+ * 前端 AuthorLabel 按 i18n 本地化展示），不落 anonymous。
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { createDb } from '../client.js';
 import { puzzles, puzzleVersions, puzzleRights } from '../schema/content.js';
 
 const IMPORT_SOURCE = 'official' as const;
 
-/** 内置题库统一署名（DB 存 canonical 中文本，前端按语言本地化）。 */
-const LIBRARY_AUTHOR_NAME = '初始题库';
+/** 单个内置题批次的来源信息：署名 + 权利记录怎么写。 */
+interface SourceAttribution {
+  /** 卡片署名（DB 存 canonical 中文本，前端直接展示） */
+  authorName: string;
+  /** original=平台原创，repost=转载改编 */
+  origin: 'original' | 'repost';
+  /** 转载批次的原作者空间页链接；平台原创为 null */
+  sourceUrl: string | null;
+  /** 授权依据说明 */
+  licenseBasis: string;
+}
+
+/**
+ * ID 前缀 → 来源署名映射（批次构成见 data/sources.md「按批统计」）。
+ * 转载批次必须带原作者空间页链接，为空时 attributionOf 直接报错，拒绝无出处转载入库。
+ */
+const SOURCE_BY_PREFIX: Record<string, SourceAttribution> = {
+  'real-': {
+    authorName: '饭堂时刻',
+    origin: 'repost',
+    sourceUrl: 'https://space.bilibili.com/216025',
+    licenseBasis: '转载改编自 B 站 UP 主「尕丶天堂」饭堂时刻系列节目文字稿，逐题明细见 data/sources.md',
+  },
+  'xxye-': {
+    authorName: '小小耶',
+    origin: 'repost',
+    sourceUrl: 'https://space.bilibili.com/59693163',
+    licenseBasis: '转载改编自 B 站 UP 主「小小耶」海龟汤视频文字稿，逐题明细见 data/sources.md',
+  },
+  'xerm-': {
+    authorName: '许二木',
+    origin: 'repost',
+    sourceUrl: 'https://www.douyin.com/user/MS4wLjABAAAAKurkOY2XLWE80yoCF6NagcyeE-FneMrIYo8oc1vMMVU',
+    licenseBasis: '转载改编自抖音创作者「许二木」海龟汤系列视频字幕稿，逐题明细见 data/sources.md',
+  },
+  'seed-': {
+    authorName: '初始题库',
+    origin: 'original',
+    sourceUrl: null,
+    licenseBasis: '平台自有题库（data/sources.md，source=official）',
+  },
+};
+
+/** ID 前缀 → 来源信息；未知前缀或转载缺链接直接报错，新批次必须先在 SOURCE_BY_PREFIX 登记来源。 */
+function attributionOf(legacyId: string): SourceAttribution {
+  const prefix = Object.keys(SOURCE_BY_PREFIX).find((candidate) => legacyId.startsWith(candidate));
+  const attribution = prefix ? SOURCE_BY_PREFIX[prefix] : undefined;
+  if (!attribution) throw new Error(`未知内置题 ID 前缀：${legacyId}（先在 SOURCE_BY_PREFIX 登记来源署名）`);
+  if (attribution.origin === 'repost' && !attribution.sourceUrl) {
+    throw new Error(`转载批次「${prefix}」缺少原作者链接（sourceUrl），拒绝无出处转载入库`);
+  }
+  return attribution;
+}
 
 interface LibraryEntry {
   id: string;
@@ -91,14 +144,26 @@ for (const row of existingImported) {
   if (row.legacyId) existingByLegacyId.set(row.legacyId, row.id);
 }
 
-// 回填：早期导入的 official 题默认落了 anonymous，统一改成「初始题库」署名。
-// 条件限定 source='official'，不会碰到玩家投稿的署名选择。
-await db
-  .update(puzzles)
-  .set({ authorDisplayMode: 'signature', authorDisplayName: LIBRARY_AUTHOR_NAME })
-  .where(
-    sql`${puzzles.source} = ${IMPORT_SOURCE} and (${puzzles.authorDisplayMode} != 'signature' or ${puzzles.authorDisplayName} is distinct from ${LIBRARY_AUTHOR_NAME})`,
-  );
+// 署名与权利记录同步：把已导入的内置题按来源刷成真实署名 / 转载记录，
+// 改 SOURCE_BY_PREFIX 后重跑导入即可修正存量。分组键是 SOURCE_BY_PREFIX 里的共享对象，
+// 只动映射到的 official 题，不会碰玩家投稿的署名与权利记录。
+const puzzleIdsByAttribution = new Map<SourceAttribution, string[]>();
+for (const legacyId of existingByLegacyId.keys()) {
+  const attribution = attributionOf(legacyId);
+  const group = puzzleIdsByAttribution.get(attribution);
+  if (group) group.push(existingByLegacyId.get(legacyId)!);
+  else puzzleIdsByAttribution.set(attribution, [existingByLegacyId.get(legacyId)!]);
+}
+for (const [attribution, puzzleIds] of puzzleIdsByAttribution) {
+  await db
+    .update(puzzles)
+    .set({ authorDisplayMode: 'signature', authorDisplayName: attribution.authorName })
+    .where(inArray(puzzles.id, puzzleIds));
+  await db
+    .update(puzzleRights)
+    .set({ origin: attribution.origin, sourceUrl: attribution.sourceUrl, licenseBasis: attribution.licenseBasis })
+    .where(inArray(puzzleRights.puzzleId, puzzleIds));
+}
 
 // 取出当前 JSON 里的 legacyId 集合
 const desiredLegacyIds = new Set(zh.map((e) => e.id));
@@ -170,13 +235,14 @@ for (const entry of zh) {
   }
 
   // 新增 legacyId：入库即发布
+  const attribution = attributionOf(entry.id);
   const insertedPuzzle = await db
     .insert(puzzles)
     .values({
       source: IMPORT_SOURCE,
       legacyId: entry.id,
       authorDisplayMode: 'signature',
-      authorDisplayName: LIBRARY_AUTHOR_NAME,
+      authorDisplayName: attribution.authorName,
       // currentPublishedVersionId 在下方 versions insert 后回填
     })
     .returning({ id: puzzles.id });
@@ -184,7 +250,9 @@ for (const entry of zh) {
   await db.insert(puzzleRights).values({
     puzzleId,
     status: 'approved',
-    licenseBasis: '平台自有题库（data/sources.md，source=official）',
+    origin: attribution.origin,
+    sourceUrl: attribution.sourceUrl,
+    licenseBasis: attribution.licenseBasis,
     agreementVersion: 'platform-library-v1',
     confirmedAt: new Date(),
   });
