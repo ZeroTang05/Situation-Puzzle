@@ -247,6 +247,7 @@ export function RoomPage({ session }: { session: Session | null }) {
           {/* ---------- 操作行 ---------- */}
           {round.status === 'active' && (
             <footer className="composer">
+              {inputMode === 'solve' && <LargeModelToggle checked={useLargeModel} disabled={busy || pendingCurrent || status !== 'ready'} onChange={setUseLargeModel} />}
               <div className="mode-tabs" role="tablist">
                 <button className={`mode-tab ${inputMode === 'ask' ? 'active' : ''}`} role="tab" aria-selected={inputMode === 'ask'} onClick={() => setInputMode('ask')}>
                   {copy.ask}
@@ -258,7 +259,6 @@ export function RoomPage({ session }: { session: Session | null }) {
                   {copy.discuss}
                 </button>
               </div>
-              {inputMode === 'solve' && <LargeModelToggle checked={useLargeModel} disabled={busy || pendingCurrent || status !== 'ready'} onChange={setUseLargeModel} />}
               <div className="composer-row">
                 <ChatInput
                   maxLength={inputMode === 'ask' ? 500 : inputMode === 'discussion' ? 1000 : 1500}

@@ -1,123 +1,82 @@
-# AI海龟汤
+# AI海龟汤 🐢
 
-AI 主持的海龟汤（情境猜谜）游戏。玩家围绕一道悬疑故事提问，AI 主持人「Jev」只回答
-**是 / 否 / 无关 / 无法确定**，全员共享推理过程，最终共同还原真相。
+[English](./README.en.md) | 中文
 
-- **单人模式**：无需登录、永久免费、不限次数；对话与进度只保存在你自己的浏览器里
-- **多人房间**：创建最多 8 人的私密房间，邀请朋友一起推理；服务端保存并实时同步每一局
-- **赞助制**：未赞助账号累计可开 10 个多人房间；月度赞助 6 元 / 永久赞助 20 元，有效期内不限开房；加入朋友的房间永远免费
+> 「我是 Jev，这碗汤的主持人。大胆提问，我只回答『是、否、无关』。」
 
-> 支付说明：微信支付商户开通前，产品的收费入口保持关闭，代码与订单体系已就绪。
+**👉 在线畅玩：<https://sp.xiaobaozi.cn>**
 
-## 快速开始（本地开发）
+---
 
-前置：Node.js 22+、pnpm 10、Docker（本地数据库）、一个 Resend 账号（登录验证码邮件），以及 Jev 和 MiniMax 的 API 密钥。
+## 这是什么
 
-```bash
-pnpm install
-cp .env.example .env.local        # 填写数据库与密钥（见文件内注释）
-docker run -d --name jev-pg -e POSTGRES_USER=jev -e POSTGRES_PASSWORD=jev \
-  -e POSTGRES_DB=jev -p 5432:5432 postgres:17
+海龟汤（情境猜谜）是一种问答推理游戏：主持人心里装着故事的全部真相，只讲出离奇的开头（汤面）；玩家用能被「是 / 否」回答的问题一点点逼近真相，最后亲手把整个故事还原出来（汤底）。
 
-pnpm db:migrate                   # 建表（追加式迁移，可重复执行）
-pnpm db:seed                      # 导入 data/library.json 全部题目（当前 446 题，本地直接发布）
-                                 # 硬删：pnpm --dir packages/database run db:import-library -- --purge-stale（不可逆）
+在这里，主持人是 AI——**Jev**。它不休息、不剧透、不敷衍，全场的推理由它一问一答地守着。
 
-pnpm dev:api & pnpm dev:jobs & pnpm dev:web   # 三个进程并行
-```
+## 怎么玩
 
-打开 http://localhost:5173 。管理端在 http://localhost:5174/admin （首个管理员需向
-`role_assignments` 表插入一行 user_id + role）。
+1. **读汤面** —— 挑一道题，读那段怎么想都不对劲的故事。
+2. **大胆提问** —— 「凶手是熟人吗？」「她真的死在船上吗？」Jev 只回答 **是 / 否 / 无关**，拿不准时坦白说「无法确定」，不硬猜误导你。
+3. **卡住了要提示** —— 每题三条不同角度的提示，逐条解锁，左右切换。
+4. **还原真相** —— 觉得摸到了？写下完整推理，Jev 对照汤底判定 **破解成功 / 接近真相 / 还没猜对**，允许省略不影响核心真相的细节。
+5. **公布答案** —— 实在解不开，确认后看汤底。
 
-## 服务器部署（一行命令）
+## 三种玩法
 
-前置：一台服务器、Docker 与 Docker Compose、一个解析到服务器的域名。
+| 玩法 | 适合谁 |
+|---|---|
+| 🎮 **单人畅玩** | 想一个人安静推理：免登录、免费、不限次数，进度只存在你自己的浏览器里 |
+| 👥 **多人房间** | 想和朋友一起破案：最多 8 人的私密房间，一个链接邀请入场，提问与推理实时共享，谁问过什么大家都看得见 |
+| ✍️ **出题投稿** | 想当出题人：自制或转载题目（转载需填原作者链接），审核通过后进入公开题库，接受全站玩家的挑战与点赞 |
 
-```bash
-cp .env.example .env   # 填写域名、数据库密码、Resend 密钥、Jev 密钥等
-docker compose up -d --build
-```
+## 特色
 
-这一条命令会构建并启动全部服务：玩家端/管理端/后端 API + 任务进程 + PostgreSQL，
-并且 API 容器启动时自动执行数据库迁移。首次体验可再执行下面的命令导入演示题库
-（正式环境须走内容权利审核）。
+| | |
+|---|---|
+| 🤖 **会认怂的 AI 主持人** | Jev 每次判断都带置信度，不够笃定就明说「无法确定」；判题有疑问时还可一键切换大模型复核 |
+| 📚 **446 道精选题库** | 悬疑、推理、反转全覆盖，转载题按真实来源署名，尊重每一位原作者 |
+| 🌍 **中英双语** | 一键切换中文 / English，题目、汤底、提示全套双语 |
+| 👍 **玩家评分** | 每道题可点赞 / 点踩，好题坏题大家说了算 |
+| 📱 **移动优先** | 手机浏览器打开即玩，题目和房间都能一键分享 |
+| 🔒 **轻账号** | 邮箱验证码即可登录，也支持 Google 与 LINUX DO；单人模式连账号都不用 |
 
-升级版本：`git pull && docker compose up -d --build`。
+## 常见问题
 
-### MiniMax 补判
+**要注册吗？**
+单人模式完全不用。多人房间和出题需要账号，注册只需一个能收验证码的邮箱。
 
-在部署用的根 `.env` 中填写 `MINIMAX_API_KEY`，本地使用 `.env.local`。默认模型为 `MiniMax-M2.7`，接口为 `https://api.minimax.cn/anthropic`；可用 `MINIMAX_MODEL`、`MINIMAX_BASE_URL` 修改。API 和 jobs 共用这些服务端配置，前端不接触密钥。
+**收费吗？**
+单人永久免费；加入朋友的房间永远免费。开房每个账号有累计 10 次免费额度，之后可通过赞助解锁不限开房（月 6 元 / 永久 20 元）——支付通道开通前，赞助入口暂不可用。
 
-单人、多人和创作试题的提问与还原均在 Jev 置信度不足时自动补判。还原时可开启“判题不准？试试大模型判题”，直接使用 MiniMax。两种判题均允许省略不影响核心真相的细节，只有破解成功或主动揭晓时才展示汤底。
+**题目是哪来的？**
+三路来源：改编自 B 站 UP 主「饭堂时刻」「小小耶」与抖音创作者「许二木」的公开节目（共 429 题，逐题署名），加平台原创 17 题。详见下方致谢。
 
-多人提交的模型选择保存在任务中，排队与重试沿用同一选择。升级需要执行新增的 `0005_large_model_judgment` 迁移；API 容器启动时会自动执行，本地使用 `pnpm db:migrate`。提问与还原的 MiniMax 提示词分别位于 `packages/jev/src/prompts/minimax-question.ts`、`minimax-solution.ts`。
+**手机能玩吗？**
+能，页面就是为手机设计的；电脑浏览器同样流畅。
 
-### 题库导入与维护
+---
 
-题库源文件位于 `data/library.json`（中文）与 `data/library.en.json`（英文），
-导入脚本按 `legacyId` 差量同步——新增的题会新建、修改的题会追加新版本、
-消失的题按以下两种模式处理。脚本可重复运行，每次都按当前 `library.json`
-重新计算，**不会**因为重复执行而丢数据。
+## 致谢
 
-```bash
-# 修改 library.json 后必须先重建 seed 镜像，否则容器内仍是旧版数据
-docker compose --profile seed build seed
+内置题库的题目来源如下（446 题，逐题对应与改编方式见 [`data/sources.md`](./data/sources.md)）：
 
-# 默认（软删）：消失的题标记 unavailable=true，历史局/评分等数据完整保留
-docker compose --profile seed run --rm seed
+- **[饭堂时刻](https://space.bilibili.com/216025)**（B 站 UP 主「尕丶天堂」，93 题）：改编自其公开节目文字稿，或原样收录。
+- **[小小耶](https://space.bilibili.com/59693163)**（B 站 UP 主，240 题）：改编自其海龟汤视频文字稿，或原样保留。
+- **[许二木](https://www.douyin.com/user/MS4wLjABAAAAKurkOY2XLWE80yoCF6NagcyeE-FneMrIYo8oc1vMMVU)**（抖音创作者，96 题）：改编自其海龟汤系列视频字幕稿。
+- **平台原创 17 题**：其中 7 题的写作手法参考许二木的作品《宿舍规则怪谈》《信》《双鱼》，10 题的谜题结构参考 Paul Sloane 的横向思维谜题（要跳出常规思路才能解开的情境谜题）与 [Puzzling Stack Exchange](https://puzzling.stackexchange.com) 社区。
 
-# 硬删（不可逆）：消失的题连同 rounds / jev_calls / puzzle_versions 等全部级联清掉
-# 仅在 library.json 真删题、且确认不再需要任何审计历史时使用
-# 生产环境禁止（无 UNDO）
-SEED_PURGE_STALE=1 docker compose --profile seed run --rm seed
-```
+技术与社区：
 
-硬删依赖 `rounds.puzzle_version_id → puzzle_versions.id` 与
-`jev_calls.review_version_id → puzzle_versions.id` 两条 FK 上的 `ON DELETE CASCADE`
-（迁移 `packages/database/drizzle/0004_purge_cascade.sql`），少了它们会被 PostgreSQL
-外键约束挡住。软删路径不受此限制，可放心使用。
+- 判题 AI 由 [OpenCode Zen](https://opencode.ai/zen) 提供（模型 `jev-1.13`），大模型复核由 MiniMax 提供。
+- 感谢 [Linux.do](https://linux.do/) 社区成员长期以来的支持与分享。
 
-## 部署形态
+---
 
-```
-浏览器 ──> 宿主 Nginx / OpenResty（HTTPS 与反代，本仓库已不含 Caddy）
-            ├─ /            玩家端容器（apps/web 构建）
-            ├─ /admin       管理端容器（apps/admin 构建）
-            ├─ /api/v1/*    通过前端容器内部 nginx 反代到 NestJS API
-            └─ /ws          通过前端容器内部 nginx 反代（房间实时同步）
-                              │
-                    PostgreSQL（业务数据 + pg-boss 任务队列）
-                              │
-              Jev 判题（OpenCode Zen）／ Resend 邮件 ／ 微信支付（商户开通后）
-```
+## 开发者
 
-## 技术栈
+架构设计、部署与贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)、[AGENTS.md](AGENTS.md) 与 [docs/rebuild/](docs/rebuild/README.md)。
 
-| 层 | 选型 |
-| --- | --- |
-| 玩家端 | React 19 + Vite + React Router + TanStack Query；单人记录存 IndexedDB（idb） |
-| 管理端 | React-admin |
-| API | NestJS 11（HTTP + 标准 WebSocket）、Better Auth（邮箱/密码 + Email OTP + Google / LINUX DO 登录，境内服务器走出站代理） |
-| 数据 | PostgreSQL 17 + Drizzle ORM；pg-boss 持久任务队列 |
-| 判题 | OpenCode Zen SystemOne（模型 `jev-1.13`），置信度阈值 0.5 |
-| 部署 | Docker Compose（前端/管理/API 各自独立容器，TLS 终结由宿主 Nginx/OpenResty 负责） |
+## 许可
 
-## 项目结构
-
-```
-apps/web        玩家端（单人、题库、多人房间、创作、赞助）
-apps/admin      管理端（内容审核、用户、房间、订单、举报）
-apps/api        后端服务（认证、题库、单人、房间、实时、赞助、治理、后台接口）
-apps/jobs       任务进程（判题执行、房间调度、投稿机审、巡检）
-packages/*      共享包：契约(Zod)、领域规则、数据库表结构、Jev 适配、文案、样式
-infra           各服务 Dockerfile 与前端容器内 nginx 配置
-data            题库 JSON（导入源）
-docs/rebuild    产品与架构设计文档
-```
-
-## 开源
-
-- 许可：[GPL-3.0](LICENSE)
-- 贡献：见 [CONTRIBUTING.md](CONTRIBUTING.md)；行为准则见 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
-- 题库内容与代码许可分开：`data/library-sources.md` 记录题目来源，商业授权逐题审核
-- 设计与架构文档：[docs/rebuild/](docs/rebuild/README.md)
+本项目采用 [GPL-3.0](LICENSE) 开源。题库内容与代码许可分开管理，题目来源记录在 [`data/sources.md`](./data/sources.md)。

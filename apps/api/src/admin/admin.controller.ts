@@ -38,6 +38,15 @@ const approveSchema = reasonSchema.extend({ scope: z.enum(['language', 'revision
 const rightsReviewSchema = reasonSchema.extend({ expectedVersionId: z.uuid() });
 const grantSchema = z.object({ months: z.number().int().min(1).max(12), reason: z.string().min(2).max(500) });
 
+/** 后台列表分页：页码从 1 起，每页默认 25、上限 200，超出范围按边界处理；非法输入回落默认值。 */
+function pageArgs(page?: string, perPage?: string) {
+  const parsedPage = Number.parseInt(page ?? '', 10);
+  const parsedPerPage = Number.parseInt(perPage ?? '', 10);
+  const safePerPage = Math.min(200, Math.max(1, Number.isNaN(parsedPerPage) ? 25 : parsedPerPage));
+  const safePage = Math.max(1, Number.isNaN(parsedPage) ? 1 : parsedPage);
+  return { limit: safePerPage, offset: (safePage - 1) * safePerPage };
+}
+
 @Controller('admin')
 @UseGuards(SessionGuard)
 export class AdminController {
@@ -57,9 +66,13 @@ export class AdminController {
 
   @Get('puzzles')
   @RequireRoles('admin', 'moderator')
-  async listPuzzles(@Query('status') status?: string) {
+  async listPuzzles(@Query('status') status?: string, @Query('page') page?: string, @Query('perPage') perPage?: string) {
     const conditions = [];
     if (status) conditions.push(eq(puzzleVersions.moderationStatus, status as never));
+    const where = conditions.length ? and(...conditions) : undefined;
+    // 每题只取最新版本行；计数查询需要同一连接形状才能与筛选条件对齐。
+    const latestVersion = sql`${puzzleVersions.versionNo} = (select max(v.version_no) from puzzle_versions v where v.puzzle_id = ${puzzles.id})`;
+    const { limit, offset } = pageArgs(page, perPage);
     const rows = await app().db.db
       .select({
         puzzleId: puzzles.id,
@@ -69,8 +82,10 @@ export class AdminController {
         title: puzzleVersions.title,
         surface: puzzleVersions.surface,
         category: puzzleVersions.category,
+        difficulty: puzzleVersions.difficulty,
         status: puzzleVersions.moderationStatus,
         unavailable: puzzles.unavailable,
+        source: puzzles.source,
         authorUserId: puzzles.authorUserId,
         /** 作者归属与公开署名：审核人员可核验（11-VOTES-AND-AUTHORSHIP.md §5） */
         authorDisplayMode: puzzles.authorDisplayMode,
@@ -79,18 +94,23 @@ export class AdminController {
         upCount: sql<number>`(select count(*) filter (where r.value = 'up')::int from ratings r where r.puzzle_id = puzzles.id)`,
         downCount: sql<number>`(select count(*) filter (where r.value = 'down')::int from ratings r where r.puzzle_id = puzzles.id)`,
         rightsStatus: puzzleRights.status,
+        rightsOrigin: puzzleRights.origin,
         createdAt: puzzleVersions.createdAt,
       })
       .from(puzzles)
-      .innerJoin(
-        puzzleVersions,
-        and(eq(puzzleVersions.puzzleId, puzzles.id), sql`${puzzleVersions.versionNo} = (select max(v.version_no) from puzzle_versions v where v.puzzle_id = ${puzzles.id})`),
-      )
+      .innerJoin(puzzleVersions, and(eq(puzzleVersions.puzzleId, puzzles.id), latestVersion))
       .leftJoin(puzzleRights, eq(puzzleRights.puzzleId, puzzles.id))
-      .where(and(...conditions))
+      .where(where)
       .orderBy(desc(puzzleVersions.createdAt))
-      .limit(100);
-    return { items: rows };
+      .limit(limit)
+      .offset(offset);
+    const [counted] = await app().db.db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(puzzles)
+      .innerJoin(puzzleVersions, and(eq(puzzleVersions.puzzleId, puzzles.id), latestVersion))
+      .leftJoin(puzzleRights, eq(puzzleRights.puzzleId, puzzles.id))
+      .where(where);
+    return { items: rows, total: counted?.total ?? rows.length };
   }
 
   @Get('puzzle-versions/:id')
@@ -252,22 +272,33 @@ export class AdminController {
 
   @Get('users')
   @RequireRoles('admin', 'support')
-  async listUsers(@Query('q') q?: string) {
+  async listUsers(@Query('q') q?: string, @Query('page') page?: string, @Query('perPage') perPage?: string) {
     const conditions = q ? [sql`email ilike ${'%' + q + '%'} or nickname ilike ${'%' + q + '%'}`] : [];
+    const where = conditions.length ? and(...conditions) : undefined;
+    const { limit, offset } = pageArgs(page, perPage);
     const rows = await app().db.db
       .select({
         userId: user.id,
         email: user.email,
+        emailVerified: user.emailVerified,
         nickname: profiles.nickname,
         status: profiles.status,
         createdAt: profiles.createdAt,
+        /** 生效赞助的到期日：lifetime=永久，null=无生效赞助（客服处理开房额度问题时用）。 */
+        sponsorUntil: sql<string | null>`(select case when bool_or(g.effective_until is null) then 'lifetime' when max(g.effective_until) > now() then to_char(max(g.effective_until), 'YYYY-MM-DD') else null end from sponsor_grants g where g.user_id = ${user.id} and g.status = 'active')`,
       })
       .from(user)
       .innerJoin(profiles, eq(profiles.userId, user.id))
-      .where(conditions.length ? and(...conditions) : undefined)
+      .where(where)
       .orderBy(desc(profiles.createdAt))
-      .limit(50);
-    return { items: rows };
+      .limit(limit)
+      .offset(offset);
+    const [counted] = await app().db.db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(user)
+      .innerJoin(profiles, eq(profiles.userId, user.id))
+      .where(where);
+    return { items: rows, total: counted?.total ?? rows.length };
   }
 
   @Post('users/:id/suspend')
@@ -315,7 +346,9 @@ export class AdminController {
 
   @Get('rooms')
   @RequireRoles('admin', 'support')
-  async listRooms(@Query('status') status?: string) {
+  async listRooms(@Query('status') status?: string, @Query('page') page?: string, @Query('perPage') perPage?: string) {
+    const where = status ? eq(rooms.status, status as never) : undefined;
+    const { limit, offset } = pageArgs(page, perPage);
     const rows = await app().db.db
       .select({
         roomId: rooms.id,
@@ -328,12 +361,16 @@ export class AdminController {
         closeReason: rooms.closeReason,
         memberCount: sql<number>`(select count(*)::int from room_members m where m.room_id = rooms.id and m.status = 'joined')`,
         activeRoundId: sql<string | null>`(select r.id from rounds r where r.room_id = rooms.id and r.status = 'active' limit 1)`,
+        /** 进行中的一局在玩的题目标题：客服定位房间内容用。 */
+        puzzleTitle: sql<string | null>`(select pv.title from rounds r join puzzle_versions pv on pv.id = r.puzzle_version_id where r.room_id = rooms.id and r.status = 'active' limit 1)`,
       })
       .from(rooms)
-      .where(status ? eq(rooms.status, status as never) : undefined)
+      .where(where)
       .orderBy(desc(rooms.createdAt))
-      .limit(100);
-    return { items: rows };
+      .limit(limit)
+      .offset(offset);
+    const [counted] = await app().db.db.select({ total: sql<number>`count(*)::int` }).from(rooms).where(where);
+    return { items: rows, total: counted?.total ?? rows.length };
   }
 
   @Get('rooms/:id/timeline')
@@ -372,14 +409,18 @@ export class AdminController {
 
   @Get('reports')
   @RequireRoles('admin', 'moderator', 'support')
-  async listReports(@Query('status') status?: string) {
+  async listReports(@Query('status') status?: string, @Query('page') page?: string, @Query('perPage') perPage?: string) {
+    const where = status ? eq(reports.status, status as never) : undefined;
+    const { limit, offset } = pageArgs(page, perPage);
     const rows = await app().db.db
       .select()
       .from(reports)
-      .where(status ? eq(reports.status, status as never) : undefined)
+      .where(where)
       .orderBy(desc(reports.createdAt))
-      .limit(100);
-    return { items: rows };
+      .limit(limit)
+      .offset(offset);
+    const [counted] = await app().db.db.select({ total: sql<number>`count(*)::int` }).from(reports).where(where);
+    return { items: rows, total: counted?.total ?? rows.length };
   }
 
   @Post('reports/:id/resolve')
@@ -394,7 +435,9 @@ export class AdminController {
 
   @Get('orders')
   @RequireRoles('admin', 'finance', 'support')
-  async listOrders(@Query('status') status?: string) {
+  async listOrders(@Query('status') status?: string, @Query('page') page?: string, @Query('perPage') perPage?: string) {
+    const where = status ? eq(orders.status, status as never) : undefined;
+    const { limit, offset } = pageArgs(page, perPage);
     const rows = await app().db.db
       .select({
         orderId: orders.id,
@@ -408,10 +451,12 @@ export class AdminController {
         paidAt: orders.paidAt,
       })
       .from(orders)
-      .where(status ? eq(orders.status, status as never) : undefined)
+      .where(where)
       .orderBy(desc(orders.createdAt))
-      .limit(100);
-    return { items: rows };
+      .limit(limit)
+      .offset(offset);
+    const [counted] = await app().db.db.select({ total: sql<number>`count(*)::int` }).from(orders).where(where);
+    return { items: rows, total: counted?.total ?? rows.length };
   }
 
   /** 审核退款：冻结授权 → 通道退款（M4 联调）→ 撤销授权；此处先完成冻结与登记。 */

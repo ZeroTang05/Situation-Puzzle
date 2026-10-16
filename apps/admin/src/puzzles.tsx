@@ -1,6 +1,6 @@
 /** 题库与投稿审核：列表、详情、批准 / 退回 / 下架、署名审核（docs/rebuild/11-VOTES-AND-AUTHORSHIP.md §5）。 */
 import { useDialog } from '@jev/ui';
-import { List, Datagrid, TextField, NumberField, BooleanField, Show, SimpleShowLayout, useRecordContext, useNotify, useRefresh, Button } from 'react-admin';
+import { List, Datagrid, TextField, NumberField, BooleanField, DateField, Show, SimpleShowLayout, useRecordContext, useNotify, useRefresh, Button } from 'react-admin';
 import { adminAction } from './data-provider.js';
 import { copy } from './copy.js';
 import { useLanguage } from './language.js';
@@ -8,11 +8,14 @@ import { useLanguage } from './language.js';
 export function PuzzleList() {
   const { language } = useLanguage(); const c = copy(language);
   return (
-    <List sort={{ field: 'createdAt', order: 'DESC' }} perPage={25}>
+    <List sort={{ field: 'createdAt', order: 'DESC' }} perPage={50}>
       <Datagrid rowClick="show" bulkActionButtons={false}>
         <TextField source="title" label={c.puzzleCol} />
         <TextField source="language" label={c.languageCol} />
+        <SourceField />
+        <OriginField />
         <TextField source="category" label={c.categoryCol} />
+        <DifficultyField />
         <NumberField source="versionNo" label={c.versionCol} />
         <TextField source="status" label={c.statusCol} />
         <BooleanField source="unavailable" label={c.disabledCol} />
@@ -20,12 +23,38 @@ export function PuzzleList() {
         {/* 真实投票计数只读展示；后台不能手填（11-VOTES-AND-AUTHORSHIP.md §5） */}
         <NumberField source="upCount" label={c.upCol} />
         <NumberField source="downCount" label={c.downCol} />
+        <DateField source="createdAt" label={c.createdAtCol} showTime />
         <AuthorDisplayField />
         <AuthorInternalField />
         <PuzzleActionsField />
       </Datagrid>
     </List>
   );
+}
+
+/** 题目来源：official=平台内置，community=玩家投稿。 */
+function SourceField() {
+  const record = useRecordContext() as { source?: string | null } | undefined;
+  const { language } = useLanguage(); const c = copy(language);
+  if (!record) return null;
+  return <span>{record.source === 'community' ? c.sourceCommunity : record.source === 'official' ? c.sourceOfficial : '—'}</span>;
+}
+
+/** 授权来源性质：repost=转载，original=自制。 */
+function OriginField() {
+  const record = useRecordContext() as { rightsOrigin?: string | null } | undefined;
+  const { language } = useLanguage(); const c = copy(language);
+  if (!record) return null;
+  return <span>{record.rightsOrigin === 'repost' ? c.originRepost : record.rightsOrigin === 'original' ? c.originOriginal : '—'}</span>;
+}
+
+/** 难度：easy/medium/hard 本地化，未设置为 —。 */
+function DifficultyField() {
+  const record = useRecordContext() as { difficulty?: string | null } | undefined;
+  const { language } = useLanguage(); const c = copy(language);
+  if (!record) return null;
+  const label = record.difficulty === 'easy' ? c.difficultyEasy : record.difficulty === 'medium' ? c.difficultyMedium : record.difficulty === 'hard' ? c.difficultyHard : null;
+  return <span>{label ?? '—'}</span>;
 }
 
 /** 公开署名：署名显示已批准名；待审名单独提示。 */

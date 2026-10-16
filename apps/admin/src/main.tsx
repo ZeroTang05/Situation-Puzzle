@@ -3,7 +3,7 @@ import '@jev/ui/dialog.css';
 import { t } from '@jev/i18n';
 import { StrictMode, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Admin, Resource, ListGuesser, Layout, AppBar, TitlePortal } from 'react-admin';
+import { Admin, Resource, Layout, AppBar, TitlePortal } from 'react-admin';
 import { authProvider } from './auth-provider.js';
 import { dataProvider } from './data-provider.js';
 import { PuzzleList, VersionDetail } from './puzzles.js';
@@ -34,7 +34,6 @@ function AdminShell() {
     <Admin
       authProvider={authProvider}
       dataProvider={dataProvider}
-      dashboard={Dashboard}
       // 用我们自己的 Redirect 替掉 React-Admin 自带的 Username/Password 表单，
       // 让 admin 复用 web 端登录入口（EmailOTP / 密码 / Google），共用 cookie。
       loginPage={AdminLoginRedirect}
@@ -46,7 +45,8 @@ function AdminShell() {
       <Resource name="rooms" list={RoomList} recordRepresentation="roomId" options={{ label: c.menuRooms }} />
       <Resource name="reports" list={ReportList} recordRepresentation="reason" options={{ label: c.menuReports }} />
       <Resource name="orders" list={OrderList} recordRepresentation="orderId" options={{ label: c.menuOrders }} />
-      <Resource name="overview" list={ListGuesser} options={{ label: c.menuOverview }} />
+      {/* 总览是统计页：后端没有列表接口，直接渲染 Dashboard（ListGuesser 会走 getList 取 items 而崩溃） */}
+      <Resource name="overview" list={Dashboard} options={{ label: c.menuOverview }} />
     </Admin>
   );
 }

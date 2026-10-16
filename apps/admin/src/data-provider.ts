@@ -20,13 +20,17 @@ async function adminFetch(path: string, options: RequestInit = {}): Promise<unkn
 const baseProvider: DataProvider = {
   getList: async (resource, params) => {
     const query = new URLSearchParams();
+    // 服务端分页：传页码与每页条数，total 用 API 返回的真实总数，列表不再被固定 limit 截断
+    query.set('page', String(params.pagination?.page ?? 1));
+    query.set('perPage', String(params.pagination?.perPage ?? 25));
     if (params.filter && Object.keys(params.filter).length > 0) {
       for (const [key, value] of Object.entries(params.filter)) query.set(key, String(value));
     }
-    const data = (await adminFetch(`/${resource}?${query.toString()}`)) as { items: Record<string, unknown>[] } | Record<string, unknown>[];
+    const data = (await adminFetch(`/${resource}?${query.toString()}`)) as { items: Record<string, unknown>[]; total?: number } | Record<string, unknown>[];
     const rows = Array.isArray(data) ? data : data.items;
+    const total = Array.isArray(data) ? rows.length : data.total ?? rows.length;
     const items = resource === 'puzzles' ? rows.map((row) => ({ ...row, id: row.versionId })) : rows;
-    return { data: items, total: items.length } as never;
+    return { data: items, total } as never;
   },
   getOne: async (resource, params) => {
     if (resource === 'puzzles') {
