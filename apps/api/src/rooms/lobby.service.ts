@@ -521,6 +521,8 @@ export class LobbyService {
           title: version.puzzle_versions.title,
           surface: version.puzzle_versions.surface,
           language: version.puzzle_versions.language,
+          category: version.puzzle_versions.category,
+          difficulty: version.puzzle_versions.difficulty,
           hintsTotal: version.puzzle_versions.hints.length,
         },
       });

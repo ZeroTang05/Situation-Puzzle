@@ -214,6 +214,8 @@ export class RoomsService {
           title: version.puzzle_versions.title,
           surface: version.puzzle_versions.surface,
           language: version.puzzle_versions.language,
+          category: version.puzzle_versions.category,
+          difficulty: version.puzzle_versions.difficulty,
           hintsTotal: version.puzzle_versions.hints.length,
         },
       });
@@ -407,6 +409,8 @@ export class RoomsService {
         language: 'zh' | 'en';
         title: string;
         surface: string;
+        category: 'honkaku' | 'henkaku' | null;
+        difficulty: 'easy' | 'medium' | 'hard' | null;
         hintsRevealed: number;
         hints: string[];
         status: 'active' | 'solved' | 'revealed' | 'abandoned' | 'aborted';
@@ -437,6 +441,8 @@ export class RoomsService {
           language: round.language === 'en' ? 'en' : 'zh',
           title: version?.title ?? '',
           surface: version?.surface ?? '',
+          category: version?.category ?? null,
+          difficulty: version?.difficulty ?? null,
           hintsRevealed: round.hintsRevealed,
           hints: (version?.hints ?? []).slice(0, round.hintsRevealed),
           status: round.status,

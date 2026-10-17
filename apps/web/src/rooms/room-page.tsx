@@ -206,6 +206,16 @@ export function RoomPage({ session }: { session: Session | null }) {
       {round && (
         <>
           <section className="story-card game-scroll">
+            {round.category && (
+              <span className="puzzle-card-category" style={{ marginBottom: '12px' }}>
+                {round.category === 'honkaku' ? copy.honkaku : copy.henkaku}
+              </span>
+            )}
+            {round.difficulty && (
+              <span className={`puzzle-card-difficulty puzzle-card-difficulty-${round.difficulty}`} style={{ marginBottom: '12px' }}>
+                {round.difficulty === 'easy' ? copy.easy : round.difficulty === 'hard' ? copy.hard : copy.medium}
+              </span>
+            )}
             <p className="story">{displayedSurface}</p>
           </section>
 
@@ -250,7 +260,7 @@ export function RoomPage({ session }: { session: Session | null }) {
             })}
             <div ref={chatBottomRef} />
           </section>
-          <div className={`appear-slot${newMessages ? ' open' : ''}`}>
+          <div className={`appear-slot${newMessages ? ' open' : ''}`} inert={!newMessages}>
             <button className="btn btn-sm" onClick={() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); atBottom.current = true; setNewMessages(false); }}>{copy.newMessages} ↓</button>
           </div>
 

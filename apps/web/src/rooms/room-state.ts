@@ -36,6 +36,9 @@ export interface RoomRound {
   language: 'zh' | 'en';
   title: string;
   surface: string;
+  /** 类别与难度标签：题库题携带，创作题为 null */
+  category: 'honkaku' | 'henkaku' | null;
+  difficulty: 'easy' | 'medium' | 'hard' | null;
   hintsRevealed: number;
   hints: string[];
   status: 'active' | 'solved' | 'revealed' | 'abandoned' | 'aborted';
@@ -103,6 +106,8 @@ export function applyEvent(state: RoomState, event: RoomEvent): RoomState {
           language: p.language === 'en' ? 'en' : 'zh',
           title: String(p.title),
           surface: String(p.surface),
+          category: (p.category as RoomRound['category']) ?? null,
+          difficulty: (p.difficulty as RoomRound['difficulty']) ?? null,
           hintsRevealed: 0,
           hints: [],
           status: 'active',

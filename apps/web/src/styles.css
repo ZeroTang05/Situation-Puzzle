@@ -819,7 +819,10 @@ textarea.composer-input, .composer .composer-input {
    槽位常驻渲染，内容由各页按状态切换，关闭态用 inert 挡住焦点 */
 .appear-slot { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.18s ease, margin-top 0.18s ease; }
 .appear-slot.open { grid-template-rows: 1fr; }
-.appear-slot > * { min-height: 0; margin: 0; overflow: hidden; }
+.appear-slot > * { min-height: 0; margin: 0; overflow: hidden; transition: padding-block 0.18s ease, border-block-width 0.18s ease; }
+/* 0fr 轨道塌不到 0：子元素的上下内边距+边框会撑出残留边（实测 14px padding + 2px border = 16px 空白条），
+   收起态把这两项一并清零，与轨道同节奏过渡 */
+.appear-slot:not(.open) > * { padding-block: 0; border-block-width: 0; }
 /* 聊天流靠 gap 排布：收起态槽位用负 margin 抵消两侧 gap，不留隐形空档 */
 .chat > .appear-slot:not(.open) { margin-top: -10px; }
 

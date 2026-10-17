@@ -371,6 +371,9 @@ export const roomSnapshotSchema = z.object({
       language: languageSchema,
       title: z.string(),
       surface: z.string(),
+      /** 类别与难度标签：单人页同款，题库题携带、创作题为 null */
+      category: puzzleCategorySchema.nullable(),
+      difficulty: difficultySchema.nullable(),
       hintsRevealed: z.number().int(),
       hints: z.array(z.string()),
       status: z.enum(['active', 'solved', 'revealed', 'abandoned', 'aborted']),

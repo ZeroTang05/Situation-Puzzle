@@ -7,6 +7,7 @@
  *  - 事件 payload 是公开投影：汤底、未解锁提示、私有数据不出现在事件里
  */
 import { z } from 'zod';
+import { difficultySchema, puzzleCategorySchema } from './http.js';
 
 export const SCHEMA_VERSION = 1;
 
@@ -94,6 +95,9 @@ export const roomEventPayloadSchemas = {
     title: z.string(),
     surface: z.string(),
     language: z.enum(['zh', 'en']),
+    /** 类别与难度标签：题库题携带，与快照一致 */
+    category: puzzleCategorySchema.nullable(),
+    difficulty: difficultySchema.nullable(),
     hintsTotal: z.number().int(),
   }),
   'round.ended': z.object({
