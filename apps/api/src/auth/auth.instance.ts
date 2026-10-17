@@ -12,7 +12,7 @@
 import { betterAuth } from 'better-auth';
 import { APIError, createAuthMiddleware, isAPIError } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { emailOTP, genericOAuth } from 'better-auth/plugins';
+import { bearer, emailOTP, genericOAuth } from 'better-auth/plugins';
 import { randomInt } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import {
@@ -28,7 +28,7 @@ import {
 } from '@jev/database';
 import { addMonthsClamped } from '@jev/domain';
 import type { DbHandle } from '@jev/database';
-import type { Env } from '../env.js';
+import { allowedOrigins, type Env } from '../env.js';
 import { MailDeliveryError, type Mailer } from './mailer.js';
 import { OtpSendQuota, otpLimitMessage } from './otp-send-quota.js';
 import { otpRequestContext } from './otp-request-context.js';
@@ -71,7 +71,8 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
   return betterAuth({
     appName: 'Jev',
     baseURL,
-    trustedOrigins: [env.PUBLIC_BASE_URL],
+    // App 壳（https://localhost）等额外来源经 APP_EXTRA_ORIGINS 放行
+    trustedOrigins: allowedOrigins(env),
     database: drizzleAdapter(db.db, {
       provider: 'pg',
       schema: {
@@ -103,6 +104,8 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
         }
       : {},
     plugins: [
+      // App 壳令牌登录：Authorization: Bearer 换算会话 Cookie；登录/刷新响应经 set-auth-token 头下发令牌
+      bearer(),
       emailOTP({
         // 验证码 5 分钟有效、6 位；发送额度在前置钩子里由 PostgreSQL 管理。
         otpLength: 6,

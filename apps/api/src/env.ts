@@ -14,6 +14,8 @@ const envSchema = z.object({
   /** 单人凭证签名密钥 */
   SOLO_TOKEN_SECRET: z.string().min(16, '缺少 SOLO_TOKEN_SECRET'),
   PUBLIC_BASE_URL: z.string().default('http://localhost:5173'),
+  /** App 壳（Capacitor WebView）等额外允许的跨站来源，逗号分隔；CORS 与 trustedOrigins 共用 */
+  APP_EXTRA_ORIGINS: z.string().default(''),
   /** 仅信任列出的代理地址/CIDR；留空表示 API 直接接受浏览器连接。 */
   TRUSTED_PROXY_CIDRS: z.string().default(''),
 
@@ -89,6 +91,7 @@ export function loadEnv(): Env {
   if (env.GOOGLE_OAUTH_PROXY_BASE_URL && !env.GOOGLE_OAUTH_PROXY_SHARED_SECRET) {
     throw new Error('环境配置校验失败 → 配置了 GOOGLE_OAUTH_PROXY_BASE_URL 就必须配置 GOOGLE_OAUTH_PROXY_SHARED_SECRET');
   }
+  parseExtraOrigins(env.APP_EXTRA_ORIGINS);
   if (env.NODE_ENV === 'production') {
     if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
       // 生产环境允许第三方登录暂不开放（邮箱/密码登录兜底），但要明确记录
@@ -99,4 +102,26 @@ export function loadEnv(): Env {
     }
   }
   return env;
+}
+
+/** 解析 APP_EXTRA_ORIGINS：只接受 http(s) 纯 origin（不带路径/结尾斜杠），非法值就地失败。 */
+function parseExtraOrigins(raw: string): string[] {
+  const values = raw.split(',').map((value) => value.trim()).filter(Boolean);
+  for (const value of values) {
+    let url: URL;
+    try {
+      url = new URL(value);
+    } catch {
+      throw new Error(`环境配置校验失败 → APP_EXTRA_ORIGINS 含非法来源：${value}`);
+    }
+    if (!/^https?:$/.test(url.protocol) || url.origin !== value) {
+      throw new Error(`环境配置校验失败 → APP_EXTRA_ORIGINS 只接受 http(s) origin（不带路径）：${value}`);
+    }
+  }
+  return values;
+}
+
+/** 全部允许的浏览器来源：网页主站 + 额外来源（CORS 与 better-auth trustedOrigins 共用）。 */
+export function allowedOrigins(env: Env): string[] {
+  return [...new Set([env.PUBLIC_BASE_URL, ...parseExtraOrigins(env.APP_EXTRA_ORIGINS)])];
 }

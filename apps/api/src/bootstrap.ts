@@ -11,6 +11,7 @@ import PgBoss from 'pg-boss';
 import { and, eq } from 'drizzle-orm';
 import type { PoolClient } from 'pg';
 import type { Env } from './env.js';
+import { allowedOrigins } from './env.js';
 import { account, profiles, roleAssignments, user } from '@jev/database';
 import type { DbHandle } from '@jev/database';
 import type { Mailer } from './auth/mailer.js';
@@ -69,6 +70,31 @@ export async function createAppContext(input: BootstrapInput): Promise<AppContex
   server.disable('x-powered-by');
   const trustedProxies = input.env.TRUSTED_PROXY_CIDRS.split(',').map((value) => value.trim()).filter(Boolean);
   server.set('trust proxy', trustedProxies.length ? trustedProxies : false);
+  // CORS 必须挂在 better-auth 之前：/api/v1/auth 路由先于 Nest 注册，Nest 的 enableCors 盖不到它。
+  // App 壳（WebView 来源 https://localhost）跨站调用接口；网页端同源，无 Origin 时不加 CORS 头。
+  const origins = new Set(allowedOrigins(input.env));
+  const allowedHeaders = ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-jev-signup-otp', 'x-jev-otp-purpose'];
+  server.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin !== undefined) res.setHeader('Vary', 'Origin');
+    if (origin !== undefined && origins.has(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Access-Control-Expose-Headers', 'set-auth-token');
+    }
+    if (req.method !== 'OPTIONS') {
+      next();
+      return;
+    }
+    if (origin !== undefined && origins.has(origin)) {
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', allowedHeaders.join(','));
+      res.setHeader('Access-Control-Max-Age', '600');
+    }
+    // 预检一律在这里短路；不在名单的来源拿不到放行头，浏览器侧自行拦截
+    res.statusCode = 204;
+    res.end();
+  });
   // better-auth 处理 /api/v1/auth/*：必须拿到未经 JSON 解析的原始流
   server.use('/api/v1/auth', otpHttpContext(server.get('trust proxy fn')), toNodeHandler(input.auth.handler));
   server.use(express.json({ limit: '256kb' }));

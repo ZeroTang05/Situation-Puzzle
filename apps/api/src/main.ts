@@ -51,7 +51,7 @@ async function main(): Promise<void> {
     logger: ['error', 'warn', 'log'],
   });
   nestApp.setGlobalPrefix('api/v1');
-  nestApp.enableCors({ origin: env.PUBLIC_BASE_URL, credentials: true });
+  // CORS 在 bootstrap.ts 挂在 express 层（需要盖住先于 Nest 注册的 better-auth 路由）
   nestApp.useGlobalFilters(new GlobalExceptionFilter());
   nestApp.enableShutdownHooks();
 
