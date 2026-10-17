@@ -8,6 +8,7 @@
 import { useEffect, useRef } from 'react';
 import { wsServerFrameSchema } from '@jev/contracts';
 import { api } from '../api/client.js';
+import { wsUrl } from '../app-runtime.js';
 
 export interface LobbyStartEvent {
   lobbyId: string;
@@ -35,7 +36,7 @@ export function useLobbySync(lobbyId: string | undefined, onStart: (event: Lobby
       try {
         const { ticket } = await api<{ ticket: string }>('/realtime/tickets', { method: 'POST', timeoutMs: 10_000 });
         if (disposed) return;
-        const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
+        const ws = new WebSocket(wsUrl());
         socket = ws;
         ws.onopen = () => {
           if (disposed) return;

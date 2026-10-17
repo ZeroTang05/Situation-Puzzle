@@ -5,6 +5,7 @@
 import type { ErrorCode } from '@jev/contracts';
 import { displayError, type Language } from '@jev/i18n';
 import { OtpSendError } from '../auth/otp-cooldown.js';
+import { apiUrl, authorizationHeader, captureBearerToken } from '../app-runtime.js';
 
 export class ApiError extends Error {
   constructor(
@@ -33,14 +34,16 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
   if (options.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey;
 
-  const response = await fetch(`/api/v1${path}`, {
+  const response = await fetch(apiUrl(path), {
     method: options.method ?? 'GET',
-    headers,
+    headers: { ...headers, ...authorizationHeader() },
     signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(options.timeoutMs ?? 60_000)]) : AbortSignal.timeout(options.timeoutMs ?? 60_000),
     credentials: options.credentials ?? 'include',
     ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
   });
 
+  // App 壳：登录/会话刷新响应会带 set-auth-token 头，顺手更新本地令牌
+  captureBearerToken(response);
   const payload = (await response.json().catch(() => null)) as
     | { data?: T; error?: { code: string; message: string; params?: Record<string, unknown> } }
     | null;

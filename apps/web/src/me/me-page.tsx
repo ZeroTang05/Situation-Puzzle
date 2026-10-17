@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api, translateApiError } from '../api/client.js';
-import { authClient } from '../api/auth-client.js';
+import { signOut } from '../api/auth-client.js';
 import { useLanguage } from '../state/language.js';
 import { clearRoomLocal } from '../rooms/room-local.js';
 import { useDialog } from '@jev/ui';
@@ -118,7 +118,7 @@ export function MePage({ session }: { session: Session | null }) {
   const logout = async () => {
     if (!(await dialog.confirm(logoutConfirmText))) return;
     await clearRoomLocal(session.user.id);
-    await authClient.signOut();
+    await signOut();
     queryClient.clear();
     navigate('/');
   };

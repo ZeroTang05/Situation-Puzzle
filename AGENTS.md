@@ -13,6 +13,7 @@ apps/web        玩家端（React 19 + Vite）：首页、题库、单人、会�
 apps/admin      管理端（React-admin）：题库审核、用户、房间调查、举报、订单
 apps/api        NestJS 服务：认证 auth、题库 catalog、单人 solo、房间与会客厅 rooms、实时网关 realtime、赞助订单 billing、创作 creations、治理 governance、后台 admin
 apps/jobs       pg-boss 任务进程：dispatch-room / process-turn / review-puzzle / maintenance
+apps/app        Android 壳工程（Capacitor 8，包名 cn.xiaobaozi.sp，App 名「Jev 海龟汤」）：apps/web 构建产物打进 WebView；计划与认证适配方案见 docs/rebuild/13-APP-VERSION.md
 packages/contracts   跨端 Zod 契约：HTTP 请求响应、WS 事件、稳定错误码（客户端只准引用这里）
 packages/domain      纯业务规则：房间状态机、排队容量、赞助自然月算法、授权来源判定（配单测）
 packages/database    Drizzle 表结构（40 张表）、追加式迁移（drizzle/）、房间事务封装（rooms-tx）、题库导入
@@ -39,6 +40,7 @@ pnpm db:seed            # 导入 data/library.json 全部题目（当前 446 题
 pnpm smoke              # 冒烟：一次性 PostgreSQL + API + jobs + 接口断言
 pnpm e2e:multiplayer    # 双用户多人 E2E：36 项断言（真实 SMTP 登录 + 真实 Jev）
 pnpm e2e:votes          # 赞踩与署名 E2E（真实 SMTP + 真实 Jev）
+pnpm build:app          # 网页产物打进 Android 壳（--mode app：接口指向生产域名）；出 APK 在 apps/app/android 跑 gradlew assembleDebug 或用 Android Studio 打开
 ```
 
 部署（服务器上）：`cp .env.example .env && docker compose up -d --build`；
@@ -60,8 +62,11 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
 - **判题**：阈值只能服务端读；`uncertain` 是有效判定；缺概率是协议错误不编造；
   每局固定 `jevConfigVersion`；置信度不足自动用 MiniMax 大模型补判，多人还原可
   手动指定大模型（`turns.use_large_model` 随提交落库，任务按提交时选择执行）
-- **认证**：Better Auth（邮箱/密码 + Email OTP + Google + LINUX DO）；`trustedOrigins` 来自 `PUBLIC_BASE_URL`，
-  改来源先看 `apps/api/src/auth/auth.instance.ts`
+- **认证**：Better Auth（邮箱/密码 + Email OTP + Google + LINUX DO）；`trustedOrigins` 来自 `PUBLIC_BASE_URL` +
+  `APP_EXTRA_ORIGINS`（App 壳 WebView 来源 `https://localhost`），改来源先看 `apps/api/src/auth/auth.instance.ts`；
+  整站 CORS 在 `bootstrap.ts` 挂 express 层（better-auth 路由先于 Nest 注册，enableCors 盖不到它）；
+  App 壳令牌登录走 better-auth `bearer()` 插件（`Authorization: Bearer` ↔ 会话 Cookie 换算，`set-auth-token` 头下发），
+  web 侧适配层在 `apps/web/src/app-runtime.ts`
 - **邮件通道**：`MAIL_TRANSPORT` 显式二选一（`apps/api/src/auth/mailer.ts`）——
   `resend` 生产通道（官方 SDK，与内部其他项目共用 Resend 账号，发件地址由 `MAIL_FROM` 配置，生产用 `noreply@xiaobaozi.cn`）；
   `smtp` 本地联调通道（投递给 dev-mailsink）。通道与配置的对应关系在 `env.ts` 跨字段校验
@@ -95,6 +100,11 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   OAuth 走的是独立部署的 `oauth-relay.xiaobaozi.cn`（专用路径
   `/oauth/google/token|userinfo` + `X-Relay-Token`，无 JWKS 路由）。
   本地到 Deno 节点的链路偶发抖动，探针脚本已带重试
+- **Android 构建被墙两处**：命令行 Gradle 直连 dl.google.com TLS 握手被重置——阿里云镜像
+  已注入 apps/app/android/build.gradle（root buildscript 与 allprojects.buildscript 两层，
+  node_modules 里 :capacitor-android 的仓库写死 google()，靠后者在子工程脚本求值前把镜像排在前面）；
+  platform / build-tools 无 maven 通道，版本对齐本机已装（compileSdk 37 / buildTools 36.0.0）；
+  本机新旧两个 adb 抢 5037 端口会致模拟器 unauthorized，统一用 SDK 的 platform-tools/adb.exe
 
 ## 验证
 

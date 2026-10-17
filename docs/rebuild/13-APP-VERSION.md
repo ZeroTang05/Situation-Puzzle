@@ -1,11 +1,11 @@
 # 13 — App 版本开发计划
 
-状态：草案，等第 9 节决策清单确认后开工。
+状态：已拍板（决策记录见 §9）。M0 已完成（2026-10-17 模拟器验收），下一步 M1 认证与网络。
 日期：2026-10-17；代码基线：dev `4e4b3ed`。
 
 ## 0. 结论
 
-用 Capacitor 把现有网页装进原生外壳，做成可安装的 Android / iOS App。`apps/web` 的代码全部复用，新增一个壳工程 `apps/app`，再给网页加一层可开关的适配（接口基址、令牌登录、深链）。先做 Android、官网直接下安装包；iOS 涉及开发者账号与中国区上架政策，放在后面按决策推进。
+用 Capacitor 把现有网页装进原生外壳，做成 Android App，上架 Google Play。`apps/web` 的代码全部复用，新增一个壳工程 `apps/app`，再给网页加一层可开关的适配（接口基址、令牌登录、深链）。iOS 不做；大陆没有 Google Play 的用户继续用网页版，官网直装 APK 作为辅助渠道。
 
 ## 1. 目标与非目标
 
@@ -18,8 +18,9 @@
 非目标（第一版不做，以后再说）：
 
 - 推送通知（「轮到你了」提醒）
-- 微信登录、App 内支付（收费入口本来就关着；苹果也禁止数字商品跳站外支付）
+- 微信登录、App 内支付（收费入口本来就关着；谷歌也要求数字商品走 Play 内购）
 - 离线游玩、绕过商店的热更新
+- iOS 版（已拍板不做）
 - 微信小程序（PRD 01 就排除了首发）
 
 ## 2. 技术选型
@@ -58,10 +59,10 @@ flowchart LR
 
 | 位置 | 内容 | 性质 |
 | --- | --- | --- |
-| `apps/app`（新增） | Capacitor 壳工程：Android/iOS 平台代码、图标、启动屏、深链配置 | 新代码，量小 |
+| `apps/app`（新增） | Capacitor 8 壳工程：Android 平台代码、图标、启动屏、深链配置（包名 `cn.xiaobaozi.sp`，App 名「Jev 海龟汤」） | 新代码，量小 |
 | `apps/web`（改造） | 适配层：接口/WS 基址可配、令牌登录、系统浏览器开外链、安全区 | 全部开关式，网页行为零变化 |
 | `apps/api`（小改） | 允许的来源从单个改为列表；登录给 App 客户端发令牌；实时票据接受令牌 | 向后兼容 |
-| `infra/`（小改） | nginx 加两个深链验证文件的静态路由 | 静态文件 |
+| `infra/`（小改） | nginx 加深链验证文件（`assetlinks.json`）的静态路由 | 静态文件 |
 | 官网（新增） | App 下载页 + 隐私政策页 | 内容页 |
 
 构建链：`apps/web build`（带 App 配置）→ `capacitor sync` 把产物拷进壳工程 → Android Studio 出安装包。开发时壳可以直接加载 Vite 开发服务器，改动即时热更新，迭代体验与现在一致。
@@ -75,7 +76,7 @@ flowchart LR
 - 实时连接鉴权：先 HTTP 拿 30 秒一次性 ticket，再开 WebSocket 发 auth 帧，WS 本身不依赖 Cookie
 - 单人模式的匿名凭证放在请求体里、存 IndexedDB，与 Cookie 无关，App 里直接能用
 
-问题：App 的网页从本地文件加载，来源是 `https://localhost`，调生产接口属于跨站请求；iOS 的 WKWebView 有 ITP（智能防跟踪）机制，会拦跨站 Cookie。Cookie 方案在 App 里走不通。
+问题：App 的网页从本地文件加载，来源是 `https://localhost`，调生产接口属于跨站请求；Android WebView 默认拒收第三方 Cookie（页面去请求别的域名时带的 Cookie），Cookie 方案在 App 里走不通。
 
 方案（与 SPEC §9 的既定约束一致：原生端用令牌模式，网页 Cookie 只留给浏览器）：
 
@@ -85,7 +86,7 @@ flowchart LR
 4. **实时**：拿 ticket 的那次 HTTP 同样带令牌头，WS 流程零改动
 5. **OAuth（Google / LINUX DO）**：App 内用系统浏览器打开授权页，授权完跳回 App（见 §5）；登录返回地址的同源校验（`login-navigation.ts`）给 App 模式放行自己的回调地址
 
-壳工程统一配 `androidScheme: https`，让 Android/iOS 的页面来源都是 `https://localhost`，服务端只需多放行这一个来源。
+壳工程的 `androidScheme` 用默认值 `https`，页面来源固定是 `https://localhost`，服务端只需多放行这一个来源。
 
 B 计划（令牌这条路在 better-auth 1.3.4 上若遇到实现阻力）：用 Capacitor 官方 CapacitorHttp，请求从原生层发出，原生层有自己的 Cookie 存储不受 ITP 限制。能用但不够干净，只在 A 计划受阻时启用。
 
@@ -95,38 +96,48 @@ B 计划（令牌这条路在 better-auth 1.3.4 上若遇到实现阻力）：�
 - 登录链路给 App 客户端发令牌（挂载点——better-auth hooks 还是薄封装端点——M1 动手时定）
 - realtime ticket 签发走 getSession，注册 bearer 插件后自动同时接受 Cookie 与令牌
 
+M1 落地记录（2026-10-17）：
+
+- **bearer 契约**（better-auth 实测 1.7.6）：注册 `bearer()` 插件即可，无独立令牌表、无刷新端点——登录/会话刷新响应经 `set-auth-token` 响应头把会话 Cookie 值原样下发（CORS expose 已放行），客户端之后带 `Authorization: Bearer <该值>`，插件在请求进门前把它换算回会话；会话刷新（updateAge）保留同一令牌，客户端无需续期逻辑
+- **一处生效全站**：Nest 全部业务接口经 `session.guard` → `auth.api.getSession`，守卫透传完整请求头，bearer 插件在 getSession 内生效——rooms/creations/billing 等业务代码零改动
+- **令牌存储**：WebView localStorage（`https://localhost` 私有空间）。计划原定 Capacitor Preferences，落地改用 localStorage：省掉给 apps/web 引入 Capacitor 依赖（包边界保持 contracts/i18n/ui 三件套），安全面等价（同为 App 私有存储）；壳检测靠 Capacitor 原生桥注入的 `window.Capacitor`
+- **CORS 挂点**：`bootstrap.ts` 在 better-auth 路由挂载前手写 CORS 中间件（`cors` 包不在 apps/api 依赖里，约 25 行）。关键：`/api/v1/auth` 先于 Nest 注册，`nestApp.enableCors` 盖不到它——main.ts 的 enableCors 已删除，整站 CORS 统一在 express 层，同时盖住两者
+- **网页零变化**：`VITE_API_BASE_URL` 未设置时基址为空 → 相对路径、无令牌头、localStorage 不读写；`isAppShell` 为 false 时适配层全部函数都是空操作
+
 ## 5. 深链与邀请
 
 - 邀请链接形状不变：`https://<域名>/lobby/invite/<hex>`。没装 App 的人点开就是网页，天然兜底
-- 装了 App 的手机：Android App Links（域名下放 `assetlinks.json` 证明 App 归属）点链接直接开 App 进房间；iOS 的 Universal Links 同理（放 `apple-app-site-association`，需要苹果开发者账号），放 M4
+- 装了 App 的手机：Android App Links（域名下放 `assetlinks.json` 证明 App 归属）点链接直接开 App 进房间
 - App 内分享出去的链接仍是 https 网页链接，大家都能打开
-- 两个验证文件由现有 nginx 直接静态托管；`assetlinks.json` 里要写签名证书指纹，所以 App Links 在 M3 拿到正式签名密钥后启用，M2 先用普通链接 + 剪贴板过渡
+- `assetlinks.json` 由现有 nginx 直接静态托管；里面要写签名证书指纹，所以 App Links 在 M3 拿到正式签名密钥后启用，M2 先用普通链接 + 剪贴板过渡
 
-## 6. 打包、分发与合规
+## 6. 打包、分发与合规（Google Play）
 
-这一节是现实阻力最大的部分，先看清再花钱。
+### 开发与打包
 
-开发机限制：
+- 这台 Windows 机已具备 Node 24 与 JDK 21（2026-10-17 检查），还缺 Android SDK——装 Android Studio（自带 SDK 管理）即可，Capacitor 8 要求 JDK 21 正好满足
+- 用 Capacitor 8（当前最新稳定版 8.5.x）：Google Play 自 2025 年 11 月起要求新提交的 App 支持 16 KB 内存页，Capacitor 8 已支持，更老的版本不行
+- 签名：注册 Play 时默认启用 Play App Signing（谷歌保管正式密钥），本地只保管上传密钥（upload keystore），丢了可以重置，风险低
+- 本机构建网络两坑（2026-10-17 已解决，细节在 AGENTS.md 踩坑点）：命令行 Gradle 直连 dl.google.com 的 TLS 握手被重置，AGP 拉不下来，阿里云 maven 镜像已注入 `apps/app/android/build.gradle`；platform / build-tools 没有 maven 通道、自动安装同样被墙，版本对齐本机已装组件（compileSdk 37 / buildTools 36.0.0）
 
-- 这台 Windows 机装 Android Studio + JDK 后能直接出 Android 包
-- iOS 打包必须 macOS：用 GitHub Actions 的 macOS 云构建（免费额度每月 2000 分钟，够用）；签名与上传 TestFlight 需要苹果开发者账号（688 元/年）
+### Google Play 上架流程（M4）
 
-Android 分发：
+- 注册 Play 开发者账号：一次性 25 美元，个人账号即可
+- 新个人账号有冷启动要求：先跑封闭测试（closed testing），至少 12 名测试者连续 14 天装着并用，之后才能申请正式发布（官方现行口径，2026-10 查证；原始要求 20 人，后来降到 12）。测试者要有 Google 账号，得提前攒人
+- 内部测试轨道（internal testing）没有人数/天数门槛，自己随时装，先用它做日常真机分发
+- 资料填报：数据安全表单（收集邮箱、HTTPS 传输）、内容分级问卷（IARC，按游戏/问答类作答）、隐私政策链接（必填）、目标受众年龄
+- AI 内容政策：Play 对带生成式 AI 功能的 App 要求提供应用内举报/屏蔽入口，并在 Console 里申报 AI 功能——站内已有举报（governance）体系，M4 前核对覆盖面是否够
+- 每年跟进 targetSdk 要求（Google 要求 target API level 落后最新 Android 不超过一年），跟 Capacitor 大版本升级走
 
-- 国内手机商店（华为/小米/OV）上架要软著（软件著作权登记证书），多数还要企业主体，个人走不通——第一版不上商店
-- 第一版：官网放 APK 安装包直接下载 + 一页安装说明。国产手机装「来路不明」的包会弹风险提示，一次性的，可以接受
-- 必备资产：签名密钥（keystore 文件，生成后离线保存，丢了老用户就无法覆盖升级）、多尺寸图标（现只有 icon.svg，需出 PNG 各尺寸）、启动屏
+### 大陆用户与辅助渠道
 
-iOS 分发（M4，看决策）：
+- 大陆没有 Google Play：大陆用户继续用网页版；官网 APK 直装页保留作辅助渠道（Google 不排斥免费 App 多渠道分发）
+- 国内手机商店（华为/小米/OV）要软著（软件著作权登记证书）+ 多数要企业主体，个人走不通，不做
 
-- 版号风险：中国区 App Store 对「游戏」类 App 要游戏版号（游戏出版备案，个人申请不到）。本产品是 AI 主持的文字推理，存在被归入游戏的风险；按「社交/桌游助手」类目定位有机会，没有保证
-- 稳妥路径：先 TestFlight（苹果官方内测渠道）+ 海外区 App Store；中国区正式上架等条件成熟再评估
-- 苹果对「网页套壳」有最低功能要求（4.2 条款）：本产品有完整玩法与实时多人，达标没有悬念
+### 支付与隐私
 
-支付与隐私：
-
-- App 第一版不带任何付费/赞助入口（收费本来就未开通）；赞助留在网页。将来微信商户开通后，Android 可引导去网页支付，iOS 需单独议
-- 上架需要隐私政策链接：官网补一页中文隐私政策（本站只收集邮箱，好写）
+- App 第一版不带任何付费/赞助入口（收费本来就未开通）。将来若在 App 内卖会员，谷歌要求走 Play 内购（抽成 15% 起），到时单独决策
+- 隐私政策：官网补一页中文隐私政策（本站只收集邮箱，好写），Play 必填
 - App 权限最小化：第一版只要联网权限，不要相机/定位/通讯录
 
 ## 7. 里程碑
@@ -136,27 +147,32 @@ iOS 分发（M4，看决策）：
 | M0 骨架 | 装 Android Studio + JDK；建 `apps/app` 壳工程；模拟器加载 Vite 开发服务器 | 模拟器能浏览题库、玩单人 | 约 1 天 |
 | M1 认证与网络 | 接口/WS 基址可配；令牌登录全链路；服务端来源列表 + bearer | 真机登录、进房间提问、断网重连补齐全通 | 2–3 天 |
 | M2 深链与回归 | OAuth 系统浏览器回流；邀请链接打开 App；键盘避让/安全区细节；全功能回归 | 两台真机互发邀请对局 | 2–3 天 |
-| M3 Android 交付 | 签名、图标、启动屏、App Links 验证文件、官网下载页、隐私政策 | 官网下载 APK 装机可玩 | 1–2 天 |
-| M4 iOS（决策后） | 苹果账号、Universal Links、云构建、TestFlight | TestFlight 装机可玩 | 2–3 天 + 等审核 |
-| M5 商店化（决策后） | 软著/版号/主体评估，国内安卓商店与 App Store 中国区 | 视外部流程 | 外部流程为主 |
+| M3 Android 交付 | 签名（Play App Signing + 本地上传密钥）、图标、启动屏、App Links 验证文件、官网下载页、隐私政策 | 官网下载 APK 装机可玩 | 1–2 天 |
+| M4 Google Play 上架 | 注册账号（25 美元）、内部测试轨道先行、资料填报、攒 12 名测试者跑满 14 天封闭测试、申请正式发布 | Play 可搜索、可安装 | 1–2 天 + 14 天冷启动与审核 |
+
+M0 完成记录（2026-10-17）：壳工程编译出 debug APK（4.3 MB），模拟器安装启动，首页与导航渲染正常、无崩溃。「浏览题库、玩单人」依赖接口连通（基址适配），随 M1 一起验收；「模拟器加载 Vite 开发服务器」是开发期热更新手段，M1 联调时再启用。
+
+M1 完成记录（2026-10-17，代码落地、待真机验收）：方案与契约见 §4 落地记录。改动清单——服务端 `env.ts`（APP_EXTRA_ORIGINS 校验 + allowedOrigins）、`bootstrap.ts`（express 层 CORS 中间件）、`main.ts`（删 enableCors）、`auth.instance.ts`（bearer 插件 + trustedOrigins 列表）；web 新增 `src/app-runtime.ts` 适配层与 `.env.app`（App 构建的接口基址），`client.ts` / `auth-client.ts` / 两个实时 sync hook / `otp-cooldown.ts` 接线，`pnpm build:app` 产出带生产基址的构建。真机验收要点：登录（密码 + 验证码）、进房间提问、断网重连补齐。
 
 每阶段收尾跑 `pnpm typecheck` + `pnpm test`；网页端用现有 e2e 保障（App 适配全部开关式，网页默认路径不变）。
+
+后续阶段（另行决策）：推送通知、微信登录。
 
 ## 8. 风险
 
 | 风险 | 应对 |
 | --- | --- |
-| 苹果中国区把产品判为游戏、要版号 | iOS 投入放在 Android 跑通之后；先 TestFlight / 海外区 |
+| Play 新账号封闭测试冷启动（12 人 × 14 天），审核还看测试者活跃度 | 提前攒人（朋友 + 社群），期间用内部测试轨道持续迭代 |
+| Play 对 AI 生成内容类 App 的审核（应用内举报入口、AI 功能申报） | 站内已有举报体系，M4 前核对是否覆盖 AI 判题与聊天内容 |
 | better-auth 1.3.4 令牌签发的实现细节 | M1 第一件事做技术验证；受阻则启用 CapacitorHttp B 计划 |
 | 国产安卓系统杀后台、断长连接 | 已有指数退避重连 + seq 补齐，App 前台场景风险低 |
 | 一套代码两端维护 | 改动集中在适配层，App 专属代码只有壳工程 |
 
-## 9. 待拍板的决策清单
+## 9. 决策记录（2026-10-17 用户拍板）
 
-只列定了不好改、或要花钱的项：
-
-1. 技术路线按 Capacitor 走？（推荐，理由见 §2）
-2. 先 Android（官网发 APK）、iOS 后置？（推荐；并行也行，但要提前买苹果账号 + 配云构建）
-3. 苹果开发者账号 688 元/年：现在买，还是 Android 跑通再说？（M4 开工前买即可）
-4. App 名称与包名：名称沿用「AI 海龟汤」；包名建议 `cn.xiaobaozi.jevturtlesoup`（包名上架后改不了，确认一下）
-5. 要不要顺手补 PWA manifest（对国内用户价值很小，建议跳过）
+1. 技术路线：Capacitor
+2. 平台范围：只做 Android，iOS 不做
+3. 分发：上架 Google Play；大陆用户走网页，官网 APK 直装作辅助渠道
+4. 包名：`cn.xiaobaozi.sp`（上架后不可改）
+5. App 名称：Jev 海龟汤
+6. PWA manifest：跳过

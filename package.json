@@ -12,6 +12,7 @@
     "test": "pnpm --filter @jev/domain --filter @jev/jev --filter @jev/web --filter @jev/api exec vitest run --exclude '**/*.integration.test.ts'",
     "build:web": "pnpm --dir apps/web build",
     "build:admin": "pnpm --dir apps/admin build",
+    "build:app": "pnpm --dir apps/web build --mode app && pnpm --dir apps/app sync",
     "db:migrate": "pnpm --dir packages/database db:migrate",
     "db:seed": "pnpm --dir packages/database db:import-library",
     "smoke": "bash scripts/smoke-new-system.sh",

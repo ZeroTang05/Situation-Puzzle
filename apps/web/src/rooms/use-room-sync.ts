@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { wsServerFrameSchema, type RoomEvent, type WsClientFrame } from '@jev/contracts';
 import { api, ApiError } from '../api/client.js';
+import { wsUrl } from '../app-runtime.js';
 import { fetchSnapshot, type RoomState } from './room-state.js';
 import { receiveEvent, reconnectDelay } from './reliability.js';
 export type { RoomState, RoomRound } from './room-state.js';
@@ -105,7 +106,7 @@ export function useRoomSync(roomId: string, userId: string | null) {
       try {
         const { ticket } = await api<{ ticket: string }>('/realtime/tickets', { method: 'POST', timeoutMs: 10_000, signal: controller.signal });
         if (!current(generation)) return;
-        const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
+        const ws = new WebSocket(wsUrl());
         socket = ws;
         lastReceived = Date.now();
         ws.onopen = () => { if (current(generation)) send({ type: 'auth', ticket }); };
