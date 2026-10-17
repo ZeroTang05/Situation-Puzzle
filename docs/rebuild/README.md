@@ -20,6 +20,7 @@
 | [房间生命周期修订](10-ROOM-LIFECYCLE-REVISION.md) | 会客厅（lobby id 永久、host_user_id UNIQUE 1:1）与房间（room 无数量限制）彻底解耦 | 产品、开发、测试 |
 | [题目点赞与作者署名](11-VOTES-AND-AUTHORSHIP.md) | 全题库赞踩、受欢迎排序、署名与匿名、作者反馈 | 产品、开发、测试 |
 | [WebSocket 连接与可靠发送](12-CONNECTION-EXPERIENCE.md) | 发送确认、消息去重、重连补齐、草稿与页面保留 | 前后端开发、测试 |
+| [App 版本计划](13-APP-VERSION.md) | 网页装进原生壳：Capacitor 选型、令牌登录、深链、分发与合规 | 产品、开发 |
 
 ## 给开发模型的执行约定
 
