@@ -125,6 +125,16 @@ export const soloRevealRequestSchema = z.object({
   confirmed: z.literal(true),
 });
 
+// ---------- App 壳会话交接（OAuth 系统浏览器回流后换 Bearer 令牌） ----------
+
+export const appSessionExchangeRequestSchema = z.object({
+  code: z.string().min(1),
+});
+
+export const appSessionExchangeResponseSchema = z.object({
+  token: z.string(),
+});
+
 // ---------- 等待室（内存临时态，开局前不入库；docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md §三） ----------
 
 /** 等待室里房主已选定的题目投影：标题与语言公开，不含汤底 */

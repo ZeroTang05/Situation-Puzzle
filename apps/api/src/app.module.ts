@@ -3,6 +3,7 @@ import { Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { EnvelopeInterceptor, RequestIdMiddleware, RolesGuard } from './common/http.js';
 import { SessionGuard } from './auth/session.guard.js';
+import { AppSessionController } from './auth/app-session.controller.js';
 import { HealthController } from './health/health.controller.js';
 import { CatalogController } from './catalog/catalog.controller.js';
 import { SoloController } from './solo/solo.controller.js';
@@ -22,6 +23,7 @@ import { AdminController } from './admin/admin.controller.js';
 @Module({
   controllers: [
     HealthController,
+    AppSessionController,
     CatalogController,
     SoloController,
     MeController,

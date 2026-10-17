@@ -13,7 +13,7 @@ apps/web        玩家端（React 19 + Vite）：首页、题库、单人、会�
 apps/admin      管理端（React-admin）：题库审核、用户、房间调查、举报、订单
 apps/api        NestJS 服务：认证 auth、题库 catalog、单人 solo、房间与会客厅 rooms、实时网关 realtime、赞助订单 billing、创作 creations、治理 governance、后台 admin
 apps/jobs       pg-boss 任务进程：dispatch-room / process-turn / review-puzzle / maintenance
-apps/app        Android 壳工程（Capacitor 8，包名 cn.xiaobaozi.sp，App 名「Jev 海龟汤」）：apps/web 构建产物打进 WebView；计划与认证适配方案见 docs/rebuild/13-APP-VERSION.md
+apps/app        Android 壳工程（Capacitor 8，包名 cn.xiaobaozi.sp，App 名「Jev 海龟汤」）：apps/web 构建产物打进 WebView；插件 @capacitor/app browser clipboard keyboard（OAuth 回流系统浏览器、深链事件、剪贴板邀请过渡、键盘避让）；OAuth 回流端点 `/api/v1/app-session/handoff|exchange`（60 秒 jose code 换 Bearer 令牌）；计划与认证适配方案见 docs/rebuild/13-APP-VERSION.md
 packages/contracts   跨端 Zod 契约：HTTP 请求响应、WS 事件、稳定错误码（客户端只准引用这里）
 packages/domain      纯业务规则：房间状态机、排队容量、赞助自然月算法、授权来源判定（配单测）
 packages/database    Drizzle 表结构（40 张表）、追加式迁移（drizzle/）、房间事务封装（rooms-tx）、题库导入
@@ -105,6 +105,12 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   node_modules 里 :capacitor-android 的仓库写死 google()，靠后者在子工程脚本求值前把镜像排在前面）；
   platform / build-tools 无 maven 通道，版本对齐本机已装（compileSdk 37 / buildTools 36.0.0）；
   本机新旧两个 adb 抢 5037 端口会致模拟器 unauthorized，统一用 SDK 的 platform-tools/adb.exe
+- **Capacitor 桥的 addListener 同步返回句柄**：`window.Capacitor.Plugins.<插件>.addListener(...)`
+  在 Android 返回普通对象 `{ remove }`，只有 `@capacitor/*` 包的 web 代理才返回 Promise；
+  兼容写法见 `apps/web/src/app-runtime.ts` 的 `bindNativeListener`（Promise.resolve 归一化）
+- **WebView 的 env() 安全区可能虚高**：模拟器 WebView 145 实测 `env(safe-area-inset-top)` 报
+  80px（真实状态栏 24px）；App 壳安全区一律 `var(--safe-area-inset-*, env(...))`，
+  Capacitor SystemBars（insetsHandling 'css'）注入的变量按真实 insets 计算
 
 ## 验证
 

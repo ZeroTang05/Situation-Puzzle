@@ -15,11 +15,21 @@
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
             android:exported="true">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- OAuth 回流深链：系统浏览器完成授权后由服务端 handoff 302 到
+                 cn.xiaobaozi.sp:/oauth?code=..（与 apps/api app-session.controller 对应） -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="cn.xiaobaozi.sp" android:pathPrefix="/oauth" />
             </intent-filter>
 
         </activity>

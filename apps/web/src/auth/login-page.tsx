@@ -15,6 +15,7 @@ import { authStepHref, loginDestination } from './login-navigation.js';
 import { useBack } from '../back.js';
 import { format } from '@jev/i18n';
 import { otpCooldownKey, readOtpDeadline, remainingOtpSeconds, sendOtpCode, OtpSendError } from './otp-cooldown.js';
+import { isAppShell, openSystemBrowser, siteOrigin } from '../app-runtime.js';
 
 type Mode = 'signin' | 'signup';
 type Method = 'password' | 'otp';
@@ -165,9 +166,15 @@ export function LoginPage() {
   const oauthSignIn = async (provider: 'google' | 'linuxdo') => {
     setBusy(true);
     setError(null);
+    // App 壳：授权页在系统浏览器打开（WebView 会被 Google 拦），
+    // 回调经服务端 handoff 302 到深链回 App，由 app-shell-links 换回令牌
+    const nextUrl = new URL(next);
+    const callbackURL = isAppShell
+      ? `${siteOrigin()}/api/v1/app-session/handoff?next=${encodeURIComponent(nextUrl.pathname + nextUrl.search + nextUrl.hash)}`
+      : next;
     const { data, error: oauthError } = await authClient.signIn.social({
       provider,
-      callbackURL: next,
+      callbackURL,
     });
     setBusy(false);
     if (oauthError) {
@@ -175,7 +182,8 @@ export function LoginPage() {
       return;
     }
     if (data?.url) {
-      window.location.href = data.url;
+      if (isAppShell) await openSystemBrowser(data.url);
+      else window.location.href = data.url;
     }
   };
 
