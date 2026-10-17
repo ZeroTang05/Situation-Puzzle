@@ -1,0 +1,51 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+
+    repositories {
+        // 国内镜像优先：dl.google.com 直连 TLS 握手被重置，命令行 Gradle 拉不到 AGP（见 docs/rebuild/13-APP-VERSION.md §6）
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.0'
+        classpath 'com.google.gms:google-services:4.4.4'
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+apply from: "variables.gradle"
+
+allprojects {
+    buildscript {
+        // 子工程（node_modules 里的 :capacitor-android）自带 buildscript 仓库且写死 google()；
+        // 根工程的 allprojects 先于子工程脚本求值，在这里预注入镜像保证排在 google() 前
+        repositories {
+            maven { url 'https://maven.aliyun.com/repository/google' }
+            maven { url 'https://maven.aliyun.com/repository/public' }
+        }
+    }
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        google()
+        mavenCentral()
+    }
+}
+
+// :capacitor-android（node_modules 内，不可改文件）同样固定到本机已有的 build-tools
+subprojects {
+    plugins.withId('com.android.library') {
+        extensions.configure(com.android.build.gradle.LibraryExtension) { ext ->
+            ext.buildToolsVersion '36.0.0'
+        }
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

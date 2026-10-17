@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Jev 海龟汤</string>
+    <string name="title_activity_main">Jev 海龟汤</string>
+    <string name="package_name">cn.xiaobaozi.sp</string>
+    <string name="custom_url_scheme">cn.xiaobaozi.sp</string>
+</resources>
