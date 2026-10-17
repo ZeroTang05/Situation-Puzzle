@@ -123,10 +123,11 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
     };
   }, [puzzleId, language, copy.soloLoadFail]);
 
+  // 新回合或对局状态翻转（解出弹结算、揭晓弹汤底）都把聊天滚到底，弹出的面板不留在折叠线外
   useEffect(() => {
     const chat = chatRef.current;
     if (chat) chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
-  }, [turns.length, session?.revealedAnswer]);
+  }, [turns.length, session?.status, session?.revealedAnswer]);
 
   const persistDraft = useCallback(
     (mode: InputMode, value: string) => {
@@ -281,6 +282,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
 
   const solved = session.status === 'solved';
   const canRate = canRateSoloPuzzle(session.revealedAnswer, turns);
+  const hintList = turns.filter((turn) => turn.result === 'hint').map((turn) => turn.text);
 
   return (
     <main className="shell solo-shell">
@@ -308,33 +310,45 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
         {turns.filter((turn) => turn.result !== 'hint').map((turn) => (
           <TurnCard key={turn.localTurnId} turn={turn} copy={copy} language={language} />
         ))}
-        {solved && (
-          <section className="panel verdict-panel">
-            <p className="verdict-badge verdict-solved">{displayVerdict('solved', language)}</p>
-            <p>{verdictDetail('solved', language)}</p>
-          </section>
-        )}
+        <div className={`appear-slot${solved ? ' open' : ''}`}>
+          {solved && (
+            <section className="panel verdict-panel">
+              <p className="verdict-badge verdict-solved">{displayVerdict('solved', language)}</p>
+              <p>{verdictDetail('solved', language)}</p>
+            </section>
+          )}
+        </div>
 
-        {session.revealedAnswer && (
-          <section className="panel answer-panel">
-            <h3>{copy.answer}</h3>
-            <p>{session.revealedAnswer}</p>
-          </section>
-        )}
+        <div className={`appear-slot${session.revealedAnswer ? ' open' : ''}`}>
+          {session.revealedAnswer && (
+            <section className="panel answer-panel">
+              <h3>{copy.answer}</h3>
+              <p>{session.revealedAnswer}</p>
+            </section>
+          )}
+        </div>
 
         {/* 首次提交还原或公布汤底后才开放评价。 */}
-        {canRate && publicStats && (
-          <section className="panel">
-            <p className="muted">{copy.rateYourPuzzle}</p>
-            <VoteButtons puzzleId={puzzleId!} session={authSession} initialUp={publicStats.upCount} initialDown={publicStats.downCount} />
-          </section>
-        )}
+        <div className={`appear-slot${canRate && publicStats ? ' open' : ''}`}>
+          {canRate && publicStats && (
+            <section className="panel">
+              <p className="muted">{copy.rateYourPuzzle}</p>
+              <VoteButtons puzzleId={puzzleId!} session={authSession} initialUp={publicStats.upCount} initialDown={publicStats.downCount} />
+            </section>
+          )}
+        </div>
       </section>
 
       <div className="solo-bottom game-scroll">
-        {storageWarning && <p className="error-text">{copy.storageNotSaved}</p>}
-        {error && <p className="error-text" role="alert">{error}</p>}
-        <HintCapsule hints={turns.filter((turn) => turn.result === 'hint').map((turn) => turn.text)} />
+        <div className={`appear-slot${storageWarning || error ? ' open' : ''}`}>
+          <div className="status-lines">
+            {storageWarning && <p className="error-text">{copy.storageNotSaved}</p>}
+            {error && <p className="error-text" role="alert">{error}</p>}
+          </div>
+        </div>
+        <div className={`appear-slot${hintList.length ? ' open' : ''}`}>
+          <HintCapsule hints={hintList} />
+        </div>
         <section className="solo-action-row" role="group" aria-label={copy.hint}>
           <button className="btn btn-sm" disabled={changingPuzzle || hintBusy || session.status !== 'active' || session.hintsUnlocked.length >= 3} onClick={() => void unlockHint(session.hintsUnlocked.length)}>
             {copy.hint} {session.hintsUnlocked.length}/3
@@ -350,9 +364,12 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
           }}>{copy.soloViewAnswer}</button>
         </section>
 
-        {!solved && !session.revealedAnswer && (
+        {/* 输入区在解出/揭晓后整体收起：槽位常驻、动画滑出，聊天区高度不被瞬间顶变形 */}
+        <div className={`appear-slot${!solved && !session.revealedAnswer ? ' open' : ''}`} inert={solved || Boolean(session.revealedAnswer)}>
           <footer className="composer solo-composer">
-            {inputMode === 'solve' && <LargeModelToggle checked={useLargeModel} disabled={changingPuzzle || sending} onChange={setUseLargeModel} />}
+            <div className={`appear-slot${inputMode === 'solve' ? ' open' : ''}`} inert={inputMode !== 'solve'}>
+              <LargeModelToggle checked={useLargeModel} disabled={changingPuzzle || sending} onChange={setUseLargeModel} />
+            </div>
             <div className="composer-row">
               <ChatInput
                 aria-label={inputMode === 'ask' ? copy.ask : copy.solve}
@@ -375,7 +392,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
               </button>
             </div>
           </footer>
-        )}
+        </div>
       </div>
     </main>
   );

@@ -115,23 +115,31 @@ export function CreationPreviewPage({ session: account }: { session: Session | n
         {turns.filter((turn) => turn.result !== 'hint').map((turn) => (
           <TurnCard key={turn.localTurnId} turn={turn} copy={copy} language={language} />
         ))}
-        {solved && (
-          <section className="panel verdict-panel">
-            <p className="verdict-badge verdict-solved">✓</p>
-            <p className="muted">{text.previewTitle}</p>
-          </section>
-        )}
-        {local.revealedAnswer && (
-          <section className="panel answer-panel">
-            <h3>{text.answer}</h3>
-            <p>{local.revealedAnswer}</p>
-          </section>
-        )}
+        <div className={`appear-slot${solved ? ' open' : ''}`}>
+          {solved && (
+            <section className="panel verdict-panel">
+              <p className="verdict-badge verdict-solved">✓</p>
+              <p className="muted">{text.previewTitle}</p>
+            </section>
+          )}
+        </div>
+        <div className={`appear-slot${local.revealedAnswer ? ' open' : ''}`}>
+          {local.revealedAnswer && (
+            <section className="panel answer-panel">
+              <h3>{text.answer}</h3>
+              <p>{local.revealedAnswer}</p>
+            </section>
+          )}
+        </div>
       </section>
 
       <div className="solo-bottom game-scroll">
-        {error && <p className="error-text" role="alert">{error}</p>}
-        <HintCapsule hints={turns.filter((turn) => turn.result === 'hint').map((turn) => turn.text)} total={preview.hintsTotal} />
+        <div className={`appear-slot${error ? ' open' : ''}`}>
+          <p className="error-text" role="alert">{error}</p>
+        </div>
+        <div className={`appear-slot${turns.some((turn) => turn.result === 'hint') ? ' open' : ''}`}>
+          <HintCapsule hints={turns.filter((turn) => turn.result === 'hint').map((turn) => turn.text)} total={preview.hintsTotal} />
+        </div>
         <section className="solo-action-row" role="group" aria-label={text.hint}>
           <button className="btn btn-sm" disabled={busy || local.hintsUnlocked.length >= preview.hintsTotal} onClick={() => void hint()}>
             {text.hint} {hintProgress}
@@ -147,7 +155,9 @@ export function CreationPreviewPage({ session: account }: { session: Session | n
 
         {!solved && !local.revealedAnswer && (
           <footer className="composer solo-composer">
-            {mode === 'solve' && <LargeModelToggle checked={useLargeModel} disabled={busy} onChange={setUseLargeModel} />}
+            <div className={`appear-slot${mode === 'solve' ? ' open' : ''}`} inert={mode !== 'solve'}>
+              <LargeModelToggle checked={useLargeModel} disabled={busy} onChange={setUseLargeModel} />
+            </div>
             <div className="composer-row">
               <ChatInput
                 aria-label={mode === 'ask' ? text.ask : text.solve}

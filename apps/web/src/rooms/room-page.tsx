@@ -154,6 +154,10 @@ export function RoomPage({ session }: { session: Session | null }) {
   }
 
   const answered = round && (round.status === 'solved' || round.status === 'revealed');
+  const hints = round ? round.hints.filter(Boolean) : [];
+  // 头部状态行（掉线/错误/进行中的非聊天操作）：任一存在即展开状态槽，收起时不顶动游戏区
+  const pendingNotices = (outbox.local?.pending ?? []).filter((p) => !['ask', 'solve', 'discussion'].includes(p.input.type) && p.status !== 'sent');
+  const hasStatus = (showConnection && status !== 'ready') || Boolean(outbox.storageError || translatedPuzzle.isError || error) || pendingNotices.length > 0;
 
   return (
     <RoomShell playing={round?.status === 'active' && state.roomStatus === 'playing'}>
@@ -165,14 +169,18 @@ export function RoomPage({ session }: { session: Session | null }) {
         </button>}
       />
 
-      {showConnection && status !== 'ready' && <p className="offline-banner" role="status">{status === 'auth_required' ? copy.authExpired : status === 'offline' ? copy.networkKeptDraft : copy.reconnecting}{status === 'auth_required' && <a href={`/login?next=/rooms/${roomId}`}>{copy.reconnect}</a>}</p>}
-      {outbox.storageError && <p className="error-text" role="alert">{outbox.storageError}</p>}
-      {translatedPuzzle.isError && <p className="error-text" role="alert">{language === 'zh' ? copy.translatedFail : copy.translatedFailEn}</p>}
-      {error && <p className="error-text" role="alert">{error}</p>}
-      {outbox.local?.pending.filter((p) => !['ask', 'solve', 'discussion'].includes(p.input.type) && p.status !== 'sent').map((p) => <div key={p.input.clientRequestId} role="status">
-        <p>{p.status === 'rejected' ? p.error : p.status === 'sending' ? copy.operationSubmitting : copy.confirming}</p>
-        {p.status === 'confirming' && <button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>{copy.keepConfirming}</button>}
-      </div>)}
+      <div className={`appear-slot${hasStatus ? ' open' : ''}`}>
+        <div className="status-lines">
+          {showConnection && status !== 'ready' && <p className="offline-banner" role="status">{status === 'auth_required' ? copy.authExpired : status === 'offline' ? copy.networkKeptDraft : copy.reconnecting}{status === 'auth_required' && <a href={`/login?next=/rooms/${roomId}`}>{copy.reconnect}</a>}</p>}
+          {outbox.storageError && <p className="error-text" role="alert">{outbox.storageError}</p>}
+          {translatedPuzzle.isError && <p className="error-text" role="alert">{language === 'zh' ? copy.translatedFail : copy.translatedFailEn}</p>}
+          {error && <p className="error-text" role="alert">{error}</p>}
+          {pendingNotices.map((p) => <div key={p.input.clientRequestId} role="status">
+            <p>{p.status === 'rejected' ? p.error : p.status === 'sending' ? copy.operationSubmitting : copy.confirming}</p>
+            {p.status === 'confirming' && <button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>{copy.keepConfirming}</button>}
+          </div>)}
+        </div>
+      </div>
       {managementOpen && <section className="panel stack room-management game-scroll" aria-label={copy.membersManagement}>
         <h2>{copy.membersHeader}</h2>
         <MemberList state={state} me={me} isHost={isHost && state.roomStatus !== 'closed'} onKick={(userId) => void run('kick', { userId })} />
@@ -190,7 +198,9 @@ export function RoomPage({ session }: { session: Session | null }) {
           </button>
         </div>}
       </section>}
-      {inviteCopied && <p className="accent">{copy.inviteCopied}</p>}
+      <div className={`appear-slot${inviteCopied ? ' open' : ''}`}>
+        <p className="accent">{copy.inviteCopied}</p>
+      </div>
 
       {/* ---------- 游戏区 ---------- */}
       {round && (
@@ -240,14 +250,20 @@ export function RoomPage({ session }: { session: Session | null }) {
             })}
             <div ref={chatBottomRef} />
           </section>
-          {newMessages && <button className="btn btn-sm" onClick={() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); atBottom.current = true; setNewMessages(false); }}>{copy.newMessages} ↓</button>}
+          <div className={`appear-slot${newMessages ? ' open' : ''}`}>
+            <button className="btn btn-sm" onClick={() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); atBottom.current = true; setNewMessages(false); }}>{copy.newMessages} ↓</button>
+          </div>
 
-          <HintCapsule hints={round.hints.filter(Boolean)} />
+          <div className={`appear-slot${hints.length ? ' open' : ''}`}>
+            <HintCapsule hints={hints} />
+          </div>
 
           {/* ---------- 操作行 ---------- */}
           {round.status === 'active' && (
             <footer className="composer">
-              {inputMode === 'solve' && <LargeModelToggle checked={useLargeModel} disabled={busy || pendingCurrent || status !== 'ready'} onChange={setUseLargeModel} />}
+              <div className={`appear-slot${inputMode === 'solve' ? ' open' : ''}`} inert={inputMode !== 'solve'}>
+                <LargeModelToggle checked={useLargeModel} disabled={busy || pendingCurrent || status !== 'ready'} onChange={setUseLargeModel} />
+              </div>
               <div className="mode-tabs" role="tablist">
                 <button className={`mode-tab ${inputMode === 'ask' ? 'active' : ''}`} role="tab" aria-selected={inputMode === 'ask'} onClick={() => setInputMode('ask')}>
                   {copy.ask}
