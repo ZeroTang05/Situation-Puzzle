@@ -100,6 +100,11 @@ export const copy = {
   zh: {
     brand: 'AI 海龟汤',
     tagline: '和朋友一起，一问一答接近真相',
+    howToPlay: '玩法介绍',
+    gotIt: '知道了',
+    introWhat: '海龟汤是一道情境谜题：汤面摆出奇怪的现象，汤底藏着完整的真相。你用一般疑问句提问，主持人 Jev 只回答「是、否、无关、无法确定」，一步步缩小范围。',
+    introGoal: '推理足够完整后，切换到「还原真相」写下你还原的故事，由 Jev 判断是否破解；多人房间里还能和大家边聊边推。',
+    introAdvice: '判题只依据汤面和最近几轮问答，指代不明的代词容易造成误判；提问时写明具体的人和物，少用「他/她/它」这类代词。',
     solo: '单人游玩',
     multi: '开房间',
     library: '题库',
@@ -446,6 +451,11 @@ export const copy = {
   en: {
     brand: 'AI Situation Puzzles',
     tagline: 'One question at a time, together',
+    howToPlay: 'How to play',
+    gotIt: 'Got it',
+    introWhat: 'A situation puzzle: the surface shows a strange scene, and the answer hides the full truth. Ask yes-or-no questions and the host Jev answers only Yes, No, Irrelevant or Undecidable to narrow it down.',
+    introGoal: 'Once your theory is complete, switch to Solve and write down your reconstruction; Jev decides whether it cracks the case. Rooms also let everyone reason together.',
+    introAdvice: 'Judging uses only the surface and the most recent turns; unclear pronouns can cause wrong answers. Name the person or thing you mean instead of relying on he/she/it.',
     solo: 'Solo play',
     multi: 'New room',
     library: 'Library',

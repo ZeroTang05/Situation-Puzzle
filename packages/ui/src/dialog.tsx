@@ -54,3 +54,29 @@ export function useDialog(): DialogActions {
   if (!actions) throw new Error('useDialog 需要 DialogProvider');
   return actions;
 }
+
+/** 内容弹窗：与 confirm/prompt 共用样式和焦点管理，正文由调用方传入（如玩法介绍）。 */
+export function Modal({ open, onOpenChange, title, closeLabel, children }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  closeLabel: string;
+  children: ReactNode;
+}) {
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="jev-dialog-overlay" />
+        <Dialog.Content className="jev-dialog">
+          <Dialog.Title className="jev-dialog-title">{title}</Dialog.Title>
+          <div className="jev-dialog-body">{children}</div>
+          <div className="jev-dialog-actions">
+            <Dialog.Close asChild>
+              <button className="jev-dialog-cancel" type="button">{closeLabel}</button>
+            </Dialog.Close>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}

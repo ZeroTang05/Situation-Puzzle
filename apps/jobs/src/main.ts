@@ -14,7 +14,7 @@
  */
 import { Pool } from 'pg';
 import PgBoss from 'pg-boss';
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '@jev/database/schema';
 import {
@@ -36,7 +36,7 @@ import {
   auditLogs,
 } from '@jev/database';
 import { creationReviewOutcome } from '@jev/domain';
-import { JevClient, JudgmentClient, jevConfigFromEnv, isInfraFailure, type JevAttemptRecord, type JevConfig } from '@jev/jev';
+import { JevClient, JudgmentClient, jevConfigFromEnv, isInfraFailure, type JevAttemptRecord, type JevConfig, type RecentQa } from '@jev/jev';
 import { loadEnv } from './env.js';
 import { z } from 'zod';
 import type { DispatchPayload, TurnPayload, ReviewPayload } from './types.js';
@@ -45,7 +45,6 @@ const TURN_ATTEMPT_TIMEOUT_MS = 20_000;
 const TURN_TOTAL_DEADLINE_MS = 45_000;
 const TURN_QUEUE_TIMEOUT_MS = 60_000;
 const LEASE_MS = 60_000;
-
 interface Env {
   DATABASE_URL: string;
   OPENCODE_API_KEY: string;
@@ -54,6 +53,8 @@ interface Env {
   JEV_THRESHOLD?: string;
   JEV_LANGUAGE?: 'zh' | 'en';
   JEV_PROMPT_VERSION?: string;
+  /** 判题附带的最近问答轮数，见 env.ts */
+  JEV_RECENT_QA_LIMIT: number;
   MINIMAX_API_KEY: string;
   MINIMAX_BASE_URL?: string;
   MINIMAX_MODEL?: string;
@@ -224,12 +225,27 @@ class JobsApp {
       let verdict;
       const judge = new JudgmentClient({ ...this.jevConfig, language: z.enum(['zh', 'en']).parse(version.language) }, (record) => void this.recordAttempt(record, record.model, record.promptVersion));
       if (turn.kind === 'ask') {
+        // 带上本局最近几轮已判定的问答，帮助 Jev 解析问题里的代词指代
+        const recentRows = await db
+          .select({ question: turns.text, verdict: turns.result })
+          .from(turns)
+          .where(and(
+            eq(turns.roundId, turn.roundId),
+            eq(turns.kind, 'ask'),
+            eq(turns.status, 'succeeded'),
+            ne(turns.id, turn.id),
+            sql`${turns.result} in ('yes', 'no', 'irrelevant', 'uncertain')`,
+          ))
+          .orderBy(desc(turns.acceptedSeq))
+          .limit(this.env.JEV_RECENT_QA_LIMIT);
+        const recentQas = recentRows.reverse().map((row) => ({ question: row.question, verdict: row.verdict as RecentQa['verdict'] }));
         verdict = await judge.ask({
           title: version.title,
           surface: version.surface,
           answer: version.answer,
           coreFacts: version.coreFacts,
           category: version.category,
+          ...(recentQas.length ? { recentQas } : {}),
           question: turn.text,
         });
         await this.completeTurn(payload, verdict.result, String(verdict.confidence));

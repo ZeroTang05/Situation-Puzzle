@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Modal } from '@jev/ui';
 import { api, translateApiError } from '../api/client.js';
 import { openOrGetLobby } from '../rooms/create-lobby.js';
 import { useLanguage } from '../state/language.js';
@@ -14,6 +15,7 @@ export function HomePage({ session }: { session: Session | null }) {
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [introOpen, setIntroOpen] = useState(false);
 
   // 开房额度与当前加入的房间分别读取，开房按钮始终创建新房。
   const entitlement = useQuery({
@@ -35,6 +37,9 @@ export function HomePage({ session }: { session: Session | null }) {
       <header className="topbar">
         <BrandHeading>{copy.brand}</BrandHeading>
         <div className="topbar-actions">
+          <button className="btn btn-ghost btn-sm help-btn" type="button" aria-label={copy.howToPlay} title={copy.howToPlay} onClick={() => setIntroOpen(true)}>
+            ?
+          </button>
           <button className="btn btn-ghost btn-sm" onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}>
             {language === 'zh' ? copy.languageSwitchToEn : copy.languageSwitchToZh}
           </button>
@@ -106,6 +111,12 @@ export function HomePage({ session }: { session: Session | null }) {
           {entitlement.data.sponsored && <span className="verdict-badge verdict-solved">{copy.sponsored}</span>}
         </section>
       )}
+
+      <Modal open={introOpen} onOpenChange={setIntroOpen} title={copy.howToPlay} closeLabel={copy.gotIt}>
+        <p>{copy.introWhat}</p>
+        <p>{copy.introGoal}</p>
+        <p>{copy.introAdvice}</p>
+      </Modal>
     </main>
   );
 }

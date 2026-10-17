@@ -17,6 +17,7 @@ import { UseGuards } from '@nestjs/common';
 import type { z } from 'zod';
 import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http.js';
 import { SessionGuard } from '../auth/session.guard.js';
+import { app } from '../context.js';
 import { LobbyService } from './lobby.service.js';
 import { lobbyCreateRequestSchema, lobbyJoinRequestSchema, lobbySelectRequestSchema } from '@jev/contracts';
 
@@ -26,14 +27,15 @@ export class LobbyController {
   // tsx(esbuild) 不生成参数类型元数据：显式 @Inject 声明依赖令牌
   constructor(@Inject(LobbyService) private readonly lobbyService: LobbyService) {}
 
-  /** 拿我的会客厅：没有就建一个，host_user_id UNIQUE 保证幂等。 */
+  /** 拿我的会客厅：没有就建一个，host_user_id UNIQUE 保证幂等。
+   *  容量统一取环境变量 ROOM_CAPACITY（客户端传值仅保持契约形状，服务端覆盖）。 */
   @HttpCode(HttpStatus.OK)
   @Post('lobbies')
   async openOrGet(
     @CurrentUser() user: SessionUser,
-    @Body(new ZodValidationPipe(lobbyCreateRequestSchema)) body: z.infer<typeof lobbyCreateRequestSchema>,
+    @Body(new ZodValidationPipe(lobbyCreateRequestSchema)) _body: z.infer<typeof lobbyCreateRequestSchema>,
   ) {
-    const { lobbyId, existed } = await this.lobbyService.openOrGetLobby(user, body.capacity);
+    const { lobbyId, existed } = await this.lobbyService.openOrGetLobby(user, app().env.ROOM_CAPACITY);
     return { lobbyId, existed };
   }
 

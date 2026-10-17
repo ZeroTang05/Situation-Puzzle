@@ -16,7 +16,8 @@ export type ReviewVerdict = 'review_pass' | 'review_reject' | 'review_uncertain'
 export type JevPurpose = 'ask' | 'solve' | 'review';
 
 export type Language = 'zh' | 'en';
-export const MINIMAX_PROMPT_VERSION = 'v1-2026-10';
+/** MiniMax 补判提示词版本：v2-2026-10 输入说明新增 recentQas 字段。 */
+export const MINIMAX_PROMPT_VERSION = 'v2-2026-10';
 
 /** MiniMax 服务端连接配置，密钥只在 API/jobs 进程内使用。 */
 export interface MiniMaxConfig {

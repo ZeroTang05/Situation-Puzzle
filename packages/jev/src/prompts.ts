@@ -4,7 +4,7 @@
  *
  * state 的键名与旧系统逐字段一致（保留判题语义），ask/solve 新增可选的核心事实。
  */
-import type { Language } from './types.js';
+import type { AskVerdict, Language } from './types.js';
 
 export interface ChoiceQuestion {
   type: 'choice';
@@ -29,12 +29,20 @@ function categoryEntry(category: PuzzleCategory | null | undefined, language: La
   return language === 'en' ? { category: note } : { 类别: note };
 }
 
+/** 一轮已判定的问答，作为判题上下文：question=玩家原句，verdict=当时的判定。 */
+export interface RecentQa {
+  question: string;
+  verdict: AskVerdict;
+}
+
 export interface AskInput {
   title: string;
   surface: string;
   answer: string;
   coreFacts?: string[];
   category?: PuzzleCategory | null;
+  /** 最近几轮已判定的问答（旧在前），帮助解析当前问题里的代词指代；可省略。 */
+  recentQas?: RecentQa[];
   question: string;
 }
 
@@ -124,6 +132,23 @@ export function reviewQuestion(language: Language): ChoiceQuestion {
   };
 }
 
+/** 判定值转展示标签：与玩家看到的判定文案一致，帮助模型对齐历史轮次的语义。 */
+const verdictLabels: Record<AskVerdict, Record<Language, string>> = {
+  yes: { zh: '是', en: 'yes' },
+  no: { zh: '否', en: 'no' },
+  irrelevant: { zh: '无关', en: 'irrelevant' },
+  uncertain: { zh: '无法确定', en: 'uncertain' },
+};
+
+/** 最近问答条目（旧在前）：「问题」→ 判定。空数组不写入任何键。 */
+function recentQaEntry(recentQas: RecentQa[] | undefined, language: Language): Record<string, unknown> {
+  if (!recentQas?.length) return {};
+  const items = recentQas.map(({ question, verdict }) =>
+    language === 'en' ? `"${question}" -> ${verdictLabels[verdict][language]}` : `「${question}」→ ${verdictLabels[verdict][language]}`,
+  );
+  return language === 'en' ? { recentQAs: items } : { 历史问答: items };
+}
+
 export function askState(input: AskInput, language: Language): Record<string, unknown> {
   if (language === 'en') {
     return {
@@ -131,6 +156,7 @@ export function askState(input: AskInput, language: Language): Record<string, un
       answer: input.answer,
       ...categoryEntry(input.category, language),
       ...(input.coreFacts?.length ? { coreFacts: input.coreFacts } : {}),
+      ...recentQaEntry(input.recentQas, language),
       playerQuestion: input.question,
     };
   }
@@ -139,6 +165,7 @@ export function askState(input: AskInput, language: Language): Record<string, un
     真相: input.answer,
     ...categoryEntry(input.category, language),
     ...(input.coreFacts?.length ? { 核心事实: input.coreFacts } : {}),
+    ...recentQaEntry(input.recentQas, language),
     玩家提问: input.question,
   };
 }

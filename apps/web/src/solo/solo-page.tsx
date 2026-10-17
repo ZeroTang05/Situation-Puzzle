@@ -32,6 +32,16 @@ interface TurnRow {
   confidence?: number;
 }
 
+/** 判题请求最多回传的问答条数（契约上限）；实际生效轮数由服务端 JEV_RECENT_QA_LIMIT 裁剪 */
+const RECENT_QA_LIMIT = 10;
+
+type AskVerdict = 'yes' | 'no' | 'irrelevant' | 'uncertain';
+const askVerdicts = new Set(['yes', 'no', 'irrelevant', 'uncertain']);
+/** 已判定的提问回合：result 收敛为四种判定之一 */
+function isJudgedAsk(turn: TurnRow): turn is TurnRow & { result: AskVerdict } {
+  return turn.kind === 'ask' && turn.status === 'succeeded' && turn.result !== null && askVerdicts.has(turn.result);
+}
+
 export function SoloPage({ session: authSession }: { session: Session | null }) {
   const { puzzleId } = useParams();
   const dialog = useDialog();
@@ -153,9 +163,11 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
 
     try {
       // 2. 请求模型（单人并发限制在服务端；繁忙时本地保留输入）
+      //    带上最近几轮已判定的问答，供判题解析代词指代
+      const recentQas = turns.filter(isJudgedAsk).slice(-RECENT_QA_LIMIT).map((t) => ({ question: t.text, verdict: t.result }));
       const result =
         inputMode === 'ask'
-          ? await api<{ result: string; confidence: number }>('/solo/judge', { method: 'POST', body: { token: session.token, question: submittedText }, credentials: 'omit' })
+          ? await api<{ result: string; confidence: number }>('/solo/judge', { method: 'POST', body: { token: session.token, question: submittedText, ...(recentQas.length ? { recentQas } : {}) }, credentials: 'omit' })
           : await api<{ result: string; confidence: number; answer?: string }>('/solo/solve', { method: 'POST', body: { token: session.token, solution: submittedText, useLargeModel }, credentials: 'omit' });
 
       // 3. 回写结果

@@ -14,5 +14,6 @@ export interface LobbyOpened {
 }
 
 export async function openOrGetLobby(): Promise<LobbyOpened> {
-  return api<LobbyOpened>('/lobbies', { method: 'POST', body: { capacity: 8 } });
+  // 容量由服务端 ROOM_CAPACITY 环境变量决定，客户端不传
+  return api<LobbyOpened>('/lobbies', { method: 'POST', body: {} });
 }

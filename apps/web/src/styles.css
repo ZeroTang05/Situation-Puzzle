@@ -254,6 +254,15 @@ a { text-decoration: none; }
   font-size: 14px;
 }
 
+/* 首页玩法介绍：topbar 里的圆形问号按钮，与 btn-sm 同高 */
+.help-btn {
+  flex: none;
+  width: 36px;
+  padding: 4px 0;
+  border-radius: 50%;
+  font-weight: 700;
+}
+
 .btn-lg {
   min-height: 52px;
   font-size: 17px;

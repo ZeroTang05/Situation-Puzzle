@@ -84,9 +84,17 @@ export const soloSessionResponseSchema = z.object({
   configVersion: z.string(),
 });
 
+/** 一轮已判定的问答：单人无服务端状态，由客户端回传最近几轮供判题解析代词指代。 */
+export const recentQaSchema = z.object({
+  question: z.string().min(1).max(500),
+  verdict: z.enum(['yes', 'no', 'irrelevant', 'uncertain']),
+});
+
 export const soloJudgeRequestSchema = z.object({
   token: z.string(),
   question: z.string().min(1).max(500),
+  /** 旧在前，最多 10 条；可省略 */
+  recentQas: z.array(recentQaSchema).max(10).optional(),
 });
 
 export const soloJudgeResponseSchema = z.object({
@@ -123,6 +131,7 @@ export const soloRevealRequestSchema = z.object({
 export const roomSelectedPuzzleSchema = z.object({ puzzleId: z.string(), title: z.string(), language: languageSchema });
 
 export const lobbyCreateRequestSchema = z.object({
+  // 占位字段：实际容量由服务端 ROOM_CAPACITY 环境变量决定并覆盖此值（lobby.controller）
   capacity: z.number().int().min(2).max(8).default(8),
 });
 

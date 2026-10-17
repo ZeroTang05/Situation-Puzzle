@@ -11,7 +11,7 @@ import { SignJWT, jwtVerify } from 'jose';
 import { and, eq } from 'drizzle-orm';
 import { puzzles, puzzleVersions } from '@jev/database';
 import { DomainError } from '@jev/domain';
-import { JudgmentClient, jevConfigVersion, type Language } from '@jev/jev';
+import { JudgmentClient, jevConfigVersion, type Language, type RecentQa } from '@jev/jev';
 import { app } from '../context.js';
 import { Anonymous } from '../common/public.js';
 import { ZodValidationPipe } from '../common/http.js';
@@ -167,7 +167,7 @@ export class SoloController {
   @HttpCode(200)
   @Post('judge')
   async judge(@Body(new ZodValidationPipe(soloJudgeRequestSchema)) body: z.infer<typeof soloJudgeRequestSchema>) {
-    return this.runJudge(body.token, body.question);
+    return this.runJudge(body.token, body.question, body.recentQas);
   }
 
   @Anonymous()
@@ -200,9 +200,13 @@ export class SoloController {
     };
   }
 
-  private async runJudge(token: string, question: string) {
+  private async runJudge(token: string, question: string, recentQas: RecentQa[] | undefined) {
     const payload = await this.verifyToken(token);
     const version = await this.loadVersion(payload);
+
+    // 裁到服务端配置的轮数（客户端最多发契约上限 10 条）；0 = 不带历史
+    const limit = app().env.JEV_RECENT_QA_LIMIT;
+    const clamped = limit > 0 && recentQas ? recentQas.slice(Math.max(0, recentQas.length - limit)) : [];
 
     await this.gate.acquire();
     let verdict;
@@ -213,6 +217,7 @@ export class SoloController {
         answer: version.answer,
         coreFacts: version.coreFacts,
         category: version.category,
+        ...(clamped.length ? { recentQas: clamped } : {}),
         question,
       });
     } finally {
