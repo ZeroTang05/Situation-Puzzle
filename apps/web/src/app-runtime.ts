@@ -43,3 +43,79 @@ export function captureBearerToken(response: Response): void {
 export function clearBearerToken(): void {
   if (isAppShell) localStorage.removeItem(TOKEN_KEY);
 }
+
+/** OAuth 回流交接直接写入令牌（不走响应头），同样只对壳生效 */
+export function storeBearerToken(token: string): void {
+  if (isAppShell) localStorage.setItem(TOKEN_KEY, token);
+}
+
+// ---------- 原生桥（经 window.Capacitor.Plugins 动态调用，不引入 Capacitor 依赖） ----------
+
+interface BrowserPlugin {
+  open(options: { url: string }): Promise<void>;
+  close(): Promise<void>;
+}
+/** 监听句柄：Android 桥同步返回 { remove }，web 代理返回 Promise<{ remove }>，两种形状都收 */
+type ListenerHandle = { remove(): Promise<void> } | Promise<{ remove(): Promise<void> }>;
+interface AppPlugin {
+  addListener(eventName: 'appUrlOpen' | 'resume', callback: (data: { url: string }) => void): ListenerHandle;
+}
+interface ClipboardPlugin {
+  read(): Promise<{ value?: string; type?: string }>;
+}
+interface PluginRegistry {
+  Browser?: BrowserPlugin;
+  App?: AppPlugin;
+  Clipboard?: ClipboardPlugin;
+}
+
+function nativePlugins(): PluginRegistry | undefined {
+  if (!isAppShell) return undefined;
+  return (window as unknown as { Capacitor?: { Plugins?: PluginRegistry } }).Capacitor?.Plugins;
+}
+
+/** 站点绝对来源：App 壳=接口基址（生产域名），网页=当前页面来源（开发期同源代理也成立） */
+export function siteOrigin(): string {
+  return apiBase || window.location.origin;
+}
+
+/** 在系统浏览器（Android Custom Tab）打开 OAuth 授权页：WebView 内会被 Google 拦截 */
+export async function openSystemBrowser(url: string): Promise<void> {
+  await nativePlugins()?.Browser?.open({ url });
+}
+
+export async function closeSystemBrowser(): Promise<void> {
+  await nativePlugins()?.Browser?.close();
+}
+
+/** 注册原生事件监听：句柄形状归一化后统一管理，返回解绑函数 */
+function bindNativeListener(event: 'appUrlOpen' | 'resume', callback: (data: { url: string }) => void): () => void {
+  const app = nativePlugins()?.App;
+  let handle: { remove(): Promise<void> } | undefined;
+  let disposed = false;
+  // Promise.resolve 对普通对象和 Promise 都收敛成 thenable，兼容桥的同步句柄
+  void Promise.resolve(app?.addListener(event, callback)).then((h) => {
+    if (!h) return;
+    if (disposed) void h.remove();
+    else handle = h;
+  });
+  return () => {
+    disposed = true;
+    void handle?.remove();
+  };
+}
+
+/** 深链进入 App（OAuth 回流 cn.xiaobaozi.sp:/oauth?...）；返回解绑函数 */
+export function onAppUrlOpen(callback: (url: string) => void): () => void {
+  return bindNativeListener('appUrlOpen', (data) => callback(data.url));
+}
+
+/** App 回到前台（含启动），剪贴板邀请检测用 */
+export function onAppResume(callback: () => void): () => void {
+  return bindNativeListener('resume', () => callback());
+}
+
+export async function readClipboardText(): Promise<string | null> {
+  const result = await nativePlugins()?.Clipboard?.read();
+  return result?.value ?? null;
+}

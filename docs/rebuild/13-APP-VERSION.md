@@ -1,6 +1,6 @@
 # 13 — App 版本开发计划
 
-状态：已拍板（决策记录见 §9）。M0 已完成（2026-10-17 模拟器验收），下一步 M1 认证与网络。
+状态：已拍板（决策记录见 §9）。M0 / M1 / M2 代码均已落地（M2 2026-10-17 模拟器验证通过），真机验收与 M3 交付待做。
 日期：2026-10-17；代码基线：dev `4e4b3ed`。
 
 ## 0. 结论
@@ -153,6 +153,15 @@ M1 落地记录（2026-10-17）：
 M0 完成记录（2026-10-17）：壳工程编译出 debug APK（4.3 MB），模拟器安装启动，首页与导航渲染正常、无崩溃。「浏览题库、玩单人」依赖接口连通（基址适配），随 M1 一起验收；「模拟器加载 Vite 开发服务器」是开发期热更新手段，M1 联调时再启用。
 
 M1 完成记录（2026-10-17，代码落地、待真机验收）：方案与契约见 §4 落地记录。改动清单——服务端 `env.ts`（APP_EXTRA_ORIGINS 校验 + allowedOrigins）、`bootstrap.ts`（express 层 CORS 中间件）、`main.ts`（删 enableCors）、`auth.instance.ts`（bearer 插件 + trustedOrigins 列表）；web 新增 `src/app-runtime.ts` 适配层与 `.env.app`（App 构建的接口基址），`client.ts` / `auth-client.ts` / 两个实时 sync hook / `otp-cooldown.ts` 接线，`pnpm build:app` 产出带生产基址的构建。真机验收要点：登录（密码 + 验证码）、进房间提问、断网重连补齐。
+
+M2 完成记录（2026-10-17，代码落地、模拟器验证通过、待真机验收）：
+
+- **OAuth 系统浏览器回流**：WebView 里 Google 授权页会被拦，整条链路绕开 WebView——登录页在 App 壳内把 `callbackURL` 指到 `GET /api/v1/app-session/handoff?next=..`（https，已在 trustedOrigins），`signIn.social` 返回授权 URL 后用 `@capacitor/browser`（Custom Tab）在系统浏览器打开；授权完成 better-auth 在系统浏览器落会话 Cookie 并 302 到 handoff，handoff 读 Cookie 签 60 秒 jose 一次性 code（issuer `jev-app-oauth`，AUTH_SECRET 签名），302 到 `cn.xiaobaozi.sp:/oauth?code=..&next=..`；Android intent-filter（scheme + pathPrefix `/oauth`，singleTask）捕获，`@capacitor/app` 的 `appUrlOpen` 事件进 web，POST `/api/v1/app-session/exchange`（契约在 `packages/contracts` http.ts）换回 Bearer 令牌入库并 `location.assign(next)`。失败路径：code 无效/过期弹 `oauthHandoffExpired` 确认框后回登录页。不碰 better-auth 内部，服务端就一个新 controller
+- **邀请链接过渡（M3 前无 App Links）**：`@capacitor/app` 的 `resume` 事件 + `@capacitor/clipboard` 读剪贴板，只认本站 host（页面域或接口基址域）的 `/lobby|room/invite/<hex>` 精确形状，弹 `clipboardInvitePrompt` 确认后跳转；同一条链接一次页面运行内只提示一次
+- **键盘与安全区**：`MainActivity.onCreate` 加 `EdgeToEdge.enable(this)`；`capacitor.config.ts` 配 SystemBars `insetsHandling: 'css'`（原生不垫 padding，改注入 `--safe-area-inset-*` 变量）+ Keyboard `resize: 'native'`；manifest `windowSoftInputMode="adjustResize"`；web CSS 安全区全部写成 `var(--safe-area-inset-*, env(safe-area-inset-*))`——模拟器 WebView 145 的 `env()` 顶部虚高（80px，实际状态栏 24px），注入变量是原生按真实 insets 算的，取变量优先、env() 只给浏览器兜底
+- **插件**：apps/app 增 `@capacitor/app` `browser` `clipboard` `keyboard` 四件；web 侧经 `window.Capacitor.Plugins` 动态调用，web 工作区仍不引 Capacitor 依赖
+- **模拟器验证**：深链假 code 全链路（intent 捕获 → appUrlOpen → exchange 对生产 404 → 弹窗 → 落 `/login`）；冷启动令牌恢复连测两次正常；首页渲染与安全区间距（24px）视检通过；`pnpm typecheck` + `pnpm test` 全绿
+- **真机验收要点**：两台真机互发邀请对局；OAuth 回流要后端部署到生产 + LINUX DO / Google 凭据至少一个可用；剪贴板邀请提示与软键盘避让模拟器验不了（模拟器带硬件键盘、剪贴板种不进数据），真机确认
 
 每阶段收尾跑 `pnpm typecheck` + `pnpm test`；网页端用现有 e2e 保障（App 适配全部开关式，网页默认路径不变）。
 

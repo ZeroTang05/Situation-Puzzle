@@ -191,7 +191,8 @@ a { text-decoration: none; }
   width: min(100%, 480px);
   min-height: 100dvh;
   margin: 0 auto;
-  padding: 0 14px calc(24px + env(safe-area-inset-bottom));
+  /* 顶部安全区：App 壳取 Capacitor 注入的变量（部分 WebView 的 env() 虚高），网页取 env()（无刘海为 0） */
+  padding: var(--safe-area-inset-top, env(safe-area-inset-top)) 14px calc(24px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   background: var(--bg);
 }
 
@@ -603,7 +604,7 @@ a { text-decoration: none; }
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
-  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  padding-bottom: max(8px, var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
 }
 
 .solo-shell .topbar { flex: none; min-height: 52px; }
@@ -627,7 +628,7 @@ a { text-decoration: none; }
   position: sticky;
   bottom: 0;
   z-index: 3;
-  padding: 12px 0 max(8px, env(safe-area-inset-bottom));
+  padding: 12px 0 max(8px, var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   background: linear-gradient(180deg, transparent, #03152b 30%);
 }
 
@@ -714,7 +715,7 @@ textarea.composer-input, .composer .composer-input {
 .room-management > h2 { margin: 0; font-size: 13px; color: var(--muted); }
 
 /* 输入与操作区贴底，消息占满剩余高度并在内部滚动。 */
-.room-playing { height: 100dvh; min-height: 0; overflow: hidden; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+.room-playing { height: 100dvh; min-height: 0; overflow: hidden; padding-bottom: max(8px, var(--safe-area-inset-bottom, env(safe-area-inset-bottom))); }
 .room-playing > * { flex-shrink: 0; }
 .room-playing > .chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .room-playing > .chat > * { flex-shrink: 0; }
@@ -730,7 +731,7 @@ textarea.composer-input, .composer .composer-input {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  padding: 12px 0 max(8px, env(safe-area-inset-bottom));
+  padding: 12px 0 max(8px, var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   background: linear-gradient(180deg, transparent, #03152b 30%);
 }
 .room-closed-bar .btn { flex: 1 1 120px; white-space: nowrap; }
