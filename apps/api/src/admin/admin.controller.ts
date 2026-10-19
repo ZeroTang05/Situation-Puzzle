@@ -2,7 +2,7 @@
  * 管理后台接口：全部经角色守卫与审计（docs/rebuild/05-OPERATIONS.md §8）。
  * 操作必须带理由并留审计记录；禁止绕过业务状态直接改数据。
  */
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Query } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
@@ -28,9 +28,11 @@ import {
   user,
 } from '@jev/database';
 import { DomainError } from '@jev/domain';
+import { redeemCodeBatchRequestSchema } from '@jev/contracts';
 import { app } from '../context.js';
 import { CurrentUser, type SessionUser, RequireRoles, ZodValidationPipe } from '../common/http.js';
 import { SessionGuard } from '../auth/session.guard.js';
+import { RedeemCodesService } from '../billing/redeem-codes.service.js';
 import { z } from 'zod';
 
 const reasonSchema = z.object({ reason: z.string().min(2).max(500) });
@@ -50,6 +52,9 @@ function pageArgs(page?: string, perPage?: string) {
 @Controller('admin')
 @UseGuards(SessionGuard)
 export class AdminController {
+  // tsx(esbuild) 不生成参数类型元数据：显式 @Inject 声明依赖令牌
+  constructor(@Inject(RedeemCodesService) private readonly redeemCodesService: RedeemCodesService) {}
+
   /** 审计：操作留痕（docs/rebuild/03-SPEC.md §5.2）。 */
   private async audit(operator: SessionUser, action: string, objectType: string, objectId: string | null, reason: string, after?: Record<string, unknown>) {
     await app().db.db.insert(auditLogs).values({
@@ -494,6 +499,65 @@ export class AdminController {
     });
 
     // 通道退款在事务外执行；结果未知时保持 pending + 冻结，由查单任务跟进（M4 联调后启用）
+    return result;
+  }
+
+  // ---------- 赞助码（零实名收款通道） ----------
+
+  /**
+   * 批量发码：运营方用个人收款码收款后，把码交付给买家。
+   * 明文只在本次响应里返回一次；之后只能按批次查询状态。
+   */
+  @Post('redeem-codes/generate')
+  @RequireRoles('admin', 'finance')
+  async generateRedeemCodes(
+    @CurrentUser() operator: SessionUser,
+    @Body(new ZodValidationPipe(redeemCodeBatchRequestSchema)) body: z.infer<typeof redeemCodeBatchRequestSchema>,
+  ) {
+    const result = await this.redeemCodesService.generateBatch({
+      operatorUserId: operator.userId,
+      type: body.type,
+      count: body.count,
+      note: body.note,
+      expiresAt: body.expiresAt ? new Date(body.expiresAt) : undefined,
+    });
+    await this.audit(operator, 'redeem_codes.generate', 'redeem_code_batch', null, body.note ?? '批量发码', {
+      batchId: result.batchId,
+      type: result.type,
+      count: result.count,
+      priceMinor: result.priceMinor,
+    });
+    return result;
+  }
+
+  /** 批次列表：对账用（发放 / 已用 / 未用）。 */
+  @Get('redeem-codes/batches')
+  @RequireRoles('admin', 'finance', 'support')
+  async listRedeemCodeBatches() {
+    return { items: await this.redeemCodesService.listBatches() };
+  }
+
+  /** 批次内码明细：含使用状态与使用者。 */
+  @Get('redeem-codes')
+  @RequireRoles('admin', 'finance', 'support')
+  async listRedeemCodes(@Query('batchId') batchId?: string) {
+    if (!batchId) throw new DomainError('VALIDATION_FAILED', '缺少 batchId');
+    return { items: await this.redeemCodesService.listCodes(batchId) };
+  }
+
+  /** 作废未使用的码：卖错价或退款的兜底；已使用的码不可作废。 */
+  @Post('redeem-codes/revoke')
+  @RequireRoles('admin', 'finance')
+  async revokeRedeemCode(
+    @CurrentUser() operator: SessionUser,
+    @Body(new ZodValidationPipe(reasonSchema.extend({ code: z.string().trim().min(6).max(64) })))
+    body: z.infer<typeof reasonSchema> & { code: string },
+  ) {
+    const result = await this.redeemCodesService.revoke(body.code);
+    await this.audit(operator, 'redeem_codes.revoke', 'redeem_code', null, body.reason, {
+      code: body.code,
+      revoked: result.revoked,
+    });
     return result;
   }
 

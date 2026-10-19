@@ -10,11 +10,14 @@ import * as schema from './schema/index.js';
 
 export type Database = NodePgDatabase<typeof schema>;
 
+/** drizzle 事务对象类型：供服务在既有事务内复用跨表写入（如赞助码核销 + 授权发放）。 */
+export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
+
 export interface DbHandle {
   db: Database;
   pool: Pool;
   /** 事务辅助：回调拿到绑定 schema 的 client，异常自动回滚。 */
-  tx: <T>(fn: (tx: Parameters<Parameters<Database['transaction']>[0]>[0]) => Promise<T>) => Promise<T>;
+  tx: <T>(fn: (tx: Tx) => Promise<T>) => Promise<T>;
   close: () => Promise<void>;
 }
 

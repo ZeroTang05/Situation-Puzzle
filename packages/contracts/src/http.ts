@@ -453,6 +453,31 @@ export const orderSchema = z.object({
   createdAt: z.string(),
 });
 
+/** 赞助码兑换：用户输入运营方用个人收款码收款后发放的兑换码。 */
+export const redeemCodeRequestSchema = z.object({
+  code: z.string().trim().min(6).max(64),
+});
+
+/** 后台批量发码：按商品类型生成一批赞助码。 */
+export const redeemCodeBatchRequestSchema = z.object({
+  type: z.enum(['monthly', 'lifetime']),
+  count: z.number().int().min(1).max(500),
+  note: z.string().trim().max(200).optional(),
+  /** ISO 时间；省略表示长期有效 */
+  expiresAt: z.string().datetime().optional(),
+});
+
+/** 可用收款通道：前端据此决定展示哪些购买入口。 */
+export const paymentChannelsSchema = z.object({
+  channels: z.array(
+    z.object({
+      channel: z.enum(['wechat_native', 'redeem_code']),
+      available: z.boolean(),
+      label: z.string(),
+    }),
+  ),
+});
+
 // ---------- 历史 ----------
 
 export const roundHistoryResponseSchema = z.object({

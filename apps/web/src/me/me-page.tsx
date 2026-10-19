@@ -12,6 +12,7 @@ import { format } from '@jev/i18n';
 import type { Language } from '@jev/i18n';
 import type { Session } from '../session.js';
 import { creationCopy } from '../creations/copy.js';
+import { SponsorPanel } from './sponsor-panel.js';
 
 /** 把服务端 round.status 翻译成用户文案；未识别值回退到原值便于排查。 */
 function roundStatusLabel(status: string, language: Language, copy: { roundStatusActive: string; roundStatusSolved: string; roundStatusRevealed: string; roundStatusAbandoned: string; roundStatusAborted: string }) {
@@ -191,6 +192,9 @@ export function MePage({ session }: { session: Session | null }) {
       </section>
 
       <button className="btn me-logout" onClick={() => void logout()}>{copy.logout}</button>
+
+      {/* 赞助面板：商品 + 兑换码（权益只来自服务端） */}
+      <SponsorPanel />
 
       {/* 房间历史：整行可点进房间，局状态用颜色区分 */}
       <section className="me-section">

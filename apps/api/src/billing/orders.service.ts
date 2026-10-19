@@ -17,6 +17,7 @@ import {
   sponsorGrants,
   sponsorLedger,
   sponsorProducts,
+  type Tx,
 } from '@jev/database';
 import { DomainError, planMonthlyGrant } from '@jev/domain';
 import { createWechatAdapter, type PayAdapter } from './wechat-pay.adapter.js';
@@ -28,6 +29,11 @@ const ORDER_TTL_MINUTES = 15;
 export class OrdersService {
   private adapter(): PayAdapter | null {
     return createWechatAdapter(app().env as never);
+  }
+
+  /** 微信支付通道是否已开通（商户凭据齐备）：前端据此隐藏/显示扫码购买入口。 */
+  hasWechatChannel(): boolean {
+    return this.adapter() !== null;
   }
 
   /** 商品目录：幂等初始化 600 分月度与 2000 分永久（已售版本不可变，改价走新版本）。 */
@@ -141,96 +147,103 @@ export class OrdersService {
    */
   async confirmPaid(channel: string, merchantOrderNo: string, transactionId: string): Promise<void> {
     const db = app().db;
-    await db.tx(async (tx) => {
-      const [order] = await tx
-        .select()
-        .from(orders)
-        .where(eq(orders.merchantOrderNo, merchantOrderNo))
-        .for('update')
-        .limit(1);
-      if (!order) throw new Error(`支付核销找不到订单：${merchantOrderNo}`);
-      if (order.status === 'paid' || order.status === 'refunded' || order.status === 'refund_pending') return;
+    await db.tx((tx) => this.confirmPaidTx(tx, channel, merchantOrderNo, transactionId));
+  }
 
-      await tx.insert(paymentTransactions).values({
-        channel: 'wechat_native',
-        transactionId,
-        orderId: order.id,
-        amountMinor: order.amountMinor,
-        currency: order.currency,
-        success: true,
-      });
+  /**
+   * 同事务核销：供需要把「核销」与其它写入合并进同一事务的场景复用
+   * （赞助码兑换：码状态流转与授权发放必须同生共死）。
+   *
+   * 幂等性：订单已是 paid/refunded/refund_pending 时直接返回，不重复发授权。
+   */
+  async confirmPaidTx(tx: Tx, channel: string, merchantOrderNo: string, transactionId: string): Promise<void> {
+    const [order] = await tx
+      .select()
+      .from(orders)
+      .where(eq(orders.merchantOrderNo, merchantOrderNo))
+      .for('update')
+      .limit(1);
+    if (!order) throw new Error(`支付核销找不到订单：${merchantOrderNo}`);
+    if (order.status === 'paid' || order.status === 'refunded' || order.status === 'refund_pending') return;
 
-      const [product] = await tx.select().from(productVersions).where(eq(productVersions.id, order.productVersionId)).limit(1);
-      const productIdRow = product
-        ? await tx.select({ type: sponsorProducts.type }).from(sponsorProducts).where(eq(sponsorProducts.id, product.productId)).limit(1)
-        : [];
-      const type = productIdRow[0]?.type;
-      if (!type) throw new Error(`订单商品类型缺失：${order.id}`);
-
-      // 锁授权账户
-      await tx.select().from(sponsorAccounts).where(eq(sponsorAccounts.userId, order.userId)).for('update');
-      const grants = await tx.select().from(sponsorGrants).where(eq(sponsorGrants.userId, order.userId));
-      const now = new Date();
-      let effectiveFrom = now;
-      let effectiveUntil: Date | null = null;
-      let rebaseAnchor = false;
-
-      if (type === 'monthly') {
-        const plan = planMonthlyGrant(now, (await tx.select().from(sponsorAccounts).where(eq(sponsorAccounts.userId, order.userId)).limit(1))[0]?.monthlyAnchor ?? null, grants);
-        effectiveFrom = plan.effectiveFrom;
-        effectiveUntil = plan.effectiveUntil;
-        rebaseAnchor = plan.rebaseAnchor;
-      } else if (type === 'lifetime') {
-        const [alreadyLifetime] = await tx
-          .select({ id: sponsorGrants.id })
-          .from(sponsorGrants)
-          .where(and(eq(sponsorGrants.userId, order.userId), eq(sponsorGrants.type, 'lifetime'), eq(sponsorGrants.status, 'active'), sql`effective_until is null`))
-          .limit(1);
-        if (alreadyLifetime) {
-          // 并发完成造成的重复永久购买：登记待退款，不静默吞款
-          await tx.insert(sponsorLedger).values({
-            userId: order.userId,
-            action: 'grant',
-            orderId: order.id,
-            detail: { issue: 'duplicate_lifetime_pending_refund' },
-            idempotencyKey: `dup-lifetime:${order.id}`,
-          });
-        }
-      }
-
-      const [account] = await tx.select().from(sponsorAccounts).where(eq(sponsorAccounts.userId, order.userId)).limit(1);
-      if (type === 'monthly' && (!account?.monthlyAnchor || rebaseAnchor)) {
-        await tx
-          .insert(sponsorAccounts)
-          .values({ userId: order.userId, monthlyAnchor: effectiveFrom })
-          .onConflictDoUpdate({ target: sponsorAccounts.userId, set: { monthlyAnchor: effectiveFrom, updatedAt: now } });
-      }
-
-      await tx.insert(sponsorGrants).values({
-        userId: order.userId,
-        orderId: order.id,
-        type,
-        status: 'active',
-        effectiveFrom,
-        effectiveUntil,
-      });
-      await tx.insert(sponsorLedger).values({
-        userId: order.userId,
-        action: 'grant',
-        orderId: order.id,
-        detail: { type, effectiveFrom: effectiveFrom.toISOString(), effectiveUntil: effectiveUntil?.toISOString() ?? null },
-        idempotencyKey: `grant:${order.id}`,
-      });
-      await tx.update(orders).set({ status: 'paid', paidAt: now, updatedAt: now }).where(eq(orders.id, order.id));
-      await tx.insert(auditLogs).values({
-        action: 'order.paid',
-        objectType: 'order',
-        objectId: order.id,
-        afterSummary: { transactionId, amountMinor: order.amountMinor },
-        relatedRequestId: randomUUID(),
-      });
+    await tx.insert(paymentTransactions).values({
+      channel: channel as (typeof paymentTransactions.$inferInsert)['channel'],
+      transactionId,
+      orderId: order.id,
+      amountMinor: order.amountMinor,
+      currency: order.currency,
+      success: true,
     });
-    void channel;
+
+    const [product] = await tx.select().from(productVersions).where(eq(productVersions.id, order.productVersionId)).limit(1);
+    const productIdRow = product
+      ? await tx.select({ type: sponsorProducts.type }).from(sponsorProducts).where(eq(sponsorProducts.id, product.productId)).limit(1)
+      : [];
+    const type = productIdRow[0]?.type;
+    if (!type) throw new Error(`订单商品类型缺失：${order.id}`);
+
+    // 锁授权账户
+    await tx.select().from(sponsorAccounts).where(eq(sponsorAccounts.userId, order.userId)).for('update');
+    const grants = await tx.select().from(sponsorGrants).where(eq(sponsorGrants.userId, order.userId));
+    const now = new Date();
+    let effectiveFrom = now;
+    let effectiveUntil: Date | null = null;
+    let rebaseAnchor = false;
+
+    if (type === 'monthly') {
+      const plan = planMonthlyGrant(now, (await tx.select().from(sponsorAccounts).where(eq(sponsorAccounts.userId, order.userId)).limit(1))[0]?.monthlyAnchor ?? null, grants);
+      effectiveFrom = plan.effectiveFrom;
+      effectiveUntil = plan.effectiveUntil;
+      rebaseAnchor = plan.rebaseAnchor;
+    } else if (type === 'lifetime') {
+      const [alreadyLifetime] = await tx
+        .select({ id: sponsorGrants.id })
+        .from(sponsorGrants)
+        .where(and(eq(sponsorGrants.userId, order.userId), eq(sponsorGrants.type, 'lifetime'), eq(sponsorGrants.status, 'active'), sql`effective_until is null`))
+        .limit(1);
+      if (alreadyLifetime) {
+        // 并发完成造成的重复永久购买：登记待退款，不静默吞款
+        await tx.insert(sponsorLedger).values({
+          userId: order.userId,
+          action: 'grant',
+          orderId: order.id,
+          detail: { issue: 'duplicate_lifetime_pending_refund' },
+          idempotencyKey: `dup-lifetime:${order.id}`,
+        });
+      }
+    }
+
+    const [account] = await tx.select().from(sponsorAccounts).where(eq(sponsorAccounts.userId, order.userId)).limit(1);
+    if (type === 'monthly' && (!account?.monthlyAnchor || rebaseAnchor)) {
+      await tx
+        .insert(sponsorAccounts)
+        .values({ userId: order.userId, monthlyAnchor: effectiveFrom })
+        .onConflictDoUpdate({ target: sponsorAccounts.userId, set: { monthlyAnchor: effectiveFrom, updatedAt: now } });
+    }
+
+    await tx.insert(sponsorGrants).values({
+      userId: order.userId,
+      orderId: order.id,
+      type,
+      status: 'active',
+      effectiveFrom,
+      effectiveUntil,
+    });
+    await tx.insert(sponsorLedger).values({
+      userId: order.userId,
+      action: 'grant',
+      orderId: order.id,
+      detail: { type, effectiveFrom: effectiveFrom.toISOString(), effectiveUntil: effectiveUntil?.toISOString() ?? null },
+      idempotencyKey: `grant:${order.id}`,
+    });
+    await tx.update(orders).set({ status: 'paid', paidAt: now, updatedAt: now }).where(eq(orders.id, order.id));
+    await tx.insert(auditLogs).values({
+      action: 'order.paid',
+      objectType: 'order',
+      objectId: order.id,
+      afterSummary: { transactionId, amountMinor: order.amountMinor, channel },
+      relatedRequestId: randomUUID(),
+    });
   }
 
   /** 支付回调：验签在适配器内完成，通知记录与幂等在这里。 */
@@ -249,7 +262,7 @@ export class OrdersService {
     await db.db
       .insert(paymentNotifications)
       .values({
-        channel: 'wechat_native',
+        channel: channel as (typeof paymentNotifications.$inferInsert)['channel'],
         notificationId: verified.notificationId,
         payloadDigest: createHash('sha256').update(rawBody).digest('hex'),
         verifyResult: 'ok',

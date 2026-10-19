@@ -15,6 +15,7 @@ import { LobbyService } from './rooms/lobby.service.js';
 import { RealtimeController } from './realtime/realtime.controller.js';
 import { BillingController } from './billing/billing.controller.js';
 import { OrdersService } from './billing/orders.service.js';
+import { RedeemCodesService } from './billing/redeem-codes.service.js';
 import { CreationsController } from './creations/creations.controller.js';
 import { GovernanceController } from './governance/governance.controller.js';
 import { AdminController } from './admin/admin.controller.js';
@@ -38,6 +39,7 @@ import { AdminController } from './admin/admin.controller.js';
     CommandsService,
     LobbyService,
     OrdersService,
+    RedeemCodesService,
     { provide: APP_INTERCEPTOR, useClass: EnvelopeInterceptor },
     { provide: APP_GUARD, useClass: SessionGuard },
     { provide: APP_GUARD, useClass: RolesGuard },

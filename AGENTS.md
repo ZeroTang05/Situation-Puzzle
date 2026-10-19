@@ -3,7 +3,8 @@
 移动优先的多人海龟汤（情境猜谜）网页：玩家提问，AI「Jev」回答 是/否/无关/无法确定。
 房间新规则见 `docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md`（v3）：会客厅（lobby）与房间（room）生命周期彻底解耦。每个用户固定一个会客厅 id（`user_lobbies.host_user_id UNIQUE` 物理保证 1:1，永久不变），房主可以同时拥有任意多个 active 房间；同一用户也可以同时是别的 lobby 的成员；踢人 = DELETE 座位行不留 kicked 软标记；邀请 URL 路径区分 `/lobby/invite/<hex>` 与 `/room/invite/<hex>`，后端两条独立 endpoint 无 fallback；先选题后开局，start 单事务建房+迁成员+建局+撤销旧邀请；start 事务提交后通过实时网关向所有 lobby 订阅者推送 `lobby.started` 帧（携带 roomId+inviteToken），客户端收到后立即 navigate 到房间，避免客人因轮询延迟被误报"等待室已解散"；一房一题（局结束即归档）；单人无业务限流。
 单人模式无需登录、永久免费、对话只存浏览器；多人房间（容量由 `ROOM_CAPACITY` 环境变量配置，默认 8）、服务端保存并实时同步；
-未赞助账号累计可开 10 个房间，月度赞助 6 元 / 永久 20 元不限开房（微信商户开通前收费入口关闭）。
+未赞助账号累计可开 10 个房间，月度赞助 6 元 / 永久 20 元不限开房。
+**收款通道有两条**：微信支付 Native（需商户资质，未开通时前台显示「支付通道开通中」）与**赞助码**（零实名通道：运营方用个人收款码收款后发码，用户在「我的」页兑换，站内自动核销并发授权；见 `docs/rebuild/14-REDEEM-CODE-CHANNEL.md`）。
 本文档面向开发与维护；用户视角的宣传页在 `README.md`。
 
 ## 目录结构
@@ -57,6 +58,10 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   四条不变量靠数据库唯一索引兜底（见 `packages/database/src/schema/rooms.ts`）
 - **计费不变量**：免费开房 `(room_id, action)` 唯一流水；首次有效判定或公布答案即消费；
   一房一题，换题新建房间并重新授权；CHECK 约束禁止负余额；赞助检查与扣减同事务同锁
+- **赞助码通道**：`redeem_codes` 一码一权（`code_key` 唯一）；核销时对码行 `FOR UPDATE`，
+  码状态流转与授权发放/订单核销/流水/审计**同事务**提交（`orders.service.ts:confirmPaidTx`
+  为此把核销主体拆成可传入事务的版本）；码格式规则在 `packages/domain/src/redeem-codes.ts`，
+  API、后台与离线 CLI 三处共用；运营发码用 `apps/api/src/cli/issue-redeem-codes.ts`
 - **单人隐私**：`/solo/*` 匿名凭证（jose）、不落任何业务表；新规则不按 IP 或题目做业务限流；
   客户端 `credentials: 'omit'`
 - **判题**：阈值只能服务端读；`uncertain` 是有效判定；缺概率是协议错误不编造；

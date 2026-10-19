@@ -37,7 +37,10 @@ export const orderStatusEnum = pgEnum('order_status', [
   'refunded',
 ]);
 
-export const orderChannelEnum = pgEnum('order_channel', ['wechat_native', 'test']);
+/** redeem_code=赞助码兑换（零实名通道，人工收款后发码）；wechat_native=微信支付 v3；test=后台测试。 */
+export const orderChannelEnum = pgEnum('order_channel', ['wechat_native', 'redeem_code', 'test']);
+
+export const redeemCodeStatusEnum = pgEnum('redeem_code_status', ['unused', 'used', 'revoked']);
 
 export const refundStatusEnum = pgEnum('refund_status', ['pending', 'refunded', 'failed', 'cancelled']);
 
@@ -121,6 +124,45 @@ export const orders = pgTable(
     uniqueIndex('orders_merchant_no_uq').on(t.merchantOrderNo),
     index('orders_user_idx').on(t.userId),
     index('orders_status_idx').on(t.status),
+  ],
+);
+
+/**
+ * 赞助码：零实名收款通道。
+ *
+ * 场景：微信/支付宝商户资质未开通时，运营方用个人收款码收款后发码；
+ * 用户在站内兑换码，服务端核销并发放与微信支付完全相同的赞助授权。
+ * 一码一权：code 唯一，核销时行锁 + 状态流转保证不可重复兑换。
+ */
+export const redeemCodes = pgTable(
+  'redeem_codes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    /** 兑换码本体（大写字母数字，人工可读）；唯一索引防重复 */
+    code: text('code').notNull(),
+    /** 归一化检索键：去掉连字符与空格后的大写串；唯一索引，换码格式不影响老码 */
+    codeKey: text('code_key').notNull(),
+    productVersionId: uuid('product_version_id')
+      .notNull()
+      .references(() => productVersions.id),
+    status: redeemCodeStatusEnum('status').notNull().default('unused'),
+    /** 批次号：同一次批量发码共享，便于对账与撤销 */
+    batchId: text('batch_id').notNull(),
+    /** 备注：例如收款渠道、单价、买家昵称 */
+    note: text('note'),
+    createdBy: text('created_by').references(() => user.id),
+    usedBy: text('used_by').references(() => user.id),
+    usedAt: timestamp('used_at', { withTimezone: true, mode: 'date' }),
+    orderId: uuid('order_id').references(() => orders.id),
+    /** 过期后不可兑换；NULL = 长期有效 */
+    expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('redeem_codes_code_uq').on(t.code),
+    uniqueIndex('redeem_codes_code_key_uq').on(t.codeKey),
+    index('redeem_codes_batch_idx').on(t.batchId),
+    index('redeem_codes_status_idx').on(t.status),
   ],
 );
 

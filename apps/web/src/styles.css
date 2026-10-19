@@ -886,3 +886,120 @@ textarea.composer-input, .composer .composer-input {
   gap: 6px;
   flex: none;
 }
+
+/* ---------- 赞助面板（商品 + 兑换码） ---------- */
+
+.sponsor-panel {
+  gap: 4px;
+}
+
+.sponsor-hint {
+  margin: 0 4px 12px;
+  font-size: 13px;
+}
+
+.sponsor-products {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sponsor-product {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--tap);
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(9, 39, 62, 0.55);
+}
+
+.sponsor-product-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sponsor-product-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.sponsor-product-price {
+  font-size: 13px;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.sponsor-product-skeleton {
+  height: 56px;
+  border-radius: var(--radius);
+  background: rgba(115, 191, 220, 0.06);
+}
+
+.sponsor-pay {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(125, 216, 198, 0.28);
+  border-radius: var(--radius);
+  background: rgba(125, 216, 198, 0.06);
+}
+
+.sponsor-pay-hint {
+  font-size: 12px;
+  word-break: break-all;
+  opacity: 0.7;
+}
+
+.sponsor-redeem {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(9, 39, 62, 0.45);
+}
+
+.sponsor-redeem-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sponsor-redeem-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.sponsor-redeem-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--tap);
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sponsor-redeem-ok {
+  margin: 10px 0 0;
+  color: var(--ok);
+  font-size: 13px;
+}

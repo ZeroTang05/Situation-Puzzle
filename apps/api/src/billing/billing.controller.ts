@@ -9,14 +9,18 @@ import { app } from '../context.js';
 import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http.js';
 import { SessionGuard } from '../auth/session.guard.js';
 import { OrdersService } from './orders.service.js';
-import { orderCreateRequestSchema } from '@jev/contracts';
+import { RedeemCodesService } from './redeem-codes.service.js';
+import { orderCreateRequestSchema, redeemCodeRequestSchema } from '@jev/contracts';
 import { z } from 'zod';
 
 @Controller()
 @UseGuards(SessionGuard)
 export class BillingController {
   // tsx(esbuild) 不生成参数类型元数据：显式 @Inject 声明依赖令牌
-  constructor(@Inject(OrdersService) private readonly ordersService: OrdersService) {}
+  constructor(
+    @Inject(OrdersService) private readonly ordersService: OrdersService,
+    @Inject(RedeemCodesService) private readonly redeemCodesService: RedeemCodesService,
+  ) {}
 
   /** 当前赞助状态与免费开房余量。 */
   @Get('sponsorship')
@@ -45,6 +49,30 @@ export class BillingController {
   @Get('sponsor-products')
   products() {
     return this.ordersService.listProducts();
+  }
+
+  /**
+   * 可用收款通道：前端据此决定展示哪些购买入口。
+   * 微信支付需要商户资质（未开通时 available=false），赞助码零资质始终可用。
+   */
+  @Get('payment-channels')
+  channels() {
+    const wechatReady = this.ordersService.hasWechatChannel();
+    return {
+      channels: [
+        { channel: 'wechat_native' as const, available: wechatReady, label: '微信支付' },
+        { channel: 'redeem_code' as const, available: true, label: '兑换码' },
+      ],
+    };
+  }
+
+  /** 兑换赞助码：核销与发授权同事务完成，权益只来自服务端。 */
+  @Post('orders/redeem')
+  async redeem(
+    @CurrentUser() user: SessionUser,
+    @Body(new ZodValidationPipe(redeemCodeRequestSchema)) body: z.infer<typeof redeemCodeRequestSchema>,
+  ) {
+    return this.redeemCodesService.redeem(user.userId, body.code);
   }
 
   @Post('orders')

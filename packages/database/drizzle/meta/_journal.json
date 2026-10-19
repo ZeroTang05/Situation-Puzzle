@@ -64,6 +64,13 @@
       "when": 1799000000000,
       "tag": "0008_oauth_email_verified_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1800000000000,
+      "tag": "0009_redeem_codes",
+      "breakpoints": true
     }
   ]
 }
