@@ -13,7 +13,7 @@
  *  - 幂等：同一码重复兑换返回明确错误，不产生第二笔订单、不重复发授权。
  *  - 金额取商品版本快照：改价产生新版本，已发出的老码仍按老价发货。
  */
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { orders, productVersions, redeemCodes, sponsorProducts, type Tx } from '@jev/database';
@@ -26,7 +26,8 @@ const ORDER_TTL_MINUTES = 15;
 
 @Injectable()
 export class RedeemCodesService {
-  constructor(private readonly ordersService: OrdersService) {}
+  // tsx(esbuild) 不生成构造参数元数据：必须显式 @Inject，否则运行时 this.ordersService 为 undefined
+  constructor(@Inject(OrdersService) private readonly ordersService: OrdersService) {}
 
   /**
    * 兑换赞助码：核销码 + 建单 + 发授权，同事务完成。
