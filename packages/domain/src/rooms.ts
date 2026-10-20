@@ -52,9 +52,15 @@ export interface QueueUsage {
   userActiveCount: number;
 }
 
-/** 判题提交排队检查：进行中、个人与房间容量。 */
+/**
+ * 判题提交排队检查：进行中、个人与房间容量。
+ *
+ * 每人最多一个未完成判题（PER_USER_QUEUE_LIMIT，见 04-ROOM-JEV §3）是既定规则。
+ * 两个来源都判：调用方传进来的布尔值，以及 usage 里统计出来的条数——
+ * 早期调用点把布尔值写死成 false，只靠 usage 会漏判，两个都看才稳妥。
+ */
 export function assertCanEnqueue(usage: QueueUsage, userIdActive: boolean): void {
-  if (userIdActive) {
+  if (userIdActive || usage.userActiveCount >= PER_USER_QUEUE_LIMIT) {
     throw new DomainError('TURN_PENDING', '你已有未完成的提问或还原任务');
   }
   if (usage.activeCount >= ROUND_QUEUE_LIMIT) {

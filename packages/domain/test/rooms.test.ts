@@ -21,6 +21,10 @@ describe('排队容量', () => {
   it('每人最多一个未完成任务', () => {
     expect(() => assertCanEnqueue({ activeCount: 1, userActiveCount: 1 }, true)).toThrow(DomainError);
   });
+  it('即使调用方漏传布尔值，usage 里的本人未完成数也会拦下', () => {
+    // 早期调用点把第二个参数写死成 false，只靠布尔值会漏判
+    expect(() => assertCanEnqueue({ activeCount: 1, userActiveCount: 1 }, false)).toThrow(/你已有未完成/);
+  });
   it('房间队列上限 8', () => {
     expect(() => assertCanEnqueue({ activeCount: 8, userActiveCount: 0 }, false)).toThrow(/队列已满/);
   });

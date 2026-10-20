@@ -25,6 +25,7 @@ import {
 } from '@jev/database';
 import {
   DomainError,
+  DISCUSSION_PER_MINUTE,
   assertControlVersion,
   assertCanEnqueue,
   nextHintIndex,
@@ -32,8 +33,6 @@ import {
 import type { CommandType } from '@jev/contracts';
 import { app } from '../context.js';
 import type { SessionUser } from '../common/http.js';
-
-const DISCUSSION_RATE_PER_MINUTE = 30;
 
 function digestOf(input: { type: string; roundId?: string; payload: unknown }): string {
   return createHash('sha256').update(JSON.stringify(input)).digest('hex');
@@ -211,7 +210,8 @@ export class CommandsService {
           .select({ count: sql<number>`count(*)::int` })
           .from(turns)
           .where(and(eq(turns.roundId, round.id), sql`status in ('queued','processing')`));
-        assertCanEnqueue({ activeCount: roomActive?.count ?? 0, userActiveCount: userActive?.count ?? 0 }, false);
+        // 每人最多一个未完成判题（PER_USER_QUEUE_LIMIT）：本人已有 queued/processing 时直接拒
+        assertCanEnqueue({ activeCount: roomActive?.count ?? 0, userActiveCount: userActive?.count ?? 0 }, (userActive?.count ?? 0) > 0);
 
         const turnId = crypto.randomUUID();
         const event = await appendEvent(tx, {
@@ -268,7 +268,7 @@ export class CommandsService {
           .where(
             sql`room_id = ${room.id} and type = 'discussion.created' and payload->>'userId' = ${user.userId} and created_at > now() - interval '60 seconds'`,
           );
-        if ((recent?.count ?? 0) >= DISCUSSION_RATE_PER_MINUTE) {
+        if ((recent?.count ?? 0) >= DISCUSSION_PER_MINUTE) {
           throw new DomainError('RATE_LIMITED', '发言太频繁了，稍等片刻。');
         }
         const event = await appendEvent(tx, {
