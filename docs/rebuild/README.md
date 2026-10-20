@@ -24,6 +24,7 @@
 | [赞助码通道](14-REDEEM-CODE-CHANNEL.md) | 零实名收款：个人收款码 + 站内发码核销 | 运营、开发 |
 | [在线收款通道](15-PAYMENT-CHANNELS.md) | 微信支付 v3 + 支付宝：需申请的凭据清单、配置与联调 | 运营、开发 |
 | [并发与限流盘点](16-CONCURRENCY-LIMITS.md) | 现有闸门清单、无保护的高危接口、已落地的限流规则 | 开发、运维 |
+| [用户主持人模式](17-USER-HOST-MODE.md) | 玩家自己当主持人：申请审批、提问挂起、主持判定、汤底可见性 | 产品、开发、测试 |
 
 ## 给开发模型的执行约定
 
@@ -66,3 +67,7 @@
 - **题库分页**：`GET /puzzles` 支持 `page`（页码直达）或 `cursor`（连续读取）二选一，`limit` 默认 20、最大 100；page 模式返回 `total` / `totalPages`。玩家端提供「加载更多」与直达页码两种浏览方式。详见 [03-SPEC §6](03-SPEC.md)。
 - **Jev 出站默认走 ai-proxy**：`JEV_BASE_URL` 默认 `https://ai-proxy.xiaobaozi.cn/opencode.ai/zen/v1/systemone`，可指回官方源。
 - **大模型补判**：Jev 置信度不足时自动调用 MiniMax 补判（单人、多人、创作试题的提问与还原均接入）；还原时可手动开启「判题不准？试试大模型判题」，多人提交的选择存 `turns.use_large_model`（迁移 `0005_large_model_judgment`），任务按提交时选择执行；判题提示词版本升到 `v3-2026-10`（`minimax-question.ts` / `minimax-solution.ts`）。判题协议补充见 [04-ROOM-JEV §7](04-ROOM-JEV.md)。
+
+## 1.3 文档与实现的最新对齐（2026-10-20）
+
+- **用户主持人模式** 落地（迁移 `0012_user_host_mode`）：房间与会客厅各持一份主持人状态（`host_mode` = ai/user、`user_host_id`、成员 `role`、待审申请 `host_requested_at`）。成员可在会客厅或房间右上角玩家列表申请成为主持人，房主审核（房主自申请直接通过）；用户主持人接管提问判定（「是/否/无关」快捷判定）、在「还原真相」页直接看汤底、在讨论页给提示，并可自行退出（退出后 Jev 重新接管）。还原提交仍由 Jev 判定。汤底只走 `GET /rounds/:id/host-view` 单独下发，不进快照与事件。规则见 [17-USER-HOST-MODE](17-USER-HOST-MODE.md)。

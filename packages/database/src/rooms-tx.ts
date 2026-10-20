@@ -36,7 +36,11 @@ export type RoomEventType =
   | 'turn.failed'
   | 'turn.cancelled'
   | 'hint.revealed'
-  | 'discussion.created';
+  | 'discussion.created'
+  | 'room.host_requested'
+  | 'room.host_approved'
+  | 'room.host_rejected'
+  | 'room.host_resigned';
 
 export interface AppendedEvent {
   seq: number;

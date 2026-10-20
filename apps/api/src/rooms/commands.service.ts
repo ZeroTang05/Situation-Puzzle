@@ -28,9 +28,13 @@ import {
   DISCUSSION_PER_MINUTE,
   assertControlVersion,
   assertCanEnqueue,
+  assertCanRequestHost,
+  assertCanResignHost,
+  assertCanReviewHost,
+  assertHostAnswer,
   nextHintIndex,
 } from '@jev/domain';
-import type { CommandType } from '@jev/contracts';
+import type { CommandType, HostVerdict } from '@jev/contracts';
 import { app } from '../context.js';
 import type { SessionUser } from '../common/http.js';
 
@@ -184,7 +188,7 @@ export class CommandsService {
     /** kick 命令产出：事务提交后由调用方断开被移除者的实时订阅 */
     droppedUserId?: string;
   }> {
-    const { user, room, round, isHost, input } = ctx;
+    const { user, room, member, round, isHost, input } = ctx;
     const payload = input.payload;
 
     switch (input.type) {
@@ -228,6 +232,10 @@ export class CommandsService {
           },
         });
 
+        // 用户主持模式：提问挂起等主持人回答，不进 AI 队列（17-USER-HOST-MODE §5.1）。
+        // 挂起任务没有 deadline，因此不参与排队超时判定。
+        const heldForHost = input.type === 'ask' && room.hostMode === 'user';
+
         const [turn] = await tx
           .insert(turns)
           .values({
@@ -239,12 +247,13 @@ export class CommandsService {
             acceptedSeq: event.seq,
             useLargeModel: input.type === 'solve' && payload.useLargeModel === true,
             status: 'queued',
-            deadlineAt: new Date(Date.now() + 45_000),
+            deadlineAt: heldForHost ? null : new Date(Date.now() + 45_000),
             jevConfigVersion: round.jevConfigVersion,
           })
           .returning({ id: turns.id });
 
-        await app().queue.sendInTx(tx, 'dispatch-room', { roomId: room.id });
+        // 挂起的提问等主持人答复；还原提交仍由 Jev 判定（决策 D3）
+        if (!heldForHost) await app().queue.sendInTx(tx, 'dispatch-room', { roomId: room.id });
         return { controlCommand: false, turnId: turn!.id, acceptedSeq: event.seq };
       }
 
@@ -381,11 +390,174 @@ export class CommandsService {
         return { controlCommand: true };
       }
 
+      // ---------- 用户主持人（docs/rebuild/17-USER-HOST-MODE.md） ----------
+
+      case 'request_host': {
+        const isUserHost = room.userHostId === user.userId;
+        assertCanRequestHost({ isOwner: isHost, isUserHost });
+        if (isHost) {
+          // 房主自己申请直接通过
+          const previousUserId = await this.appointUserHostTx(tx, room, user.userId);
+          await appendEvent(tx, {
+            roomId: room.id,
+            roundId: round?.id ?? null,
+            type: 'room.host_approved',
+            payload: { userId: user.userId, nickname: user.nickname, previousUserId },
+          });
+          return { controlCommand: false };
+        }
+        // 其他成员：生成待审申请，等房主审核
+        if (!member.hostRequestedAt) {
+          await tx.update(roomMembers).set({ hostRequestedAt: new Date() }).where(eq(roomMembers.id, member.id));
+        }
+        await appendEvent(tx, {
+          roomId: room.id,
+          roundId: round?.id ?? null,
+          type: 'room.host_requested',
+          payload: { userId: user.userId, nickname: user.nickname },
+        });
+        return { controlCommand: false };
+      }
+
+      case 'approve_host': {
+        assertCanReviewHost({ isOwner: isHost, isUserHost: room.userHostId === user.userId });
+        const { userId } = payload as { userId: string };
+        const [target] = await tx
+          .select()
+          .from(roomMembers)
+          .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, userId)))
+          .limit(1);
+        if (!target || target.status !== 'joined') throw new DomainError('NOT_FOUND', '成员不存在');
+        const nickname = (await tx.select({ nickname: profiles.nickname }).from(profiles).where(eq(profiles.userId, userId)).limit(1))[0]?.nickname ?? userId;
+        const previousUserId = await this.appointUserHostTx(tx, room, userId);
+        await appendEvent(tx, {
+          roomId: room.id,
+          roundId: round?.id ?? null,
+          type: 'room.host_approved',
+          payload: { userId, nickname, previousUserId },
+        });
+        return { controlCommand: false };
+      }
+
+      case 'reject_host': {
+        assertCanReviewHost({ isOwner: isHost, isUserHost: room.userHostId === user.userId });
+        const { userId } = payload as { userId: string };
+        const [target] = await tx
+          .select()
+          .from(roomMembers)
+          .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, userId)))
+          .limit(1);
+        if (!target) throw new DomainError('NOT_FOUND', '成员不存在');
+        await tx.update(roomMembers).set({ hostRequestedAt: null }).where(eq(roomMembers.id, target.id));
+        const nickname = (await tx.select({ nickname: profiles.nickname }).from(profiles).where(eq(profiles.userId, userId)).limit(1))[0]?.nickname ?? userId;
+        await appendEvent(tx, {
+          roomId: room.id,
+          roundId: round?.id ?? null,
+          type: 'room.host_rejected',
+          payload: { userId, nickname },
+        });
+        return { controlCommand: false };
+      }
+
+      case 'resign_host': {
+        const isUserHost = room.userHostId === user.userId;
+        assertCanResignHost({ isOwner: isHost, isUserHost });
+        await this.demoteUserHostTx(tx, room, user.userId, user.nickname, round?.id ?? null);
+        return { controlCommand: false };
+      }
+
+      case 'host_answer': {
+        const isUserHost = room.userHostId === user.userId;
+        const { turnId, verdict } = payload as { turnId: string; verdict: HostVerdict };
+        const [turn] = await tx.select().from(turns).where(eq(turns.id, turnId)).for('update').limit(1);
+        if (!turn) throw new DomainError('NOT_FOUND', '问题不存在');
+        const [turnRound] = await tx.select().from(rounds).where(eq(rounds.id, turn.roundId)).limit(1);
+        if (!turnRound || turnRound.roomId !== room.id || turnRound.status !== 'active') {
+          throw new DomainError('ROUND_ENDED', '这一局已经结束了');
+        }
+        assertHostAnswer({
+          isUserHost,
+          hostMode: room.hostMode,
+          turnKind: turn.kind,
+          turnStatus: turn.status,
+        });
+        const now = new Date();
+        await tx
+          .update(turns)
+          .set({ status: 'succeeded', result: verdict, judgedBy: 'host', confidence: '1', startedAt: turn.startedAt ?? now, completedAt: now })
+          .where(eq(turns.id, turn.id));
+        await tx.update(rounds).set({ effectiveVerdicts: sql`${rounds.effectiveVerdicts} + 1` }).where(eq(rounds.id, turnRound.id));
+        await appendEvent(tx, {
+          roomId: room.id,
+          roundId: turnRound.id,
+          type: 'turn.completed',
+          payload: { turnId: turn.id, result: verdict, confidence: 1, source: 'host' },
+        });
+        // 主持人的回答与 Jev 的判定等价：首个有效判定消费一次免费开房额度
+        await consumeEntitlementIfFreeTx(tx, room.id);
+        return { controlCommand: false };
+      }
+
       default: {
         const exhaustive: never = input.type;
         throw new DomainError('VALIDATION_FAILED', `未知命令：${String(exhaustive)}`);
       }
     }
+  }
+
+  /**
+   * 任命用户主持人（docs/rebuild/17-USER-HOST-MODE.md）：
+   * 原主持人先卸任（避免部分唯一索引冲突），再写新主持人与其成员身份镜像。
+   * 返回被卸任的原主持人 userId（无则 null）。
+   */
+  private async appointUserHostTx(
+    tx: Parameters<Parameters<import('@jev/database').Database['transaction']>[0]>[0],
+    room: typeof rooms.$inferSelect,
+    newUserId: string,
+  ): Promise<string | null> {
+    const previousUserId = room.userHostId && room.userHostId !== newUserId ? room.userHostId : null;
+    if (previousUserId) {
+      await tx
+        .update(roomMembers)
+        .set({ role: 'player' })
+        .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, previousUserId)));
+    }
+    await tx
+      .update(roomMembers)
+      .set({ role: 'user_host', hostRequestedAt: null })
+      .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, newUserId)));
+    await tx
+      .update(rooms)
+      .set({ hostMode: 'user', userHostId: newUserId })
+      .where(eq(rooms.id, room.id));
+    return previousUserId;
+  }
+
+  /**
+   * 卸任用户主持人：回到 Jev 主持（host_mode='ai'），挂起的提问交还 Jev 处理。
+   * 成员离开/被踢时同样走这里（主持身份随成员资格失效）。
+   */
+  private async demoteUserHostTx(
+    tx: Parameters<Parameters<import('@jev/database').Database['transaction']>[0]>[0],
+    room: typeof rooms.$inferSelect,
+    userId: string,
+    nickname: string,
+    roundId?: string | null,
+  ): Promise<void> {
+    if (room.userHostId !== userId) return;
+    await tx
+      .update(roomMembers)
+      .set({ role: 'player' })
+      .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, userId)));
+    await tx.update(rooms).set({ hostMode: 'ai', userHostId: null }).where(eq(rooms.id, room.id));
+    await appendEvent(tx, {
+      roomId: room.id,
+      roundId: roundId ?? null,
+      type: 'room.host_resigned',
+      payload: { userId, nickname },
+    });
+    // 挂起的提问重新交给 Jev
+    await app().queue.sendInTx(tx, 'dispatch-room', { roomId: room.id });
   }
 
   /** 成员离开/被移除：退出本局参与者阅读权、取消其排队任务、删除进行中标记。 */
@@ -408,6 +580,10 @@ export class CommandsService {
       .from(rounds)
       .where(and(eq(rounds.roomId, room.id), eq(rounds.status, 'active')))
       .limit(1);
+
+    // 主持人离开或被踢：主持身份一并失效，房间回到 Jev 主持（17-USER-HOST-MODE §七）
+    await this.demoteUserHostTx(tx, room, userId, nickname, round?.id ?? null);
+
     if (round) {
       if (kicked) {
         await tx

@@ -39,6 +39,19 @@ export const lobbyStatusEnum = pgEnum('lobby_status', ['closed', 'open']);
 
 export const memberStatusEnum = pgEnum('member_status', ['joined', 'left', 'kicked']);
 
+/**
+ * 主持人形态：ai = Jev 主持，user = 用户主持（docs/rebuild/17-USER-HOST-MODE.md）。
+ * 判题责任按它分流：user 模式下玩家的提问挂起等用户主持人回答，Jev 不再介入。
+ */
+export const hostModeEnum = pgEnum('host_mode', ['ai', 'user']);
+
+/**
+ * 房间成员身份：player = 普通玩家，user_host = 用户主持人。
+ * 与作用域（room / lobby）上的 user_host_id 同事务写入，是成员列表渲染用的镜像；
+ * 部分唯一索引保证一个作用域至多一名用户主持人。
+ */
+export const roomMemberRoleEnum = pgEnum('room_member_role', ['player', 'user_host']);
+
 export const roundStatusEnum = pgEnum('round_status', ['active', 'solved', 'revealed', 'abandoned', 'aborted']);
 
 export const turnKindEnum = pgEnum('turn_kind', ['ask', 'solve']);
@@ -70,6 +83,10 @@ export const rooms = pgTable(
     hostUserId: text('host_user_id')
       .notNull()
       .references(() => user.id),
+    /** 主持人形态：ai = Jev 主持；user = 用户主持（17-USER-HOST-MODE） */
+    hostMode: hostModeEnum('host_mode').notNull().default('ai'),
+    /** 当前用户主持人（null = 无用户主持人，等价 hostMode='ai'） */
+    userHostId: text('user_host_id').references(() => user.id, { onDelete: 'set null' }),
     status: roomStatusEnum('status').notNull().default('waiting'),
     capacity: integer('capacity').notNull().default(8),
     /** 邀请令牌只存散列；明文只在创建/重置时返回一次 */
@@ -102,6 +119,10 @@ export const roomMembers = pgTable(
       .notNull()
       .references(() => user.id),
     status: memberStatusEnum('status').notNull().default('joined'),
+    /** 成员身份：player = 普通玩家；user_host = 用户主持人（镜像 rooms.user_host_id） */
+    role: roomMemberRoleEnum('role').notNull().default('player'),
+    /** 待审的主持人申请时间：非空表示在等房主审核 */
+    hostRequestedAt: timestamp('host_requested_at', { withTimezone: true, mode: 'date' }),
     joinedAt: timestamp('joined_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
     leftAt: timestamp('left_at', { withTimezone: true, mode: 'date' }),
     /** 被移除时间：房主解除限制后才能重入 */
@@ -111,6 +132,8 @@ export const roomMembers = pgTable(
   (t) => [
     uniqueIndex('room_members_room_user_uq').on(t.roomId, t.userId),
     index('room_members_user_idx').on(t.userId),
+    // 不变量：一个房间至多一名用户主持人
+    uniqueIndex('room_members_one_user_host_uq').on(t.roomId).where(sql`role = 'user_host'`),
   ],
 );
 
@@ -136,6 +159,10 @@ export const userLobbies = pgTable(
       .references(() => user.id, { onDelete: 'cascade' }),
     status: lobbyStatusEnum('status').notNull().default('closed'),
     capacity: integer('capacity').notNull().default(8),
+    /** 主持人形态：ai = Jev 主持；user = 用户主持（17-USER-HOST-MODE） */
+    hostMode: hostModeEnum('host_mode').notNull().default('ai'),
+    /** 当前会客厅的用户主持人（null = 无） */
+    userHostId: text('user_host_id').references(() => user.id, { onDelete: 'set null' }),
     selectedPuzzleId: text('selected_puzzle_id'),
     selectedPuzzleLang: text('selected_puzzle_lang'),
     selectedPuzzleTitle: text('selected_puzzle_title'),
@@ -161,11 +188,17 @@ export const lobbyMembers = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id),
+    /** 成员身份：player = 普通玩家；user_host = 用户主持人（镜像 user_lobbies.user_host_id） */
+    role: roomMemberRoleEnum('role').notNull().default('player'),
+    /** 待审的主持人申请时间：非空表示在等房主审核 */
+    hostRequestedAt: timestamp('host_requested_at', { withTimezone: true, mode: 'date' }),
     joinedAt: timestamp('joined_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   },
   (t) => [
     primaryKey({ columns: [t.lobbyId, t.userId] }),
     index('lobby_members_user_idx').on(t.userId),
+    // 不变量：一个会客厅至多一名用户主持人
+    uniqueIndex('lobby_members_one_user_host_uq').on(t.lobbyId).where(sql`role = 'user_host'`),
   ],
 );
 
@@ -330,6 +363,8 @@ export const turns = pgTable(
     status: turnStatusEnum('status').notNull().default('queued'),
     /** ask: yes/no/irrelevant/uncertain；solve: solved/close/not_yet/uncertain */
     result: text('result'),
+    /** 判定来源：ai = Jev；host = 用户主持人（17-USER-HOST-MODE） */
+    judgedBy: text('judged_by'),
     confidence: text('confidence'),
     failReason: text('fail_reason'),
     /** 任务进程领取时写入，完成时校验一致才可提交结果 */

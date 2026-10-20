@@ -14,7 +14,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
-import { and, count, desc, eq, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull } from 'drizzle-orm';
 import {
   appendEvent,
   lobbyInvites,
@@ -28,7 +28,7 @@ import {
   rounds,
   userLobbies,
 } from '@jev/database';
-import { DomainError } from '@jev/domain';
+import { DomainError, assertCanRequestHost, assertCanResignHost, assertCanReviewHost } from '@jev/domain';
 import { app } from '../context.js';
 import type { SessionUser } from '../common/http.js';
 import { createRoomWithEntitlementTx, jevConfigVersionOf } from './room-creation.js';
@@ -44,8 +44,14 @@ export interface LobbySnapshot {
   lobbyId: string;
   hostUserId: string;
   capacity: number;
-  members: Array<{ userId: string; nickname: string; online: boolean; isHost: boolean }>;
+  members: Array<{ userId: string; nickname: string; online: boolean; isHost: boolean; isUserHost: boolean }>;
   selectedPuzzle: { puzzleId: string; title: string; language: 'zh' | 'en' } | null;
+  /** 主持人形态：ai = Jev 主持；user = 用户主持 */
+  hostMode: 'ai' | 'user';
+  /** 当前用户主持人（null = 无） */
+  userHostId: string | null;
+  /** 待房主审核的主持人申请 */
+  hostRequests: Array<{ userId: string; nickname: string }>;
 }
 
 /** 进程内在线缓存：lobbyId → (userId → lastSeenAt)。DB 不写，进程重启丢失。 */
@@ -229,6 +235,8 @@ export class LobbyService {
         selectedPuzzleTitle: userLobbies.selectedPuzzleTitle,
         selectedPuzzleSurface: userLobbies.selectedPuzzleSurface,
         status: userLobbies.status,
+        hostMode: userLobbies.hostMode,
+        userHostId: userLobbies.userHostId,
       })
       .from(userLobbies)
       .where(eq(userLobbies.id, lobbyId))
@@ -236,7 +244,7 @@ export class LobbyService {
     if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
 
     const members = await this.db.db
-      .select({ userId: lobbyMembers.userId, joinedAt: lobbyMembers.joinedAt })
+      .select({ userId: lobbyMembers.userId, joinedAt: lobbyMembers.joinedAt, hostRequestedAt: lobbyMembers.hostRequestedAt })
       .from(lobbyMembers)
       .where(eq(lobbyMembers.lobbyId, lobbyId));
     const isMember = members.some((m) => m.userId === user.userId);
@@ -276,6 +284,7 @@ export class LobbyService {
       nickname: hostCached?.nickname ?? lobby.hostUserId,
       online: hostCached !== undefined && hostCached.lastSeenAt > 0 && now - hostCached.lastSeenAt < ONLINE_WINDOW_MS,
       isHost: true,
+      isUserHost: lobby.userHostId === lobby.hostUserId,
       joinedAt: 0, // 房主最先生成会客厅，排序最前
     };
     const guestEntries = members
@@ -288,10 +297,15 @@ export class LobbyService {
           nickname: cached?.nickname ?? m.userId,
           online: cached !== undefined && now - cached.lastSeenAt < ONLINE_WINDOW_MS,
           isHost: false,
+          isUserHost: lobby.userHostId === m.userId,
           joinedAt: m.joinedAt.getTime(),
         };
       });
     const memberList = [hostEntry, ...guestEntries];
+
+    // 待审的主持人申请（只有客人会产生申请，房主自申请直接通过）
+    const requestRows = members.filter((m) => m.hostRequestedAt !== null && m.userId !== lobby.hostUserId);
+    const requestNicknames = await this.nicknamesOf(requestRows.map((m) => m.userId));
 
     return {
       lobbyId: lobby.id,
@@ -306,7 +320,118 @@ export class LobbyService {
               language: lobby.selectedPuzzleLang as 'zh' | 'en',
             }
           : null,
+      hostMode: lobby.hostMode,
+      userHostId: lobby.userHostId,
+      hostRequests: requestRows.map((m) => ({
+        userId: m.userId,
+        nickname: requestNicknames.get(m.userId) ?? m.userId,
+      })),
     };
+  }
+
+  // ---------- 用户主持人（docs/rebuild/17-USER-HOST-MODE.md） ----------
+
+  /** 批量查昵称（profiles 表）。 */
+  private async nicknamesOf(userIds: string[]): Promise<Map<string, string>> {
+    const unique = [...new Set(userIds)].filter(Boolean);
+    if (unique.length === 0) return new Map();
+    const rows = await this.db.db
+      .select({ userId: profiles.userId, nickname: profiles.nickname })
+      .from(profiles)
+      .where(inArray(profiles.userId, unique));
+    return new Map(rows.map((r) => [r.userId, r.nickname]));
+  }
+
+  /**
+   * 申请成为主持人：房主自己申请直接通过，其他成员进入待审队列等房主审核。
+   * 会客厅的房主没有座位行，其主持身份只体现在 user_lobbies.user_host_id 上。
+   */
+  async requestHost(user: SessionUser, lobbyId: string): Promise<{ hostMode: 'ai' | 'user'; userHostId: string | null; pending: boolean }> {
+    return this.db.tx(async (rawTx) => {
+      const tx = rawTx as Tx;
+      const [lobby] = await tx.select().from(userLobbies).where(eq(userLobbies.id, lobbyId)).for('update').limit(1);
+      if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+      const isOwner = lobby.hostUserId === user.userId;
+      const [seat] = await tx
+        .select()
+        .from(lobbyMembers)
+        .where(and(eq(lobbyMembers.lobbyId, lobbyId), eq(lobbyMembers.userId, user.userId)))
+        .limit(1);
+      if (!isOwner && !seat) throw new DomainError('FORBIDDEN', '你不在这个会客厅里');
+      assertCanRequestHost({ isOwner, isUserHost: lobby.userHostId === user.userId });
+
+      if (isOwner) {
+        await this.demoteLobbyHostTx(tx, lobby);
+        await tx.update(userLobbies).set({ hostMode: 'user', userHostId: user.userId }).where(eq(userLobbies.id, lobbyId));
+        return { hostMode: 'user', userHostId: user.userId, pending: false };
+      }
+      if (!seat!.hostRequestedAt) {
+        await tx
+          .update(lobbyMembers)
+          .set({ hostRequestedAt: new Date() })
+          .where(and(eq(lobbyMembers.lobbyId, lobbyId), eq(lobbyMembers.userId, user.userId)));
+      }
+      return { hostMode: lobby.hostMode, userHostId: lobby.userHostId, pending: true };
+    });
+  }
+
+  /** 房主批准申请：目标成员成为用户主持人，原主持人自动卸任。 */
+  async approveHost(user: SessionUser, lobbyId: string, targetUserId: string): Promise<{ hostMode: 'ai' | 'user'; userHostId: string | null }> {
+    return this.db.tx(async (rawTx) => {
+      const tx = rawTx as Tx;
+      const [lobby] = await tx.select().from(userLobbies).where(eq(userLobbies.id, lobbyId)).for('update').limit(1);
+      if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+      assertCanReviewHost({ isOwner: lobby.hostUserId === user.userId, isUserHost: lobby.userHostId === user.userId });
+      const [target] = await tx
+        .select()
+        .from(lobbyMembers)
+        .where(and(eq(lobbyMembers.lobbyId, lobbyId), eq(lobbyMembers.userId, targetUserId)))
+        .limit(1);
+      if (!target) throw new DomainError('NOT_FOUND', '成员不存在');
+
+      await this.demoteLobbyHostTx(tx, lobby);
+      await tx
+        .update(lobbyMembers)
+        .set({ role: 'user_host', hostRequestedAt: null })
+        .where(and(eq(lobbyMembers.lobbyId, lobbyId), eq(lobbyMembers.userId, targetUserId)));
+      await tx.update(userLobbies).set({ hostMode: 'user', userHostId: targetUserId }).where(eq(userLobbies.id, lobbyId));
+      return { hostMode: 'user', userHostId: targetUserId };
+    });
+  }
+
+  /** 房主拒绝申请：清掉待审标记。 */
+  async rejectHost(user: SessionUser, lobbyId: string, targetUserId: string): Promise<void> {
+    await this.db.tx(async (rawTx) => {
+      const tx = rawTx as Tx;
+      const [lobby] = await tx.select().from(userLobbies).where(eq(userLobbies.id, lobbyId)).for('update').limit(1);
+      if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+      assertCanReviewHost({ isOwner: lobby.hostUserId === user.userId, isUserHost: lobby.userHostId === user.userId });
+      await tx
+        .update(lobbyMembers)
+        .set({ hostRequestedAt: null })
+        .where(and(eq(lobbyMembers.lobbyId, lobbyId), eq(lobbyMembers.userId, targetUserId)));
+    });
+  }
+
+  /** 用户主持人退出：回到 Jev 主持。 */
+  async resignHost(user: SessionUser, lobbyId: string): Promise<void> {
+    await this.db.tx(async (rawTx) => {
+      const tx = rawTx as Tx;
+      const [lobby] = await tx.select().from(userLobbies).where(eq(userLobbies.id, lobbyId)).for('update').limit(1);
+      if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+      assertCanResignHost({ isOwner: lobby.hostUserId === user.userId, isUserHost: lobby.userHostId === user.userId });
+      await this.demoteLobbyHostTx(tx, lobby);
+      await tx.update(userLobbies).set({ hostMode: 'ai', userHostId: null }).where(eq(userLobbies.id, lobbyId));
+    });
+  }
+
+  /** 卸任当前会客厅的用户主持人（成员身份镜像回 player）。 */
+  private async demoteLobbyHostTx(tx: Tx, lobby: typeof userLobbies.$inferSelect): Promise<void> {
+    if (!lobby.userHostId) return;
+    await tx
+      .update(lobbyMembers)
+      .set({ role: 'player' })
+      .where(and(eq(lobbyMembers.lobbyId, lobby.id), eq(lobbyMembers.userId, lobby.userHostId)));
   }
 
   // ---------- 选题 / 离开 / 踢人 / 解散 ----------
@@ -369,6 +494,10 @@ export class LobbyService {
       await tx
         .delete(lobbyMembers)
         .where(and(eq(lobbyMembers.lobbyId, lobbyId), eq(lobbyMembers.userId, user.userId)));
+      // 主持人离开：主持身份一并失效，回到 Jev 主持
+      if (lobby.userHostId === user.userId) {
+        await tx.update(userLobbies).set({ hostMode: 'ai', userHostId: null }).where(eq(userLobbies.id, lobbyId));
+      }
       // 座位空了 → 回到 closed（保留 id）
       const [remaining] = await tx.select({ n: count() }).from(lobbyMembers).where(eq(lobbyMembers.lobbyId, lobbyId));
       if ((remaining?.n ?? 0) === 0) {
@@ -391,6 +520,10 @@ export class LobbyService {
       await tx
         .delete(lobbyMembers)
         .where(and(eq(lobbyMembers.lobbyId, lobbyId), eq(lobbyMembers.userId, targetUserId)));
+      // 主持人被踢：主持身份一并失效
+      if (lobby.userHostId === targetUserId) {
+        await tx.update(userLobbies).set({ hostMode: 'ai', userHostId: null }).where(eq(userLobbies.id, lobbyId));
+      }
       const [remaining] = await tx.select({ n: count() }).from(lobbyMembers).where(eq(lobbyMembers.lobbyId, lobbyId));
       if ((remaining?.n ?? 0) === 0) {
         await tx
@@ -428,6 +561,9 @@ export class LobbyService {
           selectedPuzzleLang: null,
           selectedPuzzleTitle: null,
           selectedPuzzleSurface: null,
+          // 解散后座位清空，主持人安排一并撤销（否则会指向已不在场的成员）
+          hostMode: 'ai',
+          userHostId: null,
         })
         .where(eq(userLobbies.id, lobbyId));
     });
@@ -490,6 +626,24 @@ export class LobbyService {
 
       for (const uid of guestIds) {
         await tx.insert(roomMembers).values({ roomId: newRoomId, userId: uid, status: 'joined' });
+      }
+
+      // 会客厅的主持人安排迁移进新房（17-USER-HOST-MODE §6.3）：
+      // 房主恒在场；客人主持人必须仍坐在会客厅里才会随局迁移。
+      const lobbyHostId = lobby.userHostId;
+      const hostToMigrate =
+        lobby.hostMode === 'user' && lobbyHostId && (lobbyHostId === lobby.hostUserId || guestIds.includes(lobbyHostId))
+          ? lobbyHostId
+          : null;
+      if (hostToMigrate) {
+        await tx.update(rooms).set({ hostMode: 'user', userHostId: hostToMigrate }).where(eq(rooms.id, newRoomId));
+        await tx
+          .update(roomMembers)
+          .set({ role: 'user_host' })
+          .where(and(eq(roomMembers.roomId, newRoomId), eq(roomMembers.userId, hostToMigrate)));
+      } else if (lobby.hostMode === 'user') {
+        // 主持人已不在场：撤销会客厅的主持安排
+        await tx.update(userLobbies).set({ hostMode: 'ai', userHostId: null }).where(eq(userLobbies.id, lobbyId));
       }
 
       const [round] = await tx

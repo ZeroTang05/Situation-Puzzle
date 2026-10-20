@@ -2,7 +2,7 @@
  * 房间页：游戏区（成对问答、讨论、提示、还原）与结算，成员管理与邀请。
  * 组队阶段在等待室页（/lobbies/:id）；本页从开局后的快照开始。所有写操作走 HTTP 命令。
  */
-import { useDialog } from '@jev/ui';
+import { Modal, useDialog } from '@jev/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -109,6 +109,37 @@ export function RoomPage({ session }: { session: Session | null }) {
   const displayedSurface = round?.language === language ? round.surface : translatedPuzzle.data?.surface;
   const isHost = state !== null && me !== null && state.hostUserId === me;
   const memberCount = state?.members.length ?? 0;
+  // 用户主持人形态（17-USER-HOST-MODE）：本房间由玩家主持，Jev 不再自动回答问题
+  const isUserHost = state !== null && me !== null && state.userHostId === me;
+  const userHostMode = (state?.hostMode ?? 'ai') === 'user';
+  const hostView = userHostMode && isUserHost;
+  /** 等待用户主持人回答的提问数 */
+  const pendingHostQuestions = state?.turns.filter((t) => t.kind === 'ask' && t.status === 'queued').length ?? 0;
+  const [hostPrompt, setHostPrompt] = useState<{ userId: string; nickname: string } | null>(null);
+  const promptedRequests = useRef(new Set<string>());
+
+  // 房主收到主持申请时弹审核提示（同一申请只提示一次；申请消失后允许再次提示）
+  useEffect(() => {
+    if (!state) return;
+    const current = new Set(state.hostRequests.map((r) => r.userId));
+    for (const id of [...promptedRequests.current]) if (!current.has(id)) promptedRequests.current.delete(id);
+    if (!isHost) return;
+    const next = state.hostRequests.find((r) => !promptedRequests.current.has(r.userId));
+    if (!next) return;
+    promptedRequests.current.add(next.userId);
+    setHostPrompt(next);
+  }, [isHost, state]);
+
+  const requestHost = useCallback(() => { void run('request_host'); }, [run]);
+  const approveHost = useCallback((userId: string) => { void run('approve_host', { userId }); }, [run]);
+  const rejectHost = useCallback((userId: string) => { void run('reject_host', { userId }); }, [run]);
+  const resignHost = useCallback(() => { void run('resign_host'); }, [run]);
+  const answerQuestion = useCallback(
+    (turnId: string, verdict: 'yes' | 'no' | 'irrelevant') => {
+      void run('host_answer', { turnId, verdict }, state?.round?.roundId);
+    },
+    [run, state?.round?.roundId],
+  );
 
   const send = async () => {
     if (!state?.round || !text.trim() || busy || pendingCurrent || status !== 'ready') return;
@@ -157,7 +188,7 @@ export function RoomPage({ session }: { session: Session | null }) {
   const hints = round ? round.hints.filter(Boolean) : [];
   // 头部状态行（掉线/错误/进行中的非聊天操作）：任一存在即展开状态槽，收起时不顶动游戏区
   const pendingNotices = (outbox.local?.pending ?? []).filter((p) => !['ask', 'solve', 'discussion'].includes(p.input.type) && p.status !== 'sent');
-  const hasStatus = (showConnection && status !== 'ready') || Boolean(outbox.storageError || translatedPuzzle.isError || error) || pendingNotices.length > 0;
+  const hasStatus = userHostMode || (showConnection && status !== 'ready') || Boolean(outbox.storageError || translatedPuzzle.isError || error) || pendingNotices.length > 0;
 
   return (
     <RoomShell playing={round?.status === 'active' && state.roomStatus === 'playing'}>
@@ -171,6 +202,7 @@ export function RoomPage({ session }: { session: Session | null }) {
 
       <div className={`appear-slot${hasStatus ? ' open' : ''}`}>
         <div className="status-lines">
+          {userHostMode && <p className="muted" role="status">{copy.hostModeNotice}</p>}
           {showConnection && status !== 'ready' && <p className="offline-banner" role="status">{status === 'auth_required' ? copy.authExpired : status === 'offline' ? copy.networkKeptDraft : copy.reconnecting}{status === 'auth_required' && <a href={`/login?next=/rooms/${roomId}`}>{copy.reconnect}</a>}</p>}
           {outbox.storageError && <p className="error-text" role="alert">{outbox.storageError}</p>}
           {translatedPuzzle.isError && <p className="error-text" role="alert">{language === 'zh' ? copy.translatedFail : copy.translatedFailEn}</p>}
@@ -183,7 +215,16 @@ export function RoomPage({ session }: { session: Session | null }) {
       </div>
       {managementOpen && <section className="panel stack room-management game-scroll" aria-label={copy.membersManagement}>
         <h2>{copy.membersHeader}</h2>
-        <MemberList state={state} me={me} isHost={isHost && state.roomStatus !== 'closed'} onKick={(userId) => void run('kick', { userId })} />
+        <MemberList
+          state={state}
+          me={me}
+          isHost={isHost && state.roomStatus !== 'closed'}
+          onKick={(userId) => void run('kick', { userId })}
+          onRequestHost={requestHost}
+          onApproveHost={approveHost}
+          onRejectHost={rejectHost}
+          onResignHost={resignHost}
+        />
         {isHost && state.roomStatus !== 'closed' && <div className="hint-row">
           <button className="btn" disabled={busy} onClick={() => void copyInvite()}>{copy.invite}</button>
           <button className="btn" disabled={busy} onClick={() => void run('rotate_invite')}>{language === 'zh' ? copy.resettingInvite : copy.resetInviteEn}</button>
@@ -220,20 +261,27 @@ export function RoomPage({ session }: { session: Session | null }) {
           </section>
 
           <section className="chat game-scroll" aria-live="polite">
+            {/* 用户主持人的「还原真相」子页面：直接展示汤底，不弹确认框 */}
+            {hostView && inputMode === 'solve' && round && <HostSecret roundId={round.roundId} />}
             {tab === 'qa' &&
               state.turns.map((turn) => (
                 <div key={turn.turnId} data-message-id={turn.turnId} className={`turn turn-${turn.kind}`}>
                   <p className="turn-text">
                     <strong>{turn.nickname}</strong>：{turn.text}
                   </p>
-                  {turn.status === 'queued' && <p className="muted turn-status">{copy.queued}</p>}
+                  {turn.status === 'queued' && <p className="muted turn-status">{userHostMode ? copy.hostWaitingAnswer : copy.queued}</p>}
                   {turn.status === 'processing' && <p className="muted turn-status">{copy.judging}</p>}
                   {turn.status === 'failed' && <p className="error-text turn-status">{copy.failed}</p>}
                   {turn.status === 'succeeded' && turn.result && (
                     <p className="turn-result">
                       <span className={`verdict-badge verdict-${turn.result}`}>{displayVerdict(turn.result, language)}</span>
+                      {turn.source === 'host' && <span className="verdict-badge verdict-uncertain">{copy.hostAnsweredByHost}</span>}
                       <small className="confidence">{confidenceLabel(turn.confidence, language)}</small>
                     </p>
+                  )}
+                  {/* 用户主持人：每条待回答的问题底部给出「是 / 否 / 无关」快捷判定 */}
+                  {hostView && turn.kind === 'ask' && turn.status === 'queued' && (
+                    <HostVerdictButtons disabled={busy || status !== 'ready'} onAnswer={(verdict) => answerQuestion(turn.turnId, verdict)} />
                   )}
                 </div>
               ))}
@@ -243,6 +291,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                   <p className="turn-text">
                     <strong>{d.nickname}</strong>：{d.text}
                   </p>
+                  {d.userId === state.userHostId && <span className="verdict-badge verdict-uncertain">{copy.userHost}</span>}
                 </div>
               ))}
             {outbox.local?.pending.filter((p) => {
@@ -271,9 +320,11 @@ export function RoomPage({ session }: { session: Session | null }) {
           {/* ---------- 操作行 ---------- */}
           {round.status === 'active' && (
             <footer className="composer">
-              <div className={`appear-slot${inputMode === 'solve' ? ' open' : ''}`} inert={inputMode !== 'solve'}>
-                <LargeModelToggle checked={useLargeModel} disabled={busy || pendingCurrent || status !== 'ready'} onChange={setUseLargeModel} />
-              </div>
+              {!hostView && (
+                <div className={`appear-slot${inputMode === 'solve' ? ' open' : ''}`} inert={inputMode !== 'solve'}>
+                  <LargeModelToggle checked={useLargeModel} disabled={busy || pendingCurrent || status !== 'ready'} onChange={setUseLargeModel} />
+                </div>
+              )}
               <div className="mode-tabs" role="tablist">
                 <button className={`mode-tab ${inputMode === 'ask' ? 'active' : ''}`} role="tab" aria-selected={inputMode === 'ask'} onClick={() => setInputMode('ask')}>
                   {copy.ask}
@@ -286,22 +337,35 @@ export function RoomPage({ session }: { session: Session | null }) {
                 </button>
               </div>
               <div className="composer-row">
-                <ChatInput
-                  maxLength={inputMode === 'ask' ? 500 : inputMode === 'discussion' ? 1000 : 1500}
-                  disabled={!outbox.local}
-                  value={text}
-                  placeholder={inputMode === 'ask' ? copy.askPlaceholder : inputMode === 'discussion' ? copy.discussPlaceholder : copy.solvePlaceholder}
-                  onChange={(e) => setText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-                      e.preventDefault();
-                      void send();
-                    }
-                  }}
-                />
-                <button className="btn btn-primary" disabled={busy || pendingCurrent || status !== 'ready' || !outbox.local || !text.trim()} onClick={() => void send()}>
-                  {busy ? copy.submitting : copy.send}
-                </button>
+                {/* 用户主持人：提问与还原两个子页面由主持形态接管，只保留讨论发言 */}
+                {hostView && inputMode !== 'discussion' ? (
+                  <p className="muted host-mode-note">
+                    {inputMode === 'ask'
+                      ? pendingHostQuestions > 0
+                        ? `${format(copy.hostAnswerTitle, { n: pendingHostQuestions })} · ${copy.hostAnswerHint}`
+                        : copy.hostAnswerEmpty
+                      : copy.hostSolveHint}
+                  </p>
+                ) : (
+                  <>
+                    <ChatInput
+                      maxLength={inputMode === 'ask' ? 500 : inputMode === 'discussion' ? 1000 : 1500}
+                      disabled={!outbox.local}
+                      value={text}
+                      placeholder={inputMode === 'ask' ? copy.askPlaceholder : inputMode === 'discussion' ? copy.discussPlaceholder : copy.solvePlaceholder}
+                      onChange={(e) => setText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                          e.preventDefault();
+                          void send();
+                        }
+                      }}
+                    />
+                    <button className="btn btn-primary" disabled={busy || pendingCurrent || status !== 'ready' || !outbox.local || !text.trim()} onClick={() => void send()}>
+                      {busy ? copy.submitting : copy.send}
+                    </button>
+                  </>
+                )}
               </div>
               <div className="hint-row">
                 {isHost && (
@@ -380,6 +444,38 @@ export function RoomPage({ session }: { session: Session | null }) {
         </section>
       )}
 
+      {/* 房主审核主持申请：批准后对方接管本局判定，拒绝只清掉申请 */}
+      <Modal
+        open={hostPrompt !== null}
+        onOpenChange={(open) => { if (!open) setHostPrompt(null); }}
+        title={format(copy.hostRequestNotice, { name: hostPrompt?.nickname ?? '' })}
+        closeLabel={copy.cancel}
+      >
+        <p>{format(copy.hostRequestConfirm, { name: hostPrompt?.nickname ?? '' })}</p>
+        <div className="hint-row">
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              const target = hostPrompt;
+              setHostPrompt(null);
+              if (target) approveHost(target.userId);
+            }}
+          >
+            {copy.hostApprove}
+          </button>
+          <button
+            className="btn"
+            onClick={() => {
+              const target = hostPrompt;
+              setHostPrompt(null);
+              if (target) rejectHost(target.userId);
+            }}
+          >
+            {copy.hostReject}
+          </button>
+        </div>
+      </Modal>
+
     </RoomShell>
   );
 }
@@ -389,13 +485,25 @@ export function MemberList({
   me,
   isHost,
   onKick,
+  onRequestHost,
+  onApproveHost,
+  onRejectHost,
+  onResignHost,
 }: {
-  state: { members: Array<{ userId: string; nickname: string; online: boolean; isHost: boolean }> };
+  state: {
+    members: Array<{ userId: string; nickname: string; online: boolean; isHost: boolean; isUserHost?: boolean }>;
+    hostRequests?: Array<{ userId: string; nickname: string }>;
+  };
   me: string | null;
   isHost: boolean;
   onKick: (userId: string) => void;
+  onRequestHost?: () => void;
+  onApproveHost?: (userId: string) => void;
+  onRejectHost?: (userId: string) => void;
+  onResignHost?: () => void;
 }) {
   const { copy } = useLanguage();
+  const pending = new Set((state.hostRequests ?? []).map((r) => r.userId));
   return (
     <ul className="member-list">
       {state.members.map((m) => (
@@ -403,6 +511,7 @@ export function MemberList({
           <span className={`presence-dot ${m.online ? 'online' : ''}`} aria-hidden />
           <span className={`member-name${m.userId === me ? ' member-name-self' : ''}`}>{m.nickname}</span>
           {m.isHost && <span className="verdict-badge verdict-solved">{copy.host}</span>}
+          {m.isUserHost && <span className="verdict-badge verdict-uncertain">{copy.userHost}</span>}
           {isHost && !m.isHost && (
             <span className="member-actions">
               <button className="btn btn-sm btn-danger" onClick={() => onKick(m.userId)}>
@@ -410,9 +519,102 @@ export function MemberList({
               </button>
             </span>
           )}
+          {/* 房主审核：待审成员行内直接批准或拒绝 */}
+          {isHost && pending.has(m.userId) && onApproveHost && onRejectHost && (
+            <span className="member-actions">
+              <button className="btn btn-sm" onClick={() => onApproveHost(m.userId)}>
+                {copy.hostApprove}
+              </button>
+              <button className="btn btn-sm btn-ghost" onClick={() => onRejectHost(m.userId)}>
+                {copy.hostReject}
+              </button>
+            </span>
+          )}
+          {/* 本人入口：申请成为主持人 / 退出主持人 */}
+          {m.userId === me && !m.isUserHost && onRequestHost && (
+            <span className="member-actions">
+              <button className="btn btn-sm" onClick={onRequestHost} disabled={pending.has(m.userId)}>
+                {pending.has(m.userId) ? copy.hostApplyPending : copy.hostApply}
+              </button>
+            </span>
+          )}
+          {m.userId === me && m.isUserHost && onResignHost && (
+            <span className="member-actions">
+              <button className="btn btn-sm" onClick={onResignHost}>
+                {copy.hostResign}
+              </button>
+            </span>
+          )}
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * 用户主持人的快捷判定按钮（17-USER-HOST-MODE §6.1）：
+ * 「是 / 否 / 无关」三个按钮直接给挂起中的提问下判定。
+ */
+export function HostVerdictButtons({
+  onAnswer,
+  disabled,
+}: {
+  onAnswer: (verdict: 'yes' | 'no' | 'irrelevant') => void;
+  disabled?: boolean;
+}) {
+  const { copy, language } = useLanguage();
+  return (
+    <div className="host-verdict-row">
+      <button className="btn btn-sm" disabled={disabled} onClick={() => onAnswer('yes')}>
+        {displayVerdict('yes', language)}
+      </button>
+      <button className="btn btn-sm" disabled={disabled} onClick={() => onAnswer('no')}>
+        {displayVerdict('no', language)}
+      </button>
+      <button className="btn btn-sm" disabled={disabled} onClick={() => onAnswer('irrelevant')}>
+        {displayVerdict('irrelevant', language)}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * 用户主持人的汤底视角（17-USER-HOST-MODE §4.3）：
+ * 走专用接口，服务端只放行本房间的用户主持人；汤底不进快照与事件。
+ */
+function HostSecret({ roundId }: { roundId: string }) {
+  const { copy } = useLanguage();
+  const [answer, setAnswer] = useState<string | null>(null);
+  const [hints, setHints] = useState<string[]>([]);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    void api<{ answer: string; hints: string[] }>(`/rounds/${roundId}/host-view`)
+      .then((data) => {
+        setAnswer(data.answer);
+        setHints(data.hints);
+      })
+      .catch(() => setError(true));
+  }, [roundId]);
+
+  if (error) return <p className="muted">{copy.hostSecretLoadFail}</p>;
+  if (!answer) return <p className="muted">{copy.loadingRound}</p>;
+  return (
+    <div className="stack host-secret">
+      <h3>{copy.hostSecretTitle}</h3>
+      <p className="muted">{copy.hostSecretHint}</p>
+      <p>{answer}</p>
+      {hints.length > 0 && (
+        <details>
+          <summary className="muted">{copy.hint}（{hints.length}）</summary>
+          {hints.map((h, i) => (
+            <p key={i} className="muted">
+              {i + 1}. {h}
+            </p>
+          ))}
+        </details>
+      )}
+    </div>
   );
 }
 

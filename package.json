@@ -18,7 +18,8 @@
     "smoke": "bash scripts/smoke-new-system.sh",
     "check:deps": "node scripts/check-deps.mjs",
     "e2e:multiplayer": "bash scripts/e2e-run.sh multiplayer",
-    "e2e:votes": "bash scripts/e2e-run.sh votes"
+    "e2e:votes": "bash scripts/e2e-run.sh votes",
+    "e2e:host": "node scripts/e2e-host-run.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.0.0"

@@ -15,6 +15,20 @@ export type Difficulty = z.infer<typeof difficultySchema>;
 export const puzzleCategorySchema = z.enum(['honkaku', 'henkaku']);
 export type PuzzleCategory = z.infer<typeof puzzleCategorySchema>;
 
+/**
+ * 主持人形态（docs/rebuild/17-USER-HOST-MODE.md）：
+ * ai = Jev 主持，提问照旧进 AI 队列；user = 用户主持，玩家的提问挂起等主持人回答。
+ */
+export const hostModeSchema = z.enum(['ai', 'user']);
+export type HostMode = z.infer<typeof hostModeSchema>;
+
+/**
+ * 用户主持人的判定取值：与 Jev 的 ask 判定同域，但不含 uncertain——
+ * 人类主持没有「无法确定」这个选项。
+ */
+export const hostVerdictSchema = z.enum(['yes', 'no', 'irrelevant']);
+export type HostVerdict = z.infer<typeof hostVerdictSchema>;
+
 // ---------- 通用信封 ----------
 
 export const errorBodySchema = z.object({
@@ -176,6 +190,14 @@ export const lobbyMemberSchema = z.object({
   nickname: z.string(),
   online: z.boolean(),
   isHost: z.boolean(),
+  /** 用户主持人（17-USER-HOST-MODE）：与 isHost 是两回事 */
+  isUserHost: z.boolean(),
+});
+
+/** 待审的主持人申请：房主据此弹审核提示 */
+export const hostRequestSchema = z.object({
+  userId: z.string(),
+  nickname: z.string(),
 });
 
 export const lobbySnapshotSchema = z.object({
@@ -184,6 +206,12 @@ export const lobbySnapshotSchema = z.object({
   capacity: z.number().int(),
   members: z.array(lobbyMemberSchema),
   selectedPuzzle: roomSelectedPuzzleSchema.nullable(),
+  /** 主持人形态：ai = Jev 主持；user = 用户主持 */
+  hostMode: hostModeSchema,
+  /** 当前用户主持人（null = 无） */
+  userHostId: z.string().nullable(),
+  /** 待房主审核的主持人申请 */
+  hostRequests: z.array(hostRequestSchema),
 });
 
 export const lobbySelectRequestSchema = z.object({
@@ -195,6 +223,19 @@ export const lobbySelectRequestSchema = z.object({
 export const lobbyStartResponseSchema = z.object({
   roomId: z.string().uuid(),
   inviteToken: z.string(),
+});
+
+// ---------- 用户主持人（会客厅侧） ----------
+
+/** 会客厅主持人审核：批准或拒绝某个成员的申请 */
+export const lobbyHostReviewRequestSchema = z.object({
+  userId: z.string().min(1),
+});
+
+/** 主持人操作结果：当前形态与主持人（null = 无用户主持人） */
+export const lobbyHostStateResponseSchema = z.object({
+  hostMode: hostModeSchema,
+  userHostId: z.string().nullable(),
 });
 
 // ---------- 房间 ----------
@@ -277,7 +318,11 @@ export const roomFollowupResponseSchema = z.object({
 
 // ---------- 房间命令 ----------
 
-/** 选题与开局发生在等待室（HTTP 接口），不作为房间命令；转让房主功能不存在。 */
+/**
+ * 选题与开局发生在等待室（HTTP 接口），不作为房间命令；转让房主功能不存在。
+ * request_host / approve_host / reject_host / resign_host / host_answer 是用户主持人模式
+ * 的房间侧命令（docs/rebuild/17-USER-HOST-MODE.md）。
+ */
 export const commandTypes = [
   'ask',
   'solve',
@@ -291,6 +336,11 @@ export const commandTypes = [
   'unrestrict_member',
   'rotate_invite',
   'close_room',
+  'request_host',
+  'approve_host',
+  'reject_host',
+  'resign_host',
+  'host_answer',
 ] as const;
 
 export const commandTypeSchema = z.enum(commandTypes);
@@ -310,6 +360,11 @@ export const commandPayloadSchemas = {
   unrestrict_member: z.object({ userId: z.string() }),
   rotate_invite: z.object({}),
   close_room: z.object({}),
+  request_host: z.object({}),
+  approve_host: z.object({ userId: z.string() }),
+  reject_host: z.object({ userId: z.string() }),
+  resign_host: z.object({}),
+  host_answer: z.object({ turnId: z.string().uuid(), verdict: hostVerdictSchema }),
 } as const satisfies Record<CommandType, z.ZodTypeAny>;
 
 export const roomCommandRequestSchema = z.object({
@@ -352,6 +407,8 @@ export const snapshotMemberSchema = z.object({
   nickname: z.string(),
   online: z.boolean(),
   isHost: z.boolean(),
+  /** 用户主持人（17-USER-HOST-MODE） */
+  isUserHost: z.boolean(),
   /** joined | left | kicked：kicked 成员不出现在快照里，此字段预留给成员页 */
   status: z.enum(['joined', 'left']),
 });
@@ -365,6 +422,8 @@ export const snapshotTurnSchema = z.object({
   text: z.string(),
   status: z.enum(['queued', 'processing', 'succeeded', 'failed', 'cancelled']),
   result: z.string().nullable(),
+  /** 判定来源：ai = Jev；host = 用户主持人（17-USER-HOST-MODE） */
+  source: z.enum(['ai', 'host']).nullable(),
 });
 
 /** 房间历史每页有明确上限，避免个人页一次展示所有记录。 */
@@ -380,6 +439,12 @@ export const roomSnapshotSchema = z.object({
   hostUserId: z.string(),
   controlVersion: z.number().int(),
   capacity: z.number().int(),
+  /** 主持人形态：ai = Jev 主持；user = 用户主持（17-USER-HOST-MODE） */
+  hostMode: hostModeSchema,
+  /** 当前用户主持人（null = 无） */
+  userHostId: z.string().nullable(),
+  /** 待房主审核的主持人申请 */
+  hostRequests: z.array(hostRequestSchema),
   /** 当前局（无则为 null） */
   round: z
     .object({

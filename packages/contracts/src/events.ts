@@ -115,11 +115,26 @@ export const roomEventPayloadSchemas = {
     text: z.string(),
   }),
   'turn.started': z.object({ turnId: z.string() }),
-  'turn.completed': z.object({ turnId: z.string(), result: z.string(), confidence: z.number().min(0).max(1) }),
+  'turn.completed': z.object({
+    turnId: z.string(),
+    result: z.string(),
+    confidence: z.number().min(0).max(1),
+    /** 判定来源：ai = Jev；host = 用户主持人（17-USER-HOST-MODE） */
+    source: z.enum(['ai', 'host']).optional(),
+  }),
   'turn.failed': z.object({ turnId: z.string(), reason: z.string(), retryable: z.boolean() }),
   'turn.cancelled': z.object({ turnId: z.string() }),
   'hint.revealed': z.object({ roundId: z.string(), index: z.number().int(), text: z.string() }),
   'discussion.created': z.object({ clientRequestId: z.string(), userId: z.string(), nickname, text: z.string().max(1000) }),
+  // ---------- 用户主持人（docs/rebuild/17-USER-HOST-MODE.md） ----------
+  /** 有成员申请成为主持人，等房主审核 */
+  'room.host_requested': z.object({ userId: z.string(), nickname }),
+  /** 申请通过：该成员成为用户主持人；previousUserId 是被卸任的原主持人（无则 null） */
+  'room.host_approved': z.object({ userId: z.string(), nickname, previousUserId: z.string().nullable() }),
+  /** 申请被拒绝 */
+  'room.host_rejected': z.object({ userId: z.string(), nickname }),
+  /** 用户主持人卸任（自行退出、离开房间或被踢） */
+  'room.host_resigned': z.object({ userId: z.string(), nickname }),
 } as const;
 
 export const roomEventTypeSchema = z.enum(Object.keys(roomEventPayloadSchemas) as [keyof typeof roomEventPayloadSchemas]);

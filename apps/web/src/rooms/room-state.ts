@@ -18,6 +18,8 @@ export interface RoomTurn {
   text: string;
   status: 'queued' | 'processing' | 'succeeded' | 'failed' | 'cancelled';
   result: string | null;
+  /** 判定来源：ai = Jev；host = 用户主持人 */
+  source?: 'ai' | 'host' | null;
   confidence?: number | null;
 }
 
@@ -26,6 +28,8 @@ export interface RoomMember {
   nickname: string;
   online: boolean;
   isHost: boolean;
+  /** 用户主持人（17-USER-HOST-MODE）：与 isHost（房主）是两回事 */
+  isUserHost: boolean;
 }
 
 export interface RoomRound {
@@ -62,6 +66,12 @@ export interface RoomState {
   hostUserId: string;
   controlVersion: number;
   capacity: number;
+  /** 主持人形态：ai = Jev 主持；user = 用户主持（17-USER-HOST-MODE） */
+  hostMode: 'ai' | 'user';
+  /** 当前用户主持人（null = 无） */
+  userHostId: string | null;
+  /** 待房主审核的主持人申请 */
+  hostRequests: Array<{ userId: string; nickname: string }>;
   round: RoomRound | null;
   members: RoomMember[];
   turns: RoomTurn[];
@@ -78,7 +88,7 @@ export function applyEvent(state: RoomState, event: RoomEvent): RoomState {
     case 'room.member_joined':
     case 'room.member_unrestricted': {
       if (state.members.some((m) => m.userId === p.userId)) return state;
-      return { ...state, members: [...state.members, { userId: String(p.userId), nickname: String(p.nickname ?? p.userId), online: true, isHost: state.hostUserId === p.userId }] };
+      return { ...state, members: [...state.members, { userId: String(p.userId), nickname: String(p.nickname ?? p.userId), online: true, isHost: state.hostUserId === p.userId, isUserHost: state.userHostId === p.userId }] };
     }
     case 'room.member_left': {
       return { ...state, members: state.members.filter((m) => m.userId !== p.userId) };
@@ -144,7 +154,15 @@ export function applyEvent(state: RoomState, event: RoomEvent): RoomState {
       const status = event.type === 'turn.started' ? 'processing' : event.type === 'turn.completed' ? 'succeeded' : event.type === 'turn.failed' ? 'failed' : 'cancelled';
       return {
         ...state,
-        turns: state.turns.map((t) => (t.turnId === p.turnId ? { ...t, status, result: p.result ? String(p.result) : t.result, ...(typeof p.confidence === 'number' ? { confidence: p.confidence } : {}) } : t)),
+        turns: state.turns.map((t) => (t.turnId === p.turnId
+          ? {
+              ...t,
+              status,
+              result: p.result ? String(p.result) : t.result,
+              ...(typeof p.confidence === 'number' ? { confidence: p.confidence } : {}),
+              ...(p.source === 'host' || p.source === 'ai' ? { source: p.source } : {}),
+            }
+          : t)),
       };
     }
     case 'hint.revealed': {
@@ -179,6 +197,44 @@ export function applyEvent(state: RoomState, event: RoomEvent): RoomState {
       // 邀请令牌刷新后需要房主重新查看邀请链接（通过 HTTP 拉取）
       return state;
     }
+    // ---------- 用户主持人（17-USER-HOST-MODE） ----------
+    case 'room.host_requested': {
+      const userId = String(p.userId);
+      if (state.hostRequests.some((r) => r.userId === userId)) return state;
+      return {
+        ...state,
+        hostRequests: [...state.hostRequests, { userId, nickname: String(p.nickname ?? userId) }],
+      };
+    }
+    case 'room.host_approved': {
+      const userId = String(p.userId);
+      const previousUserId = typeof p.previousUserId === 'string' ? p.previousUserId : null;
+      return {
+        ...state,
+        hostMode: 'user',
+        userHostId: userId,
+        hostRequests: state.hostRequests.filter((r) => r.userId !== userId),
+        members: state.members.map((m) => {
+          if (m.userId === userId) return { ...m, isUserHost: true };
+          if (previousUserId !== null && m.userId === previousUserId) return { ...m, isUserHost: false };
+          return m;
+        }),
+      };
+    }
+    case 'room.host_rejected': {
+      const userId = String(p.userId);
+      return { ...state, hostRequests: state.hostRequests.filter((r) => r.userId !== userId) };
+    }
+    case 'room.host_resigned': {
+      const userId = String(p.userId);
+      return {
+        ...state,
+        hostMode: 'ai',
+        userHostId: null,
+        hostRequests: state.hostRequests.filter((r) => r.userId !== userId),
+        members: state.members.map((m) => (m.userId === userId ? { ...m, isUserHost: false } : m)),
+      };
+    }
     default:
       return state;
   }
@@ -191,6 +247,9 @@ export async function fetchSnapshot(roomId: string, signal?: AbortSignal): Promi
     hostUserId: string;
     controlVersion: number;
     capacity: number;
+    hostMode: RoomState['hostMode'];
+    userHostId: string | null;
+    hostRequests: Array<{ userId: string; nickname: string }>;
     round: RoomRound | null;
     members: RoomMember[];
     turns: RoomTurn[];
@@ -205,6 +264,9 @@ export async function fetchSnapshot(roomId: string, signal?: AbortSignal): Promi
       hostUserId: snap.hostUserId,
       controlVersion: snap.controlVersion,
       capacity: snap.capacity,
+      hostMode: snap.hostMode,
+      userHostId: snap.userHostId,
+      hostRequests: snap.hostRequests ?? [],
       round: snap.round,
       members: snap.members,
       turns: snap.turns,

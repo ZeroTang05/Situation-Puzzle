@@ -109,6 +109,15 @@ export class RoomsController {
     return this.roomsService.roundAnswer(user, id);
   }
 
+  /**
+   * 主持人视角的汤底（17-USER-HOST-MODE）：仅本房间的用户主持人可读，
+   * 不进入快照与事件。普通玩家调用返回 403。
+   */
+  @Get('rounds/:id/host-view')
+  async hostView(@CurrentUser() user: SessionUser, @Param('id') id: string) {
+    return this.roomsService.hostRoundView(user, id);
+  }
+
   /** 当前可开房额度：权威判定仍在建房事务内。 */
   @Get('rooms/entitlement-preview')
   async entitlementPreview(@CurrentUser() user: SessionUser) {

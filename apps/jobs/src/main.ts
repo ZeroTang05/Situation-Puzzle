@@ -150,17 +150,20 @@ class JobsApp {
         .limit(1);
       if (!round) return null;
 
-      const [next] = await tx
+      const queuedRows = await tx
         .select()
         .from(turns)
         .where(and(eq(turns.roundId, round.id), eq(turns.status, 'queued')))
         .orderBy(asc(turns.acceptedSeq))
         .for('update', { skipLocked: true })
-        .limit(1);
+        .limit(10);
+      // 用户主持模式：玩家的提问挂起等主持人回答，Jev 不再接手（17-USER-HOST-MODE §5.2）
+      const next = room.hostMode === 'user' ? queuedRows.find((t) => t.kind === 'solve') : queuedRows[0];
       if (!next) return null;
 
       // 排队超时：60 秒未开始判为失败，不消耗有效判题
-      if (now.getTime() - next.acceptedAt.getTime() > TURN_QUEUE_TIMEOUT_MS) {
+      // 挂起中的提问没有 deadline（deadline_at 为空），不参与超时判定（决策 D5）
+      if (next.deadlineAt !== null && now.getTime() - next.acceptedAt.getTime() > TURN_QUEUE_TIMEOUT_MS) {
         await tx
           .update(turns)
           .set({ status: 'failed', failReason: 'queue_timeout', completedAt: now })
@@ -289,7 +292,7 @@ class JobsApp {
 
       await tx
         .update(turns)
-        .set({ status: 'succeeded', result, confidence, completedAt: now })
+        .set({ status: 'succeeded', result, judgedBy: 'ai', confidence, completedAt: now })
         .where(eq(turns.id, turn.id));
       await tx.update(rounds).set({ effectiveVerdicts: sql`${rounds.effectiveVerdicts} + 1` }).where(eq(rounds.id, round.id));
       await appendEvent(tx, { roomId: room.id, roundId: round.id, type: 'turn.completed', payload: { turnId: turn.id, result, confidence: Number(confidence) } });
@@ -432,13 +435,14 @@ class JobsApp {
       }
 
       // 2. 有排队任务但无调度在跑的房间（崩溃恢复兜底）
+      // 用户主持模式里挂起的提问不参与调度（等主持人回答），否则会反复空转。
       const stuckRooms = await db
         .select({ roomId: rounds.roomId })
         .from(rounds)
         .where(
           and(
             eq(rounds.status, 'active'),
-            sql`exists (select 1 from turns t where t.round_id = rounds.id and t.status = 'queued')`,
+            sql`exists (select 1 from turns t where t.round_id = rounds.id and t.status = 'queued' and (t.kind = 'solve' or (select host_mode from rooms r where r.id = rounds.room_id) = 'ai'))`,
             sql`not exists (select 1 from turns t where t.round_id = rounds.id and t.status = 'processing')`,
           ),
         )
@@ -460,6 +464,25 @@ class JobsApp {
         .from(freeRoomAccounts)
         .where(sql`consumed < 0 or reserved < 0 or consumed + reserved > total`);
       if ((negative?.count ?? 0) > 0) throw new Error(`免费次数账本出现负值：${negative?.count} 行，立即排查`);
+
+      // 5. 主持人状态自愈（17-USER-HOST-MODE 不变量 I1/I3）：
+      // 房间处于用户主持模式但已没有在场的用户主持人时回到 AI 主持；
+      // 成员身份镜像与房间指针不一致时以房间指针为准。
+      await db.execute(sql`
+        update room_members set role = 'player'
+        where role = 'user_host'
+          and not exists (select 1 from rooms r where r.id = room_members.room_id and r.user_host_id = room_members.user_id)
+      `);
+      await db.execute(sql`
+        update rooms set host_mode = 'ai', user_host_id = null
+        where host_mode = 'user' and (
+          user_host_id is null
+          or not exists (
+            select 1 from room_members rm
+            where rm.room_id = rooms.id and rm.user_id = rooms.user_host_id and rm.status = 'joined'
+          )
+        )
+      `);
     } catch (error) {
       console.error('[jobs] 巡检失败', error);
     } finally {

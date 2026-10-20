@@ -19,7 +19,7 @@ import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http
 import { SessionGuard } from '../auth/session.guard.js';
 import { app } from '../context.js';
 import { LobbyService } from './lobby.service.js';
-import { lobbyCreateRequestSchema, lobbyJoinRequestSchema, lobbySelectRequestSchema } from '@jev/contracts';
+import { lobbyCreateRequestSchema, lobbyHostReviewRequestSchema, lobbyJoinRequestSchema, lobbySelectRequestSchema } from '@jev/contracts';
 
 @Controller()
 @UseGuards(SessionGuard)
@@ -106,5 +106,45 @@ export class LobbyController {
   @Post('lobbies/:id/start')
   async start(@CurrentUser() user: SessionUser, @Param('id') id: string) {
     return this.lobbyService.start(user, id);
+  }
+
+  // ---------- 用户主持人（docs/rebuild/17-USER-HOST-MODE.md） ----------
+
+  /** 申请成为主持人：房主自己申请直接通过，其他成员等房主审核。 */
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Post('lobbies/:id/host/request')
+  async hostRequest(@CurrentUser() user: SessionUser, @Param('id') id: string) {
+    return this.lobbyService.requestHost(user, id);
+  }
+
+  /** 房主批准申请：目标成员成为本会客厅的用户主持人。 */
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Post('lobbies/:id/host/approve')
+  async hostApprove(
+    @CurrentUser() user: SessionUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(lobbyHostReviewRequestSchema)) body: z.infer<typeof lobbyHostReviewRequestSchema>,
+  ) {
+    return this.lobbyService.approveHost(user, id, body.userId);
+  }
+
+  /** 房主拒绝申请。 */
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Post('lobbies/:id/host/reject')
+  async hostReject(
+    @CurrentUser() user: SessionUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(lobbyHostReviewRequestSchema)) body: z.infer<typeof lobbyHostReviewRequestSchema>,
+  ) {
+    await this.lobbyService.rejectHost(user, id, body.userId);
+    return { ok: true };
+  }
+
+  /** 用户主持人自行退出。 */
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Post('lobbies/:id/host/resign')
+  async hostResign(@CurrentUser() user: SessionUser, @Param('id') id: string) {
+    await this.lobbyService.resignHost(user, id);
+    return { ok: true };
   }
 }

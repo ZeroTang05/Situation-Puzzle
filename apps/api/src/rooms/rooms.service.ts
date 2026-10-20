@@ -384,7 +384,7 @@ export class RoomsService {
       }
 
       const memberRows = await tx
-        .select({ userId: roomMembers.userId })
+        .select({ userId: roomMembers.userId, hostRequestedAt: roomMembers.hostRequestedAt })
         .from(roomMembers)
         .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.status, 'joined')))
         .orderBy(asc(roomMembers.joinedAt));
@@ -455,6 +455,10 @@ export class RoomsService {
         : [];
       const nicknameMap = await this.nicknamesOf(tx, [...memberIds, ...turnRows.map((t) => t.userId)]);
 
+      // 待审的主持人申请：房主据此弹审核提示（17-USER-HOST-MODE §4.5）
+      const hostRequestRows = memberRows.filter((m) => m.hostRequestedAt !== null);
+      const hostRequestNicknames = await this.nicknamesOf(tx, hostRequestRows.map((m) => m.userId));
+
       const discussions = await tx.select().from(roomEvents)
         .where(and(eq(roomEvents.roomId, roomId), eq(roomEvents.type, 'discussion.created'))).orderBy(asc(roomEvents.seq));
       const [followup] = await tx.select().from(roomFollowups).where(eq(roomFollowups.sourceRoomId, roomId)).limit(1);
@@ -467,12 +471,20 @@ export class RoomsService {
         hostUserId: room.hostUserId,
         controlVersion: room.controlVersion,
         capacity: room.capacity,
+        /** 主持人形态：ai = Jev 主持；user = 用户主持 */
+        hostMode: room.hostMode,
+        userHostId: room.userHostId,
+        hostRequests: hostRequestRows.map((m) => ({
+          userId: m.userId,
+          nickname: hostRequestNicknames.get(m.userId) ?? m.userId,
+        })),
         round: roundInfo,
         members: memberRows.map((m) => ({
           userId: m.userId,
           nickname: nicknameMap.get(m.userId) ?? m.userId,
           online: onlineSet.has(m.userId),
           isHost: m.userId === room.hostUserId,
+          isUserHost: m.userId === room.userHostId,
           status: 'joined' as const,
         })),
         turns: turnRows.map((t) => ({
@@ -484,6 +496,8 @@ export class RoomsService {
           text: t.text,
           status: t.status,
           result: t.result,
+          /** 判定来源：ai = Jev；host = 用户主持人 */
+          source: t.judgedBy === 'host' ? 'host' : t.judgedBy === 'ai' ? 'ai' : null,
           confidence: t.confidence === null ? null : Number(t.confidence),
         })),
         lastSeq: room.lastSeq,
@@ -556,6 +570,25 @@ export class RoomsService {
       })),
       nextCursor: rows.length > 50 ? page.at(-1)?.acceptedSeq ?? null : null,
     };
+  }
+
+  /**
+   * 主持人视角的汤底（docs/rebuild/17-USER-HOST-MODE.md §4.3）：
+   * 仅当本房间处于用户主持模式、且调用者就是该房间的用户主持人时返回。
+   * 汤底不进快照、不进事件、不进讨论，只在这里单独下发。
+   */
+  async hostRoundView(user: SessionUser, roundId: string) {
+    const db = this.db;
+    const [round] = await db.db.select().from(rounds).where(eq(rounds.id, roundId)).limit(1);
+    if (!round) throw new DomainError('NOT_FOUND', '局不存在');
+    const [room] = await db.db.select().from(rooms).where(eq(rooms.id, round.roomId)).limit(1);
+    if (!room) throw new DomainError('NOT_FOUND', '房间不存在');
+    if (room.hostMode !== 'user' || room.userHostId !== user.userId) {
+      throw new DomainError('FORBIDDEN', '只有本局主持人可以查看汤底');
+    }
+    const [version] = await db.db.select().from(puzzleVersions).where(eq(puzzleVersions.id, round.puzzleVersionId)).limit(1);
+    if (!version) throw new DomainError('CONTENT_UNAVAILABLE', '题目内容缺失');
+    return { answer: version.answer, hints: version.hints };
   }
 
   /** 答案读取：仅正常揭晓（revealed）或破解（solved）结束后、有阅读权的参与者。 */

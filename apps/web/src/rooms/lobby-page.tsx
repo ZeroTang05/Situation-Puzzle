@@ -3,8 +3,8 @@
  * 2 秒轮询即心跳；开局后自动跳正式房间。
  * 房主：选题（跳题库带回）、开始本局、生成邀请、踢人、解散。非房主：离开。
  */
-import { useDialog } from '@jev/ui';
-import { useEffect, useState } from 'react';
+import { useDialog, Modal } from '@jev/ui';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError, translateApiError } from '../api/client.js';
@@ -15,13 +15,19 @@ import type { Session } from '../session.js';
 import { PuzzleSelection } from './puzzle-selection.js';
 import { inviteUrl } from '../game/game-display.js';
 import { useLobbySync } from './use-lobby-sync.js';
+import { MemberList } from './room-page.js';
 
 interface LobbySnapshot {
   lobbyId: string;
   hostUserId: string;
   capacity: number;
-  members: Array<{ userId: string; nickname: string; online: boolean; isHost: boolean }>;
+  members: Array<{ userId: string; nickname: string; online: boolean; isHost: boolean; isUserHost: boolean }>;
   selectedPuzzle: { puzzleId: string; title: string; language: 'zh' | 'en' } | null;
+  /** 主持人形态：ai = Jev 主持；user = 用户主持 */
+  hostMode: 'ai' | 'user';
+  userHostId: string | null;
+  /** 待房主审核的主持人申请 */
+  hostRequests: Array<{ userId: string; nickname: string }>;
 }
 
 const POLL_MS = 2000;
@@ -111,6 +117,52 @@ export function LobbyPage({ session }: { session: Session | null }) {
       .catch((err: unknown) => setError(translateApiError(err, language, copy.startFail)));
   };
 
+  // ---------- 用户主持人（17-USER-HOST-MODE） ----------
+
+  const [hostPrompt, setHostPrompt] = useState<{ userId: string; nickname: string } | null>(null);
+  const promptedRequests = useRef(new Set<string>());
+
+  const refreshLobby = () => queryClient.invalidateQueries({ queryKey: ['lobby', lobbyId] });
+
+  const hostRequest = () => {
+    if (!lobbyId) return;
+    void api(`/lobbies/${lobbyId}/host/request`, { method: 'POST' })
+      .then(() => refreshLobby())
+      .catch((err: unknown) => setError(translateApiError(err, language, copy.hostApplyFail)));
+  };
+
+  const hostApprove = (userId: string) => {
+    if (!lobbyId) return;
+    void api(`/lobbies/${lobbyId}/host/approve`, { method: 'POST', body: { userId } })
+      .then(() => refreshLobby())
+      .catch((err: unknown) => setError(translateApiError(err, language, copy.hostReviewFail)));
+  };
+
+  const hostReject = (userId: string) => {
+    if (!lobbyId) return;
+    void api(`/lobbies/${lobbyId}/host/reject`, { method: 'POST', body: { userId } })
+      .then(() => refreshLobby())
+      .catch((err: unknown) => setError(translateApiError(err, language, copy.hostReviewFail)));
+  };
+
+  const hostResign = () => {
+    if (!lobbyId) return;
+    void api(`/lobbies/${lobbyId}/host/resign`, { method: 'POST' })
+      .then(() => refreshLobby())
+      .catch((err: unknown) => setError(translateApiError(err, language, copy.hostResignFail)));
+  };
+
+  // 会客厅没有事件流，靠 2 秒轮询快照发现待审申请（同一申请只提示一次）
+  useEffect(() => {
+    if (!data || !isHost) return;
+    const current = new Set(data.hostRequests.map((r) => r.userId));
+    for (const id of [...promptedRequests.current]) if (!current.has(id)) promptedRequests.current.delete(id);
+    const next = data.hostRequests.find((r) => !promptedRequests.current.has(r.userId));
+    if (!next) return;
+    promptedRequests.current.add(next.userId);
+    setHostPrompt(next);
+  }, [data, isHost]);
+
   const copyInvite = async () => {
     if (!lobbyId || busy) return;
     setBusy(true);
@@ -170,20 +222,18 @@ export function LobbyPage({ session }: { session: Session | null }) {
           {format(copy.roomOf, { name: data.members.find((m) => m.isHost)?.nickname ?? '', n: data.members.length, cap: data.capacity })}
         </p>
 
-        <ul className="member-list">
-          {data.members.map((m) => (
-            <li key={m.userId} className="member-row">
-              <span className={`presence-dot ${m.online ? 'online' : ''}`} aria-hidden />
-              <span className={`member-name${m.userId === me ? ' member-name-self' : ''}`}>{m.nickname}</span>
-              {m.isHost && <span className="verdict-badge verdict-solved">{copy.host}</span>}
-              {isHost && !m.isHost && (
-                <span className="member-actions">
-                  <button className="btn btn-sm btn-danger" onClick={() => kick(m.userId)}>{copy.kick}</button>
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
+        <MemberList
+          state={{ members: data.members, hostRequests: data.hostRequests }}
+          me={me}
+          isHost={isHost}
+          onKick={kick}
+          onRequestHost={hostRequest}
+          onApproveHost={hostApprove}
+          onRejectHost={hostReject}
+          onResignHost={hostResign}
+        />
+
+        {data.hostMode === 'user' && <p className="muted">{copy.hostModeNotice}</p>}
 
         {isHost ? (
           <div className="stack">
@@ -213,6 +263,38 @@ export function LobbyPage({ session }: { session: Session | null }) {
         {inviteCopied && <p className="accent">{copy.inviteCopied}</p>}
         {error && <p className="error-text" role="alert">{error}</p>}
       </section>
+
+      {/* 房主审核主持申请：批准后对方接管本局判定 */}
+      <Modal
+        open={hostPrompt !== null}
+        onOpenChange={(open) => { if (!open) setHostPrompt(null); }}
+        title={format(copy.hostRequestNotice, { name: hostPrompt?.nickname ?? '' })}
+        closeLabel={copy.cancel}
+      >
+        <p>{format(copy.hostRequestConfirm, { name: hostPrompt?.nickname ?? '' })}</p>
+        <div className="hint-row">
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              const target = hostPrompt;
+              setHostPrompt(null);
+              if (target) hostApprove(target.userId);
+            }}
+          >
+            {copy.hostApprove}
+          </button>
+          <button
+            className="btn"
+            onClick={() => {
+              const target = hostPrompt;
+              setHostPrompt(null);
+              if (target) hostReject(target.userId);
+            }}
+          >
+            {copy.hostReject}
+          </button>
+        </div>
+      </Modal>
     </main>
   );
 }

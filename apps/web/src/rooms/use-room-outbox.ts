@@ -111,7 +111,9 @@ export function useRoomOutbox(userId: string | null, roomId: string, state: Room
     if (!ref.current || status !== 'ready') return;
     const revision = epoch.current;
     // 同模式有未确认请求时不创建第二个编号。
-    if (ref.current.pending.some((p) => p.input.type === input.type && (p.status === 'sending' || p.status === 'confirming'))) return;
+    // host_answer 例外：主持人对不同问题的回答彼此独立，不能互相顶掉。
+    const exclusive = input.type !== 'host_answer';
+    if (exclusive && ref.current.pending.some((p) => p.input.type === input.type && (p.status === 'sending' || p.status === 'confirming'))) return;
     const item: PendingCommand = { input: { ...input, clientRequestId: crypto.randomUUID() }, status: 'sending', retries: 0 };
     await update((current) => ({ ...current, pending: [...current.pending.filter((p) => p.status !== 'rejected' && !(p.status === 'sent' && (state?.turns.some((t) => t.turnId === p.result?.turnId) || state?.discussions.some((d) => d.eventId === p.result?.discussionId) || !['ask', 'solve', 'discussion'].includes(p.input.type)))), item] }));
     if (revision !== epoch.current) return;

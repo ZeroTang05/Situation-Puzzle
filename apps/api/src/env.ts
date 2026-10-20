@@ -21,7 +21,7 @@ const envSchema = z.object({
   /** 多人房间与会客厅的座位容量（含房主），2–50；网页端不选人数，服务端以此值为准（重开会客厅时按新值更新） */
   ROOM_CAPACITY: z.coerce.number().int().min(2).max(50).default(8),
   /** 判题附带的最近问答轮数（0=关闭），单人/多人共用；单人客户端最多发 10 条，服务端按此值裁剪 */
-  JEV_RECENT_QA_LIMIT: z.coerce.number().int().min(0).max(10).default(6),
+  JEV_RECENT_QA_LIMIT: z.coerce.number().int().min(0).max(10).default(3),
 
   // 邮件（Email OTP 必需）：通道由 MAIL_TRANSPORT 显式选择，配置缺失启动失败
   MAIL_TRANSPORT: z.enum(['resend', 'smtp']).default('resend'),
