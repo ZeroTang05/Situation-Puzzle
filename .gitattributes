@@ -2,3 +2,7 @@
 *.mjs text eol=lf
 *.yml text eol=lf
 *.sql text eol=lf
+# PowerShell 脚本：Windows PowerShell 5.1 读无 BOM 的 UTF-8 会按系统 ANSI 代码页解码，
+# 中文注释被解成乱码时可能把后续语法吃掉（曾导致脚本解析错位）。
+# 统一用 CRLF + UTF-8 BOM，5.1 与 pwsh 都能正确解析。
+*.ps1 text eol=crlf
