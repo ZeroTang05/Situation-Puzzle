@@ -447,18 +447,26 @@ export const sponsorProductSchema = z.object({
   currency: z.string(),
 });
 
+/** 在线收款通道（与数据库 order_channel 枚举一致；赞助码不走这条路径）。 */
+export const payChannelSchema = z.enum(['wechat_native', 'alipay']);
+
 export const orderCreateRequestSchema = z.object({
   productVersionId: z.string().uuid(),
+  /** 收款通道；不传按微信支付（老客户端兼容）。 */
+  channel: payChannelSchema.default('wechat_native'),
 });
 
 export const orderSchema = z.object({
   orderId: z.string(),
   status: z.enum(['pending', 'paid', 'closing', 'closed', 'refund_pending', 'refunded']),
+  channel: payChannelSchema,
   amountMinor: z.number().int(),
   currency: z.string(),
   title: z.string(),
-  /** 通道支付跳转信息（native 为二维码内容），通道未开通时为 null */
+  /** 通道支付跳转信息：可点击的付款链接（支付宝页面支付 / 支付宝扫码链接），没有时为 null */
   payUrl: z.string().nullable(),
+  /** 需要渲染成二维码的内容（微信 code_url / 支付宝 qr_code），没有时为 null */
+  qrContent: z.string().nullable(),
   expiresAt: z.string(),
   createdAt: z.string(),
 });

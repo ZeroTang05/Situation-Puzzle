@@ -71,6 +71,13 @@
       "when": 1800000000000,
       "tag": "0009_redeem_codes",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1801000000000,
+      "tag": "0010_alipay_channel",
+      "breakpoints": true
     }
   ]
 }

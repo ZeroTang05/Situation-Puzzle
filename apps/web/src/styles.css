@@ -899,6 +899,40 @@ textarea.composer-input, .composer .composer-input {
   font-size: 13px;
 }
 
+.sponsor-channels {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 4px 12px;
+}
+
+.sponsor-channels-label {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.sponsor-channel {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.sponsor-channel.is-active {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.sponsor-channel.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .sponsor-products {
   list-style: none;
   margin: 0;
@@ -954,6 +988,26 @@ textarea.composer-input, .composer .composer-input {
   border: 1px solid rgba(125, 216, 198, 0.28);
   border-radius: var(--radius);
   background: rgba(125, 216, 198, 0.06);
+}
+
+.sponsor-qr {
+  display: block;
+  padding: 10px;
+  border-radius: 10px;
+  background: #ffffff;
+  image-rendering: pixelated;
+}
+
+.sponsor-pay-status {
+  font-size: 13px;
+}
+
+.sponsor-pay-status.is-ok {
+  color: var(--gold);
+}
+
+.sponsor-pay-status.is-warn {
+  color: #e08a7a;
 }
 
 .sponsor-pay-hint {

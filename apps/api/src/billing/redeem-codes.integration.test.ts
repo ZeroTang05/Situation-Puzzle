@@ -164,4 +164,31 @@ describe.runIf(!!databaseUrl)('赞助码核销（真实数据库）', () => {
     expect(revoked.revoked).toBe(1);
     await expect(service.redeem(userId, code)).rejects.toThrow();
   });
+
+  it('兑换码订单退款：无线上退款步骤，但权益要在站内撤销', async () => {
+    const userId = await createUser('redeem-refund@example.com');
+    const adminUserId = await createUser('redeem-refund-admin@example.com');
+    const { code } = await seedCode(userId);
+
+    const redeemed = await service.redeem(userId, code);
+    expect(redeemed.status).toBe('paid');
+
+    const ordersService = new OrdersService();
+    const refund = await ordersService.refundOrder(redeemed.orderId, '测试退款', adminUserId);
+    // 钱是线下收的，没有线上退款接口可调
+    expect(refund.channelRefund).toBe('not_applicable');
+
+    const grants = await handle.db
+      .select()
+      .from(schemaModule.sponsorGrants)
+      .where(eq(schemaModule.sponsorGrants.orderId, redeemed.orderId));
+    expect(grants.length).toBeGreaterThan(0);
+    expect(grants.every((g) => g.status === 'revoked')).toBe(true);
+
+    const [order] = await handle.db
+      .select()
+      .from(schemaModule.orders)
+      .where(eq(schemaModule.orders.id, redeemed.orderId));
+    expect(order?.status).toBe('refunded');
+  });
 });

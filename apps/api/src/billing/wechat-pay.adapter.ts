@@ -3,43 +3,53 @@
  *
  * 按官方协议实现：请求签名（RSA-SHA256）、回调验签（平台公钥）与解密（AES-256-GCM，
  * 密钥即 APIv3 密钥本身）、查单、关单、退款。
- * 商户凭据未配置时 createWechatAdapter 返回 null——收费入口保持关闭（docs/rebuild/01-PRD.md §5），
- * 真实收款上线前必须完成商户开通与全链路真实联调（M4，docs/rebuild/02-MVP.md）。
+ *
+ * 商户凭据未配置时 createWechatAdapter 返回 null——收费入口保持关闭。
+ * 真实收款上线前必须完成商户开通与全链路真实联调。
  */
 import { createSign, createDecipheriv, createPublicKey, randomUUID, verify } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import type { CreatedPayment, NotifyAck, PayAdapter, VerifiedNotification } from './pay-adapter.js';
 
-export interface PayAdapter {
-  readonly channel: 'wechat_native';
-  createOrder(input: { merchantOrderNo: string; amountMinor: number; description: string; notifyUrl: string }): Promise<{ codeUrl: string }>;
-  queryOrder(merchantOrderNo: string): Promise<{ status: 'success' | 'failed' | 'pending'; transactionId?: string }>;
-  closeOrder(merchantOrderNo: string): Promise<void>;
-  refund(input: { refundNo: string; merchantOrderNo: string; amountMinor: number; reason: string }): Promise<void>;
-  /** 回调验签+解密；验签失败抛错（不处理伪造回调）。 */
-  verifyNotification(input: {
-    headers: Record<string, string | string[] | undefined>;
-    rawBody: Buffer;
-  }): { merchantOrderNo: string; transactionId: string; success: boolean; notificationId: string };
-}
-
-export function createWechatAdapter(env: {
+export interface WechatEnv {
   WECHAT_PAY_MCHID?: string;
   WECHAT_PAY_APPID?: string;
   WECHAT_PAY_SERIAL?: string;
   WECHAT_PAY_PRIVATE_KEY_PATH?: string;
   WECHAT_PAY_API_V3_KEY?: string;
   WECHAT_PAY_NOTIFY_URL?: string;
-}): PayAdapter | null {
-  const { WECHAT_PAY_MCHID, WECHAT_PAY_APPID, WECHAT_PAY_SERIAL, WECHAT_PAY_PRIVATE_KEY_PATH, WECHAT_PAY_API_V3_KEY, WECHAT_PAY_NOTIFY_URL } = env;
-  if (!WECHAT_PAY_MCHID || !WECHAT_PAY_APPID || !WECHAT_PAY_SERIAL || !WECHAT_PAY_PRIVATE_KEY_PATH || !WECHAT_PAY_API_V3_KEY || !WECHAT_PAY_NOTIFY_URL) {
+  /** 微信支付平台公钥 PEM（商户平台下载）；用于回调验签。 */
+  WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH?: string;
+}
+
+export function createWechatAdapter(env: WechatEnv): PayAdapter | null {
+  const {
+    WECHAT_PAY_MCHID,
+    WECHAT_PAY_APPID,
+    WECHAT_PAY_SERIAL,
+    WECHAT_PAY_PRIVATE_KEY_PATH,
+    WECHAT_PAY_API_V3_KEY,
+    WECHAT_PAY_NOTIFY_URL,
+    WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH,
+  } = env;
+  if (
+    !WECHAT_PAY_MCHID ||
+    !WECHAT_PAY_APPID ||
+    !WECHAT_PAY_SERIAL ||
+    !WECHAT_PAY_PRIVATE_KEY_PATH ||
+    !WECHAT_PAY_API_V3_KEY ||
+    !WECHAT_PAY_NOTIFY_URL ||
+    !WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH
+  ) {
     return null;
   }
   const privateKey = readFileSync(WECHAT_PAY_PRIVATE_KEY_PATH, 'utf8');
   const apiv3Key = Buffer.from(WECHAT_PAY_API_V3_KEY, 'utf8');
   if (apiv3Key.length !== 32) throw new Error('WECHAT_PAY_API_V3_KEY 必须为 32 字节');
+  const platformPublicKey = createPublicKey(readFileSync(WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH, 'utf8'));
   const base = 'https://api.mch.weixin.qq.com';
 
-  /** 官方 v3 请求签名：Authorization 头按规范拼接（docs/rebuild/05-OPERATIONS.md §5）。 */
+  /** 官方 v3 请求签名：Authorization 头按规范拼接。 */
   function authorizationHeader(method: string, path: string, body: string): string {
     const timestamp = Math.floor(Date.now() / 1000);
     const nonce = randomUUID().replace(/-/g, '');
@@ -68,7 +78,7 @@ export function createWechatAdapter(env: {
   return {
     channel: 'wechat_native',
 
-    async createOrder(input) {
+    async createOrder(input): Promise<CreatedPayment> {
       const result = await request<{ code_url: string }>('POST', '/v3/pay/transactions/native', {
         mchid: WECHAT_PAY_MCHID,
         appid: WECHAT_PAY_APPID,
@@ -77,7 +87,8 @@ export function createWechatAdapter(env: {
         notify_url: input.notifyUrl,
         amount: { total: input.amountMinor, currency: 'CNY' },
       });
-      return { codeUrl: result.code_url };
+      // code_url 是 weixin:// 链接：只能渲染成二维码，浏览器里直接打开无效
+      return { payUrl: null, qrContent: result.code_url };
     },
 
     async queryOrder(merchantOrderNo) {
@@ -105,19 +116,15 @@ export function createWechatAdapter(env: {
       });
     },
 
-    verifyNotification(input) {
+    verifyNotification(input): VerifiedNotification {
       const timestamp = String(input.headers['wechatpay-timestamp'] ?? '');
       const nonce = String(input.headers['wechatpay-nonce'] ?? '');
       const signature = String(input.headers['wechatpay-signature'] ?? '');
       const serial = String(input.headers['wechatpay-serial'] ?? '');
       if (!timestamp || !nonce || !signature || !serial) throw new Error('微信回调缺少签名头');
 
-      // 平台公钥模式：公钥由商户平台下载，路径在环境变量中提供（M4 联调时配置）
-      const publicKeyPath = process.env.WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH;
-      if (!publicKeyPath) throw new Error('缺少 WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH：无法验答回调');
-      const publicKey = createPublicKey(readFileSync(publicKeyPath, 'utf8'));
       const message = `${timestamp}\n${nonce}\n${input.rawBody.toString('utf8')}\n`;
-      const ok = verify('sha256', Buffer.from(message), publicKey, Buffer.from(signature, 'base64'));
+      const ok = verify('sha256', Buffer.from(message), platformPublicKey, Buffer.from(signature, 'base64'));
       if (!ok) throw new Error('回调验签失败');
 
       const body = JSON.parse(input.rawBody.toString('utf8')) as {
@@ -132,13 +139,24 @@ export function createWechatAdapter(env: {
       decipher.setAAD(Buffer.from(resource.associated_data ?? ''));
       decipher.setAuthTag(authTag);
       const decrypted = Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
-      const payload = JSON.parse(decrypted) as { out_trade_no: string; transaction_id: string; trade_state: string };
+      const payload = JSON.parse(decrypted) as {
+        out_trade_no: string;
+        transaction_id: string;
+        trade_state: string;
+        amount?: { total?: number };
+      };
       return {
         merchantOrderNo: payload.out_trade_no,
         transactionId: payload.transaction_id,
         success: payload.trade_state === 'SUCCESS',
         notificationId: body.id,
+        amountMinor: typeof payload.amount?.total === 'number' ? payload.amount.total : null,
       };
+    },
+
+    notifyAck(): NotifyAck {
+      // 微信 v3 要求应答 JSON 体
+      return { contentType: 'application/json', body: JSON.stringify({ code: 'SUCCESS' }) };
     },
   };
 }

@@ -56,13 +56,36 @@ const envSchema = z.object({
   MINIMAX_BASE_URL: z.url().optional(),
   MINIMAX_MODEL: z.string().min(1).optional(),
 
-  // 支付：未配置时订单创建返回通道不可用（收费入口保持关闭）
+  // 支付：未配置时对应通道不可用（收费入口保持关闭）
+  // 微信支付 v3（Native 扫码）
   WECHAT_PAY_MCHID: z.string().optional(),
   WECHAT_PAY_APPID: z.string().optional(),
   WECHAT_PAY_SERIAL: z.string().optional(),
   WECHAT_PAY_PRIVATE_KEY_PATH: z.string().optional(),
   WECHAT_PAY_API_V3_KEY: z.string().optional(),
   WECHAT_PAY_NOTIFY_URL: z.string().optional(),
+  /** 微信支付平台公钥 PEM：用于回调验签（商户平台下载） */
+  WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH: z.string().optional(),
+
+  // 支付宝开放平台（当面付扫码 / 电脑网站支付跳转）
+  ALIPAY_APP_ID: z.string().optional(),
+  /** 应用私钥 PEM（RSA2） */
+  ALIPAY_PRIVATE_KEY_PATH: z.string().optional(),
+  /** 支付宝公钥 PEM；证书模式下填支付宝公钥证书 PEM 也可 */
+  ALIPAY_PUBLIC_KEY_PATH: z.string().optional(),
+  ALIPAY_NOTIFY_URL: z.string().optional(),
+  /** 网关地址：生产默认 openapi.alipay.com，沙箱用 openapi.alipaydev.com */
+  ALIPAY_GATEWAY: z.string().optional(),
+  /** 产品：precreate=当面付扫码（默认），page=电脑网站支付跳转 */
+  ALIPAY_PRODUCT: z.enum(['precreate', 'page']).optional(),
+  /** 业务产品码，缺省按产品自动取 */
+  ALIPAY_PRODUCT_CODE: z.string().optional(),
+  /** 商户 PID（seller_id），通知里校验收款方 */
+  ALIPAY_SELLER_ID: z.string().optional(),
+  /** 证书模式：支付宝公钥证书 / 应用公钥证书 / 根证书的序列号 */
+  ALIPAY_CERT_SN: z.string().optional(),
+  ALIPAY_APP_CERT_SN: z.string().optional(),
+  ALIPAY_ROOT_CERT_SN: z.string().optional(),
 
   /** 实时连接票据签名密钥（默认派生自 AUTH_SECRET） */
   REALTIME_TICKET_SECRET: z.string().optional(),

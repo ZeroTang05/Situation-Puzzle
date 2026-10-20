@@ -37,8 +37,14 @@ export const orderStatusEnum = pgEnum('order_status', [
   'refunded',
 ]);
 
-/** redeem_code=赞助码兑换（零实名通道，人工收款后发码）；wechat_native=微信支付 v3；test=后台测试。 */
-export const orderChannelEnum = pgEnum('order_channel', ['wechat_native', 'redeem_code', 'test']);
+/**
+ * 订单/交易通道。
+ * - wechat_native：微信支付 v3 Native（扫码）
+ * - alipay：支付宝开放平台（当面付 precreate 或电脑网站支付 page，由 ALIPAY_PRODUCT 决定）
+ * - redeem_code：赞助码兑换（零实名通道，人工收款后发码）
+ * - test：后台测试
+ */
+export const orderChannelEnum = pgEnum('order_channel', ['wechat_native', 'alipay', 'redeem_code', 'test']);
 
 export const redeemCodeStatusEnum = pgEnum('redeem_code_status', ['unused', 'used', 'revoked']);
 

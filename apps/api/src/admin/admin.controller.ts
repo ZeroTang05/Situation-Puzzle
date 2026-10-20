@@ -17,7 +17,6 @@ import {
   puzzles,
   profiles,
   reports,
-  refunds,
   roomEvents,
   rooms,
   rounds,
@@ -31,8 +30,10 @@ import { DomainError } from '@jev/domain';
 import { redeemCodeBatchRequestSchema } from '@jev/contracts';
 import { app } from '../context.js';
 import { CurrentUser, type SessionUser, RequireRoles, ZodValidationPipe } from '../common/http.js';
+import { RateLimit } from '../common/rate-limit.js';
 import { SessionGuard } from '../auth/session.guard.js';
 import { RedeemCodesService } from '../billing/redeem-codes.service.js';
+import { OrdersService } from '../billing/orders.service.js';
 import { z } from 'zod';
 
 const reasonSchema = z.object({ reason: z.string().min(2).max(500) });
@@ -49,11 +50,19 @@ function pageArgs(page?: string, perPage?: string) {
   return { limit: safePerPage, offset: (safePage - 1) * safePerPage };
 }
 
+/**
+ * 管理后台整体限流：每个管理员每分钟 120 次。
+ * 后台接口有角色校验但原先没有频控，拿到后台令牌即可高频读写。
+ */
+@RateLimit({ scope: 'admin', limit: 120, windowSeconds: 60, keyBy: 'user' })
 @Controller('admin')
 @UseGuards(SessionGuard)
 export class AdminController {
   // tsx(esbuild) 不生成参数类型元数据：显式 @Inject 声明依赖令牌
-  constructor(@Inject(RedeemCodesService) private readonly redeemCodesService: RedeemCodesService) {}
+  constructor(
+    @Inject(RedeemCodesService) private readonly redeemCodesService: RedeemCodesService,
+    @Inject(OrdersService) private readonly ordersService: OrdersService,
+  ) {}
 
   /** 审计：操作留痕（docs/rebuild/03-SPEC.md §5.2）。 */
   private async audit(operator: SessionUser, action: string, objectType: string, objectId: string | null, reason: string, after?: Record<string, unknown>) {
@@ -466,40 +475,17 @@ export class AdminController {
     return { items: rows, total: counted?.total ?? rows.length };
   }
 
-  /** 审核退款：冻结授权 → 通道退款（M4 联调）→ 撤销授权；此处先完成冻结与登记。 */
+  /**
+   * 审核退款：事务内冻结授权并登记退款单 → 事务外调通道退款 →
+   * 退成功撤销授权；线下收款通道（赞助码）没有线上退款步骤，直接在站内撤销；
+   * 通道退款失败则保持冻结等人工跟进。
+   *
+   * 只在后台提供，玩家端没有退款入口。
+   */
   @Post('orders/:id/refund')
   @RequireRoles('admin', 'finance')
   async approveRefund(@CurrentUser() operator: SessionUser, @Param('id') id: string, @Body(new ZodValidationPipe(reasonSchema)) body: z.infer<typeof reasonSchema>) {
-    const db = app().db;
-    const result = await db.tx(async (tx) => {
-      const [order] = await tx.select().from(orders).where(eq(orders.id, id)).for('update').limit(1);
-      if (!order) throw new DomainError('NOT_FOUND', '订单不存在');
-      if (order.status !== 'paid') throw new DomainError('ORDER_STATE_CONFLICT', '只有已支付订单可以退款');
-
-      const refundNo = `RF${Date.now()}${Math.floor(Math.random() * 1e6)}`;
-      const [refund] = await tx
-        .insert(refunds)
-        .values({ orderId: id, refundNo, amountMinor: order.amountMinor, reason: body.reason, status: 'pending', entitlementStatus: 'frozen', approvedBy: operator.userId })
-        .returning({ id: refunds.id });
-      await tx.update(orders).set({ status: 'refund_pending', updatedAt: new Date() }).where(eq(orders.id, id));
-      // 冻结该订单授权：不再用于新开房
-      await tx
-        .update(sponsorGrants)
-        .set({ status: 'frozen' })
-        .where(and(eq(sponsorGrants.orderId, id), eq(sponsorGrants.status, 'active')));
-      await tx.insert(sponsorLedger).values({
-        userId: order.userId,
-        action: 'freeze',
-        orderId: id,
-        detail: { refundNo },
-        idempotencyKey: `freeze:${refundNo}`,
-      });
-      await tx.insert(auditLogs).values({ operatorUserId: operator.userId, action: 'order.refund_approve', objectType: 'order', objectId: id, reason: body.reason });
-      return { refundId: refund!.id, refundNo };
-    });
-
-    // 通道退款在事务外执行；结果未知时保持 pending + 冻结，由查单任务跟进（M4 联调后启用）
-    return result;
+    return this.ordersService.refundOrder(id, body.reason, operator.userId);
   }
 
   // ---------- 赞助码（零实名收款通道） ----------

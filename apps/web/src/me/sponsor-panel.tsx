@@ -1,17 +1,22 @@
 /**
- * 「我的」页的赞助面板：商品列表 + 兑换码。
+ * 「我的」页的赞助面板：商品列表 + 在线支付 + 兑换码。
  *
- * 两条收款路径并存：
- *  - 微信支付 Native（需商户资质）：available 时展示扫码购买；
+ * 三条收款路径并存：
+ *  - 微信支付 Native（需商户资质）：扫码购买；
+ *  - 支付宝（需商户资质）：扫码或跳转页面购买；
  *  - 兑换码（零资质）：始终可用，运营方用个人收款码收款后发码。
  *
- * 权益只来自服务端：兑换成功后由服务端发放授权，前端只刷新 /me。
+ * 权益只来自服务端：支付回调或兑换成功后由服务端发放授权，前端只刷新 /me。
+ * 浏览器回跳不发放权益（前端只轮询订单状态）。
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
 import { format } from '@jev/i18n';
+import { QrCode } from './qr-code.js';
+
+type PayChannel = 'wechat_native' | 'alipay';
 
 interface Product {
   productVersionId: string;
@@ -22,7 +27,7 @@ interface Product {
 }
 
 interface ChannelsResponse {
-  channels: Array<{ channel: 'wechat_native' | 'redeem_code'; available: boolean; label: string }>;
+  channels: Array<{ channel: PayChannel | 'redeem_code'; available: boolean; label: string }>;
 }
 
 interface RedeemResponse {
@@ -31,6 +36,14 @@ interface RedeemResponse {
   title: string;
   amountMinor: number;
   currency: string;
+}
+
+interface OrderView {
+  orderId: string;
+  status: 'pending' | 'paid' | 'closing' | 'closed' | 'refund_pending' | 'refunded';
+  channel: PayChannel;
+  payUrl: string | null;
+  qrContent: string | null;
 }
 
 /** 分转成元显示：600 分 = 6 元。 */
@@ -44,23 +57,44 @@ export function SponsorPanel() {
   const [code, setCode] = useState('');
   const [codeError, setCodeError] = useState<string | null>(null);
   const [codeDone, setCodeDone] = useState(false);
-  const [payUrl, setPayUrl] = useState<string | null>(null);
+  const [channel, setChannel] = useState<PayChannel>('wechat_native');
+  const [order, setOrder] = useState<OrderView | null>(null);
 
   const products = useQuery({ queryKey: ['sponsor-products'], queryFn: () => api<Product[]>('/sponsor-products'), retry: false });
   const channels = useQuery({ queryKey: ['payment-channels'], queryFn: () => api<ChannelsResponse>('/payment-channels'), retry: false });
 
-  const wechatReady = channels.data?.channels.find((c) => c.channel === 'wechat_native')?.available ?? false;
+  const payChannels = (channels.data?.channels ?? []).filter(
+    (c): c is { channel: PayChannel; available: boolean; label: string } => c.channel !== 'redeem_code',
+  );
+  const available = payChannels.filter((c) => c.available);
+  const current = payChannels.find((c) => c.channel === channel);
+  const channelReady = Boolean(current?.available);
 
   const buy = useMutation({
-    mutationFn: (productVersionId: string) => api<{ orderId: string; status: string; payUrl: string | null }>('/orders', {
-      method: 'POST',
-      body: { productVersionId },
-    }),
+    mutationFn: (productVersionId: string) =>
+      api<OrderView>('/orders', { method: 'POST', body: { productVersionId, channel } }),
     onSuccess: (result) => {
-      setPayUrl(result.payUrl);
+      setOrder(result);
       setCodeError(null);
     },
   });
+
+  // 支付状态轮询：权益只由服务端发放，付完刷新 /me 即可
+  useEffect(() => {
+    if (!order || order.status === 'paid' || order.status === 'closed' || order.status === 'refunded') return;
+    const timer = setInterval(async () => {
+      try {
+        const next = await api<OrderView>(`/orders/${order.orderId}`);
+        setOrder(next);
+        if (next.status === 'paid') {
+          await queryClient.invalidateQueries({ queryKey: ['me'] });
+        }
+      } catch {
+        /* 网络抖动：下轮再试 */
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [order, queryClient]);
 
   const redeem = useMutation({
     mutationFn: (value: string) => api<RedeemResponse>('/orders/redeem', { method: 'POST', body: { code: value } }),
@@ -92,6 +126,26 @@ export function SponsorPanel() {
       </div>
       <p className="muted sponsor-hint">{copy.sponsorPanelHint}</p>
 
+      {payChannels.length > 0 && (
+        <div className="sponsor-channels" role="group" aria-label={copy.sponsorPayMethod}>
+          <span className="sponsor-channels-label">{copy.sponsorPayMethod}</span>
+          {payChannels.map((c) => (
+            <button
+              key={c.channel}
+              type="button"
+              className={`sponsor-channel${channel === c.channel ? ' is-active' : ''}${c.available ? '' : ' is-disabled'}`}
+              disabled={!c.available}
+              onClick={() => {
+                setChannel(c.channel);
+                setOrder(null);
+              }}
+            >
+              {c.channel === 'wechat_native' ? copy.sponsorChannelWechat : copy.sponsorChannelAlipay}
+            </button>
+          ))}
+        </div>
+      )}
+
       <ul className="sponsor-products">
         {products.data?.map((product) => (
           <li key={product.productVersionId} className="sponsor-product">
@@ -107,10 +161,10 @@ export function SponsorPanel() {
             </div>
             <button
               className="btn btn-primary btn-sm"
-              disabled={!wechatReady || buy.isPending}
+              disabled={!channelReady || buy.isPending}
               onClick={() => buy.mutate(product.productVersionId)}
             >
-              {wechatReady ? copy.sponsorBuy : copy.sponsorPayChannelUnavailable}
+              {channelReady ? copy.sponsorBuy : copy.sponsorPayChannelUnavailable}
             </button>
           </li>
         ))}
@@ -120,13 +174,26 @@ export function SponsorPanel() {
       {buy.isError && (
         <p className="error-text" role="alert">{translateApiError(buy.error, language, copy.sponsorPayChannelUnavailable)}</p>
       )}
-      {payUrl && (
+
+      {order && (
         <div className="sponsor-pay">
-          <p className="muted">{copy.sponsorScanToPay}</p>
-          {/* 微信 Native 的 code_url 是 weixin:// 链接：手机端直接唤起微信收银台；
-              桌面端可把它贴到任意二维码生成器（不内联第三方服务，避免把支付链接外发）。 */}
-          <a className="btn btn-primary" href={payUrl}>{copy.sponsorScanToPay}</a>
-          <p className="muted sponsor-pay-hint">{payUrl}</p>
+          {order.status === 'paid' ? (
+            <p className="sponsor-pay-status is-ok" role="status">{copy.sponsorPaymentPaid}</p>
+          ) : order.status === 'pending' ? (
+            <>
+              <p className="muted">{copy.sponsorOrderCreated}</p>
+              {order.qrContent && <QrCode value={order.qrContent} />}
+              <p className="muted sponsor-pay-hint">{copy.sponsorQrHint}</p>
+              {order.payUrl && (
+                <a className="btn btn-primary" href={order.payUrl} target="_blank" rel="noreferrer">
+                  {copy.sponsorGoPay}
+                </a>
+              )}
+              <p className="muted sponsor-pay-status" role="status">{copy.sponsorPaymentPending}</p>
+            </>
+          ) : (
+            <p className="sponsor-pay-status is-warn" role="status">{copy.sponsorPaymentFailed}</p>
+          )}
         </div>
       )}
 

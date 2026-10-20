@@ -7,6 +7,8 @@ import { freeRoomAccounts, sponsorGrants } from '@jev/database';
 import { freeRoomsRemaining, hasActiveSponsorship } from '@jev/domain';
 import { app } from '../context.js';
 import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http.js';
+import { RateLimit } from '../common/rate-limit.js';
+import { Public } from '../common/public.js';
 import { SessionGuard } from '../auth/session.guard.js';
 import { OrdersService } from './orders.service.js';
 import { RedeemCodesService } from './redeem-codes.service.js';
@@ -53,14 +55,14 @@ export class BillingController {
 
   /**
    * 可用收款通道：前端据此决定展示哪些购买入口。
-   * 微信支付需要商户资质（未开通时 available=false），赞助码零资质始终可用。
+   * 微信支付/支付宝需要商户资质（凭据未配齐时 available=false），
+   * 赞助码零资质始终可用。
    */
   @Get('payment-channels')
   channels() {
-    const wechatReady = this.ordersService.hasWechatChannel();
     return {
       channels: [
-        { channel: 'wechat_native' as const, available: wechatReady, label: '微信支付' },
+        ...this.ordersService.availableChannels(),
         { channel: 'redeem_code' as const, available: true, label: '兑换码' },
       ],
     };
@@ -80,7 +82,7 @@ export class BillingController {
     @CurrentUser() user: SessionUser,
     @Body(new ZodValidationPipe(orderCreateRequestSchema)) body: z.infer<typeof orderCreateRequestSchema>,
   ) {
-    return this.ordersService.createOrder(user.userId, body.productVersionId);
+    return this.ordersService.createOrder(user.userId, body.productVersionId, body.channel);
   }
 
   @Get('orders/:id')
@@ -88,7 +90,19 @@ export class BillingController {
     return this.ordersService.getOrder(user.userId, id);
   }
 
-  /** 支付回调：无会话；原始请求体验签（bootstrap 以 express.raw 挂载）。 */
+  /**
+   * 支付回调：无会话；原始请求体验签（bootstrap 以 express.raw 挂载）。
+   * 应答体按通道要求不同——微信要 JSON，支付宝要纯文本 success。
+   *
+   * 必须标 @Public()：控制器类上有 @UseGuards(SessionGuard)，而支付平台不会带
+   * 我们的会话 Cookie。少了这一行，异步通知会在进 handler 前就被守卫 401 掉，
+   * 权益永远发不出去（曾真实发生过，勿删）。
+   *
+   * 限流按客户端 IP、每分钟 120 次：每次通知都要做一次验签（支付宝 RSA2 / 微信平台公钥解密），
+   * 这是通知接口唯一的 CPU 开销，必须挡住刷量。超限返回 429，两个平台都会按失败重试。
+   */
+  @RateLimit({ scope: 'payments.notify', limit: 120, windowSeconds: 60, keyBy: 'ip' })
+  @Public()
   @Post('payments/:channel/notify')
   @HttpCode(200)
   async notify(@Param('channel') channel: string, @Req() request: Request, @Res() response: Response) {
@@ -97,7 +111,6 @@ export class BillingController {
       request.headers as Record<string, string | string[] | undefined>,
       request.body as Buffer,
     );
-    // 微信 v3 要求应答 JSON 体
-    response.type('application/json').send(JSON.stringify({ code: result.code }));
+    response.type(result.contentType).send(result.body);
   }
 }

@@ -218,8 +218,14 @@ function RefundField() {
         const reason = await dialog.prompt(c.promptRefund);
         if (reason === null) return;
         await adminAction(`/orders/${record.orderId}/refund`, { reason })
-          .then(() => {
-            notify(c.refundDone);
+          .then((result) => {
+            // 三种终态不同，别用一句「已登记退款」糊弄：
+            // 线上通道退款成功 → 权益已撤销；线下通道无线上退款步骤 → 站内直接撤销；
+            // 通道退款失败 → 权益保持冻结，必须人工跟进。
+            const outcome = (result as { channelRefund?: string } | null)?.channelRefund;
+            if (outcome === 'failed') notify(c.refundFailed, { type: 'warning' });
+            else if (outcome === 'not_applicable') notify(c.refundOffline);
+            else notify(c.refundDone);
             refresh();
           })
           .catch((error: Error) => notify(error.message, { type: 'error' }));

@@ -16,7 +16,7 @@
 | 永久赞助 | 20 元，永久不限创建房间次数 |
 | 登录 | 邮箱验证码 + Google 账号授权 |
 | 核心系统 | 题库、Jev 可用性与判题逻辑、多人同步、UGC、完整后台 |
-| 当前支付条件 | 尚无微信或支付宝商户资质 |
+| 当前支付条件 | 微信支付与支付宝商户号已开通；凭据待配置，见 [15-PAYMENT-CHANNELS.md](15-PAYMENT-CHANNELS.md) |
 | 多人通信体验 | 继续使用 WebSocket；持久化后确认发送、编号去重、自动重连补齐、保留记录与草稿，见 12-CONNECTION-EXPERIENCE.md |
 | 题目反馈 | 自带题与投稿题均可点赞、点踩，支持按受欢迎程度排序 |
 | 作者展示 | 投稿作者可选择署名或匿名，前端展示其选择；创作中心查看作品反馈 |
@@ -50,6 +50,7 @@
 | D18 | 创作中心 2-3 选项单选控件使用自定义 `Segmented` | 替代原生 `<select>`，避免 Android 上的原生选择弹窗；超过 3 选项继续保留 `<select>` |
 | D19 | 私人试题预览复用单人游戏页 UI 栈 | 共享 `GameHeader`、题面卡、聊天、`<TurnCard>`（`apps/web/src/game/turn-card.tsx`）、`ChatInput` 与底部 composer；服务端仍调用 `/solo/*` 但凭证用途为 `solo_preview` |
 | D20 | Auth 页 `<a>` 默认 `#8fc6ff` 浅蓝色 + hover 下划线；语言切换按钮在登录 / 注册 / 找回密码页 topbar 右侧出现 | 区别于默认浏览器深蓝；保持与首页一致的语言切换入口 |
+| D21 | 退款是运营动作，**只在管理后台提供**（`POST /admin/orders/:id/refund`，需 admin/finance 角色 + 理由）；玩家端不提供退款入口 | 用户自助退款会绕过审核与留痕；后台按通道给出三种终态提示（`done` / `not_applicable` / `failed`），详见 [15-PAYMENT-CHANNELS.md](15-PAYMENT-CHANNELS.md) |
 
 这些方案可以在实施中基于明确证据调整，但不能改变已确认价格、单人隐私和无限游玩等产品规则。新增商业限制或改变永久权益必须回到负责人决定。
 
