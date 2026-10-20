@@ -38,3 +38,7 @@ test-results/
 
 data/reference
 data/curated
+
+# 小红书海龟汤日更产物（海报图/文案/请求稿，不入库）
+data/xhs
+
