@@ -4,7 +4,9 @@
 房间新规则见 `docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md`（v3）：会客厅（lobby）与房间（room）生命周期彻底解耦。每个用户固定一个会客厅 id（`user_lobbies.host_user_id UNIQUE` 物理保证 1:1，永久不变），房主可以同时拥有任意多个 active 房间；同一用户也可以同时是别的 lobby 的成员；踢人 = DELETE 座位行不留 kicked 软标记；邀请 URL 路径区分 `/lobby/invite/<hex>` 与 `/room/invite/<hex>`，后端两条独立 endpoint 无 fallback；先选题后开局，start 单事务建房+迁成员+建局+撤销旧邀请；start 事务提交后通过实时网关向所有 lobby 订阅者推送 `lobby.started` 帧（携带 roomId+inviteToken），客户端收到后立即 navigate 到房间，避免客人因轮询延迟被误报"等待室已解散"；一房一题（局结束即归档）；单人无业务限流。
 单人模式无需登录、永久免费、对话只存浏览器；多人房间（容量由 `ROOM_CAPACITY` 环境变量配置，默认 8）、服务端保存并实时同步；
 未赞助账号累计可开 10 个房间，月度赞助 6 元 / 永久 20 元不限开房。
-**收款通道有两条**：微信支付 Native（需商户资质，未开通时前台显示「支付通道开通中」）与**赞助码**（零实名通道：运营方用个人收款码收款后发码，用户在「我的」页兑换，站内自动核销并发授权；见 `docs/rebuild/14-REDEEM-CODE-CHANNEL.md`）。
+**收款通道有三条**：微信支付 v3 Native（扫码，需商户资质，未配置凭据时前台显示「支付通道开通中」）、
+**支付宝开放平台**（当面付扫码 / 电脑网站支付跳转，凭据清单见 `docs/rebuild/15-PAYMENT-CHANNELS.md`）
+与**赞助码**（零实名通道：运营方用个人收款码收款后发码，用户在「我的」页兑换，站内自动核销并发授权；见 `docs/rebuild/14-REDEEM-CODE-CHANNEL.md`）。
 本文档面向开发与维护；用户视角的宣传页在 `README.md`。
 
 ## 目录结构
@@ -24,7 +26,7 @@ packages/ui          设计变量（深海色系、16px 正文、44px 触控）
 infra/               web/admin/api/jobs 各自 Dockerfile（apps/web+apps/admin 静态烘进 nginx，api 容器启动自动跑迁移）、web.nginx.conf / admin.nginx.conf
 scripts/             冒烟与端到端联调脚本（smoke-new-system.sh、e2e-run.sh、dev-env.sh、dev-mailsink.mjs）
 data/                题库 JSON 导入源：根 library.json / library.en.json 同 ID 配套（顺序须一致，当前 446 题 = 天堂精选 93 置顶 + 首发 7 + 扩展 10 + 小小耶精选 240 + 许二木精选 96，许二木批 2026-10-15 入库追加于库尾；zh 条目 category 本格/变格由导入映射为 puzzle_category 枚举 honkaku/henkaku；第一题固定「终点线」，各批次保持批内原序；seed 导入统一署名「初始题库」（signature 模式，前端按语言本地化））；sources.md 全库来源总览与逐题对照（编号=现役库位置 1–446）；scoring/ 打分口径与全部批次评分（编号 1–493 连续续写，与 sources.md 编号相互独立）；curated/ 各 UP 主批逐篇评审与存档（天堂/小小耶/许二木三批普通题均已并入根库，特殊玩法与未采用稿留存于各自目录）；reference/ 真实游玩素材（group 原始字幕 → real 抽取稿，按 UP 主分目录）
-docs/rebuild/        产品与架构设计文档（01~13：10 房间生命周期修订、11 赞踩署名、12 连接体验、13 App 版本计划）
+docs/rebuild/        产品与架构设计文档（01~16：10 房间生命周期修订、11 赞踩署名、12 连接体验、13 App 版本计划、14 赞助码通道、15 支付通道凭据清单、16 并发与限流盘点）
 ```
 
 ## 常用命令
@@ -62,6 +64,12 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   码状态流转与授权发放/订单核销/流水/审计**同事务**提交（`orders.service.ts:confirmPaidTx`
   为此把核销主体拆成可传入事务的版本）；码格式规则在 `packages/domain/src/redeem-codes.ts`，
   API、后台与离线 CLI 三处共用；运营发码用 `apps/api/src/cli/issue-redeem-codes.ts`
+- **在线收款通道**：微信 v3 与支付宝各一个适配器，共用 `billing/pay-adapter.ts` 的接口；
+  通道差异（通知格式、验签、应答体、金额单位）**只允许在适配器内抹平**，业务层只认
+  `PayChannel`。三铁律：① 权益只由服务端**验签通过**的异步通知发放，浏览器回跳不发权；
+  ② 通知里的金额必须与订单金额一致，不一致拒绝入账；③ 支付宝同步应答**必须验签**
+  （`qr_code` 决定用户付给谁）；站内金额一律用**分**，支付宝的「元」在适配器里换算。
+  通道凭据未配齐 → 适配器返回 null → 该通道不显示入口
 - **单人隐私**：`/solo/*` 匿名凭证（jose）、不落任何业务表；新规则不按 IP 或题目做业务限流；
   客户端 `credentials: 'omit'`
 - **判题**：阈值只能服务端读；`uncertain` 是有效判定；缺概率是协议错误不编造；
@@ -81,6 +89,17 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   `E:\tzy\github\oauth-relay`）的专用路径并带 `X-Relay-Token`（`google-proxy.ts`，
   单测覆盖改写形状）；授权跳转仍由用户浏览器直连 accounts.google.com / connect.linux.do
 - **锁序**：房间 → 局 → 赞助账户 → 免费账户 → 任务（跨 api/jobs 统一）
+- **SessionGuard 是全局 APP_GUARD**（`app.module.ts:46`）：任何无会话接口都必须标
+  `@Public()`（只跳过会话读取）/ `@Anonymous()`（匿名凭证）；这两个装饰器**不做频控**。
+  支付异步通知曾因漏标 `@Public()` 被守卫 401 掉——两个通道的钱都收了，权益却发不出去，
+  且集成测试直调 service 绕过了守卫层查不出来。公开路由清单钉在
+  `apps/api/src/billing/public-routes.test.ts`，新增无会话接口必须同步改
+  （清单见 `docs/rebuild/16-CONCURRENCY-LIMITS.md`）
+- **没有全局 HTTP 限流中间件**：`bootstrap.ts` 只有 CORS + 256KB body。限流用**拦截器 +
+  `@RateLimit()` 元数据**按接口标注（`apps/api/src/common/rate-limit.ts`），
+  计数落 PG 表 `rate_limit_buckets`（跨进程共享）。已生效：投稿每天 5 篇、
+  创作每分钟 20 次、举报每小时 5 条、后台每分钟 120 次、支付通知每 IP 每分钟 120 次、
+  WebSocket 每用户 5 条连接。清单见 `docs/rebuild/16-CONCURRENCY-LIMITS.md`
 
 ## 踩坑点
 
