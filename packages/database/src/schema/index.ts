@@ -4,3 +4,4 @@ export * from './content';
 export * from './rooms';
 export * from './billing';
 export * from './otp';
+export * from './rate-limit';

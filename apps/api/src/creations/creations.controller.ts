@@ -9,6 +9,7 @@ import { authorDisplaySettingSchema, creationDraftSchema, creationSaveRequestSch
 import { z } from 'zod';
 import { app } from '../context.js';
 import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http.js';
+import { RateLimit } from '../common/rate-limit.js';
 import { SessionGuard } from '../auth/session.guard.js';
 import { previewContentHash } from './preview-content.js';
 
@@ -41,6 +42,11 @@ async function forkDraft(tx: Tx, latest: Version) {
   return { versionId: next.id, status: 'draft' as const };
 }
 
+/**
+ * 创作中心整体限流：每人每分钟 20 次写操作。
+ * 提交投稿会触发一次 Jev 机器审核（有真实成本），所以 submit 另有更严的日额度。
+ */
+@RateLimit({ scope: 'creations', limit: 20, windowSeconds: 60, keyBy: 'user' })
 @Controller('creations')
 @UseGuards(SessionGuard)
 export class CreationsController {
@@ -103,7 +109,13 @@ export class CreationsController {
   async revise(@CurrentUser() user: SessionUser, @Param('puzzleId') puzzleId: string, @Body(new ZodValidationPipe(creationRevisionRequestSchema)) body: Condition) {
     return app().db.tx(async (tx) => { const { latest } = await lockCreation(tx, user.userId, puzzleId, body); if (!['changes_requested', 'published', 'taken_down'].includes(latest.moderationStatus)) throw new DomainError('STATE_CONFLICT', '当前状态不能创建新草稿'); return forkDraft(tx, latest); });
   }
-  /** 提交不可变版本，完整性校验通过后投递 Jev 初审。 */
+  /**
+   * 提交不可变版本，完整性校验通过后投递 Jev 初审。
+   *
+   * 每人每天 5 篇（东八区自然日）：每次提交都会真的调一次 Jev 机器审核，
+   * 这是创作侧唯一直接烧钱的口子，必须有硬上限。
+   */
+  @RateLimit({ scope: 'creations.submit', limit: 5, windowSeconds: 86_400, keyBy: 'user' })
   @Post(':puzzleId/submit')
   async submit(@CurrentUser() user: SessionUser, @Param('puzzleId') puzzleId: string, @Body(new ZodValidationPipe(creationSubmitRequestSchema)) body: z.infer<typeof creationSubmitRequestSchema>) {
     return app().db.tx(async (tx) => {

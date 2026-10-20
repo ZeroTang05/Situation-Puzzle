@@ -2,6 +2,7 @@
 import { Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { EnvelopeInterceptor, RequestIdMiddleware, RolesGuard } from './common/http.js';
+import { RateLimitInterceptor } from './common/rate-limit.interceptor.js';
 import { SessionGuard } from './auth/session.guard.js';
 import { AppSessionController } from './auth/app-session.controller.js';
 import { HealthController } from './health/health.controller.js';
@@ -43,6 +44,8 @@ import { AdminController } from './admin/admin.controller.js';
     OrdersService,
     RedeemCodesService,
     { provide: APP_INTERCEPTOR, useClass: EnvelopeInterceptor },
+    // 限流在守卫之后执行：按用户的规则要拿到 SessionGuard 写入的 sessionUser
+    { provide: APP_INTERCEPTOR, useClass: RateLimitInterceptor },
     { provide: APP_GUARD, useClass: SessionGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],

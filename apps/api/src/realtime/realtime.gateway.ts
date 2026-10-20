@@ -9,6 +9,7 @@ import { wsClientFrameSchema } from '@jev/contracts';
 import { app } from '../context.js';
 import { consumeJti } from './realtime.controller.js';
 import { activeRoomsForUser } from './presence-state.js';
+import { countUserConnections } from './connection-limit.js';
 
 interface Subscription { roomId: string; lastSeq: number }
 interface ClientState {
@@ -208,6 +209,12 @@ export class RealtimeGateway {
         const secret = new TextEncoder().encode(app().env.REALTIME_TICKET_SECRET ?? app().env.AUTH_SECRET + ':rt');
         const { payload } = await jwtVerify(frame.ticket, secret);
         if (payload.purpose !== 'realtime' || !payload.sub || !payload.jti || typeof payload.sessionId !== 'string' || !consumeJti(payload.jti)) throw new Error('invalid_ticket');
+        // 每用户连接数上限：认领身份前先看这人已经占了多少条连接，
+        // 超限直接断开——连接表是无界的，不设闸门等于把内存交给客户端。
+        if (this.connectionsOf(payload.sub) >= app().env.WS_MAX_CONNECTIONS_PER_USER) {
+          this.reject(socket, 'RATE_LIMITED', '连接数过多，请关闭多余的页面后重试', 4429);
+          return;
+        }
         state.userId = payload.sub;
         state.sessionId = payload.sessionId;
         this.send(socket, { type: 'ack', userId: state.userId });
@@ -275,6 +282,11 @@ export class RealtimeGateway {
       state.subscriptions.delete(roomId);
       this.reject(socket, 'FORBIDDEN', '你已不在该房间', 4403);
     }
+  }
+
+  /** 该用户当前已认领身份的连接数（用于每用户连接数上限）。 */
+  private connectionsOf(userId: string): number {
+    return countUserConnections(this.clients.values(), userId);
   }
 
   /**

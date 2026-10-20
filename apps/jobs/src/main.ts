@@ -451,6 +451,8 @@ class JobsApp {
       await db.execute(sql`delete from presence where last_seen_at < now() - interval '45 seconds'`);
       // 发送额度只读取最近一小时；过期记录保留一天后清理。
       await db.execute(sql`delete from otp_send_reservations where reserved_at < now() - interval '1 day'`);
+      // 限流桶按窗口生效，过期行不再被读取；保留两天足够覆盖日窗口。
+      await db.execute(sql`delete from rate_limit_buckets where window_start < now() - interval '2 days'`);
 
       // 4. 账本一致性兜底：负余额由 CHECK 保护，这里只做异常告警
       const [negative] = await db

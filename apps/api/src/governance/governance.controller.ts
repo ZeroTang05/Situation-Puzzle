@@ -13,6 +13,7 @@ import { puzzles, puzzleVersions, ratings, reports } from '@jev/database';
 import { DomainError } from '@jev/domain';
 import { app } from '../context.js';
 import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http.js';
+import { RateLimit } from '../common/rate-limit.js';
 import { SessionGuard } from '../auth/session.guard.js';
 import { ratingPutRequestSchema, voteValueSchema } from '@jev/contracts';
 import { z } from 'zod';
@@ -39,6 +40,11 @@ async function statsOf(puzzleId: string): Promise<{ upCount: number; downCount: 
 @Controller()
 @UseGuards(SessionGuard)
 export class GovernanceController {
+  /**
+   * 举报：每人每小时 5 条。
+   * 举报会进后台调查面板，无上限写入会把面板淹没，真正的举报反而看不见。
+   */
+  @RateLimit({ scope: 'reports', limit: 5, windowSeconds: 3_600, keyBy: 'user' })
   @Post('reports')
   async report(@CurrentUser() user: SessionUser, @Body(new ZodValidationPipe(reportSchema)) body: z.infer<typeof reportSchema>) {
     const [row] = await app().db.db

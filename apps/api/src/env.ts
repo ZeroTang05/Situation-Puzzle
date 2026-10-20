@@ -91,6 +91,8 @@ const envSchema = z.object({
   REALTIME_TICKET_SECRET: z.string().optional(),
   /** 每进程单人 Jev 并发上限（按服务器与 Jev 真实容量调整，默认 2） */
   SOLO_JEV_CONCURRENCY: z.coerce.number().int().default(2),
+  /** 同一用户同时保持的实时连接数上限（每进程计数，默认 5；多开标签页会被拒） */
+  WS_MAX_CONNECTIONS_PER_USER: z.coerce.number().int().min(1).max(50).default(5),
 
   /** Bootstrap admin：启动时若 user 不存在则创建（按 better-auth 标准 hash 存 account.password）；
    *  写完 user 后插入 role_assignments.role='admin'。已存在则跳过建账号，仅补 admin 角色。
