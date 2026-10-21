@@ -9,6 +9,15 @@ import { DomainError } from './error.js';
 /** 作用域：房间或会客厅。两者的主持人规则完全同构。 */
 export type HostScope = 'room' | 'lobby';
 
+/** 用户主持人对「提问」的判定值。 */
+export const HOST_ASK_VERDICTS = ['yes', 'no', 'irrelevant'] as const;
+/** 用户主持人对「还原」的判定值（与 Jev 的还原判定同域）。 */
+export const HOST_SOLVE_VERDICTS = ['solved', 'close', 'not_yet'] as const;
+
+export type HostAskVerdict = (typeof HOST_ASK_VERDICTS)[number];
+export type HostSolveVerdict = (typeof HOST_SOLVE_VERDICTS)[number];
+export type HostVerdict = HostAskVerdict | HostSolveVerdict;
+
 export interface HostIdentity {
   /** 调用者是否是作用域房主（房间 owner / 会客厅 owner） */
   isOwner: boolean;
@@ -41,6 +50,16 @@ export function assertCanReviewHost(identity: HostIdentity): void {
   }
 }
 
+/**
+ * 撤销主持身份只有房主能做（被撤销者降级为普通玩家）。
+ * 被撤销者自己不能撤销自己——那走「退出主持人」。
+ */
+export function assertCanRevokeHost(identity: HostIdentity): void {
+  if (!identity.isOwner) {
+    throw new DomainError('FORBIDDEN', '只有房主可以撤销主持人身份');
+  }
+}
+
 /** 退出主持人：只有当前用户主持人能退出。 */
 export function assertCanResignHost(identity: HostIdentity): void {
   if (!identity.isUserHost) {
@@ -49,24 +68,30 @@ export function assertCanResignHost(identity: HostIdentity): void {
 }
 
 /**
- * 用户主持人回答玩家提问的前置检查。
+ * 用户主持人判定的前置检查。
  *
  * 只有当前用户主持人、且房间处于用户主持模式时才能判定；
- * 判定对象必须是本局里挂起中的提问（kind='ask'、status='queued'）。
+ * 判定对象必须是本局里挂起中的任务（status='queued'），
+ * 判定值必须与任务类型匹配（提问用 yes/no/irrelevant，还原用 solved/close/not_yet）。
  */
 export function assertHostAnswer(input: {
   isUserHost: boolean;
   hostMode: 'ai' | 'user';
   turnKind: 'ask' | 'solve';
   turnStatus: 'queued' | 'processing' | 'succeeded' | 'failed' | 'cancelled';
+  verdict: string;
 }): void {
   if (!input.isUserHost || input.hostMode !== 'user') {
-    throw new DomainError('FORBIDDEN', '只有本局主持人可以回答玩家提问');
-  }
-  if (input.turnKind !== 'ask') {
-    throw new DomainError('VALIDATION_FAILED', '只能回答玩家提出的问题');
+    throw new DomainError('FORBIDDEN', '只有本局主持人可以判定玩家提交');
   }
   if (input.turnStatus !== 'queued') {
-    throw new DomainError('STATE_CONFLICT', '这个问题已经判定过了');
+    throw new DomainError('STATE_CONFLICT', '这个提交已经判定过了');
+  }
+  const allowed: readonly string[] = input.turnKind === 'ask' ? HOST_ASK_VERDICTS : HOST_SOLVE_VERDICTS;
+  if (!allowed.includes(input.verdict)) {
+    throw new DomainError(
+      'VALIDATION_FAILED',
+      input.turnKind === 'ask' ? '提问只能判定为是、否或无关' : '还原只能判定为破解成功、接近真相或还没猜对',
+    );
   }
 }

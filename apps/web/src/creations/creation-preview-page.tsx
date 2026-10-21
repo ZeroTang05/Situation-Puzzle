@@ -12,6 +12,7 @@ import { TurnCard, type PreviewTurn } from '../game/turn-card.js';
 import { GameHeader } from '../game/game-header.js';
 import { ChatInput } from '../game/chat-input.js';
 import { LargeModelToggle } from '../game/large-model-toggle.js';
+import { StoryCard } from '../game/story-card.js';
 import { creationCopy } from './copy.js';
 
 export function CreationPreviewPage({ session: account }: { session: Session | null }) {
@@ -106,12 +107,13 @@ export function CreationPreviewPage({ session: account }: { session: Session | n
         action={<button className="btn btn-ghost btn-sm" disabled={busy} onClick={reset}>{text.reset}</button>}
       />
 
-      <section className="story-card solo-story game-scroll">
+      <StoryCard className="solo-story">
         <p className="accent">{preview.title}</p>
         <p className="story">{preview.surface}</p>
-      </section>
+      </StoryCard>
 
       <section className="chat solo-chat game-scroll" ref={chatRef} aria-live="polite">
+        <div className="chat-stream">
         {turns.filter((turn) => turn.result !== 'hint').map((turn) => (
           <TurnCard key={turn.localTurnId} turn={turn} copy={copy} language={language} />
         ))}
@@ -130,6 +132,7 @@ export function CreationPreviewPage({ session: account }: { session: Session | n
               <p>{local.revealedAnswer}</p>
             </section>
           )}
+        </div>
         </div>
       </section>
 

@@ -157,8 +157,9 @@ class JobsApp {
         .orderBy(asc(turns.acceptedSeq))
         .for('update', { skipLocked: true })
         .limit(10);
-      // 用户主持模式：玩家的提问挂起等主持人回答，Jev 不再接手（17-USER-HOST-MODE §5.2）
-      const next = room.hostMode === 'user' ? queuedRows.find((t) => t.kind === 'solve') : queuedRows[0];
+      // 用户主持模式：提问与还原都挂起等用户主持人判定，Jev 完全不接手
+      // （17-USER-HOST-MODE §5.2）。主持人退出后房间回到 ai，这里才会重新领任务。
+      const next = room.hostMode === 'user' ? undefined : queuedRows[0];
       if (!next) return null;
 
       // 排队超时：60 秒未开始判为失败，不消耗有效判题
@@ -435,14 +436,14 @@ class JobsApp {
       }
 
       // 2. 有排队任务但无调度在跑的房间（崩溃恢复兜底）
-      // 用户主持模式里挂起的提问不参与调度（等主持人回答），否则会反复空转。
+      // 用户主持模式里挂起的提交不参与调度（等主持人判定），否则会反复空转。
       const stuckRooms = await db
         .select({ roomId: rounds.roomId })
         .from(rounds)
         .where(
           and(
             eq(rounds.status, 'active'),
-            sql`exists (select 1 from turns t where t.round_id = rounds.id and t.status = 'queued' and (t.kind = 'solve' or (select host_mode from rooms r where r.id = rounds.room_id) = 'ai'))`,
+            sql`exists (select 1 from turns t where t.round_id = rounds.id and t.status = 'queued' and (select host_mode from rooms r where r.id = rounds.room_id) = 'ai')`,
             sql`not exists (select 1 from turns t where t.round_id = rounds.id and t.status = 'processing')`,
           ),
         )

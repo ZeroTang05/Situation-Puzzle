@@ -3,6 +3,7 @@ import {
   assertCanRequestHost,
   assertCanResignHost,
   assertCanReviewHost,
+  assertCanRevokeHost,
   assertHostAnswer,
   hostRequestOutcome,
 } from '../src/host-mode.js';
@@ -28,19 +29,33 @@ describe('主持人审核与退出', () => {
     expect(() => assertCanResignHost({ isOwner: false, isUserHost: false })).toThrow(/不是本局主持人/);
     expect(() => assertCanResignHost({ isOwner: true, isUserHost: true })).not.toThrow();
   });
+  it('只有房主可以撤销他人的主持身份', () => {
+    expect(() => assertCanRevokeHost({ isOwner: false, isUserHost: false })).toThrow(/只有房主/);
+    expect(() => assertCanRevokeHost({ isOwner: true, isUserHost: false })).not.toThrow();
+  });
 });
 
-describe('用户主持人判定玩家提问', () => {
-  const base = { isUserHost: true, hostMode: 'user' as const, turnKind: 'ask' as const, turnStatus: 'queued' as const };
-  it('主持人在用户主持模式下可以回答挂起中的提问', () => {
-    expect(() => assertHostAnswer(base)).not.toThrow();
+describe('用户主持人判定玩家提交', () => {
+  const base = { isUserHost: true, hostMode: 'user' as const, turnStatus: 'queued' as const };
+  it('提问可判定为是/否/无关', () => {
+    for (const verdict of ['yes', 'no', 'irrelevant']) {
+      expect(() => assertHostAnswer({ ...base, turnKind: 'ask', verdict })).not.toThrow();
+    }
+  });
+  it('还原可判定为破解成功/接近真相/还没猜对', () => {
+    for (const verdict of ['solved', 'close', 'not_yet']) {
+      expect(() => assertHostAnswer({ ...base, turnKind: 'solve', verdict })).not.toThrow();
+    }
+  });
+  it('判定值必须与提交类型匹配', () => {
+    expect(() => assertHostAnswer({ ...base, turnKind: 'ask', verdict: 'solved' })).toThrow(/只能判定为是、否或无关/);
+    expect(() => assertHostAnswer({ ...base, turnKind: 'solve', verdict: 'yes' })).toThrow(/只能判定为破解成功/);
   });
   it('非主持人、非用户主持模式都不能判定', () => {
-    expect(() => assertHostAnswer({ ...base, isUserHost: false })).toThrow(/只有本局主持人/);
-    expect(() => assertHostAnswer({ ...base, hostMode: 'ai' })).toThrow(/只有本局主持人/);
+    expect(() => assertHostAnswer({ ...base, isUserHost: false, turnKind: 'ask', verdict: 'yes' })).toThrow(/只有本局主持人/);
+    expect(() => assertHostAnswer({ ...base, hostMode: 'ai', turnKind: 'ask', verdict: 'yes' })).toThrow(/只有本局主持人/);
   });
-  it('只能回答提问，且不能重复判定', () => {
-    expect(() => assertHostAnswer({ ...base, turnKind: 'solve' })).toThrow(/只能回答玩家提出的问题/);
-    expect(() => assertHostAnswer({ ...base, turnStatus: 'succeeded' })).toThrow(/已经判定过/);
+  it('已判定过的提交不能再判定', () => {
+    expect(() => assertHostAnswer({ ...base, turnStatus: 'succeeded', turnKind: 'ask', verdict: 'yes' })).toThrow(/已经判定过/);
   });
 });

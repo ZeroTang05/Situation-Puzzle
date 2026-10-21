@@ -31,6 +31,11 @@ export function copy(language: Language) {
     difficultyCol: w.difficultyField,
     capacityCol: language === 'zh' ? '容量' : 'Capacity',
     hostCol: language === 'zh' ? '房主' : 'Host',
+    /** 主持人形态列：AI 主持（Jev）或用户主持（玩家接管判题） */
+    hostModeCol: language === 'zh' ? '主持形态' : 'Moderator',
+    userHostCol: language === 'zh' ? '用户主持人' : 'Player moderator',
+    aiHostLabel: language === 'zh' ? 'Jev 主持' : 'Jev',
+    userHostLabel: language === 'zh' ? '用户主持' : 'Player',
     emailVerifiedCol: language === 'zh' ? '邮箱已验证' : 'Email verified',
     sponsorUntilCol: language === 'zh' ? '会员' : 'Membership',
     createdAtCol: language === 'zh' ? '创建时间' : 'Created',

@@ -7,6 +7,7 @@ import { api, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
 import { useBack } from '../back.js';
 import { compactVoteCount } from '../catalog/vote-count.js';
+import { VoteIcon } from '../catalog/vote-icon.js';
 import type { Session } from '../session.js';
 import { creationCopy, creationStatusLabel } from './copy.js';
 
@@ -40,7 +41,7 @@ export function CreationListPage({ session }: { session: Session | null }) {
   ];
 
   return <main className="shell creation-shell">
-    <header className="topbar">
+    <header className="topbar topbar-title">
       <button className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
       <h1 className="brand brand-sm creation-title">{text.center}</h1>
       <Link className="btn btn-primary btn-sm" to="/creations/new">{text.create}</Link>
@@ -80,15 +81,14 @@ export function CreationListPage({ session }: { session: Session | null }) {
         <div className="creation-item-meta">
           <span className={`creation-status-dot status-${work.status}`} aria-label={creationStatusLabel(work.status, language)} />
           <span className="muted">{creationStatusLabel(work.status, language)}</span>
-          <span className="dot" aria-hidden>·</span>
           <span className="muted">v{work.versionNo}</span>
-          <span className="dot" aria-hidden>·</span>
           <span className="muted">{work.language === 'en' ? copy.languageEn : copy.languageZh}</span>
-          <span className="dot" aria-hidden>·</span>
-          <span className="muted" aria-label={`${copy.voteUp} ${work.upCount}`}>👍 {compactVoteCount(work.upCount)}</span>
-          <span className="dot" aria-hidden>·</span>
-          <span className="muted" aria-label={`${copy.voteDown} ${work.downCount}`}>👎 {compactVoteCount(work.downCount)}</span>
-          <span className="dot" aria-hidden>·</span>
+          <span className="vote-mark vote-mark-up" aria-label={`${copy.voteUp} ${work.upCount}`}>
+            <VoteIcon direction="up" /> {compactVoteCount(work.upCount)}
+          </span>
+          <span className="vote-mark" aria-label={`${copy.voteDown} ${work.downCount}`}>
+            <VoteIcon direction="down" /> {compactVoteCount(work.downCount)}
+          </span>
           <span className="muted">{new Date(work.updatedAt).toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US')}</span>
         </div>
         {work.pendingName && <div className="creation-item-pending">{text.pendingName}{language === 'zh' ? '：' : ': '}{work.pendingName}</div>}

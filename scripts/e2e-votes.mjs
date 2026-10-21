@@ -7,7 +7,7 @@
  *   排序：SQL 种投票后验证 popular 排序规则（得分降序、同分赞数降序）与 latest 不受影响
  * 运行：cd apps/api && node ../../scripts/e2e-votes.mjs（需要 e2e-run.sh votes 环境）
  */
-import { requireFromApi, BASE, check, summary, http, dataOf, errorOf, login } from './e2e-lib.mjs';
+import { requireFromApi, BASE, check, summary, http, dataOf, errorOf, register } from './e2e-lib.mjs';
 
 const pg = requireFromApi('pg');
 const DB_URL = process.env.E2E_DATABASE_URL ?? 'postgresql://jev:jev@localhost:54329/jev';
@@ -21,10 +21,11 @@ const AUTHOR = `author-${Date.now()}@e2e.test`;
 const VOTER = `voter-${Date.now()}@e2e.test`;
 const ADMIN = `admin-${Date.now()}@e2e.test`;
 
-console.log('== 1. 三账号登录（真实 SMTP 收信台）==');
-const authorCookie = await login(AUTHOR);
-const voterCookie = await login(VOTER);
-const adminCookie = await login(ADMIN);
+console.log('== 1. 三账号注册登录（真实 SMTP 收信台）==');
+// 账号是本轮新建的，必须走注册（验证码闸门），不能只做验证码登录
+const authorCookie = await register(AUTHOR, '汤作者');
+const voterCookie = await register(VOTER, '投票者');
+const adminCookie = await register(ADMIN, '管理员');
 check('作者/投票者/管理员登录成功', authorCookie.length > 0 && voterCookie.length > 0 && adminCookie.length > 0);
 const authorMe = dataOf(await http('/me', { cookie: authorCookie }));
 const adminMe = dataOf(await http('/me', { cookie: adminCookie }));

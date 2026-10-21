@@ -203,7 +203,7 @@ export function LoginPage() {
 
   return (
     <main className="shell narrow">
-      <header className="topbar">
+      <header className="topbar topbar-title">
         <button type="button" className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
         <BrandHeading>{copy.brand}</BrandHeading>
         <button
@@ -270,7 +270,7 @@ export function LoginPage() {
                   {copy.login}
                 </button>
                 <p className="muted" style={{ textAlign: 'center' }}>
-                  {copy.forgotPassword}？ <a href={authStepHref('/forgot-password', params.get('next'))}>{copy.forgotPasswordLink}</a>
+                  {copy.forgotPasswordQuestion} <a href={authStepHref('/forgot-password', params.get('next'))}>{copy.forgotPasswordLink}</a>
                 </p>
               </div>
             )}

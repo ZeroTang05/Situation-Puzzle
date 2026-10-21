@@ -12,6 +12,7 @@ import { useLanguage } from '../state/language.js';
 import type { Session } from '../session.js';
 import { format } from '@jev/i18n';
 import { loginHref } from '../auth/login-navigation.js';
+import { VoteIcon } from './vote-icon.js';
 
 interface RatingState {
   choice: 'up' | 'down' | null;
@@ -85,7 +86,7 @@ export function VoteButtons({
         aria-pressed={state.choice === 'up'}
         aria-label={copy.voteUp}
       >
-        👍 {state.upCount}
+        <VoteIcon direction="up" /> {state.upCount}
       </button>
       <button
         className={`btn btn-sm ${state.choice === 'down' ? 'btn-primary' : 'btn-ghost'}`}
@@ -94,7 +95,7 @@ export function VoteButtons({
         aria-pressed={state.choice === 'down'}
         aria-label={copy.voteDown}
       >
-        👎 {state.downCount}
+        <VoteIcon direction="down" /> {state.downCount}
       </button>
       {error && (
         <span className="error-text" role="alert">

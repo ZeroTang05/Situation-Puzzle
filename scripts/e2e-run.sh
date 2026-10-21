@@ -47,6 +47,7 @@ done
 echo "== 4. E2E：${MODE} =="
 case "${MODE}" in
   votes) (cd apps/api && node ../../scripts/e2e-votes.mjs) ;;
+  host)  (cd apps/api && node ../../scripts/e2e-host-mode.mjs) ;;
   *)     (cd apps/api && node ../../scripts/e2e-multiplayer.mjs) ;;
 esac
 echo "端到端验证通过 ✓"

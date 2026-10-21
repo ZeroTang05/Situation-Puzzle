@@ -10,6 +10,7 @@ import type { Session } from '../session.js';
 import { AuthorLabel } from './vote-buttons.js';
 import { openOrGetLobby } from '../rooms/create-lobby.js';
 import { compactVoteCount } from './vote-count.js';
+import { VoteIcon } from './vote-icon.js';
 import { CatalogPagination } from './pagination.js';
 
 interface PuzzleItem {
@@ -176,47 +177,52 @@ export function LibraryPage({ session }: { session: Session | null }) {
 
   return (
     <main className="shell">
-      <header className="topbar">
+      <header className="topbar topbar-title">
         <button className="btn btn-ghost btn-sm" onClick={back}>
           {copy.back}
         </button>
         <h1 className="brand">{copy.library}</h1>
       </header>
-      {/* 排序：最受欢迎（得分 = 赞 − 踩，默认）/ 最新发布；零票作品显示 0 */}
-      <div className="mode-tabs" role="tablist" aria-label={copy.sort}>
-        <button className={`mode-tab ${sort === 'popular' ? 'active' : ''}`} role="tab" aria-selected={sort === 'popular'} onClick={() => setSort('popular')}>
-          {copy.sortPopular}
-        </button>
-        <button className={`mode-tab ${sort === 'latest' ? 'active' : ''}`} role="tab" aria-selected={sort === 'latest'} onClick={() => setSort('latest')}>
-          {copy.sortLatest}
-        </button>
-      </div>
-      {/* 难度筛选：catalog 接口支持 difficulty=easy|medium|hard，空=全部 */}
-      <div className="mode-tabs" role="tablist" aria-label={copy.difficultyField}>
-        <button className={`mode-tab ${difficulty === null ? 'active' : ''}`} role="tab" aria-selected={difficulty === null} onClick={() => setDifficulty(null)}>
-          {copy.difficultyAll}
-        </button>
-        <button className={`mode-tab ${difficulty === 'easy' ? 'active' : ''}`} role="tab" aria-selected={difficulty === 'easy'} onClick={() => setDifficulty('easy')}>
-          {copy.easy}
-        </button>
-        <button className={`mode-tab ${difficulty === 'medium' ? 'active' : ''}`} role="tab" aria-selected={difficulty === 'medium'} onClick={() => setDifficulty('medium')}>
-          {copy.medium}
-        </button>
-        <button className={`mode-tab ${difficulty === 'hard' ? 'active' : ''}`} role="tab" aria-selected={difficulty === 'hard'} onClick={() => setDifficulty('hard')}>
-          {copy.hard}
-        </button>
-      </div>
-      {/* 类别筛选：本格=汤底须现实合理，变格=允许超自然；空=全部 */}
-      <div className="mode-tabs" role="tablist" aria-label={copy.categoryField}>
-        <button className={`mode-tab ${category === null ? 'active' : ''}`} role="tab" aria-selected={category === null} onClick={() => setCategory(null)}>
-          {copy.categoryAll}
-        </button>
-        <button className={`mode-tab ${category === 'honkaku' ? 'active' : ''}`} role="tab" aria-selected={category === 'honkaku'} onClick={() => setCategory('honkaku')}>
-          {copy.honkaku}
-        </button>
-        <button className={`mode-tab ${category === 'henkaku' ? 'active' : ''}`} role="tab" aria-selected={category === 'henkaku'} onClick={() => setCategory('henkaku')}>
-          {copy.henkaku}
-        </button>
+      {/* 筛选条：排序 / 难度 / 类别各成一组胶囊，比三行整宽 tab 省掉大半屏高度 */}
+      <div className="filter-bar">
+        <div className="filter-row" role="group" aria-label={copy.sort}>
+          <span className="filter-label">{copy.sort}</span>
+          <button className={`chip ${sort === 'popular' ? 'active' : ''}`} aria-pressed={sort === 'popular'} onClick={() => setSort('popular')}>
+            {copy.sortPopular}
+          </button>
+          <button className={`chip ${sort === 'latest' ? 'active' : ''}`} aria-pressed={sort === 'latest'} onClick={() => setSort('latest')}>
+            {copy.sortLatest}
+          </button>
+        </div>
+        {/* 难度筛选：catalog 接口支持 difficulty=easy|medium|hard，空=全部 */}
+        <div className="filter-row" role="group" aria-label={copy.difficultyField}>
+          <span className="filter-label">{copy.difficultyField}</span>
+          <button className={`chip ${difficulty === null ? 'active' : ''}`} aria-pressed={difficulty === null} onClick={() => setDifficulty(null)}>
+            {copy.difficultyAll}
+          </button>
+          <button className={`chip ${difficulty === 'easy' ? 'active' : ''}`} aria-pressed={difficulty === 'easy'} onClick={() => setDifficulty('easy')}>
+            {copy.easy}
+          </button>
+          <button className={`chip ${difficulty === 'medium' ? 'active' : ''}`} aria-pressed={difficulty === 'medium'} onClick={() => setDifficulty('medium')}>
+            {copy.medium}
+          </button>
+          <button className={`chip ${difficulty === 'hard' ? 'active' : ''}`} aria-pressed={difficulty === 'hard'} onClick={() => setDifficulty('hard')}>
+            {copy.hard}
+          </button>
+        </div>
+        {/* 类别筛选：本格=汤底须现实合理，变格=允许超自然；空=全部 */}
+        <div className="filter-row" role="group" aria-label={copy.categoryField}>
+          <span className="filter-label">{copy.categoryField}</span>
+          <button className={`chip ${category === null ? 'active' : ''}`} aria-pressed={category === null} onClick={() => setCategory(null)}>
+            {copy.categoryAll}
+          </button>
+          <button className={`chip ${category === 'honkaku' ? 'active' : ''}`} aria-pressed={category === 'honkaku'} onClick={() => setCategory('honkaku')}>
+            {copy.honkaku}
+          </button>
+          <button className={`chip ${category === 'henkaku' ? 'active' : ''}`} aria-pressed={category === 'henkaku'} onClick={() => setCategory('henkaku')}>
+            {copy.henkaku}
+          </button>
+        </div>
       </div>
       {isLoading && <p className="muted">{copy.libraryLoading}</p>}
       {error && <div role="alert"><p className="error-text">{copy.libraryLoadFail}</p><button className="btn btn-sm" onClick={() => void refetch()}>{copy.retry}</button></div>}
@@ -241,8 +247,12 @@ export function LibraryPage({ session }: { session: Session | null }) {
               <div className="puzzle-card-meta">
                 <span className="puzzle-card-author"><AuthorLabel mode={puzzle.authorDisplay.mode} name={puzzle.authorDisplay.name} /></span>
                 <span className="puzzle-card-votes" aria-label={copy.voteGroup}>
-                  <span aria-label={`${copy.voteUp} ${puzzle.upCount}`}>👍 {compactVoteCount(puzzle.upCount)}</span>
-                  <span aria-label={`${copy.voteDown} ${puzzle.downCount}`}>👎 {compactVoteCount(puzzle.downCount)}</span>
+                  <span className="vote-mark vote-mark-up" aria-label={`${copy.voteUp} ${puzzle.upCount}`}>
+                    <VoteIcon direction="up" /> {compactVoteCount(puzzle.upCount)}
+                  </span>
+                  <span className="vote-mark vote-mark-down" aria-label={`${copy.voteDown} ${puzzle.downCount}`}>
+                    <VoteIcon direction="down" /> {compactVoteCount(puzzle.downCount)}
+                  </span>
                 </span>
               </div>
               <div className="puzzle-card-actions">

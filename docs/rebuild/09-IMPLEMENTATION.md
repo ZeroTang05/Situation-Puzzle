@@ -238,6 +238,32 @@ docker compose up -d --build
 - 新增许二木精选批：B 站合集字幕抽取 → 评分（`scoring/scores.md` 批次五，143 题）→ 按 turtle-soup-writer 规范内化（前 3/4，总分 ≥22，剔除与库内同汤 5 题）后 96 题以 `xerm-` 前缀入库，题库 350 → 446 题；存档与逐题档位见 `data/curated/许二木/`。
 - 文档编号体系改为连续编号：`data/sources.md` 编号 = 现役库位置（1–446），`scoring/scores.md` 编号 = 打分记录连续序号（1–493，含许二木批未入选 47 题），已删除题目不再保留跳号与下架说明。
 
+### 用户主持人模式（2026-10-20）
+
+- 规则与取舍见 [17-USER-HOST-MODE.md](17-USER-HOST-MODE.md)。房间与会客厅各持一份主持人状态：`host_mode`(ai/user)、`user_host_id`、成员 `role`(player/user_host)、待审申请 `host_requested_at`（迁移 `0012_user_host_mode`）；`turns.judged_by` 记录判定来源。
+- 房间命令新增 `request_host` / `approve_host` / `reject_host` / `revoke_host` / `resign_host` / `host_answer`；会客厅新增 `POST /lobbies/:id/host/{request,approve,reject,revoke,resign}`；汤底专用接口 `GET /rounds/:id/host-view`（仅本房间用户主持人可读，不进快照与事件）。
+- 判题分流：用户主持模式下提问与还原都挂起等主持人判定（不进 AI 队列、`deadline_at` 置空不参与排队超时）；jobs 调度器在用户主持房间不领任何排队任务，主持人退出或被撤销后 API 在同一事务补投调度把挂起提交交还 Jev。
+- 主持判定与 Jev 判定等价：首个有效判定消费一次免费开房额度；判定还原为「破解成功」时与 Jev 判定破解成功同路径——终局并归档。
+- 前端：会客厅页与房间右上角玩家列表提供申请/审核/**撤销**/退出入口（房主收到审核弹窗），主持人的「问 Jev」页在他人问题下方给出「是 / 否 / 无关」、「查看汤底」页（主持视角下「还原真相」页签改名）直接显示汤底并对待判还原给出「破解成功 / 接近真相 / 还没猜对」、「和大家讨论」页发言带主持人徽标。
+- 后台房间调查新增「主持形态」列与判定来源（`turns.judged_by`），调查时能直接看到谁在主持、每条判定来自 Jev 还是玩家。
+- 验证：单测 205 项（新增 `packages/domain/test/host-mode.test.ts`、`apps/web/test/room-host-mode.test.tsx`、`apps/api/src/rooms/host-mode.contract.test.ts`）；真实数据库集成 `apps/api/src/rooms/host-mode.integration.test.ts` 15 项；端到端 `pnpm e2e:host` 59 项。
+- 遗留：浏览器人工实测未做。
+
+### 端到端剧本迁移到会客厅流程（2026-10-21）
+
+- `scripts/e2e-multiplayer.mjs` 与 `scripts/e2e-votes.mjs` 此前仍在用 v3 之前的接口（`POST /rooms`、`select_puzzle`、`start_round`、已不存在的 `active_room_users` 视图、`in_other_room` 迁移跳过），已在 v3 生命周期下失效；两支剧本已迁移并本地实跑通过（多人 60 项、投票 25 项）。
+- 迁移要点：建房改为「会客厅 → 邀请 → 加入 → 选题 → start」；控制版本按开局为 0 逐条推进；会客厅成员随开局迁入房间（不再有 `room.member_joined` 事件，晚加入者才有）；账本断言区分免费次数与注册礼赞助两条授权路径（新用户带一个月注册礼，开房走赞助授权、免费次数不动，剧本显式冻结房主的注册礼以覆盖免费路径）。
+- 新增跨平台编排器 `scripts/e2e-node-run.mjs [multiplayer|host|votes|playwright]`：自建临时库 → 迁移 → 造题 → 起收信台/API/jobs（playwright 另起玩家端）→ 跑剧本 → 清理，不依赖 bash 与 docker（`pnpm e2e:host`、`pnpm e2e:local multiplayer`）。原 `scripts/e2e-run.sh` 保留（docker + 真实题库），并新增 `host` 分支。
+
+### 浏览器套件迁移与剩余阻塞（2026-10-21）
+
+- `apps/web/e2e/game-flow.spec.ts` 的房间用例已迁到会客厅流程（建房走 `createRoomViaLobby`，邀请链接改为 `/room/invite/<hex>`，等待室选题与历史分页用例改走会客厅）。
+- 仍未跑通，原因有三类，均为既有阻塞而非本次改动引入：
+  1. **验证码按 IP 限流**：注册发码每 IP 每小时只放行 3 次（`otp-send-quota.ts`），浏览器套件一条用例就要注册 1～2 个账号，一轮跑不完。需要「编排器预置账号池」或把 IP 额度做成可配置项，二选一。
+  2. **创作流程表单漂移**：`creation-flow.spec.ts` 等待的「标题」「题目来源」标签在当前编辑页已不存在。
+  3. **单人提示期望漂移**：`game-flow.spec.ts` 期望提示胶囊显示「2/3」，当前实现显示「提示 1/3」。
+- 后台调查页同步补齐：房间列表新增「主持形态」列（AI 主持 / 用户主持 + 主持人昵称），房间时间线返回每条问答的判定来源（`turns.judged_by`）。
+
 ## 5. 已知边界与下一步
 
 - **M0 外部通道**（阻塞真实登录/判题/支付）：SMTP 发信、Google 凭据、OPENCODE_API_KEY、微信商户。代码就绪，凭据就绪后即可联调。

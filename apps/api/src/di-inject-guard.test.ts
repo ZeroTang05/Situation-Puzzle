@@ -61,6 +61,7 @@ function nestClassBodies(source: string): Array<{ name: string; body: string }> 
 }
 
 describe('显式依赖注入守卫', () => {
+  // 守卫要扫全部 API 源文件，并行跑 CI 时会逼近默认 5s 超时，这里放宽到 30s
   it('Nest 类的构造参数属性必须带 @Inject', async () => {
     const offenders: string[] = [];
     for await (const file of tsFiles(srcDir)) {
@@ -79,5 +80,5 @@ describe('显式依赖注入守卫', () => {
       }
     }
     expect(offenders).toEqual([]);
-  });
+  }, 30_000);
 });

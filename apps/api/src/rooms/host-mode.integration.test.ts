@@ -211,11 +211,47 @@ describe.runIf(!!databaseUrl)('用户主持人（真实数据库）', () => {
     await expect(rooms.hostRoundView(third, seedState.roundId)).rejects.toThrow(/只有本局主持人/);
   });
 
-  it('主持人退出：回到 AI 主持并把挂起的提问交还 Jev', async () => {
-    // 再问一个问题挂起
+  it('用户主持模式：还原提交也挂起等主持人判定', async () => {
+    dispatched.length = 0;
     await commands.handle(third, seedState.roomId, {
-      clientRequestId: randomUUID(), type: 'ask', roundId: seedState.roundId, payload: { text: '还有别人吗？' },
+      clientRequestId: randomUUID(), type: 'solve', roundId: seedState.roundId, payload: { text: '凶手是秘书，因为那杯茶。' },
     });
+    expect(dispatched.filter((d) => d.name === 'dispatch-room')).toHaveLength(0);
+    const [solveTurn] = await handle.db.select().from(schemaModule.turns)
+      .where(and(eq(schemaModule.turns.roundId, seedState.roundId), eq(schemaModule.turns.kind, 'solve')));
+    expect(solveTurn?.status).toBe('queued');
+    expect(solveTurn?.deadlineAt).toBeNull();
+  });
+
+  it('房主可撤销主持身份：降级为玩家并把挂起的提交交还 Jev', async () => {
+    await expect(commands.handle(third, seedState.roomId, {
+      clientRequestId: randomUUID(), type: 'revoke_host', payload: { userId: guest.userId },
+    })).rejects.toThrow(/只有房主/);
+    dispatched.length = 0;
+    await commands.handle(owner, seedState.roomId, {
+      clientRequestId: randomUUID(), type: 'revoke_host', payload: { userId: guest.userId },
+    });
+    const [room] = await handle.db.select().from(schemaModule.rooms).where(eq(schemaModule.rooms.id, seedState.roomId));
+    expect(room?.hostMode).toBe('ai');
+    expect(room?.userHostId).toBeNull();
+    const [member] = await handle.db.select().from(schemaModule.roomMembers)
+      .where(and(eq(schemaModule.roomMembers.roomId, seedState.roomId), eq(schemaModule.roomMembers.userId, guest.userId)));
+    expect(member?.role).toBe('player');
+    // 挂起的提交交还 Jev 判定
+    expect(dispatched.filter((d) => d.name === 'dispatch-room')).toHaveLength(1);
+  });
+
+  it('房主可重新批准主持身份', async () => {
+    await commands.handle(owner, seedState.roomId, {
+      clientRequestId: randomUUID(), type: 'approve_host', payload: { userId: guest.userId },
+    });
+    const [room] = await handle.db.select().from(schemaModule.rooms).where(eq(schemaModule.rooms.id, seedState.roomId));
+    expect(room?.hostMode).toBe('user');
+    expect(room?.userHostId).toBe(guest.userId);
+  });
+
+  it('主持人退出：回到 AI 主持并把挂起的提交交还 Jev', async () => {
+    // 玩家此前挂起的还原提交仍在排队（每人一个未完成提交，问不了新的）
     dispatched.length = 0;
     await commands.handle(guest, seedState.roomId, { clientRequestId: randomUUID(), type: 'resign_host', payload: {} });
     const [room] = await handle.db.select().from(schemaModule.rooms).where(eq(schemaModule.rooms.id, seedState.roomId));
@@ -235,6 +271,28 @@ describe.runIf(!!databaseUrl)('用户主持人（真实数据库）', () => {
     const [member] = await handle.db.select().from(schemaModule.roomMembers)
       .where(and(eq(schemaModule.roomMembers.roomId, seedState.roomId), eq(schemaModule.roomMembers.userId, owner.userId)));
     expect(member?.role).toBe('user_host');
+  });
+
+  it('用户主持人判定还原为破解成功：终局并归档', async () => {
+    // 房主自申请后成为主持人；玩家此前挂起的还原提交由他判定
+    const [solveTurn] = await handle.db.select().from(schemaModule.turns)
+      .where(and(eq(schemaModule.turns.roundId, seedState.roundId), eq(schemaModule.turns.kind, 'solve')));
+    expect(solveTurn?.status).toBe('queued');
+    await commands.handle(owner, seedState.roomId, {
+      clientRequestId: randomUUID(), type: 'host_answer', roundId: seedState.roundId, payload: { turnId: solveTurn!.id, verdict: 'solved' },
+    });
+    const [after] = await handle.db.select().from(schemaModule.turns).where(eq(schemaModule.turns.id, solveTurn!.id));
+    expect(after?.status).toBe('succeeded');
+    expect(after?.result).toBe('solved');
+    expect(after?.judgedBy).toBe('host');
+
+    const [round] = await handle.db.select().from(schemaModule.rounds).where(eq(schemaModule.rounds.id, seedState.roundId));
+    expect(round?.status).toBe('solved');
+    const [room] = await handle.db.select().from(schemaModule.rooms).where(eq(schemaModule.rooms.id, seedState.roomId));
+    expect(room?.status).toBe('closed');
+    // 破解后参与者可读汤底
+    const answer = await rooms.roundAnswer(third, seedState.roundId);
+    expect(answer.answer).toBe('这是汤底');
   });
 
   it('会客厅：申请 → 批准 → 开局迁移进新房', async () => {

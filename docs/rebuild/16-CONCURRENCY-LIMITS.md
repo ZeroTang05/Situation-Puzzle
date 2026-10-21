@@ -190,6 +190,12 @@ if ((recent?.count ?? 0) >= DISCUSSION_PER_MINUTE) throw new DomainError('RATE_L
 - **房间命令**：排队（每人 1 个未完成 / 每房 8 个）与讨论限速（30 条/分）已在 domain 层管，
   不再叠一层 HTTP 限流。
 - **兑换码核销**：`JEV-XXXX-XXXX-XXXX` 是 16 位 base-32（约 1.15×10²⁴ 组合），不可暴力。
+- **用户主持人相关接口**（`POST /rooms/:id/commands` 的 `request_host`/`approve_host`/
+  `reject_host`/`resign_host`/`host_answer`，以及 `POST /lobbies/:id/host/*`）：
+  全部走会话守卫（`SessionGuard`）且只对房间/会客厅成员生效，天然被「每房 8 人」与
+  「成员资格」约束住；写操作是幂等命令（同编号重投返回原结果），不构成资源放大面。
+  主持人判定只是把一个已在库里的 turn 从 queued 改成 succeeded，不产生外部调用与成本，
+  因此不额外加 HTTP 限流——与「房间命令不再叠一层限流」的既有口径保持一致。
 
 ### 5.4 清理
 

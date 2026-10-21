@@ -116,19 +116,21 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 
 | 表 | 关键字段与约束 |
 | --- | --- |
-| `rooms` | 创建者、房主、状态 playing/closed（v3 起不再有 waiting——房间由会客厅 start 单事务直接建为 playing）、容量、邀请令牌散列、唯一一局、开房授权 ID、`last_seq`、控制版本号；离线与闲置不改变状态 |
-| `room_members` | 房间、用户、成员状态 joined/left/kicked、加入时间、最近活动；`(room_id,user_id)` 唯一 |
+| `rooms` | 创建者、房主、状态 playing/closed（v3 起不再有 waiting——房间由会客厅 start 单事务直接建为 playing）、容量、邀请令牌散列、唯一一局、开房授权 ID、`last_seq`、控制版本号、主持人形态 `host_mode`(ai/user) 与当前用户主持人 `user_host_id`；离线与闲置不改变状态 |
+| `room_members` | 房间、用户、成员状态 joined/left/kicked、加入时间、最近活动、成员身份 `role`(player/user_host) 与待审主持申请 `host_requested_at`；`(room_id,user_id)` 唯一；`role='user_host'` 部分唯一索引保证一房至多一名用户主持人 |
 | `presence` | `(room_id,user_id)` 复合主键；同一用户在不同房间分别记录在线状态，离线记录由心跳巡检清理 |
 | `rounds` | 房间唯一、固定题目版本、状态、提示进度、有效判定数、开始/结束时间、终止原因、取消代次；每个新 roomId 独立计数 |
 | `round_participants` | 局、用户、加入/退出时间、已知答案标记、阅读权限；保存历史参与范围 |
 | `commands` | 用户、请求编号、请求内容摘要、房间/局、处理结果；`(user_id,client_request_id)` 唯一，所属局进行中保留，结束后至少 30 天 |
-| `turns` | 局、提问者、类型 ask/solve、文本、序号、状态、结果、失败原因、执行令牌、重试次数、截止时间 |
+| `turns` | 局、提问者、类型 ask/solve、文本、序号、状态、结果、判定来源 `judged_by`(ai/host)、失败原因、执行令牌、重试次数、截止时间 |
 | `room_events` | 房间、递增序号、事件 ID、局、事件类型、公开内容、创建时间；`(room_id,seq)` 唯一 |
 | `jev_calls` | 仅多人 turn/review 引用、调用编号、模型/提示词版本、开始结束时间、状态、置信度、用量、成本来源、错误类别；单人仅匿名汇总 |
 | pg-boss 自有表 | 任务、调度、重试、死信；由库管理，不直接写内部字段 |
 | `audit_logs` | 操作者、动作、对象、理由、前后摘要、关联请求编号、时间；追加写 |
 
 讨论内容放入 `room_events` 的 discussion.created（讨论已发布）事件中；问答原文保存在 `turns`，事件携带公开投影。历史列表从规范记录查询，避免长期通过重放全部事件构建页面。
+
+会客厅（`user_lobbies` / `lobby_members`）与房间同构地持有主持人状态：`host_mode`(ai/user)、`user_host_id`、成员 `role`(player/user_host) 与待审申请 `host_requested_at`；开局事务把已批准的会主持人迁进新房。用户主持人模式的完整规则见 [17-USER-HOST-MODE.md](17-USER-HOST-MODE.md)。
 
 额外数据库约束：同一局最多一个 processing（处理中）任务；同一局同一用户最多一个 queued/processing（排队/处理中）任务；同一房间最多一局。用户可同时加入及创建多个房间，免费开房次数和赞助资格在每次建房事务内判定。通过 PostgreSQL 唯一索引实现局内约束，ORM 不支持的约束用版本化 SQL 迁移。续玩关系记录关联源房和新房，合格成员在建新房事务中直接迁入，新房不复制旧房记录。
 
@@ -170,13 +172,18 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 | `GET /invites/room/:token` | 房间邀请预览（只查 `rooms.invite_token_hash`）；限速 |
 | `POST /lobbies/join` | 凭会客厅 token 加入座位；幂等；不锁任何活跃房间 |
 | `POST /lobbies/:id/start` | 会客厅 → 卧室唯一入口，单事务：建房+迁成员+建局；记录赞助授权或预留免费次数 |
-| `GET /rooms/:id/snapshot` | 当前有权成员获取一致快照与 `lastSeq` |
+| `POST /lobbies/:id/host/request` | 会客厅成员申请成为主持人；房主自申请直接通过，其他成员进入待审 |
+| `POST /lobbies/:id/host/approve`、`POST /lobbies/:id/host/reject` | 会客厅房主审核主持申请（批准后原主持人自动卸任） |
+| `POST /lobbies/:id/host/revoke` | 会客厅房主撤销某人的主持身份：降级为普通玩家，回到 Jev 主持 |
+| `POST /lobbies/:id/host/resign` | 会客厅用户主持人自行退出，回到 Jev 主持 |
+| `GET /rooms/:id/snapshot` | 当前有权成员获取一致快照与 `lastSeq`；附带主持人形态、当前用户主持人与待审申请列表 |
 | `GET /rooms/:id/events?afterSeq=...` | 当前成员补齐本房自创建以来的公开事件；超出保留范围返回 410 要求快照，被踢与封禁后拒绝 |
 | `POST /rooms/:id/commands` | 见下表；服务端逐项检查身份、局、状态和队列容量 |
 | `GET /rooms/:id/commands/:clientRequestId` | 当前账号查询本人命令是否已提交及原结果；用于发送超时确认，校验本房权限，禁止公共缓存；详细契约见 12-CONNECTION-EXPERIENCE.md |
 | `POST /realtime/tickets` | 当前会话换取 30 秒一次性实时鉴权票据 |
 | `GET /rounds/:id/history` | 本局有阅读权的参与者查询问答与讨论分页 |
 | `GET /rounds/:id/answer` | 仅正常揭晓或破解结束后，有权参与者获取固定版本答案 |
+| `GET /rounds/:id/host-view` | 仅该房间的用户主持人获取固定版本答案（主持态下不要求揭晓）；汤底不进快照与事件，详见 17-USER-HOST-MODE.md |
 | `POST /creations`、`PATCH /creations/:id` | 作者保存自己的草稿，使用版本条件避免覆盖 |
 | `GET /creations`、`GET /creations/:id` | 作者查看作品反馈、最新草稿、版本记录及审核理由；完整正文只返回给本人 |
 | `POST /creations/:id/submit`、`POST /creations/:id/withdraw` | 提交不可变版本进入 Jev 初审或撤回；初审通过自动发布，无协议勾选或补充材料 |
@@ -214,6 +221,11 @@ Jev、邮件与支付是外部依赖；“自有服务器部署”指产品前�
 | `rotate_invite`（重置邀请） | 房主 | 房间未关闭 |
 | `close_room`（关闭房间） | 房主 | 若有进行中局，同事务终止 |
 | `continue_in_new_room`（下一题新房） | 已归档房间的房主 | 新房单独授权；记录源房与新房、原房合格成员直接迁入；重试幂等 |
+| `request_host`（申请成为主持人） | 本房成员 | 房主自申请直接通过；其他成员生成待审申请，等房主审核 |
+| `approve_host` / `reject_host`（审核主持申请） | 房主 | 目标为本房在座成员；批准时原用户主持人自动卸任 |
+| `revoke_host`（撤销主持身份） | 房主 | 目标为当前用户主持人；降级为普通玩家，房间回到 `host_mode='ai'` |
+| `resign_host`（退出主持人） | 当前用户主持人 | 房间回到 `host_mode='ai'`，挂起的提交交还 Jev |
+| `host_answer`（判定玩家提交） | 当前用户主持人 | 房间处于用户主持模式，目标为本局挂起中的提交；提问判 `yes`/`no`/`irrelevant`，还原判 `solved`/`close`/`not_yet`，判定值须与提交类型匹配 |
 
 关键错误码：`ROOM_FULL`、`ROUND_ENDED`、`SPONSORSHIP_REQUIRED`、`FREE_ROOMS_EXHAUSTED`、`TURN_PENDING`、`QUEUE_FULL`、`STATE_CONFLICT`、`IDEMPOTENCY_CONFLICT`、`JEV_UNAVAILABLE`、`CONTENT_UNAVAILABLE`。分别使用 409 状态冲突、403 权限不足、429 频率限制、503 外部服务不可用等合适 HTTP 状态，客户端按稳定错误码翻译。单人永远不返回赞助要求或免费次数耗尽。
 

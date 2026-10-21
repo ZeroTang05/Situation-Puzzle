@@ -31,6 +31,7 @@ import {
   assertCanRequestHost,
   assertCanResignHost,
   assertCanReviewHost,
+  assertCanRevokeHost,
   assertHostAnswer,
   nextHintIndex,
 } from '@jev/domain';
@@ -232,9 +233,9 @@ export class CommandsService {
           },
         });
 
-        // 用户主持模式：提问挂起等主持人回答，不进 AI 队列（17-USER-HOST-MODE §5.1）。
-        // 挂起任务没有 deadline，因此不参与排队超时判定。
-        const heldForHost = input.type === 'ask' && room.hostMode === 'user';
+        // 用户主持模式：提问与还原都挂起等主持人判定，不进 AI 队列
+        // （17-USER-HOST-MODE §5.1）。挂起任务没有 deadline，因此不参与排队超时判定。
+        const heldForHost = room.hostMode === 'user';
 
         const [turn] = await tx
           .insert(turns)
@@ -252,7 +253,7 @@ export class CommandsService {
           })
           .returning({ id: turns.id });
 
-        // 挂起的提问等主持人答复；还原提交仍由 Jev 判定（决策 D3）
+        // 挂起的提交等主持人判定（提问与还原都一样）；AI 模式照常调度给 Jev
         if (!heldForHost) await app().queue.sendInTx(tx, 'dispatch-room', { roomId: room.id });
         return { controlCommand: false, turnId: turn!.id, acceptedSeq: event.seq };
       }
@@ -459,6 +460,22 @@ export class CommandsService {
         return { controlCommand: false };
       }
 
+      case 'revoke_host': {
+        // 房主撤销某人的用户主持人身份：降级为普通玩家，本局回到 Jev 主持
+        assertCanRevokeHost({ isOwner: isHost, isUserHost: room.userHostId === user.userId });
+        const { userId } = payload as { userId: string };
+        if (room.userHostId !== userId) throw new DomainError('NOT_FOUND', '该成员不是本局主持人');
+        const [target] = await tx
+          .select()
+          .from(roomMembers)
+          .where(and(eq(roomMembers.roomId, room.id), eq(roomMembers.userId, userId)))
+          .limit(1);
+        if (!target) throw new DomainError('NOT_FOUND', '成员不存在');
+        const nickname = (await tx.select({ nickname: profiles.nickname }).from(profiles).where(eq(profiles.userId, userId)).limit(1))[0]?.nickname ?? userId;
+        await this.demoteUserHostTx(tx, room, userId, nickname, round?.id ?? null);
+        return { controlCommand: false };
+      }
+
       case 'resign_host': {
         const isUserHost = room.userHostId === user.userId;
         assertCanResignHost({ isOwner: isHost, isUserHost });
@@ -470,7 +487,7 @@ export class CommandsService {
         const isUserHost = room.userHostId === user.userId;
         const { turnId, verdict } = payload as { turnId: string; verdict: HostVerdict };
         const [turn] = await tx.select().from(turns).where(eq(turns.id, turnId)).for('update').limit(1);
-        if (!turn) throw new DomainError('NOT_FOUND', '问题不存在');
+        if (!turn) throw new DomainError('NOT_FOUND', '提交不存在');
         const [turnRound] = await tx.select().from(rounds).where(eq(rounds.id, turn.roundId)).limit(1);
         if (!turnRound || turnRound.roomId !== room.id || turnRound.status !== 'active') {
           throw new DomainError('ROUND_ENDED', '这一局已经结束了');
@@ -480,6 +497,7 @@ export class CommandsService {
           hostMode: room.hostMode,
           turnKind: turn.kind,
           turnStatus: turn.status,
+          verdict,
         });
         const now = new Date();
         await tx
@@ -495,6 +513,18 @@ export class CommandsService {
         });
         // 主持人的回答与 Jev 的判定等价：首个有效判定消费一次免费开房额度
         await consumeEntitlementIfFreeTx(tx, room.id);
+        // 主持判定「破解成功」：与 Jev 判定破解成功同路径——终局并归档（一房一题）
+        if (turn.kind === 'solve' && verdict === 'solved') {
+          await tx.update(rounds).set({ status: 'solved', endedAt: now, endReason: 'solved' }).where(eq(rounds.id, turnRound.id));
+          await tx.update(roundParticipants).set({ knowsAnswer: true }).where(eq(roundParticipants.roundId, turnRound.id));
+          await appendEvent(tx, {
+            roomId: room.id,
+            roundId: turnRound.id,
+            type: 'round.ended',
+            payload: { roundId: turnRound.id, status: 'solved', reason: 'solved' },
+          });
+          await archiveRoomTx(tx, room.id, 'round_ended', turnRound.id);
+        }
         return { controlCommand: false };
       }
 

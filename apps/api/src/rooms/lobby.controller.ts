@@ -140,6 +140,17 @@ export class LobbyController {
     return { ok: true };
   }
 
+  /** 房主撤销某人的用户主持人身份：降级为普通玩家。 */
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Post('lobbies/:id/host/revoke')
+  async hostRevoke(
+    @CurrentUser() user: SessionUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(lobbyHostReviewRequestSchema)) body: z.infer<typeof lobbyHostReviewRequestSchema>,
+  ) {
+    return this.lobbyService.revokeHost(user, id, body.userId);
+  }
+
   /** 用户主持人自行退出。 */
   @HttpCode(HttpStatus.ACCEPTED)
   @Post('lobbies/:id/host/resign')

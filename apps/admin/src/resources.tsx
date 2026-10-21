@@ -85,6 +85,7 @@ export function RoomList() {
         <TextField source="roomId" label={c.roomIdCol} />
         <TextField source="puzzleTitle" label={c.puzzleTitleCol} />
         <HostField label={c.hostCol} />
+        <HostModeField />
         <TextField source="status" label={c.statusCol} />
         <TextField source="memberCount" label={c.memberCol} />
         <TextField source="capacity" label={c.capacityCol} />
@@ -103,6 +104,25 @@ function HostField({ label }: { label: string }) {
   const name = record?.hostNickname || null;
   const id = record?.hostUserId ?? '';
   return <span aria-label={label} title={id}>{name || (id ? `${id.slice(0, 8)}…` : '—')}</span>;
+}
+
+/**
+ * 主持人形态（17-USER-HOST-MODE）：AI 主持（Jev）或用户主持（玩家接管判题）。
+ * 用户主持时显示主持人昵称——调查时能直接看到「谁在主持这局」。
+ */
+function HostModeField() {
+  const { language } = useLanguage(); const c = copy(language);
+  const record = useRecordContext() as { hostMode?: string; userHostNickname?: string | null; userHostId?: string | null } | undefined;
+  const userHost = record?.hostMode === 'user';
+  const nickname = record?.userHostNickname || null;
+  const id = record?.userHostId ?? '';
+  if (!userHost) return <span>{c.aiHostLabel}</span>;
+  return (
+    <span aria-label={c.userHostLabel} title={id}>
+      {c.userHostLabel}
+      {nickname ? `：${nickname}` : id ? `：${id.slice(0, 8)}…` : ''}
+    </span>
+  );
 }
 
 function RoomActionsField() {

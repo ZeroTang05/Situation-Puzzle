@@ -28,7 +28,7 @@ import {
   rounds,
   userLobbies,
 } from '@jev/database';
-import { DomainError, assertCanRequestHost, assertCanResignHost, assertCanReviewHost } from '@jev/domain';
+import { DomainError, assertCanRequestHost, assertCanResignHost, assertCanReviewHost, assertCanRevokeHost } from '@jev/domain';
 import { app } from '../context.js';
 import type { SessionUser } from '../common/http.js';
 import { createRoomWithEntitlementTx, jevConfigVersionOf } from './room-creation.js';
@@ -410,6 +410,20 @@ export class LobbyService {
         .update(lobbyMembers)
         .set({ hostRequestedAt: null })
         .where(and(eq(lobbyMembers.lobbyId, lobbyId), eq(lobbyMembers.userId, targetUserId)));
+    });
+  }
+
+  /** 房主撤销某人的用户主持人身份：降级为普通玩家，会客厅回到 Jev 主持。 */
+  async revokeHost(user: SessionUser, lobbyId: string, targetUserId: string): Promise<{ hostMode: 'ai' | 'user'; userHostId: string | null }> {
+    return this.db.tx(async (rawTx) => {
+      const tx = rawTx as Tx;
+      const [lobby] = await tx.select().from(userLobbies).where(eq(userLobbies.id, lobbyId)).for('update').limit(1);
+      if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+      assertCanRevokeHost({ isOwner: lobby.hostUserId === user.userId, isUserHost: lobby.userHostId === user.userId });
+      if (lobby.userHostId !== targetUserId) throw new DomainError('NOT_FOUND', '该成员不是本会客厅的主持人');
+      await this.demoteLobbyHostTx(tx, lobby);
+      await tx.update(userLobbies).set({ hostMode: 'ai', userHostId: null }).where(eq(userLobbies.id, lobbyId));
+      return { hostMode: 'ai', userHostId: null };
     });
   }
 

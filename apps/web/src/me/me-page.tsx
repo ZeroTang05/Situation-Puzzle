@@ -126,7 +126,7 @@ export function MePage({ session }: { session: Session | null }) {
 
   return (
     <main className="shell narrow">
-      <header className="topbar">
+      <header className="topbar topbar-title">
         <button className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
         <h1 className="brand brand-sm">{copy.me}</h1>
       </header>
@@ -191,8 +191,6 @@ export function MePage({ session }: { session: Session | null }) {
         </div>
       </section>
 
-      <button className="btn me-logout" onClick={() => void logout()}>{copy.logout}</button>
-
       {/* 赞助面板：商品 + 兑换码（权益只来自服务端） */}
       <SponsorPanel />
 
@@ -227,15 +225,17 @@ export function MePage({ session }: { session: Session | null }) {
             // v3 一房一题：rounds 永远只有 1 局；不再渲染局数 badge / 子列表，
             // 直接在主卡展示该局的题目标题与局状态。点击进入归档房间查看完整历史。
             const round = room.rounds[0];
+            // 房间进行中 + 本局进行中时两个状态文案重复，只保留房间状态
+            const showRoundStatus = round && !(room.roomStatus === 'playing' && round.status === 'active');
             return (
               <li key={room.roomId} className="me-history-item">
                 <Link className="me-history-room" to={`/rooms/${room.roomId}`}>
-                  <div className="me-history-room-main">
-                    <span className="me-history-date">{shortDate(room.createdAt, language)}</span>
-                    <span className={`creation-status${room.roomStatus === 'closed' ? ' me-badge-closed' : ''}`}>{room.roomStatus === 'closed' ? copy.roomStatusClosed : copy.roomStatusActive}</span>
-                  </div>
+                  <span className="me-history-date">{shortDate(room.createdAt, language)}</span>
+                  <span className={`creation-status me-history-badge${room.roomStatus === 'closed' ? ' me-badge-closed' : ''}`}>
+                    {room.roomStatus === 'closed' ? copy.roomStatusClosed : copy.roomStatusActive}
+                  </span>
+                  {showRoundStatus && <span className={`me-round-status ${roundStatusClass(round.status)}`}>{roundStatusLabel(round.status, language, copy)}</span>}
                   {round?.title && <span className="me-history-title">{round.title}</span>}
-                  {round && <span className={`me-round-status ${roundStatusClass(round.status)}`}>{roundStatusLabel(round.status, language, copy)}</span>}
                   <span className="me-history-chevron" aria-hidden>›</span>
                 </Link>
               </li>
@@ -243,6 +243,9 @@ export function MePage({ session }: { session: Session | null }) {
           })}
         </ul>
       </section>
+
+      {/* 退出登录放在页面末尾：账号区保持聚焦，误触概率更低 */}
+      <button className="btn me-logout" onClick={() => void logout()}>{copy.logout}</button>
     </main>
   );
 }

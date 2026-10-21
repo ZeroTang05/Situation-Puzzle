@@ -53,6 +53,20 @@ describe('玩家列表的主持人入口', () => {
     expect(markup).toContain('退出主持人');
     expect(markup).not.toContain('申请成为主持人');
   });
+  it('房主可以撤销他人的主持身份', () => {
+    const hosting = {
+      ...state,
+      hostRequests: [],
+      members: [
+        { userId: 'host', nickname: '房主甲', online: true, isHost: true, isUserHost: false },
+        { userId: 'guest', nickname: '玩家乙', online: false, isHost: false, isUserHost: true },
+      ],
+    };
+    const markup = renderToStaticMarkup(
+      <MemberList state={hosting} me="host" isHost onKick={noop} onRequestHost={noop} onRevokeHost={noop} onResignHost={noop} />,
+    );
+    expect(markup).toContain('撤销主持');
+  });
 });
 
 function event(type: string, payload: Record<string, unknown>, seq = 1) {
@@ -94,6 +108,13 @@ describe('用户主持人的快捷判定', () => {
     expect(markup).toContain('是');
     expect(markup).toContain('否');
     expect(markup).toContain('无关');
+  });
+  it('还原判定给「破解成功 / 接近真相 / 还没猜对」', () => {
+    const markup = renderToStaticMarkup(<HostVerdictButtons onAnswer={noop} verdicts={['solved', 'close', 'not_yet']} />);
+    expect(markup).toContain('破解成功');
+    expect(markup).toContain('接近真相');
+    expect(markup).toContain('还没猜对');
+    expect(markup).not.toContain('无关');
   });
   it('禁用状态下不可点击', () => {
     const markup = renderToStaticMarkup(<HostVerdictButtons onAnswer={noop} disabled />);

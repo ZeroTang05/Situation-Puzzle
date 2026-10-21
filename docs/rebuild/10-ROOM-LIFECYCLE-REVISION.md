@@ -99,6 +99,8 @@ CREATE TABLE lobby_invites (
 
 **为什么不存 `started_room_id`**：lobby 与房间生命周期独立——会客厅不该知道自己的房主最近开了哪些房。「上局房间是 X」这类历史展示不在 lobby 职责内，需要时另起 `lobby_room_history` 表。
 
+**会客厅也持有一份主持人状态**（v4 起，迁移 `0012_user_host_mode`）：`user_lobbies.host_mode` / `user_host_id` 与 `lobby_members.role` / `host_requested_at`，语义与房间同构。`start` 事务把**仍在场**的会主持人迁进新房（新房 `host_mode='user'` 且对应成员 `role='user_host'`）；主持人已离场则撤销会客厅的主持安排，新房按 AI 主持开局。规则细节见 [17-USER-HOST-MODE.md](17-USER-HOST-MODE.md)。
+
 ## 五、API 路由
 
 | 方法 | 路径 | 作用 |
@@ -111,6 +113,10 @@ CREATE TABLE lobby_invites (
 | POST | `/lobbies/:lobbyId/kick` | 房主踢人（DELETE 座位行） |
 | DELETE | `/lobbies/:lobbyId` | 房主解散（清座位、撤销邀请、清临时态） |
 | POST | `/lobbies/:lobbyId/start` | 开局（会客厅 → 卧室唯一入口） |
+| POST | `/lobbies/:lobbyId/host/request` | 申请成为主持人（房主自申请直接通过，其他成员待审） |
+| POST | `/lobbies/:lobbyId/host/approve` | 房主批准主持申请（原主持人自动卸任） |
+| POST | `/lobbies/:lobbyId/host/reject` | 房主拒绝主持申请 |
+| POST | `/lobbies/:lobbyId/host/resign` | 用户主持人自行退出 |
 | POST | `/lobbies/join` | 凭 lobby token 加入座位 |
 | GET | `/invites/lobby/:token` | 预览会客厅邀请 |
 | GET | `/invites/room/:token` | 预览房间邀请 |

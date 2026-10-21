@@ -89,6 +89,20 @@ const hostedSnapshot = dataOf(await http(`/rooms/${roomId}/snapshot`, { cookie: 
 check('房间切换为用户主持', hostedSnapshot.hostMode === 'user' && hostedSnapshot.userHostId === hosterMe.userId, JSON.stringify({ hostMode: hostedSnapshot.hostMode, userHostId: hostedSnapshot.userHostId }));
 check('成员列表标记用户主持人', hostedSnapshot.members.find((m) => m.userId === hosterMe.userId)?.isUserHost === true);
 
+console.log('== 3b. 房主可撤销主持身份（降级为玩家）==');
+const revokeResponse = await command(ownerCookie, roomId, 'revoke_host', { userId: hosterMe.userId });
+check('房主撤销主持身份受理', revokeResponse.status === 202 && dataOf(revokeResponse).status === 'accepted');
+await playerRealtime.waitFor((f) => f.type === 'room.host_resigned' && f.payload.userId === hosterMe.userId, 'room.host_resigned (撤销)');
+const revokedSnapshot = dataOf(await http(`/rooms/${roomId}/snapshot`, { cookie: playerCookie }));
+check('撤销后回到 AI 主持', revokedSnapshot.hostMode === 'ai' && revokedSnapshot.userHostId === null, JSON.stringify({ hostMode: revokedSnapshot.hostMode, userHostId: revokedSnapshot.userHostId }));
+check('被撤销者不再是主持人', revokedSnapshot.members.find((m) => m.userId === hosterMe.userId)?.isUserHost === false);
+const revokeByGuest = await command(hosterCookie, roomId, 'revoke_host', { userId: ownerMe.userId });
+check('非房主不能撤销主持身份', revokeByGuest.status === 403, `status=${revokeByGuest.status}`);
+// 重新批准，恢复用户主持形态
+await command(ownerCookie, roomId, 'approve_host', { userId: hosterMe.userId });
+const reapproved = dataOf(await http(`/rooms/${roomId}/snapshot`, { cookie: playerCookie }));
+check('房主可重新批准主持身份', reapproved.hostMode === 'user' && reapproved.userHostId === hosterMe.userId);
+
 console.log('== 4. 用户主持模式：提问挂起，不进 AI 队列 ==');
 const askResponse = await command(playerCookie, roomId, 'ask', { text: '他是凶手吗？' }, { roundId });
 check('提问受理', askResponse.status === 202);
@@ -119,6 +133,24 @@ check('普通玩家读汤底被拒', playerView.status === 403 && errorOf(player
 const snapshotAnswerLeak = JSON.stringify(dataOf(await http(`/rooms/${roomId}/snapshot`, { cookie: playerCookie })));
 check('快照里不含汤底', !snapshotAnswerLeak.includes(dataOf(hostView).answer));
 
+console.log('== 6b. 还原提交也挂起等主持人判定 ==');
+const solveResponse = await command(playerCookie, roomId, 'solve', { text: '凶手是秘书，因为那杯茶。' }, { roundId });
+check('还原提交受理', solveResponse.status === 202);
+const heldSolveId = dataOf(solveResponse).turnId;
+await new Promise((r) => setTimeout(r, 3000));
+const heldSolve = (await query('select status, result, judged_by, deadline_at from turns where id = $1', [heldSolveId]))[0];
+check('还原提交保持挂起（queued）', heldSolve.status === 'queued', JSON.stringify(heldSolve));
+check('挂起的还原没有 deadline', heldSolve.deadline_at === null);
+const solveCalls = await query('select id from jev_calls where turn_id = $1', [heldSolveId]);
+check('Jev 没有被调用（还原也不走 AI）', solveCalls.length === 0);
+const wrongVerdict = await command(hosterCookie, roomId, 'host_answer', { turnId: heldSolveId, verdict: 'yes' }, { roundId });
+check('还原不能用提问的判定值', wrongVerdict.status === 400, `status=${wrongVerdict.status}`);
+const notYetResponse = await command(hosterCookie, roomId, 'host_answer', { turnId: heldSolveId, verdict: 'not_yet' }, { roundId });
+check('主持人判定还原受理', notYetResponse.status === 202);
+const solveFrame = await waitForTurnResult(playerRealtime, heldSolveId, '玩家收到主持人的还原判定');
+check('玩家实时收到还原判定', solveFrame.type === 'turn.completed', solveFrame.type);
+check('还原判定值与来源正确', solveFrame.payload.result === 'not_yet' && solveFrame.payload.source === 'host', JSON.stringify(solveFrame.payload));
+
 console.log('== 7. 主持人退出 → 提问交还 Jev ==');
 const secondAsk = await command(playerCookie, roomId, 'ask', { text: '还有别人在场吗？' }, { roundId });
 const secondTurnId = dataOf(secondAsk).turnId;
@@ -143,6 +175,21 @@ const ownerApply = await command(ownerCookie, roomId, 'request_host');
 check('房主自申请受理', ownerApply.status === 202);
 const ownerSnapshot = dataOf(await http(`/rooms/${roomId}/snapshot`, { cookie: ownerCookie }));
 check('房主直接成为用户主持人', ownerSnapshot.hostMode === 'user' && ownerSnapshot.userHostId === ownerMe.userId, JSON.stringify({ hostMode: ownerSnapshot.hostMode, userHostId: ownerSnapshot.userHostId }));
+
+console.log('== 9. 主持判定「破解成功」→ 终局并归档 ==');
+const finalSolve = await command(playerCookie, roomId, 'solve', { text: '是秘书，他在茶里下了毒。' }, { roundId });
+const finalSolveId = dataOf(finalSolve).turnId;
+check('玩家的还原提交受理', finalSolve.status === 202);
+const solvedResponse = await command(ownerCookie, roomId, 'host_answer', { turnId: finalSolveId, verdict: 'solved' }, { roundId });
+check('主持判定破解成功受理', solvedResponse.status === 202);
+const endedFrame = await playerRealtime.waitFor((f) => f.type === 'round.ended', 'round.ended (主持判定破解)');
+check('本局结束（solved）', endedFrame.payload.status === 'solved', JSON.stringify(endedFrame.payload));
+const closedFrame = await playerRealtime.waitFor((f) => f.type === 'room.closed', 'room.closed (主持判定破解)');
+check('房间归档（round_ended）', closedFrame.payload.reason === 'round_ended');
+const solvedTurn = (await query('select status, result, judged_by from turns where id = $1', [finalSolveId]))[0];
+check('还原判定落库并标记来源为 host', solvedTurn.status === 'succeeded' && solvedTurn.result === 'solved' && solvedTurn.judged_by === 'host', JSON.stringify(solvedTurn));
+const finalAnswer = await http(`/rounds/${roundId}/answer`, { cookie: playerCookie });
+check('破解后参与者可读汤底', finalAnswer.status === 200 && typeof dataOf(finalAnswer)?.answer === 'string');
 
 await pool.end();
 summary();

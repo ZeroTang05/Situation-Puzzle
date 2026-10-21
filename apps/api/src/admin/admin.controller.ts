@@ -379,6 +379,11 @@ export class AdminController {
         puzzleTitle: sql<string | null>`(select pv.title from rounds r join puzzle_versions pv on pv.id = r.puzzle_version_id where r.room_id = rooms.id and r.status = 'active' limit 1)`,
         /** 房主昵称：后台直接看到是谁的房；无昵称时前端退回截断用户 ID。 */
         hostNickname: sql<string | null>`(select p.nickname from profiles p where p.user_id = rooms.host_user_id)`,
+        /** 主持人形态：ai = Jev 主持；user = 用户主持（17-USER-HOST-MODE） */
+        hostMode: rooms.hostMode,
+        userHostId: rooms.userHostId,
+        /** 用户主持人昵称：房间调查定位「谁在主持」用 */
+        userHostNickname: sql<string | null>`(select p.nickname from profiles p where p.user_id = rooms.user_host_id)`,
       })
       .from(rooms)
       .where(where)
@@ -397,8 +402,29 @@ export class AdminController {
     if (!room) throw new DomainError('NOT_FOUND', '房间不存在');
     const events = await app().db.db.select().from(roomEvents).where(eq(roomEvents.roomId, id)).orderBy(roomEvents.seq).limit(500);
     const roundRows = await app().db.db.select().from(rounds).where(eq(rounds.roomId, id));
+    // 问答与判定来源：调查时能分清这条判定来自 Jev 还是玩家主持人（17-USER-HOST-MODE）
+    const turnRows = await app().db.db
+      .select({
+        turnId: turns.id,
+        roundId: turns.roundId,
+        userId: turns.userId,
+        kind: turns.kind,
+        text: turns.text,
+        status: turns.status,
+        result: turns.result,
+        judgedBy: turns.judgedBy,
+        confidence: turns.confidence,
+      })
+      .from(turns)
+      .innerJoin(rounds, eq(rounds.id, turns.roundId))
+      .where(eq(rounds.roomId, id))
+      .orderBy(asc(turns.acceptedSeq))
+      .limit(500);
+    const userHostNickname = room.userHostId
+      ? (await app().db.db.select({ nickname: profiles.nickname }).from(profiles).where(eq(profiles.userId, room.userHostId)).limit(1))[0]?.nickname ?? null
+      : null;
     await this.audit(operator, 'room.investigate', 'room', id, reason, { events: events.length });
-    return { room, rounds: roundRows, events };
+    return { room, rounds: roundRows, events, turns: turnRows, userHostNickname };
   }
 
   /** 运营强制结束：走统一归档路径（aborted + 释放预留 + room.closed 事件），附审计原因。 */

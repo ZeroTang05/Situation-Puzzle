@@ -23,10 +23,14 @@ export const hostModeSchema = z.enum(['ai', 'user']);
 export type HostMode = z.infer<typeof hostModeSchema>;
 
 /**
- * 用户主持人的判定取值：与 Jev 的 ask 判定同域，但不含 uncertain——
- * 人类主持没有「无法确定」这个选项。
+ * 用户主持人的判定取值（docs/rebuild/17-USER-HOST-MODE.md）：
+ * - 提问（ask）：yes / no / irrelevant——人类主持没有「无法确定」这个选项；
+ * - 还原（solve）：solved / close / not_yet——与 Jev 的还原判定同域。
+ * 判定值必须与被判定任务的类型匹配，由服务端按类型校验。
  */
-export const hostVerdictSchema = z.enum(['yes', 'no', 'irrelevant']);
+export const hostAskVerdictSchema = z.enum(['yes', 'no', 'irrelevant']);
+export const hostSolveVerdictSchema = z.enum(['solved', 'close', 'not_yet']);
+export const hostVerdictSchema = z.union([hostAskVerdictSchema, hostSolveVerdictSchema]);
 export type HostVerdict = z.infer<typeof hostVerdictSchema>;
 
 // ---------- 通用信封 ----------
@@ -339,6 +343,7 @@ export const commandTypes = [
   'request_host',
   'approve_host',
   'reject_host',
+  'revoke_host',
   'resign_host',
   'host_answer',
 ] as const;
@@ -363,6 +368,8 @@ export const commandPayloadSchemas = {
   request_host: z.object({}),
   approve_host: z.object({ userId: z.string() }),
   reject_host: z.object({ userId: z.string() }),
+  /** 房主撤销某人的用户主持人身份：降级为普通玩家 */
+  revoke_host: z.object({ userId: z.string() }),
   resign_host: z.object({}),
   host_answer: z.object({ turnId: z.string().uuid(), verdict: hostVerdictSchema }),
 } as const satisfies Record<CommandType, z.ZodTypeAny>;

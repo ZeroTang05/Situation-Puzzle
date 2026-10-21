@@ -57,7 +57,7 @@ export function HomePage({ session }: { session: Session | null }) {
 
       <section className="hero-card">
         <p className="accent tagline">{copy.tagline}</p>
-        <div className="stack">
+        <div className="hero-actions">
           <button className="btn btn-primary btn-lg" onClick={() => navigate('/library?mode=solo')}>
             {copy.solo}
           </button>
@@ -81,10 +81,13 @@ export function HomePage({ session }: { session: Session | null }) {
               {copy.multi}（{copy.login}）
             </button>
           )}
-          <button className="btn btn-ghost" onClick={() => navigate('/library')}>
+        </div>
+        {/* 次要入口单独一行小按钮：主次分明，不再是四个一样大的方块 */}
+        <div className="hero-secondary">
+          <button className="btn btn-sm" onClick={() => navigate('/library')}>
             {copy.library}
           </button>
-          <button className="btn btn-ghost" onClick={() => navigate('/creations')}>
+          <button className="btn btn-sm" onClick={() => navigate('/creations')}>
             {creationCopy(language).works}
           </button>
         </div>
@@ -93,11 +96,12 @@ export function HomePage({ session }: { session: Session | null }) {
       {createError && <p className="error-text" role="alert">{createError}</p>}
 
       {joinedRooms.length > 0 && (
-        <section className="panel stack" aria-label={copy.activeRooms}>
-          <h2>{copy.activeRooms}</h2>
+        <section className="panel home-rooms" aria-label={copy.activeRooms}>
+          <h2 className="home-section-title">{copy.activeRooms}</h2>
           {joinedRooms.map((room) => (
-            <button key={room.roomId} className="btn" onClick={() => navigate(`/rooms/${room.roomId}`)}>
-              {room.title ?? new Date(room.createdAt).toLocaleString()}
+            <button key={room.roomId} className="home-room-row" onClick={() => navigate(`/rooms/${room.roomId}`)}>
+              <span className="home-room-title">{room.title ?? new Date(room.createdAt).toLocaleString()}</span>
+              <span className="home-room-chevron" aria-hidden>›</span>
             </button>
           ))}
         </section>
@@ -105,8 +109,9 @@ export function HomePage({ session }: { session: Session | null }) {
 
       {session && entitlement.data && (
         <section className="panel entitlement-row">
-          <span>
-            {copy.freeRooms}：{entitlement.data.sponsored ? copy.unlimited : `${entitlement.data.freeRemaining} / 10`}
+          <span className="muted">{copy.freeRooms}</span>
+          <span className="entitlement-value">
+            {entitlement.data.sponsored ? copy.unlimited : `${entitlement.data.freeRemaining} / 10`}
           </span>
           {entitlement.data.sponsored && <span className="verdict-badge verdict-solved">{copy.sponsored}</span>}
         </section>

@@ -24,6 +24,31 @@ async function command(request: APIRequestContext, roomId: string, type: string,
   return (await response.json()).data;
 }
 
+/**
+ * 建房：会客厅 → 选题 → 开局（v3 生命周期唯一入口）。
+ * 同一个用户只有一个会客厅，开第二局前需要重新选题再 start。
+ */
+async function createRoomViaLobby(request: APIRequestContext, puzzleId: string) {
+  const lobbyResponse = await request.post('/api/v1/lobbies', { data: { capacity: 8 } });
+  expect(lobbyResponse.ok(), await lobbyResponse.text()).toBe(true);
+  const lobby = (await lobbyResponse.json()).data;
+  const select = await request.post(`/api/v1/lobbies/${lobby.lobbyId}/select`, { data: { puzzleId, language: 'zh' } });
+  expect(select.ok(), await select.text()).toBe(true);
+  const start = await request.post(`/api/v1/lobbies/${lobby.lobbyId}/start`);
+  expect(start.ok(), await start.text()).toBe(true);
+  const started = (await start.json()).data;
+  return { lobbyId: lobby.lobbyId, roomId: started.roomId, inviteToken: started.inviteToken };
+}
+
+/** 会客厅开局需要有人在座；客人在开局前加入会客厅。 */
+async function joinLobby(request: APIRequestContext, lobbyId: string) {
+  const invite = await request.post(`/api/v1/lobbies/${lobbyId}/invite`);
+  expect(invite.ok(), await invite.text()).toBe(true);
+  const { token } = (await invite.json()).data;
+  const joined = await request.post('/api/v1/lobbies/join', { data: { token } });
+  expect(joined.ok(), await joined.text()).toBe(true);
+}
+
 /** 从页面发起提问，等待真实 Jev 返回置信度。 */
 async function ask(page: Page) {
   await expect(page.locator('.composer-input')).toHaveAttribute('rows', '1');
@@ -31,8 +56,9 @@ async function ask(page: Page) {
   await page.locator('.composer-input').fill('故事里有人死亡吗？');
   await page.getByRole('button', { name: '发送', exact: true }).click();
   await expect(page.locator('.confidence').last()).toContainText(/置信度 \d+%/, { timeout: 70_000 });
-  await expect(page.locator('.turn-text').last()).toHaveCSS('border-radius', '4px');
-  await expect(page.locator('.turn-text').last()).toHaveCSS('padding', '5px 8px');
+  // 提问与判定同处一个气泡：气泡圆角 12px，文本本身不再带内边距
+  await expect(page.locator('.turn-bubble').last()).toHaveCSS('border-top-left-radius', '12px');
+  await expect(page.locator('.turn-text').last()).toHaveCSS('padding', '0px');
   await expect(page.locator('.turn-result .verdict-badge').last()).toHaveCSS('border-radius', '4px');
   await expect(page.locator('.turn-result .verdict-badge').last()).toHaveCSS('padding', '1px 6px');
   for (const tab of await page.locator('.mode-tab').all()) {
@@ -67,14 +93,21 @@ test('题库卡片展示已玩角标、固定票数布局，并用所选题目�
   await expect(card.locator('.puzzle-card-votes > span')).toHaveCount(2);
   await expect(card.getByRole('button', { name: '单人游玩' })).toBeVisible();
   await card.getByRole('button', { name: '开房间' }).click();
-  await expect(page).toHaveURL(/\/rooms\/[0-9a-f-]+/);
-  const roomId = new URL(page.url()).pathname.split('/').at(-1)!;
+  // v3：开房间先进会客厅（题库是选菜过渡态），选题后由房主点「开始本局」进房间
+  await expect(page).toHaveURL(/\/lobbies\/[0-9a-f-]+/);
+  const lobbyId = new URL(page.url()).pathname.split('/').at(-1)!;
   try {
-    await expect.poll(async () => (await getData(context.request, `/rooms/${roomId}/snapshot`)).controlVersion).toBeGreaterThan(0);
-    await command(context.request, roomId, 'start_round');
-    expect((await getData(context.request, `/rooms/${roomId}/snapshot`)).round.puzzleId).toBe(puzzle.id);
-  } finally {
+    await expect(page.getByRole('button', { name: '开始本局', exact: true })).toBeEnabled({ timeout: 15_000 });
+    await page.getByRole('button', { name: '开始本局', exact: true }).click();
+    await expect(page).toHaveURL(/\/rooms\/[0-9a-f-]+/);
+    const roomId = new URL(page.url()).pathname.split('/').at(-1)!;
+    const snapshot = await getData(context.request, `/rooms/${roomId}/snapshot`);
+    expect(snapshot.round.puzzleId).toBe(puzzle.id);
     await command(context.request, roomId, 'close_room');
+    expect(lobbyId).toBeTruthy();
+  } finally {
+    const roomId = new URL(page.url()).pathname.split('/').at(-1)!;
+    if (/^[0-9a-f-]{36}$/.test(roomId)) await command(context.request, roomId, 'close_room').catch(() => undefined);
   }
 });
 
@@ -83,13 +116,9 @@ test('游玩中邀请、登录直达、玩家管理、提示翻阅和置信度',
   const catalog = await getData(context.request, '/puzzles?language=zh&limit=1');
   expect(catalog.items.length).toBe(1);
   const puzzle = catalog.items[0];
-  const createdResponse = await context.request.post('/api/v1/rooms', { data: { capacity: 8 } });
-  expect(createdResponse.ok()).toBe(true);
-  const created = (await createdResponse.json()).data;
+  const created = await createRoomViaLobby(context.request, puzzle.id);
   const guest = await browser.newContext({ baseURL: test.info().project.use.baseURL });
   try {
-    await command(context.request, created.roomId, 'select_puzzle', { puzzleId: puzzle.id, language: 'zh' });
-    await command(context.request, created.roomId, 'start_round');
     await page.goto(`/rooms/${created.roomId}?lang=zh`);
     await expectCenteredTitle(page);
     await expect(page.locator('.story-card')).toHaveCSS('background-image', /story-sea/);
@@ -99,7 +128,7 @@ test('游玩中邀请、登录直达、玩家管理、提示翻阅和置信度',
     await expect(management).toBeVisible();
     await management.getByRole('button', { name: '邀请朋友', exact: true }).click();
     const initialLink = await page.evaluate(() => navigator.clipboard.readText());
-    expect(new URL(initialLink).pathname).toBe(`/invite/${created.inviteToken}`);
+    expect(new URL(initialLink).pathname).toBe(`/room/invite/${created.inviteToken}`);
     await management.getByRole('button', { name: '重置邀请链接' }).click();
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).not.toBe(initialLink);
     const link = await page.evaluate(() => navigator.clipboard.readText());
@@ -158,11 +187,13 @@ test('同一用户可同时创建和加入多个房间，退出一间不影响�
   let guestCreated: { roomId: string } | null = null;
   try {
     await register(guest, '多房成员');
-    for (let index = 0; index < 2; index += 1) {
-      const response = await context.request.post('/api/v1/rooms', { data: { capacity: 8 } });
-      expect(response.ok(), await response.text()).toBe(true);
-      created.push((await response.json()).data);
-    }
+    const catalog = await getData(context.request, '/puzzles?language=zh&limit=2');
+    // 同一个用户只有一个会客厅：开第二局要在同一个会客厅里重新选题再开局
+    const first = await createRoomViaLobby(context.request, catalog.items[0].id);
+    created.push(first);
+    await joinLobby(guest.request, first.lobbyId);
+    const second = await createRoomViaLobby(context.request, catalog.items[1]?.id ?? catalog.items[0].id);
+    created.push(second);
     expect(created[0]!.roomId).not.toBe(created[1]!.roomId);
     // 新用户注册即有一个月注册礼赞助，开房走赞助授权，免费次数不消耗
     expect((await getData(context.request, '/rooms/entitlement-preview')).freeRemaining).toBe(10);
@@ -172,9 +203,9 @@ test('同一用户可同时创建和加入多个房间，退出一间不影响�
       expect((await response.json()).data.roomId).toBe(room.roomId);
       expect((await getData(guest.request, `/rooms/${room.roomId}/snapshot`)).members).toHaveLength(2);
     }
-    const thirdResponse = await guest.request.post('/api/v1/rooms', { data: { capacity: 8 } });
-    expect(thirdResponse.ok(), await thirdResponse.text()).toBe(true);
-    guestCreated = (await thirdResponse.json()).data;
+    const guestCatalog = await getData(guest.request, '/puzzles?language=zh&limit=1');
+    const guestRoom = await createRoomViaLobby(guest.request, guestCatalog.items[0].id);
+    guestCreated = { roomId: guestRoom.roomId };
     await page.goto('/');
     await expect(page.getByRole('button', { name: '开房间', exact: true })).toBeVisible();
     await expect(page.getByRole('region', { name: '进行中的房间' }).getByRole('button')).toHaveCount(2);
@@ -284,12 +315,8 @@ for (const viewport of [{ width: 390, height: 740 }, { width: 1440, height: 900 
 test('多人输入区在手机和宽屏贴底，短消息与长记录均只滚动对话区', async ({ page, context }) => {
   await register(context, '贴底布局测试');
   const catalog = await getData(context.request, '/puzzles?language=zh&limit=1');
-  const created = await context.request.post('/api/v1/rooms', { data: { capacity: 8 } });
-  expect(created.ok()).toBe(true);
-  const room = (await created.json()).data;
+  const room = await createRoomViaLobby(context.request, catalog.items[0].id);
   try {
-    await command(context.request, room.roomId, 'select_puzzle', { puzzleId: catalog.items[0].id, language: 'zh' });
-    await command(context.request, room.roomId, 'start_round');
     await page.goto(`/rooms/${room.roomId}?lang=zh`);
     await expect(page.locator('.composer-input')).toBeVisible();
     for (const viewport of [{ width: 390, height: 740 }, { width: 1440, height: 900 }]) {
@@ -348,11 +375,12 @@ test('等待室确认选题后显示题名，支持重选和刷新恢复', async
   await register(context, '选题房主');
   const catalog = await getData(context.request, '/puzzles?language=zh&limit=2');
   expect(catalog.items).toHaveLength(2);
-  const response = await context.request.post('/api/v1/rooms', { data: { capacity: 8 } });
-  expect(response.ok()).toBe(true);
-  const room = (await response.json()).data;
+  const lobbyResponse = await context.request.post('/api/v1/lobbies', { data: { capacity: 8 } });
+  expect(lobbyResponse.ok()).toBe(true);
+  const lobby = (await lobbyResponse.json()).data;
   try {
-    await page.goto(`/rooms/${room.roomId}?lang=zh`);
+    // v3：选题发生在会客厅页，题库是「选菜过渡态」，选完回会客厅
+    await page.goto(`/lobbies/${lobby.lobbyId}?lang=zh`);
     await expect(page.getByRole('button', { name: '开始本局', exact: true })).toBeDisabled();
     for (const puzzle of catalog.items) {
       await page.locator('.puzzle-selection').click();
@@ -367,16 +395,21 @@ test('等待室确认选题后显示题名，支持重选和刷新恢复', async
     await expect(page.locator('body')).toHaveCSS('background-image', 'none');
     await expect(page.locator('main')).toHaveCSS('background-image', 'none');
   } finally {
-    await command(context.request, room.roomId, 'close_room');
+    await context.request.delete(`/api/v1/lobbies/${lobby.lobbyId}`);
   }
 });
 
 test('我的房间历史每页五间，翻页不重复；语言切换仅在首页', async ({ page, context }) => {
   await register(context, '历史分页测试');
+  const catalog = await getData(context.request, '/puzzles?language=zh&limit=1');
+  const lobbyResponse = await context.request.post('/api/v1/lobbies', { data: { capacity: 8 } });
+  const lobby = (await lobbyResponse.json()).data;
   for (let index = 0; index < 6; index += 1) {
-    const response = await context.request.post('/api/v1/rooms', { data: { capacity: 8 } });
-    expect(response.ok()).toBe(true);
-    await command(context.request, (await response.json()).data.roomId, 'close_room');
+    // 同一个会客厅连续开局：每局都是独立房间（会客厅回到 closed 后可再选题）
+    await context.request.post(`/api/v1/lobbies/${lobby.lobbyId}/select`, { data: { puzzleId: catalog.items[0].id, language: 'zh' } });
+    const start = await context.request.post(`/api/v1/lobbies/${lobby.lobbyId}/start`);
+    expect(start.ok(), await start.text()).toBe(true);
+    await command(context.request, (await start.json()).data.roomId, 'close_room');
   }
   const first = await getData(context.request, '/me/history?page=1&limit=5');
   const second = await getData(context.request, '/me/history?page=2&limit=5');
@@ -390,10 +423,10 @@ test('我的房间历史每页五间，翻页不重复；语言切换仅在首�
   await page.goto('/me');
   await expect(page.getByRole('button', { name: 'EN', exact: true })).toHaveCount(0);
   const history = page.locator('section').filter({ has: page.getByRole('heading', { name: '多人历史' }) });
-  await expect(history.locator('article')).toHaveCount(5);
+  await expect(history.locator('.me-history-item')).toHaveCount(5);
   await history.getByRole('button', { name: '下一页' }).click();
-  await expect(history.locator('article')).toHaveCount(1);
+  await expect(history.locator('.me-history-item')).toHaveCount(1);
   await expect(history.getByRole('button', { name: '下一页' })).toBeDisabled();
   await history.getByRole('button', { name: '上一页' }).click();
-  await expect(history.locator('article')).toHaveCount(5);
+  await expect(history.locator('.me-history-item')).toHaveCount(5);
 });

@@ -93,7 +93,7 @@ export function InvitePage({ session, kind }: { session: Session | null; kind: '
 
   return (
     <main className="shell narrow">
-      <header className="topbar">
+      <header className="topbar topbar-title">
         <button className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
         <h1 className="brand">{copy.brand}</h1>
       </header>

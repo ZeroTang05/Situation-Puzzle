@@ -9,7 +9,7 @@
 与**赞助码**（零实名通道：运营方用个人收款码收款后发码，用户在「我的」页兑换，站内自动核销并发授权；见 `docs/rebuild/14-REDEEM-CODE-CHANNEL.md`）。
 本文档面向开发与维护；用户视角的宣传页在 `README.md`。
 
-**用户主持人模式**（`docs/rebuild/17-USER-HOST-MODE.md`）：除 AI「Jev」外，玩家也能自己当主持人。房间与会客厅各持一份主持人状态：`rooms.host_mode`（ai/user）+ `rooms.user_host_id`（谁在主持）+ `room_members.role`（成员身份镜像）/ `host_requested_at`（待审申请），会客厅同理。成员在会客厅或房间右上角玩家列表申请，房主审核（房主自申请直接通过）；进入用户主持模式后，玩家的提问**挂起等主持人回答**（不进 AI 队列、`deadline_at` 置空不参与排队超时），主持人在「问 Jev」页给「是/否/无关」快捷判定，在「还原真相」页直接看汤底，在讨论页发提示；退出（或离开/被踢）即回到 Jev 主持。还原提交仍由 Jev 判定。汤底只走 `GET /rounds/:id/host-view` 单独下发（仅本房间用户主持人可读），不进快照与事件。
+**用户主持人模式**（`docs/rebuild/17-USER-HOST-MODE.md`）：除 AI「Jev」外，玩家也能自己当主持人。房间与会客厅各持一份主持人状态：`rooms.host_mode`（ai/user）+ `rooms.user_host_id`（谁在主持）+ `room_members.role`（成员身份镜像）/ `host_requested_at`（待审申请），会客厅同理。成员在会客厅或房间右上角玩家列表申请，房主审核（房主自申请直接通过）；房主也可**撤销**他人已有的主持身份（降级为玩家，房间回到 Jev 主持）。用户主持模式下，玩家的**提问与还原都挂起等主持人判定**（不进 AI 队列、`deadline_at` 置空不参与排队超时）：主持人在「问 Jev」页给「是/否/无关」，在「查看汤底」页（主持视角下「还原真相」页签改名）给「破解成功/接近真相/还没猜对」，判定为破解成功即终局归档；退出或被撤销即回到 Jev 主持。汤底只走 `GET /rounds/:id/host-view` 单独下发（仅本房间用户主持人可读），不进快照与事件。
 
 ## 目录结构
 
@@ -26,9 +26,9 @@ packages/jev         Jev SystemOne 适配：20s 超时、错误分类、缺概�
 packages/i18n        稳定枚举/错误码 → 中英文案
 packages/ui          设计变量（深海色系、16px 正文、44px 触控）
 infra/               web/admin/api/jobs 各自 Dockerfile（apps/web+apps/admin 静态烘进 nginx，api 容器启动自动跑迁移）、web.nginx.conf / admin.nginx.conf
-scripts/             冒烟与端到端联调脚本（smoke-new-system.sh、e2e-run.sh、dev-env.sh、dev-mailsink.mjs）
+scripts/             冒烟与端到端联调脚本（smoke-new-system.sh、e2e-run.sh、e2e-node-run.mjs 跨平台编排器、e2e-multiplayer/e2e-host-mode/e2e-votes 剧本、dev-env.sh、dev-mailsink.mjs）
 data/                题库 JSON 导入源：根 library.json / library.en.json 同 ID 配套（顺序须一致，当前 446 题 = 天堂精选 93 置顶 + 首发 7 + 扩展 10 + 小小耶精选 240 + 许二木精选 96，许二木批 2026-10-15 入库追加于库尾；zh 条目 category 本格/变格由导入映射为 puzzle_category 枚举 honkaku/henkaku；第一题固定「终点线」，各批次保持批内原序；seed 导入统一署名「初始题库」（signature 模式，前端按语言本地化））；sources.md 全库来源总览与逐题对照（编号=现役库位置 1–446）；scoring/ 打分口径与全部批次评分（编号 1–493 连续续写，与 sources.md 编号相互独立）；curated/ 各 UP 主批逐篇评审与存档（天堂/小小耶/许二木三批普通题均已并入根库，特殊玩法与未采用稿留存于各自目录）；reference/ 真实游玩素材（group 原始字幕 → real 抽取稿，按 UP 主分目录）
-docs/rebuild/        产品与架构设计文档（01~16：10 房间生命周期修订、11 赞踩署名、12 连接体验、13 App 版本计划、14 赞助码通道、15 支付通道凭据清单、16 并发与限流盘点）
+docs/rebuild/        产品与架构设计文档（01~17：10 房间生命周期修订、11 赞踩署名、12 连接体验、13 App 版本计划、14 赞助码通道、15 支付通道凭据清单、16 并发与限流盘点、17 用户主持人模式）
 ```
 
 ## 常用命令
@@ -43,8 +43,10 @@ pnpm dev:admin          # 管理端 :5174
 pnpm db:migrate         # 追加式迁移（可重复执行）
 pnpm db:seed            # 导入 data/library.json 全部题目（当前 446 题），平台自有内容入库即发布（--purge-stale 硬删消失题，生产禁用）
 pnpm smoke              # 冒烟：一次性 PostgreSQL + API + jobs + 接口断言
-pnpm e2e:multiplayer    # 双用户多人 E2E：36 项断言（真实 SMTP 登录 + 真实 Jev）
-pnpm e2e:votes          # 赞踩与署名 E2E（真实 SMTP + 真实 Jev）
+pnpm e2e:multiplayer    # 双用户多人 E2E：60 项断言（真实 SMTP 登录 + 真实 Jev）
+pnpm e2e:votes          # 赞踩与署名 E2E：25 项断言（真实 SMTP，不调 Jev）
+pnpm e2e:host           # 用户主持人 E2E：40 项断言（真实 SMTP + 真实 Jev）
+pnpm e2e:local <剧本>    # 跨平台编排（不依赖 bash/docker）：multiplayer | host | votes | playwright
 pnpm build:app          # 网页产物打进 Android 壳（--mode app：接口指向生产域名）；出 APK 在 apps/app/android 跑 gradlew assembleDebug 或用 Android Studio 打开
 ```
 
@@ -143,4 +145,8 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
 - 类型：`pnpm typecheck`；单测：`pnpm test`
 - 冒烟：`pnpm smoke`（Docker 一次性库 + 接口断言）
 - 双人 E2E：`pnpm e2e:multiplayer`（真实 SMTP 登录 + 真实 Jev + 账本断言）
-- 浏览器实测：登录、建房、邀请、提问、提示、公布答案、切题、解散
+- 用户主持人 E2E：`pnpm e2e:host`（`scripts/e2e-node-run.mjs` 自建临时库 + 收信台 + API + jobs，40 项断言）
+- 跨平台编排：`pnpm e2e:local <multiplayer|host|votes|playwright>`（不依赖 bash/docker，只要有一个可连的 PostgreSQL）
+- 真实库集成测试：设 `HOST_MODE_TEST_DATABASE_URL` 后跑 `apps/api/src/rooms/host-mode.integration.test.ts`
+- 浏览器套件：`pnpm --filter @jev/web test:e2e`（真实 Chromium；房间相关用例已迁到会客厅流程）
+- 浏览器实测：登录、建房、邀请、提问、提示、公布答案、切题、解散；用户主持模式另测申请/审批/主持判定/汤底可见性/退出

@@ -186,7 +186,7 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
   };
 
   return <main className="shell creation-shell">
-    <header className="topbar">
+    <header className="topbar topbar-title">
       <button className="btn btn-ghost btn-sm" onClick={async () => { if (!dirty || await dialog.confirm(text.leaveConfirm)) back(); }}>{copy.back}</button>
       <h1 className="brand brand-sm creation-title">{detail ? text.edit : text.create}</h1>
       {detail && (

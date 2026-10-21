@@ -16,6 +16,8 @@ import { HealthController } from '../health/health.controller.js';
 import { CatalogController } from '../catalog/catalog.controller.js';
 import { AppSessionController } from '../auth/app-session.controller.js';
 import { SoloController } from './../solo/solo.controller.js';
+import { RoomsController } from '../rooms/rooms.controller.js';
+import { LobbyController } from '../rooms/lobby.controller.js';
 
 type Access = 'public' | 'anonymous' | 'session';
 
@@ -57,5 +59,15 @@ describe('公开路由清单', () => {
     expect(accessOf(BillingController.prototype.createOrder)).toBe('session');
     expect(accessOf(BillingController.prototype.redeem)).toBe('session');
     expect(accessOf(BillingController.prototype.channels)).toBe('session');
+  });
+
+  it('用户主持人相关接口全部需要会话', () => {
+    // 主持人汤底与主持权操作都涉及私有数据：一旦被误标成公开/匿名，
+    // 任何人都能读到汤底或改写本房主持状态（17-USER-HOST-MODE §4.3）。
+    expect(accessOf(RoomsController.prototype.hostView)).toBe('session');
+    expect(accessOf(LobbyController.prototype.hostRequest)).toBe('session');
+    expect(accessOf(LobbyController.prototype.hostApprove)).toBe('session');
+    expect(accessOf(LobbyController.prototype.hostReject)).toBe('session');
+    expect(accessOf(LobbyController.prototype.hostResign)).toBe('session');
   });
 });

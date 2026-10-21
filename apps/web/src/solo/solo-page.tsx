@@ -20,6 +20,7 @@ import { GameHeader } from '../game/game-header.js';
 import { ChatInput } from '../game/chat-input.js';
 import { LargeModelToggle } from '../game/large-model-toggle.js';
 import { TurnCard } from '../game/turn-card.js';
+import { StoryCard } from '../game/story-card.js';
 
 type InputMode = 'ask' | 'solve';
 
@@ -304,21 +305,40 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
         action={<button className="btn btn-ghost btn-sm" disabled={changingPuzzle || sending || hintBusy || revealing} onClick={() => void changePuzzle()}>{changingPuzzle ? copy.changingPuzzle : copy.changePuzzle}</button>}
       />
 
-      <section className="story-card solo-story game-scroll">
-        {session.category && (
-          <span className="puzzle-card-category" style={{ marginBottom: '12px' }}>
-            {session.category === 'honkaku' ? copy.honkaku : copy.henkaku}
-          </span>
-        )}
-        {session.difficulty && (
-          <span className={`puzzle-card-difficulty puzzle-card-difficulty-${session.difficulty}`} style={{ marginBottom: '12px' }}>
-            {session.difficulty === 'easy' ? copy.easy : session.difficulty === 'hard' ? copy.hard : copy.medium}
-          </span>
-        )}
-        <p className="story">{session.surface}</p>
-      </section>
+      <StoryCard className="solo-story">
+          {session.category && (
+            <span className="puzzle-card-category" style={{ marginBottom: '12px' }}>
+              {session.category === 'honkaku' ? copy.honkaku : copy.henkaku}
+            </span>
+          )}
+          {session.difficulty && (
+            <span className={`puzzle-card-difficulty puzzle-card-difficulty-${session.difficulty}`} style={{ marginBottom: '12px' }}>
+              {session.difficulty === 'easy' ? copy.easy : session.difficulty === 'hard' ? copy.hard : copy.medium}
+            </span>
+          )}
+          <p className="story">{session.surface}</p>
+      </StoryCard>
 
       <section className="chat solo-chat game-scroll" ref={chatRef} aria-live="polite">
+        <div className="chat-stream">
+        {turns.length === 0 && (
+          <div className="chat-empty">
+            <p className="chat-empty-title">{copy.soloEmptyTitle}</p>
+            <p className="muted chat-empty-hint">{copy.soloEmptyHint}</p>
+            <div className="chat-empty-examples">
+              {copy.soloEmptyExamples.map((example) => (
+                <button
+                  key={example}
+                  type="button"
+                  className="btn btn-sm chat-empty-example"
+                  onClick={() => { setText(example); persistDraft('ask', example); }}
+                >
+                  {example}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {turns.filter((turn) => turn.result !== 'hint').map((turn) => (
           <TurnCard key={turn.localTurnId} turn={turn} copy={copy} language={language} />
         ))}
@@ -348,6 +368,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
               <VoteButtons puzzleId={puzzleId!} session={authSession} initialUp={publicStats.upCount} initialDown={publicStats.downCount} />
             </section>
           )}
+        </div>
         </div>
       </section>
 

@@ -10,6 +10,7 @@ import { api, ApiError, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
 import { useBack } from '../back.js';
 import { displayVerdict, format } from '@jev/i18n';
+import type { HostVerdict } from '@jev/contracts';
 import { useRoomSync } from './use-room-sync.js';
 import { useRoomOutbox } from './use-room-outbox.js';
 import type { InputMode } from './room-local.js';
@@ -18,6 +19,7 @@ import { GameHeader } from '../game/game-header.js';
 import { ChatInput } from '../game/chat-input.js';
 import { LargeModelToggle } from '../game/large-model-toggle.js';
 import { inviteUrl, confidenceLabel } from '../game/game-display.js';
+import { StoryCard } from '../game/story-card.js';
 import { VoteButtons } from '../catalog/vote-buttons.js';
 import type { Session } from '../session.js';
 import { MessageDelivery } from './message-delivery.js';
@@ -133,9 +135,10 @@ export function RoomPage({ session }: { session: Session | null }) {
   const requestHost = useCallback(() => { void run('request_host'); }, [run]);
   const approveHost = useCallback((userId: string) => { void run('approve_host', { userId }); }, [run]);
   const rejectHost = useCallback((userId: string) => { void run('reject_host', { userId }); }, [run]);
+  const revokeHost = useCallback((userId: string) => { void run('revoke_host', { userId }); }, [run]);
   const resignHost = useCallback(() => { void run('resign_host'); }, [run]);
-  const answerQuestion = useCallback(
-    (turnId: string, verdict: 'yes' | 'no' | 'irrelevant') => {
+  const answerTurn = useCallback(
+    (turnId: string, verdict: HostVerdict) => {
       void run('host_answer', { turnId, verdict }, state?.round?.roundId);
     },
     [run, state?.round?.roundId],
@@ -223,6 +226,7 @@ export function RoomPage({ session }: { session: Session | null }) {
           onRequestHost={requestHost}
           onApproveHost={approveHost}
           onRejectHost={rejectHost}
+          onRevokeHost={revokeHost}
           onResignHost={resignHost}
         />
         {isHost && state.roomStatus !== 'closed' && <div className="hint-row">
@@ -238,6 +242,12 @@ export function RoomPage({ session }: { session: Session | null }) {
             {copy.closeRoom}
           </button>
         </div>}
+        {/* 离开房间收进管理面板：底部操作行只留给本局相关的操作，窄屏不再挤成一排小字按钮 */}
+        {state.roomStatus !== 'closed' && (
+          <button className="btn btn-ghost room-leave" disabled={busy} onClick={() => void run('leave').then((result) => { if (result) navigate('/'); })}>
+            {copy.leave}
+          </button>
+        )}
       </section>}
       <div className={`appear-slot${inviteCopied ? ' open' : ''}`}>
         <p className="accent">{copy.inviteCopied}</p>
@@ -246,52 +256,60 @@ export function RoomPage({ session }: { session: Session | null }) {
       {/* ---------- 游戏区 ---------- */}
       {round && (
         <>
-          <section className="story-card game-scroll">
-            {round.category && (
-              <span className="puzzle-card-category" style={{ marginBottom: '12px' }}>
-                {round.category === 'honkaku' ? copy.honkaku : copy.henkaku}
-              </span>
-            )}
-            {round.difficulty && (
-              <span className={`puzzle-card-difficulty puzzle-card-difficulty-${round.difficulty}`} style={{ marginBottom: '12px' }}>
-                {round.difficulty === 'easy' ? copy.easy : round.difficulty === 'hard' ? copy.hard : copy.medium}
-              </span>
-            )}
-            <p className="story">{displayedSurface}</p>
-          </section>
+          <StoryCard>
+              {round.category && (
+                <span className="puzzle-card-category" style={{ marginBottom: '12px' }}>
+                  {round.category === 'honkaku' ? copy.honkaku : copy.henkaku}
+                </span>
+              )}
+              {round.difficulty && (
+                <span className={`puzzle-card-difficulty puzzle-card-difficulty-${round.difficulty}`} style={{ marginBottom: '12px' }}>
+                  {round.difficulty === 'easy' ? copy.easy : round.difficulty === 'hard' ? copy.hard : copy.medium}
+                </span>
+              )}
+              <p className="story">{displayedSurface}</p>
+          </StoryCard>
 
           <section className="chat game-scroll" aria-live="polite">
-            {/* 用户主持人的「还原真相」子页面：直接展示汤底，不弹确认框 */}
+            <div className="chat-stream">
+            {/* 用户主持人的「查看汤底」子页面：直接展示汤底，不弹确认框 */}
             {hostView && inputMode === 'solve' && round && <HostSecret roundId={round.roundId} />}
             {tab === 'qa' &&
               state.turns.map((turn) => (
                 <div key={turn.turnId} data-message-id={turn.turnId} className={`turn turn-${turn.kind}`}>
-                  <p className="turn-text">
-                    <strong>{turn.nickname}</strong>：{turn.text}
-                  </p>
-                  {turn.status === 'queued' && <p className="muted turn-status">{userHostMode ? copy.hostWaitingAnswer : copy.queued}</p>}
-                  {turn.status === 'processing' && <p className="muted turn-status">{copy.judging}</p>}
-                  {turn.status === 'failed' && <p className="error-text turn-status">{copy.failed}</p>}
-                  {turn.status === 'succeeded' && turn.result && (
-                    <p className="turn-result">
-                      <span className={`verdict-badge verdict-${turn.result}`}>{displayVerdict(turn.result, language)}</span>
-                      {turn.source === 'host' && <span className="verdict-badge verdict-uncertain">{copy.hostAnsweredByHost}</span>}
-                      <small className="confidence">{confidenceLabel(turn.confidence, language)}</small>
+                  <div className="turn-bubble">
+                    <p className="turn-text">
+                      <strong>{turn.nickname}</strong>：{turn.text}
                     </p>
+                    {turn.status === 'queued' && <p className="muted turn-status">{userHostMode ? copy.hostWaitingAnswer : copy.queued}</p>}
+                    {turn.status === 'processing' && <p className="muted turn-status">{copy.judging}</p>}
+                    {turn.status === 'failed' && <p className="error-text turn-status">{copy.failed}</p>}
+                    {turn.status === 'succeeded' && turn.result && (
+                      <p className="turn-result">
+                        <span className={`verdict-badge verdict-${turn.result}`}>{displayVerdict(turn.result, language)}</span>
+                        {turn.source === 'host' && <span className="verdict-badge verdict-uncertain">{copy.hostAnsweredByHost}</span>}
+                        <small className="confidence">{confidenceLabel(turn.confidence, language)}</small>
+                      </p>
+                    )}
+                  </div>
+                  {/* 用户主持人：待判定的提交底部给出快捷判定（提问：是/否/无关；还原：破解成功/接近真相/还没猜对） */}
+                  {hostView && turn.status === 'queued' && turn.kind === 'ask' && inputMode === 'ask' && (
+                    <HostVerdictButtons disabled={busy || status !== 'ready'} onAnswer={(verdict) => answerTurn(turn.turnId, verdict)} />
                   )}
-                  {/* 用户主持人：每条待回答的问题底部给出「是 / 否 / 无关」快捷判定 */}
-                  {hostView && turn.kind === 'ask' && turn.status === 'queued' && (
-                    <HostVerdictButtons disabled={busy || status !== 'ready'} onAnswer={(verdict) => answerQuestion(turn.turnId, verdict)} />
+                  {hostView && turn.status === 'queued' && turn.kind === 'solve' && inputMode === 'solve' && (
+                    <HostVerdictButtons disabled={busy || status !== 'ready'} onAnswer={(verdict) => answerTurn(turn.turnId, verdict)} verdicts={['solved', 'close', 'not_yet']} />
                   )}
                 </div>
               ))}
             {tab === 'discuss' &&
               state.discussions.map((d) => (
                 <div key={d.eventId} data-message-id={d.eventId} className="turn turn-ask">
-                  <p className="turn-text">
-                    <strong>{d.nickname}</strong>：{d.text}
-                  </p>
-                  {d.userId === state.userHostId && <span className="verdict-badge verdict-uncertain">{copy.userHost}</span>}
+                  <div className="turn-bubble">
+                    <p className="turn-text">
+                      <strong>{d.nickname}</strong>：{d.text}
+                    </p>
+                    {d.userId === state.userHostId && <span className="verdict-badge verdict-uncertain">{copy.userHost}</span>}
+                  </div>
                 </div>
               ))}
             {outbox.local?.pending.filter((p) => {
@@ -302,12 +320,15 @@ export function RoomPage({ session }: { session: Session | null }) {
               const kindClass = p.input.type === 'solve' ? 'turn-solve' : 'turn-ask';
               const self = state.members.find((m) => m.userId === me);
               return <div className={`turn ${kindClass}`} key={p.input.clientRequestId} data-pending-id={p.input.clientRequestId}>
-                <p className="turn-text">{self ? <><strong>{self.nickname}</strong>：</> : null}{String(p.input.payload?.text ?? '')}</p>
-                <MessageDelivery status={p.status} {...(p.error !== undefined ? { error: p.error } : {})} />
+                <div className="turn-bubble">
+                  <p className="turn-text">{self ? <><strong>{self.nickname}</strong>：</> : null}{String(p.input.payload?.text ?? '')}</p>
+                  <MessageDelivery status={p.status} {...(p.error !== undefined ? { error: p.error } : {})} />
+                </div>
                 {p.status === 'confirming' && <button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>{copy.keepConfirming}</button>}
               </div>;
             })}
             <div ref={chatBottomRef} />
+            </div>
           </section>
           <div className={`appear-slot${newMessages ? ' open' : ''}`} inert={!newMessages}>
             <button className="btn btn-sm" onClick={() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); atBottom.current = true; setNewMessages(false); }}>{copy.newMessages} ↓</button>
@@ -330,23 +351,19 @@ export function RoomPage({ session }: { session: Session | null }) {
                   {copy.ask}
                 </button>
                 <button className={`mode-tab ${inputMode === 'solve' ? 'active' : ''}`} role="tab" aria-selected={inputMode === 'solve'} onClick={() => setInputMode('solve')}>
-                  {copy.solve}
+                  {hostView ? copy.hostViewAnswer : copy.solve}
                 </button>
                 <button className={`mode-tab ${inputMode === 'discussion' ? 'active' : ''}`} role="tab" aria-selected={inputMode === 'discussion'} onClick={() => setInputMode('discussion')}>
                   {copy.discuss}
                 </button>
               </div>
               <div className="composer-row">
-                {/* 用户主持人：提问与还原两个子页面由主持形态接管，只保留讨论发言 */}
-                {hostView && inputMode !== 'discussion' ? (
+                {/* 用户主持人：提问页由主持形态接管；查看汤底页直接展示汤底，输入区留空；讨论页照常发言 */}
+                {hostView && inputMode === 'ask' ? (
                   <p className="muted host-mode-note">
-                    {inputMode === 'ask'
-                      ? pendingHostQuestions > 0
-                        ? `${format(copy.hostAnswerTitle, { n: pendingHostQuestions })} · ${copy.hostAnswerHint}`
-                        : copy.hostAnswerEmpty
-                      : copy.hostSolveHint}
+                    {pendingHostQuestions > 0 ? `${format(copy.hostAnswerTitle, { n: pendingHostQuestions })} · ${copy.hostAnswerHint}` : copy.hostAnswerEmpty}
                   </p>
-                ) : (
+                ) : hostView && inputMode === 'solve' ? null : (
                   <>
                     <ChatInput
                       maxLength={inputMode === 'ask' ? 500 : inputMode === 'discussion' ? 1000 : 1500}
@@ -367,7 +384,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                   </>
                 )}
               </div>
-              <div className="hint-row">
+              <div className="room-actions">
                 {isHost && (
                   <>
                     <button className="btn btn-sm" disabled={busy || round.hintsRevealed >= 3} onClick={() => void run('reveal_hint', undefined, round.roundId)}>
@@ -391,9 +408,6 @@ export function RoomPage({ session }: { session: Session | null }) {
                     </button>
                   </>
                 )}
-                <button className="btn btn-sm btn-ghost" onClick={() => void run('leave').then((result) => { if (result) navigate('/'); })}>
-                  {copy.leave}
-                </button>
               </div>
             </footer>
           )}
@@ -488,6 +502,7 @@ export function MemberList({
   onRequestHost,
   onApproveHost,
   onRejectHost,
+  onRevokeHost,
   onResignHost,
 }: {
   state: {
@@ -500,6 +515,7 @@ export function MemberList({
   onRequestHost?: () => void;
   onApproveHost?: (userId: string) => void;
   onRejectHost?: (userId: string) => void;
+  onRevokeHost?: (userId: string) => void;
   onResignHost?: () => void;
 }) {
   const { copy } = useLanguage();
@@ -530,8 +546,16 @@ export function MemberList({
               </button>
             </span>
           )}
-          {/* 本人入口：申请成为主持人 / 退出主持人 */}
-          {m.userId === me && !m.isUserHost && onRequestHost && (
+          {/* 房主可撤销他人已有的主持身份：降级为普通玩家 */}
+          {isHost && m.isUserHost && m.userId !== me && onRevokeHost && (
+            <span className="member-actions">
+              <button className="btn btn-sm btn-ghost" onClick={() => onRevokeHost(m.userId)}>
+                {copy.hostRevoke}
+              </button>
+            </span>
+          )}
+          {/* 本人入口：申请成为主持人 / 退出主持人（房主本人就是主持人，不显示申请入口） */}
+          {m.userId === me && !m.isUserHost && !m.isHost && onRequestHost && (
             <span className="member-actions">
               <button className="btn btn-sm" onClick={onRequestHost} disabled={pending.has(m.userId)}>
                 {pending.has(m.userId) ? copy.hostApplyPending : copy.hostApply}
@@ -553,27 +577,25 @@ export function MemberList({
 
 /**
  * 用户主持人的快捷判定按钮（17-USER-HOST-MODE §6.1）：
- * 「是 / 否 / 无关」三个按钮直接给挂起中的提问下判定。
+ * 提问给「是 / 否 / 无关」，还原给「破解成功 / 接近真相 / 还没猜对」。
  */
 export function HostVerdictButtons({
   onAnswer,
   disabled,
+  verdicts = ['yes', 'no', 'irrelevant'],
 }: {
-  onAnswer: (verdict: 'yes' | 'no' | 'irrelevant') => void;
+  onAnswer: (verdict: HostVerdict) => void;
   disabled?: boolean;
+  verdicts?: HostVerdict[];
 }) {
   const { copy, language } = useLanguage();
   return (
     <div className="host-verdict-row">
-      <button className="btn btn-sm" disabled={disabled} onClick={() => onAnswer('yes')}>
-        {displayVerdict('yes', language)}
-      </button>
-      <button className="btn btn-sm" disabled={disabled} onClick={() => onAnswer('no')}>
-        {displayVerdict('no', language)}
-      </button>
-      <button className="btn btn-sm" disabled={disabled} onClick={() => onAnswer('irrelevant')}>
-        {displayVerdict('irrelevant', language)}
-      </button>
+      {verdicts.map((verdict) => (
+        <button key={verdict} className="btn btn-sm" disabled={disabled} onClick={() => onAnswer(verdict)}>
+          {displayVerdict(verdict, language)}
+        </button>
+      ))}
     </div>
   );
 }

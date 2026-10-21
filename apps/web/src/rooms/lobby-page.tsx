@@ -145,6 +145,14 @@ export function LobbyPage({ session }: { session: Session | null }) {
       .catch((err: unknown) => setError(translateApiError(err, language, copy.hostReviewFail)));
   };
 
+  /** 房主撤销某人的主持身份：降级为普通玩家 */
+  const hostRevoke = (userId: string) => {
+    if (!lobbyId) return;
+    void api(`/lobbies/${lobbyId}/host/revoke`, { method: 'POST', body: { userId } })
+      .then(() => refreshLobby())
+      .catch((err: unknown) => setError(translateApiError(err, language, copy.hostReviewFail)));
+  };
+
   const hostResign = () => {
     if (!lobbyId) return;
     void api(`/lobbies/${lobbyId}/host/resign`, { method: 'POST' })
@@ -211,14 +219,13 @@ export function LobbyPage({ session }: { session: Session | null }) {
 
   return (
     <main className="shell narrow">
-      <header className="topbar">
+      <header className="topbar topbar-title">
         <button className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
         <h1 className="brand brand-sm">{copy.lobbyTitle}</h1>
       </header>
 
       <section className="panel stack">
-        <h2>{copy.lobbyTitle}</h2>
-        <p className="muted">
+        <p className="lobby-summary">
           {format(copy.roomOf, { name: data.members.find((m) => m.isHost)?.nickname ?? '', n: data.members.length, cap: data.capacity })}
         </p>
 
@@ -230,6 +237,7 @@ export function LobbyPage({ session }: { session: Session | null }) {
           onRequestHost={hostRequest}
           onApproveHost={hostApprove}
           onRejectHost={hostReject}
+          onRevokeHost={hostRevoke}
           onResignHost={hostResign}
         />
 
