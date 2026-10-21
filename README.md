@@ -92,3 +92,16 @@
 ## 许可
 
 本项目采用 [GPL-3.0](LICENSE) 开源。
+
+---
+
+## 需要一个能落地 AI 能力的开发者？
+
+这个游戏里最难的部分不是前端，是「让模型只回答是 / 否 / 无关 / 无法确定」还判得准。
+这类活我接：AI 能力接进真实业务、实时多人系统、支付与订阅、部署运维，一个人交付完整链路。
+
+- [服务目录与作品集](https://requirement-diagnoser.tangziye2.workers.dev/go?s=gh-service-situationpuzzle&u=https%3A%2F%2Fzerotang-studio.pages.dev%2F)
+- [接单行情报告](https://requirement-diagnoser.tangziye2.workers.dev/go?s=gh-market-situationpuzzle&u=https%3A%2F%2Fzerotang-studio.pages.dev%2Fmarket.html):438 个真实在招项目的价格分布
+- [需求诊断台](https://requirement-diagnoser.tangziye2.workers.dev/go?s=gh-diagnoser-situationpuzzle&u=https%3A%2F%2Frequirement-diagnoser.tangziye2.workers.dev%2F):贴一段需求，30 秒出可行性、方案与报价区间
+
+<!-- freelancing -->
