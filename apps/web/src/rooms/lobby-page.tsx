@@ -99,7 +99,7 @@ export function LobbyPage({ session }: { session: Session | null }) {
   };
 
   const dismiss = async () => {
-    if (!lobbyId || !(await dialog.confirm(copy.dismissLobbyConfirm))) return;
+    if (!lobbyId || !(await dialog.confirm(copy.dismissLobbyConfirm, copy.dismissLobby))) return;
     await api(`/lobbies/${lobbyId}`, { method: 'DELETE' });
     navigate('/', { replace: true });
   };

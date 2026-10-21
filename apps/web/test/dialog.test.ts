@@ -46,4 +46,15 @@ describe('共用弹窗', () => {
     await pending;
     expect(notifications).toBe(1);
   });
+  it('可带自定义标题，不带时不写入标题字段', async () => {
+    const queue = new DialogQueue();
+    const titled = queue.ask('confirm', '公布汤底？', '公布答案');
+    expect(queue.current()?.title).toBe('公布答案');
+    queue.settle(null);
+    await titled;
+    const plain = queue.ask('confirm', '确定？');
+    expect(queue.current()?.title).toBeUndefined();
+    queue.settle(null);
+    await plain;
+  });
 });

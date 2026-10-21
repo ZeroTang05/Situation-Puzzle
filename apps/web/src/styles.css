@@ -318,6 +318,10 @@ a { text-decoration: none; }
 
 /* ---------- 首页 ---------- */
 
+/* 次级操作按钮（验证码类）：带底色，和输入框、与主提交按钮都区分开 */
+.btn-soft { color: var(--accent); border-color: rgba(125, 216, 198, .4); background: rgba(125, 216, 198, .1); }
+.btn-soft:hover:not(:disabled) { border-color: rgba(125, 216, 198, .7); background: rgba(125, 216, 198, .18); }
+
 .hero-card {
   position: relative;
   margin-top: 8px;
@@ -829,7 +833,6 @@ textarea.composer-input, .composer .composer-input {
 /* 底部房主操作：三个操作等宽铺满，窄屏不再挤成一排小字按钮 */
 .room-actions { display: flex; gap: 8px; padding: 6px 0 0; }
 .room-actions .btn { flex: 1 1 0; min-width: 0; white-space: nowrap; }
-.room-leave { width: 100%; }
 
 /* 宽屏时对话与输入区不无限拉伸：限宽居中，视线聚焦在一列上 */
 @media (min-width: 760px) {
@@ -850,22 +853,26 @@ textarea.composer-input, .composer .composer-input {
   position: relative;
 }
 
-/* 玩家管理面板：贴右上角悬浮卡片，宽度按内容走但不超过一半 shell；列表内部滚动 */
+/* 玩家管理面板：贴右上角悬浮卡片；宽度够放下「昵称 + 身份徽标 + 操作」而不挤压 */
 .room-management {
   position: absolute;
   top: 56px;
   right: 14px;
-  width: min(260px, calc(50% - 14px));
-  max-height: 50dvh;
+  width: min(320px, calc(100% - 28px));
+  max-height: 60dvh;
   overflow-y: auto;
-  padding: 10px 12px !important;
-  gap: 8px !important;
+  padding: 12px !important;
+  gap: 10px !important;
   z-index: 4;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
-  background: rgba(9, 39, 62, 0.96);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+  background: rgba(9, 39, 62, .97);
   border-radius: var(--radius);
 }
 .room-management > h2 { margin: 0; font-size: 13px; color: var(--muted); }
+/* 面板操作：邀请占满一行，重置/解散并排，离开单独一行 */
+.room-management-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.room-management-actions .btn { width: 100%; min-width: 0; }
+.room-management-wide { grid-column: 1 / -1; width: 100%; }
 
 /* 输入与操作区贴底，消息占满剩余高度并在内部滚动。 */
 .room-playing { height: 100dvh; min-height: 0; overflow: hidden; padding-bottom: max(8px, var(--safe-area-inset-bottom, env(safe-area-inset-bottom))); }
@@ -918,6 +925,9 @@ textarea.composer-input, .composer .composer-input {
   padding: 2px 0;
 }
 
+/* 身份徽标不换行：窄面板里「房主」竖排成两行很难看 */
+.member-row .verdict-badge { flex: none; white-space: nowrap; }
+
 .member-name {
   flex: 1 1 auto;
   min-width: 0;
@@ -935,9 +945,9 @@ textarea.composer-input, .composer .composer-input {
 }
 
 .member-actions .btn {
-  min-height: 22px;
-  padding: 0 6px;
-  font-size: 11px;
+  min-height: 26px;
+  padding: 1px 8px;
+  font-size: 12px;
 }
 
 .presence-dot {

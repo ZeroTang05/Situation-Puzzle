@@ -384,7 +384,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
         </div>
         <section className="solo-action-row" role="group" aria-label={copy.hint}>
           <button className="btn btn-sm" disabled={changingPuzzle || hintBusy || session.status !== 'active' || session.hintsUnlocked.length >= 3} onClick={() => void unlockHint(session.hintsUnlocked.length)}>
-            {copy.hint} {session.hintsUnlocked.length}/3
+            {copy.hintMore} ({session.hintsUnlocked.length}/3)
           </button>
           <button className="btn btn-sm" aria-pressed={inputMode === 'solve'} disabled={changingPuzzle || sending || solved || Boolean(session.revealedAnswer)} onClick={() => {
             const next = inputMode === 'solve' ? 'ask' : 'solve';
@@ -393,7 +393,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
             persistDraft(next, '');
           }}>{copy.solve}</button>
           <button className="btn btn-sm" disabled={changingPuzzle || sending || revealing || Boolean(session.revealedAnswer)} onClick={async () => {
-            if (await dialog.confirm(copy.revealConfirm)) void reveal();
+            if (await dialog.confirm(copy.soloRevealConfirm, copy.soloViewAnswer)) void reveal();
           }}>{copy.soloViewAnswer}</button>
         </section>
 

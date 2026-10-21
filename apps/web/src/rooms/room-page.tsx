@@ -51,11 +51,27 @@ export function RoomPage({ session }: { session: Session | null }) {
   const setText = (next: string) => { void outbox.update((value) => ({ ...value, drafts: { ...value.drafts, [inputMode]: next } })).catch(() => undefined); };
   const [managementOpen, setManagementOpen] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
+  const managementRef = useRef<HTMLElement>(null);
+  const managementToggleRef = useRef<HTMLButtonElement>(null);
+  const answeredRef = useRef<HTMLElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
   const [newMessages, setNewMessages] = useState(false);
   const [showConnection, setShowConnection] = useState(false);
   const pendingCurrent = outbox.local?.pending.some((p) => p.input.type === inputMode && (p.status === 'sending' || p.status === 'confirming')) ?? false;
+
+  // 成员面板是悬浮卡片：点面板与右上角入口以外的位置收起，不用再点一次按钮
+  useEffect(() => {
+    if (!managementOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (managementRef.current?.contains(target) || managementToggleRef.current?.contains(target)) return;
+      setManagementOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [managementOpen]);
 
   const run = useCallback(
     async (type: string, payload?: Record<string, unknown>, roundId?: string) => {
@@ -101,6 +117,12 @@ export function RoomPage({ session }: { session: Session | null }) {
   }, [status]);
 
   const round = state?.round ?? null;
+  const answered = round && (round.status === 'solved' || round.status === 'revealed');
+  const hints = round ? round.hints.filter(Boolean) : [];
+  // 公布答案/破解后结算面板排在聊天下方，页面不会自动滚过去：这里主动带到视野里
+  useEffect(() => {
+    if (answered) answeredRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [answered]);
   const translatedPuzzle = useQuery({
     queryKey: ['room-puzzle', round?.puzzleId, language],
     queryFn: () => api<{ title: string; surface: string }>(`/puzzles/${round!.puzzleId}?language=${language}`),
@@ -187,8 +209,6 @@ export function RoomPage({ session }: { session: Session | null }) {
     );
   }
 
-  const answered = round && (round.status === 'solved' || round.status === 'revealed');
-  const hints = round ? round.hints.filter(Boolean) : [];
   // 头部状态行（掉线/错误/进行中的非聊天操作）：任一存在即展开状态槽，收起时不顶动游戏区
   const pendingNotices = (outbox.local?.pending ?? []).filter((p) => !['ask', 'solve', 'discussion'].includes(p.input.type) && p.status !== 'sent');
   const hasStatus = userHostMode || (showConnection && status !== 'ready') || Boolean(outbox.storageError || translatedPuzzle.isError || error) || pendingNotices.length > 0;
@@ -198,7 +218,7 @@ export function RoomPage({ session }: { session: Session | null }) {
       <GameHeader
         title={displayedTitle ?? copy.loadingRound}
         back={<button className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>}
-        action={<button className="btn btn-ghost btn-sm" onClick={() => setManagementOpen((open) => !open)} aria-expanded={managementOpen}>
+        action={<button ref={managementToggleRef} className="btn btn-ghost btn-sm" onClick={() => setManagementOpen((open) => !open)} aria-expanded={managementOpen}>
           {format(language === 'zh' ? copy.playersCount : copy.playersCountEn, { n: memberCount, cap: state.capacity })}
         </button>}
       />
@@ -216,7 +236,7 @@ export function RoomPage({ session }: { session: Session | null }) {
           </div>)}
         </div>
       </div>
-      {managementOpen && <section className="panel stack room-management game-scroll" aria-label={copy.membersManagement}>
+      {managementOpen && <section ref={managementRef} className="panel stack room-management game-scroll" aria-label={copy.membersManagement}>
         <h2>{copy.membersHeader}</h2>
         <MemberList
           state={state}
@@ -229,14 +249,14 @@ export function RoomPage({ session }: { session: Session | null }) {
           onRevokeHost={revokeHost}
           onResignHost={resignHost}
         />
-        {isHost && state.roomStatus !== 'closed' && <div className="hint-row">
-          <button className="btn" disabled={busy} onClick={() => void copyInvite()}>{copy.invite}</button>
+        {isHost && state.roomStatus !== 'closed' && <div className="room-management-actions">
+          <button className="btn room-management-wide" disabled={busy} onClick={() => void copyInvite()}>{copy.invite}</button>
           <button className="btn" disabled={busy} onClick={() => void run('rotate_invite')}>{language === 'zh' ? copy.resettingInvite : copy.resetInviteEn}</button>
           <button
             className="btn btn-danger"
             disabled={busy}
             onClick={async () => {
-              if (await dialog.confirm(copy.closeRoomConfirm)) void run('close_room').then((result) => { if (result) navigate('/'); });
+              if (await dialog.confirm(copy.closeRoomConfirm, copy.closeRoom)) void run('close_room').then((result) => { if (result) navigate('/'); });
             }}
           >
             {copy.closeRoom}
@@ -244,7 +264,7 @@ export function RoomPage({ session }: { session: Session | null }) {
         </div>}
         {/* 离开房间收进管理面板：底部操作行只留给本局相关的操作，窄屏不再挤成一排小字按钮 */}
         {state.roomStatus !== 'closed' && (
-          <button className="btn btn-ghost room-leave" disabled={busy} onClick={() => void run('leave').then((result) => { if (result) navigate('/'); })}>
+          <button className="btn btn-ghost room-management-wide" disabled={busy} onClick={() => void run('leave').then((result) => { if (result) navigate('/'); })}>
             {copy.leave}
           </button>
         )}
@@ -388,12 +408,12 @@ export function RoomPage({ session }: { session: Session | null }) {
                 {isHost && (
                   <>
                     <button className="btn btn-sm" disabled={busy || round.hintsRevealed >= 3} onClick={() => void run('reveal_hint', undefined, round.roundId)}>
-                      {copy.hint} {round.hintsRevealed}/3
+                      {copy.hintMore} ({round.hintsRevealed}/3)
                     </button>
                     <button
                       className="btn btn-sm btn-danger"
                       onClick={async () => {
-                        if (await dialog.confirm(copy.revealConfirm)) void run('reveal_answer', undefined, round.roundId);
+                        if (await dialog.confirm(copy.revealConfirm, copy.reveal)) void run('reveal_answer', undefined, round.roundId);
                       }}
                     >
                       {copy.reveal}
@@ -401,7 +421,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                     <button
                       className="btn btn-sm btn-ghost"
                       onClick={async () => {
-                        if (await dialog.confirm(copy.endRoundConfirm)) void run('end_round', undefined, round.roundId);
+                        if (await dialog.confirm(copy.endRoundConfirm, copy.endRound)) void run('end_round', undefined, round.roundId);
                       }}
                     >
                       {copy.endRound}
@@ -433,7 +453,7 @@ export function RoomPage({ session }: { session: Session | null }) {
 
       {/* ---------- 结算（房间已归档：一房一题，历史保留可查） ---------- */}
       {answered && (
-        <section className="panel stack">
+        <section ref={answeredRef} className="panel stack">
           <p className={`verdict-badge verdict-${round.status === 'solved' ? 'solved' : 'close'}`}>
             {round.status === 'solved' ? copy.solvedByTeam : copy.revealedAnswer}
           </p>

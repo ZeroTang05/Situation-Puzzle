@@ -2,6 +2,8 @@ export interface DialogRequest {
   id: number;
   kind: 'confirm' | 'prompt';
   message: string;
+  /** 自定义标题：缺省时用全局「确定」文案 */
+  title?: string;
   resolve: (value: string | null) => void;
 }
 
@@ -15,9 +17,9 @@ export class DialogQueue {
     this.listeners.add(listener);
     return () => { this.listeners.delete(listener); };
   };
-  ask(kind: DialogRequest['kind'], message: string): Promise<string | null> {
+  ask(kind: DialogRequest['kind'], message: string, title?: string): Promise<string | null> {
     return new Promise((resolve) => {
-      this.requests.push({ id: ++this.nextId, kind, message, resolve });
+      this.requests.push({ id: ++this.nextId, kind, message, ...(title !== undefined ? { title } : {}), resolve });
       this.emit();
     });
   }

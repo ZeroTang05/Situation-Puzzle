@@ -117,7 +117,7 @@ export function MePage({ session }: { session: Session | null }) {
 
   /** 退出登录走二次确认，避免误触后丢掉本地单人进度入口。 */
   const logout = async () => {
-    if (!(await dialog.confirm(logoutConfirmText))) return;
+    if (!(await dialog.confirm(logoutConfirmText, copy.logout))) return;
     await clearRoomLocal(session.user.id);
     await signOut();
     queryClient.clear();

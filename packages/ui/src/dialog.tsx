@@ -3,8 +3,9 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { DialogQueue } from './dialog-queue.js';
 
 interface DialogActions {
-  confirm: (message: string) => Promise<boolean>;
-  prompt: (message: string) => Promise<string | null>;
+  /** title 可选：给确认动作一个表意标题（如「公布汤底」），缺省用全局「确定」 */
+  confirm: (message: string, title?: string) => Promise<boolean>;
+  prompt: (message: string, title?: string) => Promise<string | null>;
 }
 const Context = createContext<DialogActions | null>(null);
 
@@ -14,11 +15,14 @@ export function DialogProvider({ children, confirmLabel, cancelLabel }: { childr
   const request = useSyncExternalStore(queue.subscribe, queue.current, queue.current);
   const origin = useRef<HTMLElement | null>(null);
   const [actions] = useState<DialogActions>(() => {
-    const ask = (kind: 'confirm' | 'prompt', message: string) => {
+    const ask = (kind: 'confirm' | 'prompt', message: string, title?: string) => {
       if (!queue.current()) origin.current = document.activeElement as HTMLElement | null;
-      return queue.ask(kind, message);
+      return queue.ask(kind, message, title);
     };
-    return { confirm: async (message) => (await ask('confirm', message)) !== null, prompt: (message) => ask('prompt', message) };
+    return {
+      confirm: async (message, title) => (await ask('confirm', message, title)) !== null,
+      prompt: async (message, title) => ask('prompt', message, title),
+    };
   });
   return <Context.Provider value={actions}>
     {children}
@@ -29,7 +33,7 @@ export function DialogProvider({ children, confirmLabel, cancelLabel }: { childr
           event.preventDefault();
           document.querySelector<HTMLElement>(request?.kind === 'prompt' ? '.jev-dialog input' : '.jev-dialog-cancel')?.focus();
         }}>
-          <Dialog.Title className="jev-dialog-title">{confirmLabel}</Dialog.Title>
+          <Dialog.Title className="jev-dialog-title">{request?.title ?? confirmLabel}</Dialog.Title>
           <Dialog.Description className="jev-dialog-description">{request?.message}</Dialog.Description>
           {request && <form key={request.id} onSubmit={(event) => {
             event.preventDefault();

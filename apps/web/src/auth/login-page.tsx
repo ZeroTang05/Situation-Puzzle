@@ -289,7 +289,7 @@ export function LoginPage() {
                   />
                 </label>
                 <button
-                  className="btn btn-primary"
+                  className="btn btn-soft"
                   disabled={busy || sendWait > 0 || !email.includes('@')}
                   onClick={() => void sendCode('signin')}
                 >
@@ -360,7 +360,7 @@ export function LoginPage() {
             {!signupOtpVerified && (
               <button
                 type="button"
-                className="btn"
+                className="btn btn-soft"
                 disabled={busy || sendWait > 0 || !email.includes('@')}
                 onClick={() => void sendCode('signup')}
               >
@@ -382,7 +382,7 @@ export function LoginPage() {
                   />
                 </label>
                 <button
-                  className="btn"
+                  className="btn btn-soft"
                   disabled={busy || code.length < 4}
                   onClick={() => void verifyOtpForSignup()}
                 >

@@ -150,7 +150,7 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
       focusFirstError(fields);
       return;
     }
-    if (!(await dialog.confirm(text.submitConfirm))) return;
+    if (!(await dialog.confirm(text.submitConfirm, text.submit))) return;
     setBusy(true); setFieldErrors({}); setSubmitError(null);
     try {
       const saved = await persist(); setDirty(false);
@@ -163,7 +163,7 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
     finally { setBusy(false); }
   };
   const revise = async (action: 'revise' | 'withdraw') => {
-    if (!detail || (action === 'withdraw' && !(await dialog.confirm(text.withdrawConfirm)))) return;
+    if (!detail || (action === 'withdraw' && !(await dialog.confirm(text.withdrawConfirm, text.withdraw)))) return;
     setBusy(true); setSubmitError(null);
     try { await api(`/creations/${detail.puzzleId}/${action}`, { method: 'POST', body: condition }); await refresh(detail.puzzleId); }
     catch (error) { setSubmitError(error instanceof Error ? error.message : String(error)); }
@@ -187,7 +187,7 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
 
   return <main className="shell creation-shell">
     <header className="topbar topbar-title">
-      <button className="btn btn-ghost btn-sm" onClick={async () => { if (!dirty || await dialog.confirm(text.leaveConfirm)) back(); }}>{copy.back}</button>
+      <button className="btn btn-ghost btn-sm" onClick={async () => { if (!dirty || await dialog.confirm(text.leaveConfirm, text.backEditor)) back(); }}>{copy.back}</button>
       <h1 className="brand brand-sm creation-title">{detail ? text.edit : text.create}</h1>
       {detail && (
         <span className="creation-topbar-meta">
