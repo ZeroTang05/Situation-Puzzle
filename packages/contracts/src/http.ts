@@ -208,6 +208,8 @@ export const lobbySnapshotSchema = z.object({
   lobbyId: z.string().uuid(),
   hostUserId: z.string(),
   capacity: z.number().int(),
+  /** 下一局是否公开：true 时开局建出来的房间会出现在大厅（18-HALL-PUBLIC-ROOMS） */
+  isPublic: z.boolean(),
   members: z.array(lobbyMemberSchema),
   selectedPuzzle: roomSelectedPuzzleSchema.nullable(),
   /** 主持人形态：ai = Jev 主持；user = 用户主持 */
@@ -221,6 +223,19 @@ export const lobbySnapshotSchema = z.object({
 export const lobbySelectRequestSchema = z.object({
   puzzleId: z.string().uuid(),
   language: languageSchema,
+});
+
+/**
+ * 会客厅的公开 / 私人开关（docs/rebuild/18-HALL-PUBLIC-ROOMS.md）。
+ * 会客厅没有事件流与命令通道，单独一个 HTTP 端点；幂等（重复设同一个值不报错）。
+ */
+export const lobbyVisibilityRequestSchema = z.object({
+  isPublic: z.boolean(),
+});
+
+/** 开关结果：回显最终生效的状态（服务端是唯一权威） */
+export const lobbyVisibilityResponseSchema = z.object({
+  isPublic: z.boolean(),
 });
 
 /** 开局响应：正式房间 ID + 邀请令牌（开局后邀请更多玩家用） */
@@ -261,6 +276,38 @@ export const roomJoinRequestSchema = z.object({
 export const roomRejoinResponseSchema = z.object({
   roomId: z.string(),
   rejoined: z.boolean(),
+});
+
+// ---------- 大厅与公开房间（docs/rebuild/18-HALL-PUBLIC-ROOMS.md） ----------
+
+/**
+ * 大厅列表里的一条公开房间。
+ * 只含公开信息：房主昵称、人数、当前汤题目；不含汤底与未解锁提示。
+ */
+export const hallRoomSchema = z.object({
+  roomId: z.string().uuid(),
+  /** 当前这一局的题目（没有开局时为 null） */
+  title: z.string().nullable(),
+  /** 题目语言：zh / en（大厅按服务端存的题面语言显示） */
+  language: z.enum(['zh', 'en']).nullable(),
+  hostNickname: z.string(),
+  memberCount: z.number().int().nonnegative(),
+  capacity: z.number().int().nonnegative(),
+  /** 已满员：仍显示，但不可加入 */
+  full: z.boolean(),
+  status: z.enum(['waiting', 'playing']),
+  createdAt: z.string(),
+});
+
+export const hallResponseSchema = z.object({
+  rooms: z.array(hallRoomSchema),
+});
+
+/** 直接加入公开房间的结果 */
+export const publicRoomJoinResponseSchema = z.object({
+  roomId: z.string().uuid(),
+  /** true = 本次真的加入了；false = 之前就在房里（幂等） */
+  joined: z.boolean(),
 });
 
 // ---------- 题目投票与作者署名（docs/rebuild/11-VOTES-AND-AUTHORSHIP.md） ----------
@@ -326,6 +373,7 @@ export const roomFollowupResponseSchema = z.object({
  * 选题与开局发生在等待室（HTTP 接口），不作为房间命令；转让房主功能不存在。
  * request_host / approve_host / reject_host / resign_host / host_answer 是用户主持人模式
  * 的房间侧命令（docs/rebuild/17-USER-HOST-MODE.md）。
+ * set_visibility 是公开 / 私人开关（docs/rebuild/18-HALL-PUBLIC-ROOMS.md）。
  */
 export const commandTypes = [
   'ask',
@@ -346,6 +394,7 @@ export const commandTypes = [
   'revoke_host',
   'resign_host',
   'host_answer',
+  'set_visibility',
 ] as const;
 
 export const commandTypeSchema = z.enum(commandTypes);
@@ -372,6 +421,8 @@ export const commandPayloadSchemas = {
   revoke_host: z.object({ userId: z.string() }),
   resign_host: z.object({}),
   host_answer: z.object({ turnId: z.string().uuid(), verdict: hostVerdictSchema }),
+  /** 公开 / 私人开关：true = 出现在大厅并允许直接加入 */
+  set_visibility: z.object({ isPublic: z.boolean() }),
 } as const satisfies Record<CommandType, z.ZodTypeAny>;
 
 export const roomCommandRequestSchema = z.object({
@@ -446,6 +497,8 @@ export const roomSnapshotSchema = z.object({
   hostUserId: z.string(),
   controlVersion: z.number().int(),
   capacity: z.number().int(),
+  /** 公开房间：true 时出现在大厅并允许直接加入（18-HALL-PUBLIC-ROOMS） */
+  isPublic: z.boolean(),
   /** 主持人形态：ai = Jev 主持；user = 用户主持（17-USER-HOST-MODE） */
   hostMode: hostModeSchema,
   /** 当前用户主持人（null = 无） */

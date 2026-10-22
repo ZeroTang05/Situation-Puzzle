@@ -135,6 +135,9 @@ export const roomEventPayloadSchemas = {
   'room.host_rejected': z.object({ userId: z.string(), nickname }),
   /** 用户主持人卸任（自行退出、离开房间或被踢） */
   'room.host_resigned': z.object({ userId: z.string(), nickname }),
+  // ---------- 公开 / 私人（docs/rebuild/18-HALL-PUBLIC-ROOMS.md） ----------
+  /** 房主切换了房间的公开状态：true = 出现在大厅并允许直接加入 */
+  'room.visibility_changed': z.object({ isPublic: z.boolean() }),
 } as const;
 
 export const roomEventTypeSchema = z.enum(Object.keys(roomEventPayloadSchemas) as [keyof typeof roomEventPayloadSchemas]);
