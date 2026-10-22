@@ -16,6 +16,20 @@ async function adminFetch(path: string, options: RequestInit = {}): Promise<unkn
   return payload?.data;
 }
 
+/**
+ * 各资源的行主键字段。
+ *
+ * react-admin 要求每一行都有 `id`，缺了会直接抛 "data items do not have an 'id' key"
+ * 并把整个列表渲染成空表。后端这些列表的行用的是各自的业务主键（userId / roomId / orderId …），
+ * 所以这里补一个 id，而不是让前端猜。
+ */
+const ID_FIELD: Record<string, string> = {
+  puzzles: 'versionId',
+  users: 'userId',
+  rooms: 'roomId',
+  orders: 'orderId',
+};
+
 /** 泛型返回集中以 never 收窄：数据形状由 admin API 决定 */
 const baseProvider: DataProvider = {
   getList: async (resource, params) => {
@@ -34,7 +48,10 @@ const baseProvider: DataProvider = {
     const data = (await adminFetch(`/${resource}?${query.toString()}`)) as { items: Record<string, unknown>[]; total?: number } | Record<string, unknown>[];
     const rows = Array.isArray(data) ? data : data.items;
     const total = Array.isArray(data) ? rows.length : data.total ?? rows.length;
-    const items = resource === 'puzzles' ? rows.map((row) => ({ ...row, id: row.versionId })) : rows;
+    const idField = ID_FIELD[resource];
+    const items = idField
+      ? rows.map((row) => ({ ...row, id: row[idField] }))
+      : rows;
     return { data: items, total } as never;
   },
   getOne: async (resource, params) => {
