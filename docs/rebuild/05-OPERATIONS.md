@@ -106,6 +106,43 @@ stateDiagram-v2
 
 订单默认 15 分钟有效。关单与支付存在竞争，以通道查单确认的最终状态处理；已确认支付不能因本地定时器先运行而丢弃。后台任务主动核对长时间 pending、closing 和 refund_pending 订单；每日按支付通道账单核对订单、收入、退款与权益。
 
+### 5.1 商品版本：改价与下架
+
+商品是「产品 + 版本」两层：`sponsor_products` 定类型（月度 / 永久），`product_versions` 定价格与标题。
+**已售出的版本不可变**——改价必须发新版本，旧订单与旧授权不受影响。
+
+首发价在代码里（`apps/api/src/billing/orders.service.ts` 的 `CATALOG`）：
+月度 600 分（¥6）、永久 2000 分（¥20）。`GET /sponsor-products` 每次都会**按类型幂等补齐**
+缺失的类型（库里只有月度就补永久），补出来的永远是 `version_no = 1`；
+已存在的版本一律不改，重复调用也不会插出第二条同类型商品。
+
+改价（发新版本 + 老版本下架）——后台目前**没有商品管理界面**，用 SQL：
+
+```sql
+-- 1) 永久会员从 ¥20 涨到 ¥25：发 version_no = 2
+INSERT INTO product_versions (product_id, version_no, price_minor, currency, title, available)
+SELECT id, 2, 2500, 'CNY', '永久会员', true
+FROM sponsor_products WHERE type = 'lifetime';
+
+-- 2) 老版本下架（前台只显示 available = true 的版本）
+UPDATE product_versions SET available = false
+WHERE product_id = (SELECT id FROM sponsor_products WHERE type = 'lifetime')
+  AND version_no = 1;
+```
+
+整类下架（临时停售永久会员）：
+
+```sql
+UPDATE sponsor_products SET available = false WHERE type = 'lifetime';
+```
+
+改完刷新「我的」页即可看到新价格。**不要改已有版本的 `price_minor`**：
+历史订单的 `product_snapshot` 存的是下单时的价格，改了会让账目与实际收款对不上。
+
+重复购买永久会员的处理：第二笔仍会标记 `paid` 并发一条 `duplicate_lifetime_pending_refund`
+流水，但**不会自动退钱**——运营要在管理后台「订单」页找到那笔 `amount_minor = 2000`、
+`status = paid` 的订单点退款，权益会随之撤销。
+
 下单请求发生网络超时，保留原商户单号查单，避免生成第二笔订单重复收费。业务事务与外部请求分开，通过订单状态和持久任务恢复。
 
 ## 6. 退款与故障补偿
