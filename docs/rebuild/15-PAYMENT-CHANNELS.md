@@ -376,17 +376,45 @@ ALIPAY_SELLER_ID=2088xxxxxxxxxxxx
 密钥**不要进镜像、不要进仓库**。用 docker secret 或 volume 挂进容器：
 
 ```yaml
-# docker-compose.yml（片段）
+# docker-compose.yml（本项目实际配置）
 services:
   api:
     volumes:
-      - ./secrets/wechat:/run/secrets/wechat:ro
-      - ./secrets/alipay:/run/secrets/alipay:ro
+      - ${PAYMENT_SECRETS_DIR:-/root/.pem}:/run/secrets/payment:ro
 ```
 
-容器里 `WECHAT_PAY_PRIVATE_KEY_PATH=/run/secrets/wechat/apiclient_key.pem`。
+容器里 `WECHAT_PAY_PRIVATE_KEY_PATH=/run/secrets/payment/wechat_pay/apiclient_key.pem`。
 
 本地开发时路径直接写绝对路径（如 `E:/keys/apiclient_key.pem`）。
+
+### 路径必须写「容器内绝对路径」
+
+三条硬规则，违反任何一条都会让通道**静默**变成「支付通道开通中」：
+
+1. **不能写宿主机路径**。`.env` 通过 `env_file` 注入容器，容器**不继承宿主文件系统**。
+   写 `/root/.pem/...` 会在容器里变成「该路径不存在」。
+2. **不能写相对路径**。相对路径相对进程的 cwd 解析，而容器 cwd 随启动方式变
+   （实测 api 容器是 `/app/apps/api`），迟早失效。
+3. **要用容器内绝对路径**（`/run/secrets/payment/...`），且与 volume 的 `target` 对得上。
+
+> 为什么是「静默」失败而不是启动报错：`readFileSync` 在 `createWechatAdapter()` 里调用，
+> 而该函数**不是只在启动时调一次**——`orders.service.ts:36` 每次下单、每次查单、
+> 每次算 `availableChannels()` 都会重建适配器。路径不对 = 每次请求抛 ENOENT，
+> 被 `GlobalExceptionFilter` 兜成 500，前台只看到「支付通道开通中」，
+> 从报错里很难看出是路径问题。
+>
+> 验证方法（比读代码可靠）：在容器里直接构造适配器，
+> 看它是否返回非 null。
+> ```bash
+> docker exec situation-puzzle-api-1 sh -c \
+>   'cd /app && pnpm --dir apps/api exec tsx -e "
+>     import { createWechatAdapter } from \"./src/billing/wechat-pay.adapter.js\";
+>     console.log(createWechatAdapter(process.env) !== null);"'
+> ```
+
+### 私钥权限
+
+宿主机上 `chmod 600` 商户私钥；容器内以只读方式挂载（`:ro`）。
 
 ---
 
@@ -450,6 +478,8 @@ services:
 - [ ] 商户资质已审核通过，两条通道的产品都已签约
 - [ ] 回调地址公网可达（`curl -X POST <notify_url>` 能收到请求；微信要带签名头，支付宝要带签名）
 - [ ] 密钥文件权限收紧（容器内只读、宿主机 `chmod 600`）
+- [ ] **`*_KEY_PATH` 写的是容器内绝对路径**（不是宿主机路径、不是相对路径），
+      且在容器内能真正读出来（见「路径必须写「容器内绝对路径」」里的验证命令）
 - [ ] 沙箱（支付宝）或真实小额支付（微信）走完一次完整链路
 - [ ] 收到真实通知后 `payment_notifications` 有记录、`orders.status` 变 `paid`、`sponsor_grants` 有授权
 - [ ] 退款链路验证过一次
@@ -464,6 +494,15 @@ services:
 - **支付宝同步应答必须验签**。不验的话拿到被篡改的 `qr_code` 就会把用户导向别人的收款码。
 - **支付宝通知是表单不是 JSON**。`bootstrap.ts` 用 `express.raw({ type: '*/*' })` 挂了
   `/api/v1/payments` 前缀，所以支付宝的表单体能原样拿到，适配器里用 `node:querystring` 解析。
+- **微信通知是 JSON——所以 `express.raw` 必须挂在 `express.json` 之前**（曾真实发生过，勿改顺序）。
+  `express.json()` 无条件匹配 `application/json` 并**消费掉请求流**；
+  排在它后面时 `express.raw` 拿到的是已解析的对象而不是原始字节，
+  验签必然失败 → 通知被当作「验签失败」丢弃 → **用户付了钱永远拿不到权益**。
+  支付宝因为是表单（不匹配 `express.json`）所以侥幸没事——**这个坑只在微信通道暴露**，
+  只测过支付宝会漏掉。
+  回归测试见 `apps/api/src/billing/payment-notify-body.test.ts`（对真实 express 断言 body 仍是 Buffer）。
+  > 为什么集成测试查不出：集成测试直调 `service.handleNotification` 并手工构造 Buffer，
+  > 绕过了 express 解析层。与当初 `notify` 漏标 `@Public()` 被守卫 401 是同一类盲区。
 - **同一用户换通道下单会拿到两笔订单**。`createOrder` 复用 pending 订单时按
   「用户 + 商品 + 通道」匹配，跨通道不复用。
 - **通知金额必须与订单金额一致**，不一致时服务端拒绝入账（防篡改）。

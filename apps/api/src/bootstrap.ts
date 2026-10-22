@@ -1,7 +1,7 @@
 /**
  * 启动装配：pg-boss 队列、express 服务器（better-auth 路由 + JSON 解析）。
  * express 装配顺序至关重要：
- *   better-auth（需要原始请求体）→ JSON 解析 → 支付回调原始体 → Nest 路由
+ *   better-auth（需要原始请求体）→ 支付回调原始体 → JSON 解析 → Nest 路由
  */
 import express from 'express';
 import { toNodeHandler } from 'better-auth/node';
@@ -46,6 +46,27 @@ function txDb(client: PoolClient): { executeSql: (text: string, values: unknown[
       return { rows: result.rows as unknown[] };
     },
   };
+}
+
+/**
+ * 挂载请求体解析器。**顺序不可交换**，理由见函数体注释。
+ *
+ * 单独抽出来是为了能直接对真实 express 断言解析结果——
+ * 集成测试直调 service，绕过了 express 解析层，
+ * 查不出「body 已经被上游解析器消费掉」这类问题（曾真实发生过，勿删）。
+ */
+export function mountBodyParsers(server: express.Express): void {
+  // 支付回调需要原始请求体验签。
+  //
+  // 必须挂在 express.json 之前：
+  //  - 微信支付的异步通知用的是 `Content-Type: application/json`；
+  //  - express.json() 无条件匹配该类型并**消费掉请求流**，
+  //    排在后面的话 express.raw 拿到的已不是原始字节（是解析好的对象），
+  //    验签必然失败 → 回调被当作「验签失败」丢弃 → 用户付了钱拿不到权益；
+  //  - 支付宝的通知是 `application/x-www-form-urlencoded`，不匹配 express.json，
+  //    所以这个顺序问题只在微信通道暴露，容易漏掉。
+  server.use('/api/v1/payments', express.raw({ type: '*/*', limit: '256kb' }));
+  server.use(express.json({ limit: '256kb' }));
 }
 
 export async function createAppContext(input: BootstrapInput): Promise<AppContext> {
@@ -97,9 +118,7 @@ export async function createAppContext(input: BootstrapInput): Promise<AppContex
   });
   // better-auth 处理 /api/v1/auth/*：必须拿到未经 JSON 解析的原始流
   server.use('/api/v1/auth', otpHttpContext(server.get('trust proxy fn')), toNodeHandler(input.auth.handler));
-  server.use(express.json({ limit: '256kb' }));
-  // 支付回调需要原始请求体验签
-  server.use('/api/v1/payments', express.raw({ type: '*/*', limit: '256kb' }));
+  mountBodyParsers(server);
 
   const context: AppContext = {
     env: input.env,

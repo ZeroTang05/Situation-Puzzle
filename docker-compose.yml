@@ -58,6 +58,11 @@ services:
     # api 不外暴：所有 API/WS 流量经 web 容器内反代走 api:8080
     expose:
       - '8080'
+    # 支付密钥挂载（不进镜像、不进仓库）：容器内路径是 /run/secrets/<通道>/
+    # .env 里的 *_KEY_PATH 必须写「容器内绝对路径」，不能写宿主机路径
+    # （容器不继承宿主文件系统），也不能写相对路径（容器 cwd 会变）。
+    volumes:
+      - ${PAYMENT_SECRETS_DIR:-/root/.pem}:/run/secrets/payment:ro
     depends_on:
       postgres:
         condition: service_healthy
