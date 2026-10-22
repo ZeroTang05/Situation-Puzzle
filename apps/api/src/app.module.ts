@@ -14,6 +14,7 @@ import { RoomsService } from './rooms/rooms.service.js';
 import { CommandsService } from './rooms/commands.service.js';
 import { LobbyController } from './rooms/lobby.controller.js';
 import { LobbyService } from './rooms/lobby.service.js';
+import { HallService } from './rooms/hall.service.js';
 import { RealtimeController } from './realtime/realtime.controller.js';
 import { BillingController } from './billing/billing.controller.js';
 import { OrdersService } from './billing/orders.service.js';
@@ -41,6 +42,7 @@ import { AdminController } from './admin/admin.controller.js';
     RoomsService,
     CommandsService,
     LobbyService,
+    HallService,
     OrdersService,
     RedeemCodesService,
     { provide: APP_INTERCEPTOR, useClass: EnvelopeInterceptor },

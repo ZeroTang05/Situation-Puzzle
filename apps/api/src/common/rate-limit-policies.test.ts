@@ -56,4 +56,22 @@ describe('限流策略清单', () => {
   it('房间命令不加 HTTP 限流（排队与讨论限速已在 domain 层管）', () => {
     expect(ruleOf(RoomsController.prototype.command, RoomsController)).toBeUndefined();
   });
+
+  it('大厅列表：每人每分钟 60 次（前端 5 秒轮询一次）', () => {
+    expect(ruleOf(RoomsController.prototype.hall, RoomsController)).toEqual({
+      scope: 'hall.list',
+      limit: 60,
+      windowSeconds: 60,
+      keyBy: 'user',
+    });
+  });
+
+  it('大厅直接加入：每人每分钟 20 次（写操作，收紧一档）', () => {
+    expect(ruleOf(RoomsController.prototype.joinPublic, RoomsController)).toEqual({
+      scope: 'hall.join',
+      limit: 20,
+      windowSeconds: 60,
+      keyBy: 'user',
+    });
+  });
 });

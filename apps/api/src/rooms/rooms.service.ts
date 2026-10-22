@@ -160,6 +160,8 @@ export class RoomsService {
         capacity: source.capacity,
         inviteTokenHash: hashToken(inviteToken),
         now,
+        // 再来一题延续原房的公开状态：公开局的后继局仍然进大厅
+        isPublic: source.isPublic,
       });
 
       // 一键迁入原房仍在场的成员；成员可同时留在其他房间。
@@ -472,6 +474,8 @@ export class RoomsService {
         hostUserId: room.hostUserId,
         controlVersion: room.controlVersion,
         capacity: room.capacity,
+        /** 公开房间：true 时出现在大厅并允许直接加入（18-HALL-PUBLIC-ROOMS） */
+        isPublic: room.isPublic,
         /** 主持人形态：ai = Jev 主持；user = 用户主持 */
         hostMode: room.hostMode,
         userHostId: room.userHostId,

@@ -9,6 +9,8 @@ import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http
 import { SessionGuard } from '../auth/session.guard.js';
 import { RoomsService } from './rooms.service.js';
 import { CommandsService, type CommandInput } from './commands.service.js';
+import { HallService } from './hall.service.js';
+import { RateLimit } from '../common/rate-limit.js';
 import {
   roomCommandRequestSchema,
   roomFollowupRequestSchema,
@@ -23,7 +25,26 @@ export class RoomsController {
   constructor(
     @Inject(RoomsService) private readonly roomsService: RoomsService,
     @Inject(CommandsService) private readonly commandsService: CommandsService,
+    @Inject(HallService) private readonly hallService: HallService,
   ) {}
+
+  /**
+   * 大厅列表（docs/rebuild/18-HALL-PUBLIC-ROOMS.md）：公开且未归档的房间。
+   * 前端 5 秒轮询一次：每用户每分钟 60 次（= 每秒 1 次）足够，留一倍余量。
+   */
+  @RateLimit({ scope: 'hall.list', limit: 60, windowSeconds: 60, keyBy: 'user' })
+  @Get('hall')
+  async hall() {
+    return this.hallService.list();
+  }
+
+  /** 直接加入公开房间：不需要邀请 token。幂等（已在房里直接返回）。 */
+  @RateLimit({ scope: 'hall.join', limit: 20, windowSeconds: 60, keyBy: 'user' })
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Post('rooms/:id/join-public')
+  async joinPublic(@CurrentUser() user: SessionUser, @Param('id') id: string) {
+    return this.hallService.joinPublicRoom(user, id);
+  }
 
   @Get('invites/room/:token')
   async invite(@CurrentUser() _user: SessionUser, @Param('token') token: string) {

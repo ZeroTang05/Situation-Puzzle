@@ -28,7 +28,7 @@ import {
   rounds,
   userLobbies,
 } from '@jev/database';
-import { DomainError, assertCanRequestHost, assertCanResignHost, assertCanReviewHost, assertCanRevokeHost } from '@jev/domain';
+import { DomainError, assertCanRequestHost, assertCanResignHost, assertCanReviewHost, assertCanRevokeHost, assertCanToggleVisibility } from '@jev/domain';
 import { app } from '../context.js';
 import { z } from 'zod';
 import type { SessionUser } from '../common/http.js';
@@ -45,6 +45,8 @@ export interface LobbySnapshot {
   lobbyId: string;
   hostUserId: string;
   capacity: number;
+  /** 下一局是否公开：true 时开局建出来的房间会出现在大厅（18-HALL-PUBLIC-ROOMS） */
+  isPublic: boolean;
   members: Array<{ userId: string; nickname: string; online: boolean; isHost: boolean; isUserHost: boolean }>;
   selectedPuzzle: { puzzleId: string; title: string; language: 'zh' | 'en' } | null;
   /** 主持人形态：ai = Jev 主持；user = 用户主持 */
@@ -231,6 +233,7 @@ export class LobbyService {
         id: userLobbies.id,
         hostUserId: userLobbies.hostUserId,
         capacity: userLobbies.capacity,
+        isPublic: userLobbies.isPublic,
         selectedPuzzleId: userLobbies.selectedPuzzleId,
         selectedPuzzleLang: userLobbies.selectedPuzzleLang,
         selectedPuzzleTitle: userLobbies.selectedPuzzleTitle,
@@ -312,6 +315,7 @@ export class LobbyService {
       lobbyId: lobby.id,
       hostUserId: lobby.hostUserId,
       capacity: lobby.capacity,
+      isPublic: lobby.isPublic,
       members: memberList,
       selectedPuzzle:
         lobby.selectedPuzzleId && lobby.selectedPuzzleLang && lobby.selectedPuzzleTitle
@@ -447,6 +451,28 @@ export class LobbyService {
       .update(lobbyMembers)
       .set({ role: 'player' })
       .where(and(eq(lobbyMembers.lobbyId, lobby.id), eq(lobbyMembers.userId, lobby.userHostId)));
+  }
+
+  // ---------- 公开 / 私人（docs/rebuild/18-HALL-PUBLIC-ROOMS.md） ----------
+
+  /**
+   * 房主切换会客厅的公开状态：这是「下一局」的偏好，start 事务复制进新建房间。
+   *
+   * 幂等：重复设同一个值不写库、不报错，直接回显当前状态。
+   * 权限：只有房主能改（domain 层判定）。
+   * 会客厅没有事件流与命令通道，所以单独一个 HTTP 端点，不走 commands。
+   */
+  async setVisibility(user: SessionUser, lobbyId: string, isPublic: boolean): Promise<{ isPublic: boolean }> {
+    return this.db.tx(async (rawTx) => {
+      const tx = rawTx as Tx;
+      const [lobby] = await tx.select().from(userLobbies).where(eq(userLobbies.id, lobbyId)).for('update').limit(1);
+      if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+      assertCanToggleVisibility({ isHost: lobby.hostUserId === user.userId });
+      if (lobby.isPublic !== isPublic) {
+        await tx.update(userLobbies).set({ isPublic }).where(eq(userLobbies.id, lobbyId));
+      }
+      return { isPublic };
+    });
   }
 
   // ---------- 选题 / 离开 / 踢人 / 解散 ----------
@@ -637,6 +663,8 @@ export class LobbyService {
         capacity: lobby.capacity,
         inviteTokenHash,
         now,
+        // 会客厅的公开偏好复制进新房：房主在等待室打开的开关，直接决定这一局是否进大厅
+        isPublic: lobby.isPublic,
       });
 
       for (const uid of guestIds) {

@@ -11,6 +11,7 @@
  * POST /lobbies/:id/kick    房主踢人
  * DELETE /lobbies/:id       房主解散（清座位/邀请，保留 id）
  * POST /lobbies/:id/start   开局（会客厅 → 卧室）
+ * POST /lobbies/:id/visibility  房主切换公开 / 私人（下一局的公开偏好）
  */
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Inject, Param, Post, HttpStatus } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common';
@@ -19,7 +20,7 @@ import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http
 import { SessionGuard } from '../auth/session.guard.js';
 import { app } from '../context.js';
 import { LobbyService } from './lobby.service.js';
-import { lobbyCreateRequestSchema, lobbyHostReviewRequestSchema, lobbyJoinRequestSchema, lobbySelectRequestSchema } from '@jev/contracts';
+import { lobbyCreateRequestSchema, lobbyHostReviewRequestSchema, lobbyJoinRequestSchema, lobbySelectRequestSchema, lobbyVisibilityRequestSchema } from '@jev/contracts';
 
 @Controller()
 @UseGuards(SessionGuard)
@@ -99,6 +100,20 @@ export class LobbyController {
   async dismiss(@CurrentUser() user: SessionUser, @Param('id') id: string) {
     await this.lobbyService.dismiss(user, id);
     return { ok: true };
+  }
+
+  /**
+   * 房主切换公开 / 私人（docs/rebuild/18-HALL-PUBLIC-ROOMS.md）：
+   * 这是「下一局」的偏好，start 事务复制进新建房间。幂等。
+   */
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Post('lobbies/:id/visibility')
+  async setVisibility(
+    @CurrentUser() user: SessionUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(lobbyVisibilityRequestSchema)) body: z.infer<typeof lobbyVisibilityRequestSchema>,
+  ) {
+    return this.lobbyService.setVisibility(user, id, body.isPublic);
   }
 
   /** 开始本轮：会客厅 → 卧室，清会客厅临时态。 */

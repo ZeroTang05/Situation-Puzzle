@@ -19,7 +19,7 @@ export function jevConfigVersionOf(language: 'zh' | 'en'): string {
 
 export async function createRoomWithEntitlementTx(
   tx: Tx,
-  input: { creatorUserId: string; capacity: number; inviteTokenHash: string; now: Date },
+  input: { creatorUserId: string; capacity: number; inviteTokenHash: string; now: Date; isPublic?: boolean },
 ): Promise<string> {
   const { creatorUserId, capacity, inviteTokenHash, now } = input;
   const grants = await tx.select().from(sponsorGrants).where(eq(sponsorGrants.userId, creatorUserId));
@@ -31,7 +31,14 @@ export async function createRoomWithEntitlementTx(
 
   const inserted = await tx
     .insert(rooms)
-    .values({ creatorUserId, hostUserId: creatorUserId, capacity, inviteTokenHash })
+    .values({
+      creatorUserId,
+      hostUserId: creatorUserId,
+      capacity,
+      inviteTokenHash,
+      // 默认私人房间；等待室开局 / 再来一题按调用方给的公开偏好落库
+      ...(input.isPublic === undefined ? {} : { isPublic: input.isPublic }),
+    })
     .returning({ id: rooms.id });
   const roomId = inserted[0]!.id;
 

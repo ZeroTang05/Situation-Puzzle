@@ -32,6 +32,7 @@ import {
   assertCanResignHost,
   assertCanReviewHost,
   assertCanRevokeHost,
+  assertCanToggleVisibility,
   assertHostAnswer,
   nextHintIndex,
 } from '@jev/domain';
@@ -388,6 +389,23 @@ export class CommandsService {
       case 'close_room': {
         if (!isHost) throw new DomainError('FORBIDDEN', '只有房主可以解散房间');
         await archiveRoomTx(tx, room.id, 'by_host', round?.id ?? null);
+        return { controlCommand: true };
+      }
+
+      // ---------- 公开 / 私人（docs/rebuild/18-HALL-PUBLIC-ROOMS.md） ----------
+
+      case 'set_visibility': {
+        assertCanToggleVisibility({ isHost });
+        const { isPublic } = payload as { isPublic: boolean };
+        // 幂等：状态没变就不写库、不广播、不推进控制版本
+        if (room.isPublic === isPublic) return { controlCommand: false };
+        await tx.update(rooms).set({ isPublic }).where(eq(rooms.id, room.id));
+        await appendEvent(tx, {
+          roomId: room.id,
+          roundId: round?.id ?? null,
+          type: 'room.visibility_changed',
+          payload: { isPublic },
+        });
         return { controlCommand: true };
       }
 
