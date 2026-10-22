@@ -51,7 +51,7 @@ interface Env {
   JEV_BASE_URL?: string;
   JEV_MODEL?: string;
   JEV_THRESHOLD?: string;
-  JEV_LANGUAGE?: 'zh' | 'en';
+
   JEV_PROMPT_VERSION?: string;
   /** 判题附带的最近问答轮数，见 env.ts */
   JEV_RECENT_QA_LIMIT: number;
@@ -227,7 +227,9 @@ class JobsApp {
       if (this.pausedUntil > Date.now()) throw new Error('Jev 熔断暂停中');
 
       let verdict;
-      const judge = new JudgmentClient({ ...this.jevConfig, language: z.enum(['zh', 'en']).parse(version.language) }, (record) => void this.recordAttempt(record, record.model, record.promptVersion));
+      // 判题语言按本局题目（round.language），没有全局默认：同一部署可同时判中英文题
+      const language = z.enum(['zh', 'en']).parse(version.language);
+      const judge = new JudgmentClient(this.jevConfig, (record) => void this.recordAttempt(record, record.model, record.promptVersion));
       if (turn.kind === 'ask') {
         // 带上本局最近几轮已判定的问答，帮助 Jev 解析问题里的代词指代
         const recentRows = await db
@@ -251,7 +253,7 @@ class JobsApp {
           category: version.category,
           ...(recentQas.length ? { recentQas } : {}),
           question: turn.text,
-        });
+        }, language);
         await this.completeTurn(payload, verdict.result, String(verdict.confidence));
       } else {
         verdict = await judge.solve({
@@ -261,7 +263,7 @@ class JobsApp {
           coreFacts: version.coreFacts,
           category: version.category,
           solution: turn.text,
-        }, turn.useLargeModel);
+        }, language, turn.useLargeModel);
         await this.completeTurn(payload, verdict.result, String(verdict.confidence), verdict.result === 'solved');
       }
       this.infraFailures = 0;
@@ -362,15 +364,14 @@ class JobsApp {
       return current;
     });
     if (!version) return;
-    const reviewConfig = { ...jevConfigFromEnv(this.env as unknown as NodeJS.ProcessEnv), language: version.language as 'zh' | 'en' };
-    const reviewer = new JevClient(reviewConfig, (record) => void this.recordAttempt(record, record.model, record.promptVersion, version.id));
+    const reviewer = new JevClient(this.jevConfig, (record) => void this.recordAttempt(record, record.model, record.promptVersion, version.id));
     try {
       const verdict = await reviewer.review({
         title: version.title,
         surface: version.surface,
         answer: version.answer,
         hints: version.hints,
-      });
+      }, version.language as 'zh' | 'en');
       const outcome = creationReviewOutcome(verdict);
       const conclusion = outcome.status;
       await db.transaction(async (tx) => {

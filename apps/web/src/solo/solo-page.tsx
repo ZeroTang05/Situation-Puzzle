@@ -3,7 +3,7 @@
  * 会话与问答只存浏览器 IndexedDB；刷新恢复；断网保留输入；服务端不存任何单人对话。
  */
 import { useDialog } from '@jev/ui';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { api, ApiError, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
@@ -21,6 +21,7 @@ import { ChatInput } from '../game/chat-input.js';
 import { LargeModelToggle } from '../game/large-model-toggle.js';
 import { TurnCard } from '../game/turn-card.js';
 import { StoryCard } from '../game/story-card.js';
+import { Toast } from '../toast.js';
 
 type InputMode = 'ask' | 'solve';
 
@@ -64,6 +65,11 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
   const [publicStats, setPublicStats] = useState<{ upCount: number; downCount: number } | null>(null);
   const chatRef = useRef<HTMLElement>(null);
   const randomRequestRef = useRef<AbortController | null>(null);
+  // 输入框预提示：随机抽一条常见问题，给不会玩的用户一个起点（进入页面时定一次）
+  const askPlaceholder = useMemo(() => {
+    const list = copy.askPlaceholderExamples;
+    return list.length > 0 ? list[Math.floor(Math.random() * list.length)]! : copy.askPlaceholder;
+  }, [copy.askPlaceholderExamples, copy.askPlaceholder]);
 
   // 公开计数与署名（题目详情）：未登录也能看；投票组件内部再取本人选择
   useEffect(() => {
@@ -373,10 +379,9 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
       </section>
 
       <div className="solo-bottom game-scroll">
-        <div className={`appear-slot${storageWarning || error ? ' open' : ''}`}>
+        <div className={`appear-slot${storageWarning ? ' open' : ''}`}>
           <div className="status-lines">
             {storageWarning && <p className="error-text">{copy.storageNotSaved}</p>}
-            {error && <p className="error-text" role="alert">{error}</p>}
           </div>
         </div>
         <div className={`appear-slot${hintList.length ? ' open' : ''}`}>
@@ -384,7 +389,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
         </div>
         <section className="solo-action-row" role="group" aria-label={copy.hint}>
           <button className="btn btn-sm" disabled={changingPuzzle || hintBusy || session.status !== 'active' || session.hintsUnlocked.length >= 3} onClick={() => void unlockHint(session.hintsUnlocked.length)}>
-            {copy.hintMore} ({session.hintsUnlocked.length}/3)
+            {copy.hint} {session.hintsUnlocked.length}/3
           </button>
           <button className="btn btn-sm" aria-pressed={inputMode === 'solve'} disabled={changingPuzzle || sending || solved || Boolean(session.revealedAnswer)} onClick={() => {
             const next = inputMode === 'solve' ? 'ask' : 'solve';
@@ -408,7 +413,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
                 aria-label={inputMode === 'ask' ? copy.ask : copy.solve}
                 maxLength={inputMode === 'ask' ? 500 : 1500}
                 value={text}
-                placeholder={inputMode === 'ask' ? copy.askPlaceholder : copy.solvePlaceholder}
+                placeholder={inputMode === 'ask' ? askPlaceholder : copy.solvePlaceholder}
                 onChange={(e) => {
                   setText(e.target.value);
                   persistDraft(inputMode, e.target.value);
@@ -427,6 +432,8 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
           </footer>
         </div>
       </div>
+      {/* 操作反馈改为悬浮条：不挤占布局，到点自动消失 */}
+      {error && <Toast message={error} tone="error" durationMs={4000} onDone={() => setError(null)} />}
     </main>
   );
 }

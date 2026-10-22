@@ -30,6 +30,7 @@ import {
 } from '@jev/database';
 import { DomainError, assertCanRequestHost, assertCanResignHost, assertCanReviewHost, assertCanRevokeHost } from '@jev/domain';
 import { app } from '../context.js';
+import { z } from 'zod';
 import type { SessionUser } from '../common/http.js';
 import { createRoomWithEntitlementTx, jevConfigVersionOf } from './room-creation.js';
 
@@ -667,7 +668,7 @@ export class LobbyService {
           roundNo: 1,
           puzzleVersionId: version.puzzle_versions.id,
           language: version.puzzle_versions.language,
-          jevConfigVersion: jevConfigVersionOf(),
+          jevConfigVersion: jevConfigVersionOf(z.enum(['zh', 'en']).parse(version.puzzle_versions.language)),
         })
         .returning();
       if (!round) throw new DomainError('INTERNAL', '创建本局失败');

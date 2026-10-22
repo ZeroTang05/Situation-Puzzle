@@ -259,6 +259,9 @@ a { text-decoration: none; }
 .topbar-title > :first-child { grid-column: 1; justify-self: start; }
 .topbar-title > .brand { grid-column: 2; justify-self: center; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topbar-title > :last-child:not(.brand) { grid-column: 3; justify-self: end; }
+/* 顶栏按钮不折行：窄列里「写一碗汤」曾被拆成两行 */
+.topbar-title > .btn,
+.topbar-title > a.btn { white-space: nowrap; }
 
 .brand {
   margin: 0;
@@ -518,7 +521,8 @@ a { text-decoration: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   min-width: 0;
 }
 
@@ -548,10 +552,12 @@ a { text-decoration: none; }
   gap: 4px;
 }
 
+/* 题库卡片：作者与票数一行，操作按钮并入同一行（窄屏自动换行） */
 .puzzle-card-actions {
   display: flex;
-  justify-content: flex-end;
+  flex: none;
   gap: 6px;
+  margin-left: auto;
 }
 
 .puzzle-card-actions .btn {
@@ -582,21 +588,6 @@ a { text-decoration: none; }
   max-height: min(30dvh, 220px);
   margin-top: 8px;
 }
-/* 汤面超出可视高度时底部渐隐，提示「还能往下滚」而不是硬切一刀。 */
-.story-wrap::after {
-  content: '';
-  position: absolute;
-  left: 1px;
-  right: 1px;
-  bottom: 1px;
-  height: 26px;
-  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-  background: linear-gradient(to bottom, rgba(3, 21, 43, 0), rgba(3, 21, 43, .82));
-  opacity: 0;
-  transition: opacity .2s ease;
-  pointer-events: none;
-}
-.story-wrap.is-faded::after { opacity: 1; }
 .story-card {
   flex: 0 1 auto;
   min-height: 0;
@@ -641,8 +632,36 @@ a { text-decoration: none; }
   max-width: 88%;
 }
 
-.large-model-toggle { display:flex; align-items:center; gap:8px; min-height:44px; font-size:14px; color:var(--muted); }
-.large-model-toggle input { width:18px; height:18px; margin:0; accent-color:var(--accent); }
+/* 大模型开关：自绘拨杆，尺寸与配色跟站内控件一致 */
+.large-model-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; }
+.large-model-toggle:hover { color: var(--ink); }
+.large-model-toggle input {
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 18px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--field);
+  transition: background .15s, border-color .15s;
+}
+.large-model-toggle input::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform .15s, background .15s;
+}
+.large-model-toggle input:checked { background: rgba(125, 216, 198, .22); border-color: rgba(125, 216, 198, .5); }
+.large-model-toggle input:checked::after { transform: translateX(16px); background: var(--accent); }
+.large-model-toggle input:disabled { opacity: .45; }
+.large-model-toggle input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .turn-ask {
   align-self: flex-end;
@@ -669,6 +688,9 @@ a { text-decoration: none; }
 }
 
 .turn .turn-text strong { color: var(--accent); font-weight: 600; }
+
+/* 用户主持人标记：与昵称同行，不另起一行 */
+.host-tag { margin-right: 6px; vertical-align: 1px; padding: 1px 6px; font-size: 12px; }
 
 .turn-ask .turn-bubble {
   border-color: rgba(125, 216, 198, .38);
@@ -792,6 +814,7 @@ textarea.composer-input, .composer .composer-input {
 
 .mode-tabs {
   display: flex;
+  align-items: stretch;
   gap: 4px;
   padding: 2px;
   border: 1px solid var(--line);
@@ -817,9 +840,9 @@ textarea.composer-input, .composer .composer-input {
   background: var(--accent);
 }
 
-/* 宽屏时页签不铺满整行：限宽居中，避免出现巨大的色块 */
+/* 页签铺满整行：容器不设限宽，按钮按比例分满 */
 @media (min-width: 760px) {
-  .mode-tabs { max-width: 520px; margin-inline: auto; }
+  .mode-tabs { max-width: none; }
 }
 
 /* 空对话引导：单人开局没有回合时给一句上手提示和几个起步问题 */
@@ -891,6 +914,8 @@ textarea.composer-input, .composer .composer-input {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  /* 内容不足一屏时也压到页面底部 */
+  margin-top: auto;
   padding: 12px 0 max(8px, var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   background: linear-gradient(180deg, transparent, #03152b 30%);
 }
@@ -949,6 +974,14 @@ textarea.composer-input, .composer .composer-input {
   padding: 1px 8px;
   font-size: 12px;
 }
+/* 成员行里的身份徽标与操作按钮同尺寸同字重，只有内容和颜色不同 */
+.member-row .verdict-badge {
+  min-height: 26px;
+  padding: 1px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 5px;
+}
 
 .presence-dot {
   width: 8px;
@@ -987,6 +1020,28 @@ textarea.composer-input, .composer .composer-input {
   color: var(--danger);
   font-size: 14px;
 }
+
+/* 悬浮反馈：浮在页面最上层，不占布局，短时间后自动消失 */
+.toast {
+  position: fixed;
+  top: calc(var(--safe-area-inset-top, env(safe-area-inset-top)) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3000;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(14, 30, 51, .97);
+  color: var(--ink);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+  animation: toast-in .18s ease-out;
+}
+.toast.toast-error { border-color: rgba(255, 143, 143, .5); color: #ffd9d9; }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 /* 元素出现/收起不再顶开邻居：网格行高 0fr→1fr 过渡，滑入滑出替代凭空弹出；
    槽位常驻渲染，内容由各页按状态切换，关闭态用 inert 挡住焦点 */

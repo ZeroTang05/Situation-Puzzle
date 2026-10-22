@@ -40,14 +40,15 @@ export interface JevConfig {
   readonly attemptTimeoutMs: number;
   /** 总执行期限（毫秒），含一次重试 */
   readonly totalDeadlineMs: number;
-  /** 语言 */
-  readonly language: Language;
   readonly minimax?: MiniMaxConfig;
 }
 
-/** 判题配置版本号：进入 rounds.jevConfigVersion，用于一致性核对。 */
-export function jevConfigVersion(config: JevConfig): string {
-  return `${config.model}@${config.promptVersion}@t${config.threshold}@${config.language}${config.minimax ? `@minimax:${config.minimax.model}@${MINIMAX_PROMPT_VERSION}` : ''}`;
+/**
+ * 判题配置版本号：进入 rounds.jevConfigVersion，用于一致性核对。
+ * 语言不是全局配置，而是每次判题现场决定（题目/本局/投稿的语言），因此由调用方显式传入。
+ */
+export function jevConfigVersion(config: JevConfig, language: Language): string {
+  return `${config.model}@${config.promptVersion}@t${config.threshold}@${language}${config.minimax ? `@minimax:${config.minimax.model}@${MINIMAX_PROMPT_VERSION}` : ''}`;
 }
 
 /** 单次真实尝试的记录：多人写入 jev_calls，单人仅匿名汇总。 */

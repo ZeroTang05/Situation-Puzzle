@@ -3,7 +3,7 @@
  * 组队阶段在等待室页（/lobbies/:id）；本页从开局后的快照开始。所有写操作走 HTTP 命令。
  */
 import { Modal, useDialog } from '@jev/ui';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { api, ApiError, translateApiError } from '../api/client.js';
@@ -24,6 +24,7 @@ import { VoteButtons } from '../catalog/vote-buttons.js';
 import type { Session } from '../session.js';
 import { MessageDelivery } from './message-delivery.js';
 import { RoomShell } from './room-shell.js';
+import { Toast } from '../toast.js';
 import { loginHref } from '../auth/login-navigation.js';
 
 export function RoomPage({ session }: { session: Session | null }) {
@@ -59,6 +60,12 @@ export function RoomPage({ session }: { session: Session | null }) {
   const [newMessages, setNewMessages] = useState(false);
   const [showConnection, setShowConnection] = useState(false);
   const pendingCurrent = outbox.local?.pending.some((p) => p.input.type === inputMode && (p.status === 'sending' || p.status === 'confirming')) ?? false;
+
+  // 输入框预提示：随机抽一条常见问题，给不会玩的用户一个起点（进入页面时定一次）
+  const askPlaceholder = useMemo(() => {
+    const list = copy.askPlaceholderExamples;
+    return list.length > 0 ? list[Math.floor(Math.random() * list.length)]! : copy.askPlaceholder;
+  }, [copy.askPlaceholderExamples, copy.askPlaceholder]);
 
   // 成员面板是悬浮卡片：点面板与右上角入口以外的位置收起，不用再点一次按钮
   useEffect(() => {
@@ -209,9 +216,10 @@ export function RoomPage({ session }: { session: Session | null }) {
     );
   }
 
-  // 头部状态行（掉线/错误/进行中的非聊天操作）：任一存在即展开状态槽，收起时不顶动游戏区
+  // 头部状态行（掉线/存储错误/进行中的非聊天操作）：任一存在即展开状态槽，收起时不顶动游戏区
+  // 主持形态提示与操作错误已改为悬浮条，不再占状态槽
   const pendingNotices = (outbox.local?.pending ?? []).filter((p) => !['ask', 'solve', 'discussion'].includes(p.input.type) && p.status !== 'sent');
-  const hasStatus = userHostMode || (showConnection && status !== 'ready') || Boolean(outbox.storageError || translatedPuzzle.isError || error) || pendingNotices.length > 0;
+  const hasStatus = (showConnection && status !== 'ready') || Boolean(outbox.storageError || translatedPuzzle.isError) || pendingNotices.length > 0;
 
   return (
     <RoomShell playing={round?.status === 'active' && state.roomStatus === 'playing'}>
@@ -225,17 +233,17 @@ export function RoomPage({ session }: { session: Session | null }) {
 
       <div className={`appear-slot${hasStatus ? ' open' : ''}`}>
         <div className="status-lines">
-          {userHostMode && <p className="muted" role="status">{copy.hostModeNotice}</p>}
           {showConnection && status !== 'ready' && <p className="offline-banner" role="status">{status === 'auth_required' ? copy.authExpired : status === 'offline' ? copy.networkKeptDraft : copy.reconnecting}{status === 'auth_required' && <a href={`/login?next=/rooms/${roomId}`}>{copy.reconnect}</a>}</p>}
           {outbox.storageError && <p className="error-text" role="alert">{outbox.storageError}</p>}
           {translatedPuzzle.isError && <p className="error-text" role="alert">{language === 'zh' ? copy.translatedFail : copy.translatedFailEn}</p>}
-          {error && <p className="error-text" role="alert">{error}</p>}
           {pendingNotices.map((p) => <div key={p.input.clientRequestId} role="status">
             <p>{p.status === 'rejected' ? p.error : p.status === 'sending' ? copy.operationSubmitting : copy.confirming}</p>
             {p.status === 'confirming' && <button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>{copy.keepConfirming}</button>}
           </div>)}
         </div>
       </div>
+      {/* 操作反馈改为悬浮条：不挤占布局，到点自动消失 */}
+      {error && <Toast message={error} tone="error" durationMs={4000} onDone={() => setError(null)} />}
       {managementOpen && <section ref={managementRef} className="panel stack room-management game-scroll" aria-label={copy.membersManagement}>
         <h2>{copy.membersHeader}</h2>
         <MemberList
@@ -269,9 +277,8 @@ export function RoomPage({ session }: { session: Session | null }) {
           </button>
         )}
       </section>}
-      <div className={`appear-slot${inviteCopied ? ' open' : ''}`}>
-        <p className="accent">{copy.inviteCopied}</p>
-      </div>
+      {/* 邀请链接已复制：悬浮提示，2 秒后自动消失 */}
+      {inviteCopied && <Toast message={copy.inviteCopied} onDone={() => setInviteCopied(false)} />}
 
       {/* ---------- 游戏区 ---------- */}
       {round && (
@@ -326,9 +333,10 @@ export function RoomPage({ session }: { session: Session | null }) {
                 <div key={d.eventId} data-message-id={d.eventId} className="turn turn-ask">
                   <div className="turn-bubble">
                     <p className="turn-text">
+                      {/* 用户主持人标记放在昵称前面，与昵称同行 */}
+                      {d.userId === state.userHostId && <span className="verdict-badge verdict-uncertain host-tag">{copy.userHost}</span>}
                       <strong>{d.nickname}</strong>：{d.text}
                     </p>
-                    {d.userId === state.userHostId && <span className="verdict-badge verdict-uncertain">{copy.userHost}</span>}
                   </div>
                 </div>
               ))}
@@ -368,7 +376,7 @@ export function RoomPage({ session }: { session: Session | null }) {
               )}
               <div className="mode-tabs" role="tablist">
                 <button className={`mode-tab ${inputMode === 'ask' ? 'active' : ''}`} role="tab" aria-selected={inputMode === 'ask'} onClick={() => setInputMode('ask')}>
-                  {copy.ask}
+                  {copy.askTab}
                 </button>
                 <button className={`mode-tab ${inputMode === 'solve' ? 'active' : ''}`} role="tab" aria-selected={inputMode === 'solve'} onClick={() => setInputMode('solve')}>
                   {hostView ? copy.hostViewAnswer : copy.solve}
@@ -389,7 +397,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                       maxLength={inputMode === 'ask' ? 500 : inputMode === 'discussion' ? 1000 : 1500}
                       disabled={!outbox.local}
                       value={text}
-                      placeholder={inputMode === 'ask' ? copy.askPlaceholder : inputMode === 'discussion' ? copy.discussPlaceholder : copy.solvePlaceholder}
+                      placeholder={inputMode === 'ask' ? askPlaceholder : inputMode === 'discussion' ? copy.discussPlaceholder : copy.solvePlaceholder}
                       onChange={(e) => setText(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -408,7 +416,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                 {isHost && (
                   <>
                     <button className="btn btn-sm" disabled={busy || round.hintsRevealed >= 3} onClick={() => void run('reveal_hint', undefined, round.roundId)}>
-                      {copy.hintMore} ({round.hintsRevealed}/3)
+                      {copy.hint} {round.hintsRevealed}/3
                     </button>
                     <button
                       className="btn btn-sm btn-danger"
@@ -574,8 +582,8 @@ export function MemberList({
               </button>
             </span>
           )}
-          {/* 本人入口：申请成为主持人 / 退出主持人（房主本人就是主持人，不显示申请入口） */}
-          {m.userId === me && !m.isUserHost && !m.isHost && onRequestHost && (
+          {/* 本人入口：申请成为主持人 / 退出主持人（房主自申请服务端直接通过） */}
+          {m.userId === me && !m.isUserHost && onRequestHost && (
             <span className="member-actions">
               <button className="btn btn-sm" onClick={onRequestHost} disabled={pending.has(m.userId)}>
                 {pending.has(m.userId) ? copy.hostApplyPending : copy.hostApply}

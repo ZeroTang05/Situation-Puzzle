@@ -45,8 +45,16 @@ export function InvitePage({ session, kind }: { session: Session | null; kind: '
         ? api<LobbyPreview>(`/invites/lobby/${token}`)
         : api<RoomPreview>(`/invites/room/${token}`);
     },
+    // 预览接口需要登录态：未登录直接去登录页，别拿 401 当成「链接无效」
+    enabled: !!session,
     retry: false,
   });
+
+  // 未登录：带 next 跳登录页，登录后回到本邀请链接，预览加载后自动入房
+  useEffect(() => {
+    if (session) return;
+    navigate(loginHref(source), { replace: true });
+  }, [session, navigate, source]);
 
   const attempted = useRef<string | null>(null);
   // 登录返回后自动提交加入命令：lobby 邀请 join → 可能跳卧室（已开局）或 lobby；room 邀请 join → 跳卧室。
@@ -76,6 +84,8 @@ export function InvitePage({ session, kind }: { session: Session | null; kind: '
     }
   };
 
+  // 未登录时正在跳登录页：显示加载态，不闪「链接无效」
+  if (!session) return <main className="shell page-loading">{copy.loadingRound}</main>;
   if (preview.isPending) return <main className="shell page-loading">{copy.loadingRound}</main>;
   if (preview.isError || !preview.data) {
     return (
@@ -105,13 +115,9 @@ export function InvitePage({ session, kind }: { session: Session | null; kind: '
         )}
         {kind === 'room' && (data as RoomPreview).status === 'closed' ? (
           <p className="error-text">{copy.roomClosedHint}</p>
-        ) : session ? (
+        ) : (
           <button className="btn btn-primary" disabled={joining} onClick={() => void join()}>
             {joining ? copy.joining : copy.joinRoom}
-          </button>
-        ) : (
-          <button className="btn btn-primary" onClick={() => navigate(loginHref(source), { replace: true })}>
-            {copy.loginAndJoin}
           </button>
         )}
         {error && <p className="error-text" role="alert">{error}</p>}

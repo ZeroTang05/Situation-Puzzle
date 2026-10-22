@@ -1,12 +1,11 @@
 /** 从环境变量构建判题配置：缺失密钥时延迟到调用时失败（单人/多人共用）。 */
-import type { JevConfig, Language } from './types.js';
+import type { JevConfig } from './types.js';
 
 export function jevConfigFromEnv(env: NodeJS.ProcessEnv = process.env): JevConfig {
   const threshold = Number(env.JEV_THRESHOLD ?? '0.5');
   if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
     throw new Error(`JEV_THRESHOLD 不合法：${env.JEV_THRESHOLD}`);
   }
-  const language: Language = env.JEV_LANGUAGE === 'en' ? 'en' : 'zh';
   return {
     apiKey: env.OPENCODE_API_KEY ?? '',
     // 代理路径保留上游域名和接口路径，JEV_BASE_URL 可指定完整请求地址。
@@ -16,7 +15,6 @@ export function jevConfigFromEnv(env: NodeJS.ProcessEnv = process.env): JevConfi
     promptVersion: env.JEV_PROMPT_VERSION ?? 'v4-2026-10',
     attemptTimeoutMs: 20_000,
     totalDeadlineMs: 45_000,
-    language,
     minimax: { apiKey: env.MINIMAX_API_KEY ?? '', baseUrl: env.MINIMAX_BASE_URL ?? 'https://api.minimax.cn/anthropic', model: env.MINIMAX_MODEL ?? 'MiniMax-M2.7' },
   };
 }

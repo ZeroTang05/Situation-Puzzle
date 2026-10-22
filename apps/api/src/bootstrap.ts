@@ -73,7 +73,7 @@ export async function createAppContext(input: BootstrapInput): Promise<AppContex
   // CORS 必须挂在 better-auth 之前：/api/v1/auth 路由先于 Nest 注册，Nest 的 enableCors 盖不到它。
   // App 壳（WebView 来源 https://localhost）跨站调用接口；网页端同源，无 Origin 时不加 CORS 头。
   const origins = new Set(allowedOrigins(input.env));
-  const allowedHeaders = ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-jev-signup-otp', 'x-jev-otp-purpose'];
+  const allowedHeaders = ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-jev-signup-otp', 'x-jev-otp-purpose', 'x-jev-language'];
   server.use((req, res, next) => {
     const origin = req.headers.origin;
     if (origin !== undefined) res.setHeader('Vary', 'Origin');

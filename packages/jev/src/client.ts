@@ -9,7 +9,7 @@
  */
 import { z } from 'zod';
 import { JevError } from './errors.js';
-import type { AskVerdict, JevAttemptRecord, JevConfig, JevPurpose, SolveVerdict, ReviewVerdict } from './types.js';
+import type { AskVerdict, JevAttemptRecord, JevConfig, JevPurpose, Language, SolveVerdict, ReviewVerdict } from './types.js';
 import {
   type AskInput,
   type ReviewInput,
@@ -76,17 +76,21 @@ export class JevClient {
     private readonly onAttempt?: (record: JevAttemptRecord) => void,
   ) {}
 
-  async ask(input: AskInput): Promise<JevJudgeResult<AskVerdict>> {
-    return this.judge(ASK_CHOICES, 'uncertain' as AskVerdict, 'ask', askState(input, this.config.language), askQuestion(this.config.language), input.question);
+  /**
+   * 提问判定。语言由调用方现场给出（题目/本局/投稿的语言），不再有全局默认值：
+   * 同一套部署可以同时判中文题与英文题，提示词结构与选项标签都随语言切换。
+   */
+  async ask(input: AskInput, language: Language): Promise<JevJudgeResult<AskVerdict>> {
+    return this.judge(ASK_CHOICES, 'uncertain' as AskVerdict, 'ask', askState(input, language), askQuestion(language), input.question);
   }
 
-  async solve(input: SolveInput): Promise<JevJudgeResult<SolveVerdict>> {
-    return this.judge(SOLVE_CHOICES, 'uncertain' as SolveVerdict, 'solve', solveState(input, this.config.language), solveQuestion(this.config.language), input.solution);
+  async solve(input: SolveInput, language: Language): Promise<JevJudgeResult<SolveVerdict>> {
+    return this.judge(SOLVE_CHOICES, 'uncertain' as SolveVerdict, 'solve', solveState(input, language), solveQuestion(language), input.solution);
   }
 
   /** 投稿辅助审核：通过/不通过/不确定；不能忽略置信度。 */
-  async review(input: ReviewInput): Promise<ReviewVerdict> {
-    const result = await this.judge(REVIEW_CHOICES, 'review_uncertain' as ReviewVerdict, 'review', reviewState(input, this.config.language), reviewQuestion(this.config.language), '');
+  async review(input: ReviewInput, language: Language): Promise<ReviewVerdict> {
+    const result = await this.judge(REVIEW_CHOICES, 'review_uncertain' as ReviewVerdict, 'review', reviewState(input, language), reviewQuestion(language), '');
     return result.result;
   }
 

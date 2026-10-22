@@ -23,6 +23,7 @@ import {
 } from '@jev/database';
 import { DomainError } from '@jev/domain';
 import { app } from '../context.js';
+import { z } from 'zod';
 import type { SessionUser } from '../common/http.js';
 import { createRoomWithEntitlementTx, jevConfigVersionOf } from './room-creation.js';
 
@@ -195,7 +196,7 @@ export class RoomsService {
           roundNo: 1,
           puzzleVersionId: version.puzzle_versions.id,
           language: version.puzzle_versions.language,
-          jevConfigVersion: jevConfigVersionOf(),
+          jevConfigVersion: jevConfigVersionOf(z.enum(['zh', 'en']).parse(version.puzzle_versions.language)),
         })
         .returning();
       const migratedUserIds = memberResults.filter((m) => m.migrated).map((m) => m.userId);

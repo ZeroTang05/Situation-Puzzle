@@ -20,8 +20,9 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 import { type Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { ERROR_STATUS, type ErrorCode } from '@jev/contracts';
+import { ERROR_STATUS, type ErrorCode, type Language } from '@jev/contracts';
 import { DomainError } from '@jev/domain';
+import { languageFromHeaders } from './language.js';
 import { type ZodType } from 'zod';
 
 // ---------- requestId 上下文 ----------
@@ -91,6 +92,17 @@ export interface SessionUser {
 export const CurrentUser = createParamDecorator((_data: unknown, context: ExecutionContext): SessionUser => {
   const request = context.switchToHttp().getRequest();
   return request.sessionUser as SessionUser;
+});
+
+// ---------- 当前界面语言 ----------
+
+/**
+ * 请求里的实时界面语言（X-Jev-Language 头）：客户端当前选择，未登录也可用。
+ * 没有该头时返回 null，由调用方按账号档案再兜底。
+ */
+export const CurrentLanguage = createParamDecorator((_data: unknown, context: ExecutionContext): Language | null => {
+  const request = context.switchToHttp().getRequest();
+  return languageFromHeaders(request.headers);
 });
 
 // ---------- 角色守卫 ----------

@@ -3,7 +3,7 @@ import { JevClient } from './client.js';
 import { MiniMaxClient } from './minimax.js';
 import { JevError } from './errors.js';
 import type { AskInput, SolveInput, ReviewInput } from './prompts.js';
-import type { JevConfig, JevAttemptRecord } from './types.js';
+import type { JevConfig, JevAttemptRecord, Language } from './types.js';
 
 export class JudgmentClient {
   private readonly jev: JevClient;
@@ -12,21 +12,22 @@ export class JudgmentClient {
     this.jev = new JevClient({ ...config, totalDeadlineMs: Math.min(config.totalDeadlineMs, 25_000) }, onAttempt);
   }
 
-  async ask(input: AskInput) {
+  /** 语言由调用方现场给出（题目/本局/投稿的语言）。 */
+  async ask(input: AskInput, language: Language) {
     const deadline = Date.now() + this.config.totalDeadlineMs;
-    const result = await this.jev.ask(input);
+    const result = await this.jev.ask(input, language);
     return result.confidence < this.config.threshold ? this.mini().ask(input, deadline - Date.now()) : result;
   }
 
-  async solve(input: SolveInput, useLargeModel = false) {
+  async solve(input: SolveInput, language: Language, useLargeModel = false) {
     const deadline = Date.now() + this.config.totalDeadlineMs;
     if (useLargeModel) return this.mini().solve(input, this.config.totalDeadlineMs);
-    const result = await this.jev.solve(input);
+    const result = await this.jev.solve(input, language);
     return result.confidence < this.config.threshold ? this.mini().solve(input, deadline - Date.now()) : result;
   }
 
-  review(input: ReviewInput) {
-    return new JevClient(this.config, this.onAttempt).review(input);
+  review(input: ReviewInput, language: Language) {
+    return new JevClient(this.config, this.onAttempt).review(input, language);
   }
 
   private mini(): MiniMaxClient {

@@ -14,6 +14,7 @@ import { format } from '@jev/i18n';
 import type { Session } from '../session.js';
 import { PuzzleSelection } from './puzzle-selection.js';
 import { inviteUrl } from '../game/game-display.js';
+import { Toast } from '../toast.js';
 import { useLobbySync } from './use-lobby-sync.js';
 import { MemberList } from './room-page.js';
 
@@ -268,7 +269,7 @@ export function LobbyPage({ session }: { session: Session | null }) {
           </div>
         )}
 
-        {inviteCopied && <p className="accent">{copy.inviteCopied}</p>}
+        {inviteCopied && <Toast message={copy.inviteCopied} onDone={() => setInviteCopied(false)} />}
         {error && <p className="error-text" role="alert">{error}</p>}
       </section>
 

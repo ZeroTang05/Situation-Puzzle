@@ -254,10 +254,10 @@ export function LibraryPage({ session }: { session: Session | null }) {
                     <VoteIcon direction="down" /> {compactVoteCount(puzzle.downCount)}
                   </span>
                 </span>
-              </div>
-              <div className="puzzle-card-actions">
-                <button className="btn btn-sm btn-primary" disabled={isPlaceholderData} onClick={() => onPick(puzzle)}>{mode === 'select' ? copy.selectPuzzle : copy.solo}</button>
-                {mode !== 'select' && <button className="btn btn-sm btn-compact" disabled={isPlaceholderData || openingPuzzleId !== null} onClick={() => void openRoomWithPuzzle(puzzle)}>{openingPuzzleId === puzzle.id ? copy.creating : copy.catalogOpenRoom}</button>}
+                <div className="puzzle-card-actions">
+                  <button className="btn btn-sm btn-primary" disabled={isPlaceholderData} onClick={() => onPick(puzzle)}>{mode === 'select' ? copy.selectPuzzle : copy.solo}</button>
+                  {mode !== 'select' && <button className="btn btn-sm btn-compact" disabled={isPlaceholderData || openingPuzzleId !== null} onClick={() => void openRoomWithPuzzle(puzzle)}>{openingPuzzleId === puzzle.id ? copy.creating : copy.catalogOpenRoom}</button>}
+                </div>
               </div>
             </footer>
           </article>

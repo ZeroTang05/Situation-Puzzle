@@ -11,7 +11,7 @@ import { SignJWT, jwtVerify } from 'jose';
 import { and, eq } from 'drizzle-orm';
 import { puzzles, puzzleVersions } from '@jev/database';
 import { DomainError } from '@jev/domain';
-import { JudgmentClient, jevConfigVersion, type Language, type RecentQa } from '@jev/jev';
+import { JudgmentClient, jevConfigVersion, type RecentQa } from '@jev/jev';
 import { app } from '../context.js';
 import { Anonymous } from '../common/public.js';
 import { ZodValidationPipe } from '../common/http.js';
@@ -62,9 +62,9 @@ export class SoloController {
     return new TextEncoder().encode(app().env.SOLO_TOKEN_SECRET);
   }
 
-  private jev(language: Language): JudgmentClient {
+  private jev(): JudgmentClient {
     const context = app();
-    return new JudgmentClient({ ...context.jev, language });
+    return new JudgmentClient(context.jev);
   }
 
   /** 换取无状态凭证：读固定发布版本，签发 24 小时令牌，不落任何表。 */
@@ -100,7 +100,7 @@ export class SoloController {
     const version = rows[0];
     if (!version) throw new DomainError('CONTENT_UNAVAILABLE', '题目不可用或未发布');
 
-    const configVersion = jevConfigVersion({ ...context.jev, language: body.language });
+    const configVersion = jevConfigVersion(context.jev, body.language);
     const token = await new SignJWT({
       purpose: 'solo',
       pv: version.versionId,
@@ -180,14 +180,14 @@ export class SoloController {
     await this.gate.acquire();
     let verdict;
     try {
-      verdict = await this.jev(payload.lang).solve({
+      verdict = await this.jev().solve({
         title: version.title,
         surface: version.surface,
         answer: version.answer,
         coreFacts: version.coreFacts,
         category: version.category,
         solution: body.solution,
-      }, body.useLargeModel);
+      }, payload.lang, body.useLargeModel);
     } finally {
       this.gate.release();
     }
@@ -211,7 +211,7 @@ export class SoloController {
     await this.gate.acquire();
     let verdict;
     try {
-      verdict = await this.jev(payload.lang).ask({
+      verdict = await this.jev().ask({
         title: version.title,
         surface: version.surface,
         answer: version.answer,
@@ -219,7 +219,7 @@ export class SoloController {
         category: version.category,
         ...(clamped.length ? { recentQas: clamped } : {}),
         question,
-      });
+      }, payload.lang);
     } finally {
       this.gate.release();
     }

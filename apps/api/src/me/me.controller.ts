@@ -16,7 +16,7 @@ import {
 import { freeRoomsRemaining, hasActiveSponsorship, hasLifetimeGrant } from '@jev/domain';
 import { app } from '../context.js';
 import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http.js';
-import { meResponseSchema, nicknameUpdateRequestSchema, roomHistoryQuerySchema } from '@jev/contracts';
+import { meResponseSchema, nicknameUpdateRequestSchema, languageUpdateRequestSchema, roomHistoryQuerySchema } from '@jev/contracts';
 import { z } from 'zod';
 
 @Controller('me')
@@ -25,9 +25,10 @@ export class MeController {
   async me(@CurrentUser() user: SessionUser): Promise<z.infer<typeof meResponseSchema>> {
     const context = app();
     const now = new Date();
-    const [grants, freeRows] = await Promise.all([
+    const [grants, freeRows, profileRows] = await Promise.all([
       context.db.db.select().from(sponsorGrants).where(eq(sponsorGrants.userId, user.userId)),
       context.db.db.select().from(freeRoomAccounts).where(eq(freeRoomAccounts.userId, user.userId)).limit(1),
+      context.db.db.select({ language: profiles.language }).from(profiles).where(eq(profiles.userId, user.userId)).limit(1),
     ]);
     // 有期限授权（月度/注册礼）中最晚的到期日：过期也返回，前端显示「已到期」
     const termUntil = grants
@@ -42,6 +43,8 @@ export class MeController {
       email: user.email,
       emailVerified: user.emailVerified,
       roles: user.roles,
+      // 档案里的界面语言（事务邮件按它发；请求头里的实时值优先级更高）
+      language: profileRows[0]?.language === 'en' ? 'en' : 'zh',
       sponsorship: {
         monthlyUntil: termUntil?.toISOString() ?? null,
         lifetime: hasLifetimeGrant(grants) && hasActiveSponsorship(grants, now),
@@ -77,6 +80,22 @@ export class MeController {
       .set({ nickname: body.nickname, updatedAt: new Date() })
       .where(eq(profiles.userId, user.userId));
     return { nickname: body.nickname };
+  }
+
+  /**
+   * 修改界面语言：写回档案，服务端后续的事务邮件（验证码 / 重置密码）按它发。
+   * 请求头 X-Jev-Language 仍是实时值，档案只是没有请求头时的兜底。
+   */
+  @Patch('language')
+  async updateLanguage(
+    @CurrentUser() user: SessionUser,
+    @Body(new ZodValidationPipe(languageUpdateRequestSchema)) body: z.infer<typeof languageUpdateRequestSchema>,
+  ): Promise<{ language: 'zh' | 'en' }> {
+    await app().db.db
+      .update(profiles)
+      .set({ language: body.language, updatedAt: new Date() })
+      .where(eq(profiles.userId, user.userId));
+    return { language: body.language };
   }
 
   /** 当前可进入的房间：成员资格逐房间查询，不受历史分页限制。 */

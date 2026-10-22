@@ -495,6 +495,8 @@ export const meResponseSchema = z.object({
   email: z.string(),
   emailVerified: z.boolean(),
   roles: z.array(z.string()),
+  /** 用户界面语言：服务端据此发中文或英文的事务邮件 */
+  language: languageSchema,
   sponsorship: z.object({
     monthlyUntil: z.string().nullable(),
     lifetime: z.boolean(),
@@ -504,6 +506,11 @@ export const meResponseSchema = z.object({
     consumed: z.number().int(),
     reserved: z.number().int(),
   }),
+});
+
+/** 修改界面语言：写回 profiles.language，服务端后续按它发事务邮件。 */
+export const languageUpdateRequestSchema = z.object({
+  language: languageSchema,
 });
 
 /** 修改昵称：允许与其他玩家重名，仅约束 1～30 字符（服务端去首尾空格） */

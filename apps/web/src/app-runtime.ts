@@ -33,6 +33,15 @@ export function authorizationHeader(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/**
+ * 语言请求头：把用户当前界面语言带给服务端（事务邮件按它发中/英文）。
+ * 每次请求实时读取 localStorage，取最新选择；语言状态本身在 state/language.tsx。
+ */
+export function languageHeader(): Record<string, string> {
+  const stored = typeof localStorage === 'undefined' ? null : localStorage.getItem('jev.language');
+  return { 'X-Jev-Language': stored === 'en' ? 'en' : 'zh' };
+}
+
 /** 登录/会话刷新响应经 set-auth-token 头下发令牌；只在 App 壳存储，网页继续用 Cookie */
 export function captureBearerToken(response: Response): void {
   if (!isAppShell) return;

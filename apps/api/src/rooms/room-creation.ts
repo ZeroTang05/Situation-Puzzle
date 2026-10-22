@@ -11,10 +11,10 @@ import { jevConfigVersion } from '@jev/jev';
 
 type Tx = Parameters<Parameters<import('@jev/database').Database['transaction']>[0]>[0];
 
-/** 局固定的判题配置版本标识（开局时点一次定型）。 */
-export function jevConfigVersionOf(): string {
+/** 局固定的判题配置版本标识（开局时点一次定型；语言按本局题目，不取全局默认值）。 */
+export function jevConfigVersionOf(language: 'zh' | 'en'): string {
   const jev = app().jev;
-  return jevConfigVersion(jev);
+  return jevConfigVersion(jev, language);
 }
 
 export async function createRoomWithEntitlementTx(

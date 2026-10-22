@@ -1,4 +1,4 @@
-import { apiUrl, authorizationHeader } from '../app-runtime.js';
+import { apiUrl, authorizationHeader, languageHeader } from '../app-runtime.js';
 
 /** 发送倒计时保存绝对截止时间，刷新和后台停留后仍按实际时间计算。 */
 export const otpCooldownKey = 'jev.otp-send-until';
@@ -28,7 +28,7 @@ export async function sendOtpCode(
   const response = await fetch(apiUrl('/auth/email-otp/send-verification-otp'), {
     method: 'POST',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(options.signup ? { 'x-jev-otp-purpose': 'signup' } : {}), ...authorizationHeader() },
+    headers: { 'Content-Type': 'application/json', ...(options.signup ? { 'x-jev-otp-purpose': 'signup' } : {}), ...authorizationHeader(), ...languageHeader() },
     body: JSON.stringify({ email, type }), signal: AbortSignal.timeout(30_000),
   });
   const body = await response.json() as { success?: boolean; message?: string; code?: string; retryAfterSeconds?: number };

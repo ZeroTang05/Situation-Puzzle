@@ -7,7 +7,6 @@ const envSchema = z.object({
   JEV_BASE_URL: z.string().optional(),
   JEV_MODEL: z.string().optional(),
   JEV_THRESHOLD: z.string().optional(),
-  JEV_LANGUAGE: z.enum(['zh', 'en']).default('zh'),
   JEV_PROMPT_VERSION: z.string().optional(),
   /** 判题附带的本局最近问答轮数（0=关闭，上限 10=单人契约的硬上限） */
   JEV_RECENT_QA_LIMIT: z.coerce.number().int().min(0).max(10).default(3),

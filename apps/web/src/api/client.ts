@@ -5,7 +5,7 @@
 import type { ErrorCode } from '@jev/contracts';
 import { displayError, type Language } from '@jev/i18n';
 import { OtpSendError } from '../auth/otp-cooldown.js';
-import { apiUrl, authorizationHeader, captureBearerToken } from '../app-runtime.js';
+import { apiUrl, authorizationHeader, captureBearerToken, languageHeader } from '../app-runtime.js';
 
 export class ApiError extends Error {
   constructor(
@@ -36,7 +36,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
 
   const response = await fetch(apiUrl(path), {
     method: options.method ?? 'GET',
-    headers: { ...headers, ...authorizationHeader() },
+    headers: { ...headers, ...authorizationHeader(), ...languageHeader() },
     signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(options.timeoutMs ?? 60_000)]) : AbortSignal.timeout(options.timeoutMs ?? 60_000),
     credentials: options.credentials ?? 'include',
     ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
