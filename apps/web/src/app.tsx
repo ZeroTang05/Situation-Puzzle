@@ -1,6 +1,7 @@
-/** 路由结构：单人 / 题库 / 房间 / 邀请 / 创作中心 / 我的 / 登录。 */
+/** 路由结构：单人 / 大厅 / 题库 / 房间 / 邀请 / 创作中心 / 我的 / 登录。 */
 import { Navigate, Route, Routes } from 'react-router';
 import { HomePage } from './lobby/home-page.js';
+import { HallPage } from './hall/hall-page.js';
 import { LibraryPage } from './catalog/library-page.js';
 import { SoloPage } from './solo/solo-page.js';
 import { RoomPage } from './rooms/room-page.js';
@@ -28,6 +29,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage session={session} />} />
+      <Route path="/hall" element={<RequireSession session={session}><HallPage /></RequireSession>} />
       <Route path="/library" element={<LibraryPage session={session} />} />
       <Route path="/solo/:puzzleId" element={<SoloPage session={session} />} />
       <Route path="/rooms/:roomId" element={<RequireSession session={session}><RoomPage session={session} /></RequireSession>} />

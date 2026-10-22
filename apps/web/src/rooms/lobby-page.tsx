@@ -17,11 +17,14 @@ import { inviteUrl } from '../game/game-display.js';
 import { Toast } from '../toast.js';
 import { useLobbySync } from './use-lobby-sync.js';
 import { MemberList } from './room-page.js';
+import { VisibilityToggle } from './visibility-toggle.js';
 
 interface LobbySnapshot {
   lobbyId: string;
   hostUserId: string;
   capacity: number;
+  /** 下一局是否公开：true 时开局建出来的房间会出现在大厅 */
+  isPublic: boolean;
   members: Array<{ userId: string; nickname: string; online: boolean; isHost: boolean; isUserHost: boolean }>;
   selectedPuzzle: { puzzleId: string; title: string; language: 'zh' | 'en' } | null;
   /** 主持人形态：ai = Jev 主持；user = 用户主持 */
@@ -116,6 +119,19 @@ export function LobbyPage({ session }: { session: Session | null }) {
     void api(`/lobbies/${lobbyId}/kick`, { method: 'POST', body: { userId } })
       .then(() => queryClient.invalidateQueries({ queryKey: ['lobby', lobbyId] }))
       .catch((err: unknown) => setError(translateApiError(err, language, copy.startFail)));
+  };
+
+  // ---------- 公开 / 私人（18-HALL-PUBLIC-ROOMS） ----------
+
+  /** 房主切换公开状态：这是「下一局」的偏好，start 时复制进新房。幂等。 */
+  const toggleVisibility = (next: boolean) => {
+    if (!lobbyId || busy) return;
+    setBusy(true);
+    setError(null);
+    void api<{ isPublic: boolean }>(`/lobbies/${lobbyId}/visibility`, { method: 'POST', body: { isPublic: next } })
+      .then(() => queryClient.invalidateQueries({ queryKey: ['lobby', lobbyId] }))
+      .catch((err: unknown) => setError(translateApiError(err, language, copy.visibilityFail)))
+      .finally(() => setBusy(false));
   };
 
   // ---------- 用户主持人（17-USER-HOST-MODE） ----------
@@ -250,6 +266,10 @@ export function LobbyPage({ session }: { session: Session | null }) {
             <button className="btn btn-primary" disabled={busy || !data.selectedPuzzle} onClick={() => void startRound()}>
               {busy ? copy.submitting : copy.startRound}
             </button>
+            <div className="visibility-box">
+              <VisibilityToggle checked={data.isPublic} disabled={busy} onChange={toggleVisibility} />
+              <p className="muted">{copy.visibilityHint}</p>
+            </div>
             <div className="hint-row">
               <button className="btn" disabled={busy} onClick={() => void copyInvite()}>{copy.invite}</button>
               <button

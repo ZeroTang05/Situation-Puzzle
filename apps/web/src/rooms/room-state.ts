@@ -66,6 +66,8 @@ export interface RoomState {
   hostUserId: string;
   controlVersion: number;
   capacity: number;
+  /** 公开房间：true 时出现在大厅并允许直接加入（18-HALL-PUBLIC-ROOMS） */
+  isPublic: boolean;
   /** 主持人形态：ai = Jev 主持；user = 用户主持（17-USER-HOST-MODE） */
   hostMode: 'ai' | 'user';
   /** 当前用户主持人（null = 无） */
@@ -197,6 +199,10 @@ export function applyEvent(state: RoomState, event: RoomEvent): RoomState {
       // 邀请令牌刷新后需要房主重新查看邀请链接（通过 HTTP 拉取）
       return state;
     }
+    case 'room.visibility_changed': {
+      // 房主切换了公开 / 私人：大厅列表随之增减，房间内所有人同步看到
+      return { ...state, isPublic: p.isPublic === true };
+    }
     // ---------- 用户主持人（17-USER-HOST-MODE） ----------
     case 'room.host_requested': {
       const userId = String(p.userId);
@@ -247,6 +253,7 @@ export async function fetchSnapshot(roomId: string, signal?: AbortSignal): Promi
     hostUserId: string;
     controlVersion: number;
     capacity: number;
+    isPublic: boolean;
     hostMode: RoomState['hostMode'];
     userHostId: string | null;
     hostRequests: Array<{ userId: string; nickname: string }>;
@@ -264,6 +271,7 @@ export async function fetchSnapshot(roomId: string, signal?: AbortSignal): Promi
       hostUserId: snap.hostUserId,
       controlVersion: snap.controlVersion,
       capacity: snap.capacity,
+      isPublic: snap.isPublic === true,
       hostMode: snap.hostMode,
       userHostId: snap.userHostId,
       hostRequests: snap.hostRequests ?? [],

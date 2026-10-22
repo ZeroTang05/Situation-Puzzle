@@ -24,6 +24,7 @@ import { VoteButtons } from '../catalog/vote-buttons.js';
 import type { Session } from '../session.js';
 import { MessageDelivery } from './message-delivery.js';
 import { RoomShell } from './room-shell.js';
+import { VisibilityToggle } from './visibility-toggle.js';
 import { Toast } from '../toast.js';
 import { loginHref } from '../auth/login-navigation.js';
 
@@ -257,19 +258,25 @@ export function RoomPage({ session }: { session: Session | null }) {
           onRevokeHost={revokeHost}
           onResignHost={resignHost}
         />
-        {isHost && state.roomStatus !== 'closed' && <div className="room-management-actions">
-          <button className="btn room-management-wide" disabled={busy} onClick={() => void copyInvite()}>{copy.invite}</button>
-          <button className="btn" disabled={busy} onClick={() => void run('rotate_invite')}>{language === 'zh' ? copy.resettingInvite : copy.resetInviteEn}</button>
-          <button
-            className="btn btn-danger"
-            disabled={busy}
-            onClick={async () => {
-              if (await dialog.confirm(copy.closeRoomConfirm, copy.closeRoom)) void run('close_room').then((result) => { if (result) navigate('/'); });
-            }}
-          >
-            {copy.closeRoom}
-          </button>
-        </div>}
+        {isHost && state.roomStatus !== 'closed' && <>
+          <div className="visibility-box">
+            <VisibilityToggle checked={state.isPublic} disabled={busy} onChange={(next) => void run('set_visibility', { isPublic: next })} />
+            <p className="muted">{copy.visibilityHint}</p>
+          </div>
+          <div className="room-management-actions">
+            <button className="btn room-management-wide" disabled={busy} onClick={() => void copyInvite()}>{copy.invite}</button>
+            <button className="btn" disabled={busy} onClick={() => void run('rotate_invite')}>{language === 'zh' ? copy.resettingInvite : copy.resetInviteEn}</button>
+            <button
+              className="btn btn-danger"
+              disabled={busy}
+              onClick={async () => {
+                if (await dialog.confirm(copy.closeRoomConfirm, copy.closeRoom)) void run('close_room').then((result) => { if (result) navigate('/'); });
+              }}
+            >
+              {copy.closeRoom}
+            </button>
+          </div>
+        </>}
         {/* 离开房间收进管理面板：底部操作行只留给本局相关的操作，窄屏不再挤成一排小字按钮 */}
         {state.roomStatus !== 'closed' && (
           <button className="btn btn-ghost room-management-wide" disabled={busy} onClick={() => void run('leave').then((result) => { if (result) navigate('/'); })}>

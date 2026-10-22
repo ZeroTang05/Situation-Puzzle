@@ -87,6 +87,9 @@ export function HomePage({ session }: { session: Session | null }) {
           <button className="btn btn-sm" onClick={() => navigate('/library')}>
             {copy.library}
           </button>
+          <button className="btn btn-sm" onClick={() => navigate(session ? '/hall' : '/login?next=%2Fhall')}>
+            {copy.hall}
+          </button>
           <button className="btn btn-sm" onClick={() => navigate('/creations')}>
             {creationCopy(language).works}
           </button>
