@@ -30,6 +30,20 @@ const ORDER_TTL_MINUTES = 15;
 
 @Injectable()
 export class OrdersService {
+  /**
+   * 商品目录（首发价，单位分）：月度 600 = ¥6，永久 2000 = ¥20。
+   * 这里的数字只在「该类型完全没有版本」时用于建第一个版本；
+   * 之后改价走新版本（versionNo+1），已售版本不动。
+   */
+  private static readonly CATALOG: Array<{
+    type: 'monthly' | 'lifetime';
+    priceMinor: number;
+    title: string;
+  }> = [
+    { type: 'monthly', priceMinor: 600, title: '月度会员' },
+    { type: 'lifetime', priceMinor: 2000, title: '永久会员' },
+  ];
+
   /** 按通道取适配器：凭据不齐返回 null（该通道收费入口保持关闭）。 */
   private adapter(channel: string): PayAdapter | null {
     const env = app().env as never;
@@ -51,18 +65,15 @@ export class OrdersService {
     return (PAY_CHANNELS as readonly string[]).includes(channel) && this.adapter(channel) !== null;
   }
 
-  /** 商品目录：幂等初始化 600 分月度与 2000 分永久（已售版本不可变，改价走新版本）。 */
+  /**
+   * 商品目录：600 分月度 + 2000 分永久。
+   *
+   * 已售出的版本不可变（改价走新版本 versionNo+1），所以这里只做「补齐缺失的类型」，
+   * 绝不改已有版本的价与标题。
+   */
   async listProducts() {
     const db = app().db;
-    const existing = await db.db.select().from(productVersions).innerJoin(sponsorProducts, eq(sponsorProducts.id, productVersions.productId));
-    if (existing.length === 0) {
-      const [monthly] = await db.db.insert(sponsorProducts).values({ type: 'monthly' }).returning();
-      const [lifetime] = await db.db.insert(sponsorProducts).values({ type: 'lifetime' }).returning();
-      await db.db.insert(productVersions).values([
-        { productId: monthly!.id, versionNo: 1, priceMinor: 600, title: '月度会员', available: true },
-        { productId: lifetime!.id, versionNo: 1, priceMinor: 2000, title: '永久会员', available: true },
-      ]);
-    }
+    await this.ensureCatalog();
     return db.db
       .select({
         productVersionId: productVersions.id,
@@ -75,6 +86,64 @@ export class OrdersService {
       .innerJoin(sponsorProducts, eq(sponsorProducts.id, productVersions.productId))
       .where(and(eq(productVersions.available, true), eq(sponsorProducts.available, true)))
       .orderBy(desc(productVersions.priceMinor));
+  }
+
+  /**
+   * 按类型幂等补齐商品目录。
+   *
+   * 为什么不是「表空时才插入」：那样老库里只要已经有月度、缺了永久，
+   * 永久会员就永远不会出现在前台——玩家端只会看到 ¥6 那一项。
+   *
+   * 并发补齐要串行化：sponsor_products.type 上没有唯一约束，
+   * 两个进程同时补会插出两条同类型商品行，前台就会显示两个「¥20 永久」。
+   * 这里用事务级 advisory lock 把补齐过程串起来。
+   */
+  private async ensureCatalog(): Promise<void> {
+    const db = app().db;
+
+    // 快路径：目录已齐（每种类型都有 versionNo=1）就不开事务
+    const snapshot = await db.db
+      .select({ type: sponsorProducts.type, versionId: productVersions.id })
+      .from(sponsorProducts)
+      .leftJoin(
+        productVersions,
+        and(eq(productVersions.productId, sponsorProducts.id), eq(productVersions.versionNo, 1)),
+      );
+    const ready = new Set(snapshot.filter((r) => r.versionId).map((r) => r.type));
+    if (OrdersService.CATALOG.every((item) => ready.has(item.type))) return;
+
+    await db.tx(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(778899)`);
+      for (const item of OrdersService.CATALOG) {
+        const [product] = await tx
+          .select({ id: sponsorProducts.id })
+          .from(sponsorProducts)
+          .where(eq(sponsorProducts.type, item.type))
+          .limit(1);
+        let productId = product?.id;
+        if (!productId) {
+          const [created] = await tx
+            .insert(sponsorProducts)
+            .values({ type: item.type })
+            .returning({ id: sponsorProducts.id });
+          productId = created!.id;
+        }
+        const [version] = await tx
+          .select({ id: productVersions.id })
+          .from(productVersions)
+          .where(and(eq(productVersions.productId, productId), eq(productVersions.versionNo, 1)))
+          .limit(1);
+        if (!version) {
+          await tx.insert(productVersions).values({
+            productId,
+            versionNo: 1,
+            priceMinor: item.priceMinor,
+            title: item.title,
+            available: true,
+          });
+        }
+      }
+    });
   }
 
   /**
