@@ -11,6 +11,8 @@
 
 **用户主持人模式**（`docs/rebuild/17-USER-HOST-MODE.md`）：除 AI「Jev」外，玩家也能自己当主持人。房间与会客厅各持一份主持人状态：`rooms.host_mode`（ai/user）+ `rooms.user_host_id`（谁在主持）+ `room_members.role`（成员身份镜像）/ `host_requested_at`（待审申请），会客厅同理。成员在会客厅或房间右上角玩家列表申请，房主审核（房主自申请直接通过）；房主也可**撤销**他人已有的主持身份（降级为玩家，房间回到 Jev 主持）。用户主持模式下，玩家的**提问与还原都挂起等主持人判定**（不进 AI 队列、`deadline_at` 置空不参与排队超时）：主持人在「问 Jev」页给「是/否/无关」，在「查看汤底」页（主持视角下「还原真相」页签改名）给「破解成功/接近真相/还没猜对」，判定为破解成功即终局归档；退出或被撤销即回到 Jev 主持。汤底只走 `GET /rounds/:id/host-view` 单独下发（仅本房间用户主持人可读），不进快照与事件。
 
+**大厅与公开房间**（`docs/rebuild/18-HALL-PUBLIC-ROOMS.md`）：房主可把房间设为**公开**，公开房间出现在大厅（`GET /hall`），其他人可直接加入（`POST /rooms/:id/join-public`，不需要邀请 token）。房间与会客厅各持一份开关：`rooms.is_public` / `user_lobbies.is_public`（默认 false＝全部是私人房间）。等待室的开关是「**下一局**」的偏好（与 `capacity` 同性质，start 事务复制进新房后不清空）；房间内的开关走**房间命令通道** `set_visibility`（host-only + 幂等 + 控制版本乐观并发 + 广播 `room.visibility_changed`）。切回私人只影响大厅可见性，已在房内的人不受影响、邀请链接照旧有效；房间归档（closed）必须从大厅消失。
+
 ## 目录结构
 
 ```
@@ -28,7 +30,7 @@ packages/ui          设计变量（深海色系、16px 正文、44px 触控）
 infra/               web/admin/api/jobs 各自 Dockerfile（apps/web+apps/admin 静态烘进 nginx，api 容器启动自动跑迁移）、web.nginx.conf / admin.nginx.conf
 scripts/             冒烟与端到端联调脚本（smoke-new-system.sh、e2e-run.sh、e2e-node-run.mjs 跨平台编排器、e2e-multiplayer/e2e-host-mode/e2e-votes 剧本、dev-env.sh、dev-mailsink.mjs）
 data/                题库 JSON 导入源：根 library.json / library.en.json 同 ID 配套（顺序须一致，当前 446 题 = 天堂精选 93 置顶 + 首发 7 + 扩展 10 + 小小耶精选 240 + 许二木精选 96，许二木批 2026-10-15 入库追加于库尾；zh 条目 category 本格/变格由导入映射为 puzzle_category 枚举 honkaku/henkaku；第一题固定「终点线」，各批次保持批内原序；seed 导入统一署名「初始题库」（signature 模式，前端按语言本地化））；sources.md 全库来源总览与逐题对照（编号=现役库位置 1–446）；scoring/ 打分口径与全部批次评分（编号 1–493 连续续写，与 sources.md 编号相互独立）；curated/ 各 UP 主批逐篇评审与存档（天堂/小小耶/许二木三批普通题均已并入根库，特殊玩法与未采用稿留存于各自目录）；reference/ 真实游玩素材（group 原始字幕 → real 抽取稿，按 UP 主分目录）
-docs/rebuild/        产品与架构设计文档（01~17：10 房间生命周期修订、11 赞踩署名、12 连接体验、13 App 版本计划、14 赞助码通道、15 支付通道凭据清单、16 并发与限流盘点、17 用户主持人模式）
+docs/rebuild/        产品与架构设计文档（01~18：10 房间生命周期修订、11 赞踩署名、12 连接体验、13 App 版本计划、14 赞助码通道、15 支付通道凭据清单、16 并发与限流盘点、17 用户主持人模式、18 大厅与公开房间）
 ```
 
 ## 常用命令
@@ -62,6 +64,10 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
 - **房间一致性**：写操作统一 HTTP 命令（`POST /rooms/:id/commands`），命令幂等
   (`clientRequestId` 唯一) + 控制版本乐观并发；事件按 `seq` 广播，客户端去重补齐；
   四条不变量靠数据库唯一索引兜底（见 `packages/database/src/schema/rooms.ts`）
+- **大厅可见性**：`rooms.is_public` 是房间是否进大厅的唯一权威；「谁能进、什么房间上大厅」
+  的判定在 `packages/domain/src/public-rooms.ts`（纯函数，服务端与前端共用口径）；
+  房间内的公开开关走房间命令 `set_visibility`（不能另开 HTTP 端点），会客厅没有命令通道
+  才单独用 `POST /lobbies/:id/visibility`
 - **计费不变量**：免费开房 `(room_id, action)` 唯一流水；首次有效判定或公布答案即消费；
   一房一题，换题新建房间并重新授权；CHECK 约束禁止负余额；赞助检查与扣减同事务同锁
 - **赞助码通道**：`redeem_codes` 一码一权（`code_key` 唯一）；核销时对码行 `FOR UPDATE`，

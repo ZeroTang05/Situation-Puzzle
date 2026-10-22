@@ -25,6 +25,7 @@
 | [在线收款通道](15-PAYMENT-CHANNELS.md) | 微信支付 v3 + 支付宝：需申请的凭据清单、配置与联调 | 运营、开发 |
 | [并发与限流盘点](16-CONCURRENCY-LIMITS.md) | 现有闸门清单、无保护的高危接口、已落地的限流规则 | 开发、运维 |
 | [用户主持人模式](17-USER-HOST-MODE.md) | 玩家自己当主持人：申请审批、提问挂起、主持判定、汤底可见性 | 产品、开发、测试 |
+| [大厅与公开房间](18-HALL-PUBLIC-ROOMS.md) | 房主把房间设为公开、出现在大厅、其他人直接加入 | 产品、开发、测试 |
 
 ## 给开发模型的执行约定
 
@@ -72,3 +73,4 @@
 
 - **用户主持人模式** 落地（迁移 `0012_user_host_mode`）：房间与会客厅各持一份主持人状态（`host_mode` = ai/user、`user_host_id`、成员 `role`、待审申请 `host_requested_at`）。成员可在会客厅或房间右上角玩家列表申请成为主持人，房主审核（房主自申请直接通过），房主也可撤销他人已有的主持身份；用户主持模式下玩家的提问与还原都挂起等主持人判定（问 Jev 页判「是/否/无关」，查看汤底页判「破解成功/接近真相/还没猜对」），主持人的「还原真相」页签改名为「查看汤底」，并可自行退出（退出或被撤销即回到 Jev 主持）。汤底只走 `GET /rounds/:id/host-view` 单独下发，不进快照与事件。规则见 [17-USER-HOST-MODE](17-USER-HOST-MODE.md)。
 - **端到端剧本迁移到会客厅流程**（2026-10-21）：`e2e-multiplayer.mjs` / `e2e-votes.mjs` 此前仍在用 v3 之前的建房接口（`POST /rooms`、`select_puzzle`、`start_round`）已失效，两支剧本已迁移并实跑通过（多人 60 项、投票 25 项、用户主持人 40 项）；新增跨平台编排器 `scripts/e2e-node-run.mjs`（自建临时库 + 收信台 + API + jobs，不依赖 bash/docker）。浏览器套件 `apps/web/e2e` 的房间用例同步迁移，仍有三类既有阻塞待处理（验证码按 IP 限流、创作表单标签漂移、单人提示期望漂移），详见 [09-IMPLEMENTATION](09-IMPLEMENTATION.md)。
+- **大厅与公开房间**落地（迁移 `0013_public_rooms`）：房间与会客厅各持一份公开开关（`is_public`），房主在等待室或房间内随时切换；公开且未归档的房间出现在大厅（`GET /hall`），其他人可直接加入（`POST /rooms/:id/join-public`）。等待室的开关是「下一局」的偏好，start 事务复制进新房；房间内的开关走房间命令通道（`set_visibility`）。规则见 [18-HALL-PUBLIC-ROOMS](18-HALL-PUBLIC-ROOMS.md)。
