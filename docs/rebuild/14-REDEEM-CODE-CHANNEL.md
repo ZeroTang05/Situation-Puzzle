@@ -40,7 +40,11 @@
 
 ### 2. 发码
 
-在服务器上执行（一条命令出码）：
+**后台发码（推荐）**：管理后台「赞助码」页右上角「新增兑换码」，填
+「会员时长（1 个月 / 永久）」「数量（1~500）」「备注」「过期时间（留空 = 长期有效）」
+后点「生成」。**明文码只在生成后的弹窗里出现一次**，离开后只能查到状态。
+
+命令行发码（一条命令出码，适合批量）：
 
 ```bash
 # 月度码 ×10
@@ -76,12 +80,21 @@ JEV-7K2M-9XQ4-...
 
 ### 4. 对账
 
+后台「赞助码」页一行一个批次，直接看到**码数**、**未使用 / 已使用 / 已作废**、
+**会员时长**与单价；表头可点，按码数、单价、创建时间等排序。
+点行尾「查看码」能看该批次每个码的状态与使用者，未使用的码可以就地作废。
+
+命令行或接口：
+
 ```bash
-# 批次列表（发放数 / 已用数 / 未用数）
-docker exec situation-puzzle-api-1 pnpm --dir apps/api exec tsx src/cli/issue-redeem-codes.ts --help
+# 批次列表
+curl -H "Cookie: <管理员会话>" https://sp.xiaobaozi.cn/api/v1/admin/redeem-codes/batches
+# 某批次的码明细
+curl -H "Cookie: <管理员会话>" "https://sp.xiaobaozi.cn/api/v1/admin/redeem-codes?batchId=B20261020-3F9A21"
 ```
 
-或用后台接口 `GET /api/v1/admin/redeem-codes/batches`（需管理员会话）。
+两个接口都支持 `page` / `perPage` / `sort` / `order`；`sort` 只认后台列表登记过的列名
+（见 `apps/api/src/admin/admin-sort-columns.ts`），未登记的列名一律回落「最新在前」。
 
 ## 码的规则
 
@@ -104,11 +117,13 @@ docker exec situation-puzzle-api-1 pnpm --dir apps/api exec tsx src/cli/issue-re
 
 **Q：码发出去了但买家说兑换失败？**
 A：先确认买家用的是「当前批次未使用的码」。已用、已作废、已过期都会失败。
-后台 `GET /api/v1/admin/redeem-codes?batchId=<批次号>` 能看每个码的状态与使用者。
+后台「赞助码」页点「查看码」能看每个码的状态与使用者；
+也可以直接查 `GET /api/v1/admin/redeem-codes?batchId=<批次号>`。
 
 **Q：卖错价了怎么办？**
-A：`POST /api/v1/admin/redeem-codes/revoke`（body：`{ code, reason }`）作废未使用的码，
-重新发一批。已兑换的码需要人工退款，登记到 `refunds` 表走退款流程。
+A：后台「赞助码」页的码明细里点「作废」（需填理由），或调
+`POST /api/v1/admin/redeem-codes/revoke`（body：`{ code, reason }`）作废未使用的码，
+然后重新发一批。已兑换的码需要人工退款，登记到 `refunds` 表走退款流程。
 
 **Q：兑换码买的会员能退款吗？**
 A：能，但**只能在管理后台退**（`POST /api/v1/admin/orders/:id/refund`，需 admin/finance 角色 + 理由），

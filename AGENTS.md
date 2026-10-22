@@ -15,7 +15,7 @@
 
 ```
 apps/web        玩家端（React 19 + Vite）：首页、题库、单人、会客厅、房间、邀请、创作、我的、登录、找回密码
-apps/admin      管理端（React-admin）：题库审核、用户、房间调查、举报、订单
+apps/admin      管理端（React-admin）：题库审核、用户、房间调查、举报、订单、赞助码（发码/对账/作废）、总览；所有列表表头可点排序（后端列名白名单，见 admin-sort-columns.ts）
 apps/api        NestJS 服务：认证 auth、题库 catalog、单人 solo、房间与会客厅 rooms、实时网关 realtime、赞助订单 billing、创作 creations、治理 governance、后台 admin
 apps/jobs       pg-boss 任务进程：dispatch-room / process-turn / review-puzzle / maintenance
 apps/app        Android 壳工程（Capacitor 8，包名 cn.xiaobaozi.sp，App 名「Jev 海龟汤」）：apps/web 构建产物打进 WebView；插件 @capacitor/app browser clipboard keyboard（OAuth 回流系统浏览器、深链事件、剪贴板邀请过渡、键盘避让）；OAuth 回流端点 `/api/v1/app-session/handoff|exchange`（60 秒 jose code 换 Bearer 令牌）；计划与认证适配方案见 docs/rebuild/13-APP-VERSION.md
