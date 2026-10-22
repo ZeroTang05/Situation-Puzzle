@@ -28,6 +28,7 @@ const ID_FIELD: Record<string, string> = {
   users: 'userId',
   rooms: 'roomId',
   orders: 'orderId',
+  'redeem-codes': 'batchId',
 };
 
 /** 泛型返回集中以 never 收窄：数据形状由 admin API 决定 */
@@ -45,7 +46,9 @@ const baseProvider: DataProvider = {
     if (params.filter && Object.keys(params.filter).length > 0) {
       for (const [key, value] of Object.entries(params.filter)) query.set(key, String(value));
     }
-    const data = (await adminFetch(`/${resource}?${query.toString()}`)) as { items: Record<string, unknown>[]; total?: number } | Record<string, unknown>[];
+    // 兑换码的列表接口是批次视图（/redeem-codes/batches），不是普通资源路径
+    const path = resource === 'redeem-codes' ? '/redeem-codes/batches' : `/${resource}`;
+    const data = (await adminFetch(`${path}?${query.toString()}`)) as { items: Record<string, unknown>[]; total?: number } | Record<string, unknown>[];
     const rows = Array.isArray(data) ? data : data.items;
     const total = Array.isArray(data) ? rows.length : data.total ?? rows.length;
     const idField = ID_FIELD[resource];
@@ -89,4 +92,9 @@ export { baseProvider as dataProvider };
 /** 业务动作：审核、退款、封禁等专用端点。 */
 export async function adminAction(path: string, body: Record<string, unknown>): Promise<unknown> {
   return adminFetch(path, { method: 'POST', body: JSON.stringify(body) });
+}
+
+/** 只读查询：后台各处按需取单个端点（如批次内的码明细）。 */
+export async function adminGet(path: string): Promise<unknown> {
+  return adminFetch(path);
 }

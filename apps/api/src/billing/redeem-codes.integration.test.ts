@@ -191,4 +191,75 @@ describe.runIf(!!databaseUrl)('赞助码核销（真实数据库）', () => {
       .where(eq(schemaModule.orders.id, redeemed.orderId));
     expect(order?.status).toBe('refunded');
   });
+
+  // ---------- 批次视图（后台列表口径） ----------
+
+  it('批次列表：一批一行，带会员时长与各状态码数', async () => {
+    const userId = await createUser('redeem-batch@example.com');
+    const batch = await service.generateBatch({ operatorUserId: userId, type: 'monthly', count: 3, note: 'batch-test' });
+    // 用掉一个
+    await service.redeem(userId, batch.codes[0]!);
+    // 作废一个
+    await service.revoke(batch.codes[1]!);
+
+    const result = await service.listBatches({ sort: undefined, order: undefined, limit: 100, offset: 0 });
+    const row = result.items.find((item) => item.batchId === batch.batchId);
+    expect(row).toBeTruthy();
+    expect(row!.totalCount).toBe(3);
+    expect(row!.usedCount).toBe(1);
+    expect(row!.revokedCount).toBe(1);
+    expect(row!.unusedCount).toBe(1);
+    // 会员时长由商品类型决定：monthly = 1 个自然月
+    expect(row!.type).toBe('monthly');
+    expect(row!.priceMinor).toBe(600);
+  });
+
+  it('批次列表：lifetime 批次的会员时长是永久', async () => {
+    const userId = await createUser('redeem-lifetime@example.com');
+    const [product] = await handle.db
+      .insert(schemaModule.sponsorProducts)
+      .values({ type: 'lifetime' })
+      .returning();
+    await handle.db
+      .insert(schemaModule.productVersions)
+      .values({ productId: product!.id, versionNo: 1, priceMinor: 2000, title: '永久会员' });
+
+    const batch = await service.generateBatch({ operatorUserId: userId, type: 'lifetime', count: 2, note: 'lifetime-batch' });
+    const result = await service.listBatches({ sort: undefined, order: undefined, limit: 100, offset: 0 });
+    const row = result.items.find((item) => item.batchId === batch.batchId);
+    expect(row!.type).toBe('lifetime');
+    expect(row!.totalCount).toBe(2);
+    expect(row!.priceMinor).toBe(2000);
+
+    const codes = await service.listCodes(batch.batchId);
+    expect(codes).toHaveLength(2);
+    expect(codes[0]!.type).toBe('lifetime');
+  });
+
+  it('批次列表：按白名单列排序生效，白名单外的列名回落默认顺序', async () => {
+    const userId = await createUser('redeem-batch-sort@example.com');
+    const small = await service.generateBatch({ operatorUserId: userId, type: 'monthly', count: 1, note: 'sort-small' });
+    const big = await service.generateBatch({ operatorUserId: userId, type: 'monthly', count: 4, note: 'sort-big' });
+
+    const asc = await service.listBatches({ sort: 'totalCount', order: 'ASC', limit: 100, offset: 0 });
+    const ascRows = asc.items.filter((item) => item.batchId === small.batchId || item.batchId === big.batchId);
+    expect(ascRows.map((item) => item.batchId)).toEqual([small.batchId, big.batchId]);
+
+    const desc = await service.listBatches({ sort: 'totalCount', order: 'DESC', limit: 100, offset: 0 });
+    const descRows = desc.items.filter((item) => item.batchId === small.batchId || item.batchId === big.batchId);
+    expect(descRows.map((item) => item.batchId)).toEqual([big.batchId, small.batchId]);
+
+    // 白名单外的列名不报错，也不影响排序
+    const fallback = await service.listBatches({ sort: 'not-a-column', order: 'ASC', limit: 100, offset: 0 });
+    expect(fallback.items.length).toBeGreaterThan(0);
+  });
+
+  it('批次列表支持分页，总数是批次数而不是码数', async () => {
+    const page1 = await service.listBatches({ sort: undefined, order: undefined, limit: 1, offset: 0 });
+    const page2 = await service.listBatches({ sort: undefined, order: undefined, limit: 1, offset: 1 });
+    expect(page1.items).toHaveLength(1);
+    expect(page2.items).toHaveLength(1);
+    expect(page2.items[0]!.batchId).not.toBe(page1.items[0]!.batchId);
+    expect(page1.total).toBeGreaterThanOrEqual(2);
+  });
 });

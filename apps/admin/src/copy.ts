@@ -60,6 +60,7 @@ export function copy(language: Language) {
     menuRooms: language === 'zh' ? '房间' : 'Rooms',
     menuReports: language === 'zh' ? '举报' : 'Reports',
     menuOrders: w.orders,
+    menuRedeemCodes: language === 'zh' ? '赞助码' : 'Redeem codes',
     menuOverview: language === 'zh' ? '总览' : 'Overview',
     dashboardTitle: language === 'zh' ? '运营总览' : 'Operations dashboard',
     // 总览统计卡片
@@ -130,6 +131,48 @@ export function copy(language: Language) {
 
     // 通用错误
     requestFailed: (status: number) => language === 'zh' ? `请求失败：${status}` : `Request failed: ${status}`,
+
+    // 赞助码
+    batchCol: language === 'zh' ? '批次' : 'Batch',
+    durationCol: language === 'zh' ? '会员时长' : 'Duration',
+    durationLabel: language === 'zh' ? '会员时长' : 'Membership duration',
+    durationMonthly: language === 'zh' ? '1 个月' : '1 month',
+    durationLifetime: language === 'zh' ? '永久' : 'Lifetime',
+    codeCountCol: language === 'zh' ? '码数' : 'Codes',
+    unusedCol: language === 'zh' ? '未使用' : 'Unused',
+    usedCol: language === 'zh' ? '已使用' : 'Used',
+    revokedCol: language === 'zh' ? '已作废' : 'Revoked',
+    noteCol: language === 'zh' ? '备注' : 'Note',
+    createRedeemCode: language === 'zh' ? '新增兑换码' : 'New redeem codes',
+    countLabel: language === 'zh' ? '数量' : 'Count',
+    countRangeHint: language === 'zh' ? '1 ~ 500 个' : 'Between 1 and 500',
+    expiresAtLabel: language === 'zh' ? '过期时间' : 'Expires at',
+    expiresAtHint: language === 'zh' ? '留空表示长期有效' : 'Leave blank for no expiry',
+    generate: language === 'zh' ? '生成' : 'Generate',
+    cancel: language === 'zh' ? '取消' : 'Cancel',
+    close: language === 'zh' ? '关闭' : 'Close',
+    generateDone: language === 'zh' ? '已生成兑换码' : 'Redeem codes generated',
+    generatedCodes: language === 'zh' ? '已生成的兑换码' : 'Generated redeem codes',
+    generatedSummary: (count: number, batchId: string) => language === 'zh'
+      ? `批次 ${batchId}：共 ${count} 个码`
+      : `Batch ${batchId}: ${count} codes`,
+    codesOnlyOnce: language === 'zh'
+      ? '明文只在这里出现一次，请立刻复制保存；离开后只能查到状态，查不回明文。'
+      : 'Plaintext appears only here. Copy it now — later you can only see the status, not the code.',
+    copyAll: language === 'zh' ? '复制全部' : 'Copy all',
+    copied: language === 'zh' ? '已复制到剪贴板' : 'Copied to clipboard',
+    copyFailed: language === 'zh' ? '复制失败，请手动选中复制' : 'Copy failed, please copy manually',
+    viewCodes: language === 'zh' ? '查看码' : 'View codes',
+    revokeCode: language === 'zh' ? '作废' : 'Revoke',
+    revokeDone: language === 'zh' ? '兑换码已作废' : 'Redeem code revoked',
+    promptReasonRevoke: language === 'zh' ? '作废理由' : 'Reason to revoke',
+    codeCol: language === 'zh' ? '兑换码' : 'Code',
+    usedByCol: language === 'zh' ? '使用者' : 'Used by',
+    expiresCol: language === 'zh' ? '过期时间' : 'Expires',
+    actionCol: language === 'zh' ? '操作' : 'Actions',
+    batchCodesTitle: (batchId: string) => language === 'zh' ? `批次 ${batchId} 的兑换码` : `Redeem codes of batch ${batchId}`,
+    noCodes: language === 'zh' ? '该批次没有兑换码' : 'This batch has no codes',
+    loading: language === 'zh' ? '加载中…' : 'Loading…',
 
     // 顶部语言切换
     switchTo: language === 'zh' ? 'EN' : '中文',

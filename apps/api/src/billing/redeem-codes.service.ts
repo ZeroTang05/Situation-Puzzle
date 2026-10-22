@@ -20,9 +20,33 @@ import { orders, productVersions, redeemCodes, sponsorProducts, type Tx } from '
 import { DomainError, generateRedeemCode, normalizeRedeemCode } from '@jev/domain';
 import { app } from '../context.js';
 import { OrdersService } from './orders.service.js';
+import { orderBySort, type SortWhitelist } from '../admin/admin-sort.js';
 
 /** 订单有效期：赞助码兑换即时完成，订单仍然走统一的下单快照与流水。 */
 const ORDER_TTL_MINUTES = 15;
+
+/**
+ * 批次聚合表达式：SELECT 与 ORDER BY 共用同一批片段，
+ * 保证「看到的个数」和「排序依据」是同一个口径。
+ */
+const BATCH_TOTAL_COUNT = sql<number>`count(*)::int`;
+const BATCH_UNUSED_COUNT = sql<number>`count(*) filter (where ${redeemCodes.status} = 'unused')::int`;
+const BATCH_USED_COUNT = sql<number>`count(*) filter (where ${redeemCodes.status} = 'used')::int`;
+const BATCH_REVOKED_COUNT = sql<number>`count(*) filter (where ${redeemCodes.status} = 'revoked')::int`;
+const BATCH_CREATED_AT = sql<Date>`min(${redeemCodes.createdAt})`;
+const BATCH_NOTE = sql<string | null>`min(${redeemCodes.note})`;
+
+/** 批次列表可排序列（白名单外一律回落「最新在前」）。 */
+const REDEEM_BATCH_SORT: SortWhitelist = {
+  batchId: redeemCodes.batchId,
+  type: sponsorProducts.type,
+  priceMinor: productVersions.priceMinor,
+  totalCount: BATCH_TOTAL_COUNT,
+  unusedCount: BATCH_UNUSED_COUNT,
+  usedCount: BATCH_USED_COUNT,
+  revokedCount: BATCH_REVOKED_COUNT,
+  createdAt: BATCH_CREATED_AT,
+};
 
 @Injectable()
 export class RedeemCodesService {
@@ -165,35 +189,55 @@ export class RedeemCodesService {
     };
   }
 
-  /** 批次列表：对账用（发放数 / 已用数 / 未用数）。 */
-  async listBatches() {
+  /**
+   * 批次列表（对账用）：一批一行，含会员时长与各状态码数。
+   *
+   * 口径：总数 = 该批次的全部码；未用 / 已用 / 已作废按 redeem_codes.status 分桶。
+   * 商品类型（monthly=1 个自然月，lifetime=永久）决定兑换后拿到的会员时长，
+   * 所以这里直接带上 type，后台不必再猜。
+   */
+  async listBatches(params: { sort: string | undefined; order: string | undefined; limit: number; offset: number }) {
     const db = app().db;
     const rows = await db.db
       .select({
         batchId: redeemCodes.batchId,
-        status: redeemCodes.status,
-        count: sql<number>`count(*)::int`.as('count'),
-        productVersionId: redeemCodes.productVersionId,
+        type: sponsorProducts.type,
         title: productVersions.title,
         priceMinor: productVersions.priceMinor,
         currency: productVersions.currency,
-        note: redeemCodes.note,
-        createdAt: sql<Date>`min(${redeemCodes.createdAt})`.as('created_at'),
+        note: BATCH_NOTE,
+        createdAt: BATCH_CREATED_AT,
+        totalCount: BATCH_TOTAL_COUNT,
+        unusedCount: BATCH_UNUSED_COUNT,
+        usedCount: BATCH_USED_COUNT,
+        revokedCount: BATCH_REVOKED_COUNT,
       })
       .from(redeemCodes)
       .innerJoin(productVersions, eq(productVersions.id, redeemCodes.productVersionId))
-      .groupBy(redeemCodes.batchId, redeemCodes.status, redeemCodes.productVersionId, productVersions.title, productVersions.priceMinor, productVersions.currency, redeemCodes.note)
-      .orderBy(desc(sql`min(${redeemCodes.createdAt})`));
-    return rows.map((r) => ({
-      batchId: r.batchId,
-      status: r.status,
-      count: r.count,
-      title: r.title,
-      priceMinor: r.priceMinor,
-      currency: r.currency,
-      note: r.note,
-      createdAt: r.createdAt,
-    }));
+      .innerJoin(sponsorProducts, eq(sponsorProducts.id, productVersions.productId))
+      .groupBy(
+        redeemCodes.batchId,
+        productVersions.id,
+        productVersions.title,
+        productVersions.priceMinor,
+        productVersions.currency,
+        sponsorProducts.type,
+      )
+      .orderBy(
+        ...orderBySort(
+          params.sort,
+          params.order,
+          REDEEM_BATCH_SORT,
+          desc(BATCH_CREATED_AT),
+          desc(redeemCodes.batchId),
+        ),
+      )
+      .limit(params.limit)
+      .offset(params.offset);
+    const [counted] = await db.db
+      .select({ total: sql<number>`count(distinct ${redeemCodes.batchId})::int` })
+      .from(redeemCodes);
+    return { items: rows, total: counted?.total ?? rows.length };
   }
 
   /** 批次内的码明细（含使用状态与使用者）。 */
@@ -208,11 +252,13 @@ export class RedeemCodesService {
         usedAt: redeemCodes.usedAt,
         expiresAt: redeemCodes.expiresAt,
         createdAt: redeemCodes.createdAt,
+        type: sponsorProducts.type,
         title: productVersions.title,
         priceMinor: productVersions.priceMinor,
       })
       .from(redeemCodes)
       .innerJoin(productVersions, eq(productVersions.id, redeemCodes.productVersionId))
+      .innerJoin(sponsorProducts, eq(sponsorProducts.id, productVersions.productId))
       .where(eq(redeemCodes.batchId, batchId))
       .orderBy(redeemCodes.createdAt);
   }

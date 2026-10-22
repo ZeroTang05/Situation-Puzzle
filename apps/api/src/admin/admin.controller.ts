@@ -585,11 +585,17 @@ export class AdminController {
     return result;
   }
 
-  /** 批次列表：对账用（发放 / 已用 / 未用）。 */
+  /** 批次列表：对账用（一批一行：会员时长 + 各状态码数）。 */
   @Get('redeem-codes/batches')
   @RequireRoles('admin', 'finance', 'support')
-  async listRedeemCodeBatches() {
-    return { items: await this.redeemCodesService.listBatches() };
+  async listRedeemCodeBatches(
+    @Query('page') page?: string,
+    @Query('perPage') perPage?: string,
+    @Query('sort') sort?: string,
+    @Query('order') order?: string,
+  ) {
+    const { limit, offset } = pageArgs(page, perPage);
+    return this.redeemCodesService.listBatches({ sort, order, limit, offset });
   }
 
   /** 批次内码明细：含使用状态与使用者。 */
