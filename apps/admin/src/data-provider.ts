@@ -23,6 +23,11 @@ const baseProvider: DataProvider = {
     // 服务端分页：传页码与每页条数，total 用 API 返回的真实总数，列表不再被固定 limit 截断
     query.set('page', String(params.pagination?.page ?? 1));
     query.set('perPage', String(params.pagination?.perPage ?? 25));
+    // 点表头排序：列名交给后端白名单校验（未登记的列后端回落默认顺序）
+    if (params.sort?.field) {
+      query.set('sort', params.sort.field);
+      query.set('order', params.sort.order ?? 'DESC');
+    }
     if (params.filter && Object.keys(params.filter).length > 0) {
       for (const [key, value] of Object.entries(params.filter)) query.set(key, String(value));
     }

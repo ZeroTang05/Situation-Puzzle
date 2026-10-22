@@ -34,6 +34,19 @@ import { RateLimit } from '../common/rate-limit.js';
 import { SessionGuard } from '../auth/session.guard.js';
 import { RedeemCodesService } from '../billing/redeem-codes.service.js';
 import { OrdersService } from '../billing/orders.service.js';
+import { orderBySort } from './admin-sort.js';
+import {
+  ORDER_SORT,
+  PUZZLE_DOWN_COUNT,
+  PUZZLE_SORT,
+  PUZZLE_UP_COUNT,
+  REPORT_SORT,
+  ROOM_HOST_NICKNAME,
+  ROOM_MEMBER_COUNT,
+  ROOM_SORT,
+  USER_SORT,
+  USER_SPONSOR_UNTIL,
+} from './admin-sort-columns.js';
 import { z } from 'zod';
 
 const reasonSchema = z.object({ reason: z.string().min(2).max(500) });
@@ -80,7 +93,13 @@ export class AdminController {
 
   @Get('puzzles')
   @RequireRoles('admin', 'moderator')
-  async listPuzzles(@Query('status') status?: string, @Query('page') page?: string, @Query('perPage') perPage?: string) {
+  async listPuzzles(
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('perPage') perPage?: string,
+    @Query('sort') sort?: string,
+    @Query('order') order?: string,
+  ) {
     const conditions = [];
     if (status) conditions.push(eq(puzzleVersions.moderationStatus, status as never));
     const where = conditions.length ? and(...conditions) : undefined;
@@ -105,8 +124,8 @@ export class AdminController {
         authorDisplayMode: puzzles.authorDisplayMode,
         authorDisplayName: puzzles.authorDisplayName,
         authorPendingName: puzzles.authorPendingName,
-        upCount: sql<number>`(select count(*) filter (where r.value = 'up')::int from ratings r where r.puzzle_id = puzzles.id)`,
-        downCount: sql<number>`(select count(*) filter (where r.value = 'down')::int from ratings r where r.puzzle_id = puzzles.id)`,
+        upCount: PUZZLE_UP_COUNT,
+        downCount: PUZZLE_DOWN_COUNT,
         rightsStatus: puzzleRights.status,
         rightsOrigin: puzzleRights.origin,
         createdAt: puzzleVersions.createdAt,
@@ -115,7 +134,7 @@ export class AdminController {
       .innerJoin(puzzleVersions, and(eq(puzzleVersions.puzzleId, puzzles.id), latestVersion))
       .leftJoin(puzzleRights, eq(puzzleRights.puzzleId, puzzles.id))
       .where(where)
-      .orderBy(desc(puzzleVersions.createdAt))
+      .orderBy(...orderBySort(sort, order, PUZZLE_SORT, desc(puzzleVersions.createdAt), desc(puzzleVersions.id)))
       .limit(limit)
       .offset(offset);
     const [counted] = await app().db.db
@@ -286,7 +305,13 @@ export class AdminController {
 
   @Get('users')
   @RequireRoles('admin', 'support')
-  async listUsers(@Query('q') q?: string, @Query('page') page?: string, @Query('perPage') perPage?: string) {
+  async listUsers(
+    @Query('q') q?: string,
+    @Query('page') page?: string,
+    @Query('perPage') perPage?: string,
+    @Query('sort') sort?: string,
+    @Query('order') order?: string,
+  ) {
     const conditions = q ? [sql`email ilike ${'%' + q + '%'} or nickname ilike ${'%' + q + '%'}`] : [];
     const where = conditions.length ? and(...conditions) : undefined;
     const { limit, offset } = pageArgs(page, perPage);
@@ -299,12 +324,12 @@ export class AdminController {
         status: profiles.status,
         createdAt: profiles.createdAt,
         /** 生效赞助的到期日：lifetime=永久，null=无生效赞助（客服处理开房额度问题时用）。 */
-        sponsorUntil: sql<string | null>`(select case when bool_or(g.effective_until is null) then 'lifetime' when max(g.effective_until) > now() then to_char(max(g.effective_until), 'YYYY-MM-DD') else null end from sponsor_grants g where g.user_id = ${user.id} and g.status = 'active')`,
+        sponsorUntil: USER_SPONSOR_UNTIL,
       })
       .from(user)
       .innerJoin(profiles, eq(profiles.userId, user.id))
       .where(where)
-      .orderBy(desc(profiles.createdAt))
+      .orderBy(...orderBySort(sort, order, USER_SORT, desc(profiles.createdAt), desc(user.id)))
       .limit(limit)
       .offset(offset);
     const [counted] = await app().db.db
@@ -360,7 +385,13 @@ export class AdminController {
 
   @Get('rooms')
   @RequireRoles('admin', 'support')
-  async listRooms(@Query('status') status?: string, @Query('page') page?: string, @Query('perPage') perPage?: string) {
+  async listRooms(
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('perPage') perPage?: string,
+    @Query('sort') sort?: string,
+    @Query('order') order?: string,
+  ) {
     const where = status ? eq(rooms.status, status as never) : undefined;
     const { limit, offset } = pageArgs(page, perPage);
     const rows = await app().db.db
@@ -373,12 +404,12 @@ export class AdminController {
         createdAt: rooms.createdAt,
         closedAt: rooms.closedAt,
         closeReason: rooms.closeReason,
-        memberCount: sql<number>`(select count(*)::int from room_members m where m.room_id = rooms.id and m.status = 'joined')`,
+        memberCount: ROOM_MEMBER_COUNT,
         activeRoundId: sql<string | null>`(select r.id from rounds r where r.room_id = rooms.id and r.status = 'active' limit 1)`,
         /** 进行中的一局在玩的题目标题：客服定位房间内容用。 */
         puzzleTitle: sql<string | null>`(select pv.title from rounds r join puzzle_versions pv on pv.id = r.puzzle_version_id where r.room_id = rooms.id and r.status = 'active' limit 1)`,
         /** 房主昵称：后台直接看到是谁的房；无昵称时前端退回截断用户 ID。 */
-        hostNickname: sql<string | null>`(select p.nickname from profiles p where p.user_id = rooms.host_user_id)`,
+        hostNickname: ROOM_HOST_NICKNAME,
         /** 主持人形态：ai = Jev 主持；user = 用户主持（17-USER-HOST-MODE） */
         hostMode: rooms.hostMode,
         userHostId: rooms.userHostId,
@@ -387,7 +418,7 @@ export class AdminController {
       })
       .from(rooms)
       .where(where)
-      .orderBy(desc(rooms.createdAt))
+      .orderBy(...orderBySort(sort, order, ROOM_SORT, desc(rooms.createdAt), desc(rooms.id)))
       .limit(limit)
       .offset(offset);
     const [counted] = await app().db.db.select({ total: sql<number>`count(*)::int` }).from(rooms).where(where);
@@ -451,14 +482,20 @@ export class AdminController {
 
   @Get('reports')
   @RequireRoles('admin', 'moderator', 'support')
-  async listReports(@Query('status') status?: string, @Query('page') page?: string, @Query('perPage') perPage?: string) {
+  async listReports(
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('perPage') perPage?: string,
+    @Query('sort') sort?: string,
+    @Query('order') order?: string,
+  ) {
     const where = status ? eq(reports.status, status as never) : undefined;
     const { limit, offset } = pageArgs(page, perPage);
     const rows = await app().db.db
       .select()
       .from(reports)
       .where(where)
-      .orderBy(desc(reports.createdAt))
+      .orderBy(...orderBySort(sort, order, REPORT_SORT, desc(reports.createdAt), desc(reports.id)))
       .limit(limit)
       .offset(offset);
     const [counted] = await app().db.db.select({ total: sql<number>`count(*)::int` }).from(reports).where(where);
@@ -477,7 +514,13 @@ export class AdminController {
 
   @Get('orders')
   @RequireRoles('admin', 'finance', 'support')
-  async listOrders(@Query('status') status?: string, @Query('page') page?: string, @Query('perPage') perPage?: string) {
+  async listOrders(
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('perPage') perPage?: string,
+    @Query('sort') sort?: string,
+    @Query('order') order?: string,
+  ) {
     const where = status ? eq(orders.status, status as never) : undefined;
     const { limit, offset } = pageArgs(page, perPage);
     const rows = await app().db.db
@@ -494,7 +537,7 @@ export class AdminController {
       })
       .from(orders)
       .where(where)
-      .orderBy(desc(orders.createdAt))
+      .orderBy(...orderBySort(sort, order, ORDER_SORT, desc(orders.createdAt), desc(orders.id)))
       .limit(limit)
       .offset(offset);
     const [counted] = await app().db.db.select({ total: sql<number>`count(*)::int` }).from(orders).where(where);

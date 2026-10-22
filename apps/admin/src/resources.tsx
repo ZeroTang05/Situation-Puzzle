@@ -12,13 +12,13 @@ import { useLanguage } from './language.js';
 export function UserList() {
   const { language } = useLanguage(); const c = copy(language);
   return (
-    <List perPage={50}>
+    <List perPage={50} sort={{ field: 'createdAt', order: 'DESC' }}>
       <Datagrid bulkActionButtons={false}>
         <TextField source="nickname" label={c.nicknameCol} />
         <TextField source="email" label={c.emailCol} />
         <BooleanField source="emailVerified" label={c.emailVerifiedCol} />
         <TextField source="status" label={c.statusCol} />
-        <SponsorUntilField label={c.sponsorUntilCol} />
+        <SponsorUntilField label={c.sponsorUntilCol} sortBy="sponsorUntil" />
         <DateField source="createdAt" label={c.createdAtCol} showTime />
         <UserActionsField />
       </Datagrid>
@@ -27,7 +27,7 @@ export function UserList() {
 }
 
 /** 生效会员到期展示：lifetime=永久会员，日期文本原样，空为无生效会员。 */
-function SponsorUntilField({ label }: { label: string }) {
+function SponsorUntilField({ label }: { label: string; sortBy?: string }) {
   const record = useRecordContext() as { sponsorUntil?: string | null } | undefined;
   const { language } = useLanguage(); const c = copy(language);
   if (!record) return null;
@@ -80,12 +80,12 @@ export const TestGrantButton = () => null;
 export function RoomList() {
   const { language } = useLanguage(); const c = copy(language);
   return (
-    <List perPage={50}>
+    <List perPage={50} sort={{ field: 'createdAt', order: 'DESC' }}>
       <Datagrid bulkActionButtons={false}>
         <TextField source="roomId" label={c.roomIdCol} />
-        <TextField source="puzzleTitle" label={c.puzzleTitleCol} />
-        <HostField label={c.hostCol} />
-        <HostModeField />
+        <TextField source="puzzleTitle" label={c.puzzleTitleCol} sortable={false} />
+        <HostField label={c.hostCol} sortBy="hostNickname" />
+        <HostModeField sortBy="hostMode" />
         <TextField source="status" label={c.statusCol} />
         <TextField source="memberCount" label={c.memberCol} />
         <TextField source="capacity" label={c.capacityCol} />
@@ -99,7 +99,7 @@ export function RoomList() {
 }
 
 /** 房主：优先昵称，缺昵称退回截断 ID；悬停显示完整用户 ID。 */
-function HostField({ label }: { label: string }) {
+function HostField({ label }: { label: string; sortBy?: string }) {
   const record = useRecordContext() as { hostNickname?: string | null; hostUserId?: string } | undefined;
   const name = record?.hostNickname || null;
   const id = record?.hostUserId ?? '';
@@ -110,7 +110,7 @@ function HostField({ label }: { label: string }) {
  * 主持人形态（17-USER-HOST-MODE）：AI 主持（Jev）或用户主持（玩家接管判题）。
  * 用户主持时显示主持人昵称——调查时能直接看到「谁在主持这局」。
  */
-function HostModeField() {
+function HostModeField({ sortBy }: { sortBy?: string }) {
   const { language } = useLanguage(); const c = copy(language);
   const record = useRecordContext() as { hostMode?: string; userHostNickname?: string | null; userHostId?: string | null } | undefined;
   const userHost = record?.hostMode === 'user';
@@ -156,7 +156,7 @@ export const ForceCloseButton = () => null;
 export function ReportList() {
   const { language } = useLanguage(); const c = copy(language);
   return (
-    <List perPage={50}>
+    <List perPage={50} sort={{ field: 'createdAt', order: 'DESC' }}>
       <Datagrid bulkActionButtons={false}>
         <TextField source="objectType" label={c.objectCol} />
         <TruncatedIdField source="objectId" label={c.objectIdCol} />
@@ -209,7 +209,7 @@ export const ResolveButton = () => null;
 export function OrderList() {
   const { language } = useLanguage(); const c = copy(language);
   return (
-    <List perPage={50}>
+    <List perPage={50} sort={{ field: 'createdAt', order: 'DESC' }}>
       <Datagrid bulkActionButtons={false}>
         <TextField source="orderId" label={c.orderIdCol} />
         <TruncatedIdField source="userId" label={c.userCol} />

@@ -12,10 +12,10 @@ export function PuzzleList() {
       <Datagrid rowClick="show" bulkActionButtons={false}>
         <TextField source="title" label={c.puzzleCol} />
         <TextField source="language" label={c.languageCol} />
-        <SourceField />
-        <OriginField />
+        <SourceField sortBy="source" />
+        <OriginField sortBy="rightsOrigin" />
         <TextField source="category" label={c.categoryCol} />
-        <DifficultyField />
+        <DifficultyField sortBy="difficulty" />
         <NumberField source="versionNo" label={c.versionCol} />
         <TextField source="status" label={c.statusCol} />
         <BooleanField source="unavailable" label={c.disabledCol} />
@@ -33,7 +33,7 @@ export function PuzzleList() {
 }
 
 /** 题目来源：official=平台内置，community=玩家投稿。 */
-function SourceField() {
+function SourceField({ sortBy }: { sortBy?: string }) {
   const record = useRecordContext() as { source?: string | null } | undefined;
   const { language } = useLanguage(); const c = copy(language);
   if (!record) return null;
@@ -41,7 +41,7 @@ function SourceField() {
 }
 
 /** 授权来源性质：repost=转载，original=自制。 */
-function OriginField() {
+function OriginField({ sortBy }: { sortBy?: string }) {
   const record = useRecordContext() as { rightsOrigin?: string | null } | undefined;
   const { language } = useLanguage(); const c = copy(language);
   if (!record) return null;
@@ -49,7 +49,7 @@ function OriginField() {
 }
 
 /** 难度：easy/medium/hard 本地化，未设置为 —。 */
-function DifficultyField() {
+function DifficultyField({ sortBy }: { sortBy?: string }) {
   const record = useRecordContext() as { difficulty?: string | null } | undefined;
   const { language } = useLanguage(); const c = copy(language);
   if (!record) return null;
