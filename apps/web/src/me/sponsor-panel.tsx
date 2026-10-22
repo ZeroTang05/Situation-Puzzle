@@ -15,6 +15,7 @@ import { api, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
 import { format } from '@jev/i18n';
 import { QrCode } from './qr-code.js';
+import { narrowScanHint } from './sponsor-hint.js';
 
 type PayChannel = 'wechat_native' | 'alipay';
 
@@ -51,6 +52,31 @@ function yuan(priceMinor: number) {
   return (priceMinor / 100).toFixed(priceMinor % 100 === 0 ? 0 : 2);
 }
 
+/**
+ * 窄屏（手机）判定。
+ *
+ * 微信 Native 是「PC 网页亮码、微信 App 扫码」的形态，手机上打开这个页面
+ * 的话，二维码就在自己屏幕上，扫不了——官方也不允许「相册识别 / 长按识别」。
+ * 所以窄屏且没有跳转链接时，提示改成「请用电脑扫码」。
+ */
+function useNarrowViewport() {
+  const [narrow, setNarrow] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(max-width: 600px)').matches,
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia('(max-width: 600px)');
+    const onChange = () => setNarrow(mq.matches);
+    mq.addEventListener('change', onChange);
+    setNarrow(mq.matches);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return narrow;
+}
+
 export function SponsorPanel() {
   const { copy, language } = useLanguage();
   const queryClient = useQueryClient();
@@ -69,6 +95,7 @@ export function SponsorPanel() {
   const available = payChannels.filter((c) => c.available);
   const current = payChannels.find((c) => c.channel === channel);
   const channelReady = Boolean(current?.available);
+  const narrow = useNarrowViewport();
 
   const buy = useMutation({
     mutationFn: (productVersionId: string) =>
@@ -183,7 +210,9 @@ export function SponsorPanel() {
             <>
               <p className="muted">{copy.sponsorOrderCreated}</p>
               {order.qrContent && <QrCode value={order.qrContent} />}
-              <p className="muted sponsor-pay-hint">{copy.sponsorQrHint}</p>
+              <p className="muted sponsor-pay-hint">
+                {narrowScanHint(narrow, Boolean(order.payUrl)) ? copy.sponsorQrHintNarrow : copy.sponsorQrHint}
+              </p>
               {order.payUrl && (
                 <a className="btn btn-primary" href={order.payUrl} target="_blank" rel="noreferrer">
                   {copy.sponsorGoPay}
