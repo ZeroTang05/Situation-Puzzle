@@ -178,7 +178,7 @@ export function SponsorPanel() {
           <li key={product.productVersionId} className="sponsor-product">
             <div className="sponsor-product-main">
               <span className="sponsor-product-title">
-                {product.type === 'monthly' ? copy.monthly : copy.lifetime}
+                {product.type === 'monthly' ? copy.sponsorProductMonthly : copy.sponsorProductLifetime}
               </span>
               <span className="sponsor-product-price">
                 {format(product.type === 'monthly' ? copy.sponsorPriceMonthly : copy.sponsorPriceLifetime, {
