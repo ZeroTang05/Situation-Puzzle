@@ -29,7 +29,7 @@ import {
 import { addMonthsClamped } from '@jev/domain';
 import type { DbHandle } from '@jev/database';
 import { allowedOrigins, type Env } from '../env.js';
-import { languageFromHeaders, profileLanguage, profileLanguageByEmail } from '../common/language.js';
+import { languageOf } from '../common/language.js';
 import { MailDeliveryError, type Mailer } from './mailer.js';
 import { OtpSendQuota, otpLimitMessage } from './otp-send-quota.js';
 import { otpRequestContext } from './otp-request-context.js';
@@ -92,9 +92,8 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
       // 忘记密码：Better Auth 签发一次性 token，拼成站内重置页链接交给 mailer
       sendResetPassword: async ({ user, token }, request) => {
         const url = `${env.PUBLIC_BASE_URL}/reset-password?token=${encodeURIComponent(token)}`;
-        // 邮件语言：请求头里的实时选择 → 账号档案 → 中文
-        const language = languageFromHeaders(request?.headers) ?? (await profileLanguage(user.id)) ?? 'zh';
-        await mailer.sendPasswordReset(user.email, url, language);
+        // 邮件语言：客户端在请求里显式上报（X-Jev-Language），没有则中文
+        await mailer.sendPasswordReset(user.email, url, languageOf(request?.headers));
       },
     },
     socialProviders: env.GOOGLE_CLIENT_ID
@@ -118,9 +117,8 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
           if (!request?.reservation || request.reservation.email !== email) throw new APIError('INTERNAL_SERVER_ERROR', { message: '验证码发送缺少额度预占' });
           request.delivery = 'unknown';
           try {
-            // 邮件语言：请求里的实时选择 → 账号档案（登录发码时账号已存在）→ 中文
-            const language = request.language ?? (await profileLanguageByEmail(email)) ?? 'zh';
-            await mailer.sendVerificationCode(email, otp, language);
+            // 邮件语言：客户端在发码请求里显式上报（X-Jev-Language），没有则中文
+            await mailer.sendVerificationCode(email, otp, request.language ?? 'zh');
             request.delivery = 'accepted';
           } catch (error) {
             console.error('[auth] 验证码邮件发送失败', error);
@@ -248,9 +246,7 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
           after: async (userRow) => {
             // 昵称允许重复；未填写时用「用户+随机编号」，避免把邮箱前缀当昵称展示
             const nickname = userRow.name?.trim() || defaultNickname();
-            // 建档时记下当时的界面语言：之后的事务邮件按它发（请求头实时值优先）
-            const language = otpRequestContext.getStore()?.language ?? 'zh';
-            await db.db.insert(profiles).values({ userId: userRow.id, nickname, language }).onConflictDoNothing();
+            await db.db.insert(profiles).values({ userId: userRow.id, nickname }).onConflictDoNothing();
             await db.db.insert(freeRoomAccounts).values({ userId: userRow.id }).onConflictDoNothing();
             await db.db.insert(sponsorAccounts).values({ userId: userRow.id }).onConflictDoNothing();
             // 注册礼：一个月赞助（signup_bonus），授权与流水同事务；不设月度锚点，续购月度时按首购重新起算

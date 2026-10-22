@@ -1,13 +1,11 @@
 /**
- * 用户界面语言的实时取值。
+ * 用户界面语言的实时取值：只认客户端显式上报的值，服务端不落库。
  *
- * 优先级：请求头 X-Jev-Language（客户端当前选择，未登录也可用）→ 账号档案 profiles.language → 中文。
- * 与判题语言无关：判题按题目/本局/投稿自身的语言走，同一部署可同时判中英文题。
+ * 客户端每次请求都带 X-Jev-Language（网页/App 壳同源或已加 CORS 白名单），
+ * 服务端据此分流：事务邮件按它发中文或英文；判题语言另按题目走。
+ * 请求头缺失（老客户端、OAuth 回调等）时回落中文。
  */
-import { eq } from 'drizzle-orm';
-import { profiles, user as userTable } from '@jev/database';
 import type { Language } from '@jev/contracts';
-import { app } from '../context.js';
 
 /** 客户端上报当前界面语言的请求头 */
 export const LANGUAGE_HEADER = 'x-jev-language';
@@ -34,23 +32,7 @@ export function languageFromHeaders(
   return parseLanguage(Array.isArray(raw) ? raw[0] ?? null : raw ?? null);
 }
 
-/** 账号档案里的界面语言（没有档案或值不合法时为 null） */
-export async function profileLanguage(userId: string): Promise<Language | null> {
-  const rows = await app()
-    .db.db.select({ language: profiles.language })
-    .from(profiles)
-    .where(eq(profiles.userId, userId))
-    .limit(1);
-  return parseLanguage(rows[0]?.language ?? null);
-}
-
-/** 按邮箱找账号档案里的界面语言（登录发码时账号已存在但可能还没建档） */
-export async function profileLanguageByEmail(email: string): Promise<Language | null> {
-  const rows = await app()
-    .db.db.select({ language: profiles.language })
-    .from(profiles)
-    .innerJoin(userTable, eq(userTable.id, profiles.userId))
-    .where(eq(userTable.email, email))
-    .limit(1);
-  return parseLanguage(rows[0]?.language ?? null);
+/** 取请求里的界面语言；没有上报时回落中文 */
+export function languageOf(headers: { get(name: string): string | null } | Record<string, string | string[] | undefined> | undefined): Language {
+  return languageFromHeaders(headers) ?? 'zh';
 }

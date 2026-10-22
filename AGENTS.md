@@ -79,11 +79,11 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
 - **判题**：阈值只能服务端读；`uncertain` 是有效判定；缺概率是协议错误不编造；
   每局固定 `jevConfigVersion`；置信度不足自动用 MiniMax 大模型补判，多人还原可
   手动指定大模型（`turns.use_large_model` 随提交落库，任务按提交时选择执行）
-- **语言**：没有全局语言环境变量。判题语言按题目/本局/投稿自身的语言走
+- **语言**：没有全局语言环境变量，也不落库。判题语言按题目/本局/投稿自身的语言走
   （`JevClient.ask/solve/review(input, language)`，同一部署可同时判中英文题）；
-  用户界面语言存 `profiles.language`，前端每次请求带 `X-Jev-Language` 头实时上报，
-  切换语言时 `PATCH /me/language` 写回档案；事务邮件（验证码 / 重置密码）按
-  「请求头 → 账号档案 → 中文」的顺序取语言
+  用户界面语言只存本地（`localStorage['jev.language']`），前端每个请求带
+  `X-Jev-Language` 头显式上报，服务端按请求分流（事务邮件发中文还是英文）；
+  头缺失时回落中文
 - **认证**：Better Auth（邮箱/密码 + Email OTP + Google + LINUX DO）；`trustedOrigins` 来自 `PUBLIC_BASE_URL` +
   `APP_EXTRA_ORIGINS`（App 壳 WebView 来源 `https://localhost`），改来源先看 `apps/api/src/auth/auth.instance.ts`；
   整站 CORS 在 `bootstrap.ts` 挂 express 层（better-auth 路由先于 Nest 注册，enableCors 盖不到它）；

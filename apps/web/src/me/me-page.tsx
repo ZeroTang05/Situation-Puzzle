@@ -49,8 +49,6 @@ interface MeResponse {
   userId: string;
   nickname: string;
   email: string;
-  /** 账号档案里的界面语言：服务端据此发中文或英文的事务邮件 */
-  language?: 'zh' | 'en';
   sponsorship: { monthlyUntil: string | null; lifetime: boolean };
   freeRooms: { total: number; consumed: number; reserved: number };
 }

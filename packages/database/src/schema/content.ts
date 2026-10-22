@@ -61,8 +61,6 @@ export const profiles = pgTable('profiles', {
     .primaryKey()
     .references(() => user.id, { onDelete: 'cascade' }),
   nickname: text('nickname').notNull(),
-  /** 用户界面语言：zh / en。服务端据此发中文或英文的事务邮件（判题语言另按题目走）。 */
-  language: text('language').notNull().default('zh'),
   status: profileStatusEnum('status').notNull().default('active'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
