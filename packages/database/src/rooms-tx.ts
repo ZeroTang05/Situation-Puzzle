@@ -40,7 +40,8 @@ export type RoomEventType =
   | 'room.host_requested'
   | 'room.host_approved'
   | 'room.host_rejected'
-  | 'room.host_resigned';
+  | 'room.host_resigned'
+  | 'room.visibility_changed';
 
 export interface AppendedEvent {
   seq: number;

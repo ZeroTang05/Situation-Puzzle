@@ -89,6 +89,11 @@ export const rooms = pgTable(
     userHostId: text('user_host_id').references(() => user.id, { onDelete: 'set null' }),
     status: roomStatusEnum('status').notNull().default('waiting'),
     capacity: integer('capacity').notNull().default(8),
+    /**
+     * 公开房间：true 时出现在大厅列表，其他玩家可直接加入（docs/rebuild/18-HALL-PUBLIC-ROOMS.md）。
+     * false = 私人房间，只有邀请链接能进。切到私人不影响已在房内的人。
+     */
+    isPublic: boolean('is_public').notNull().default(false),
     /** 邀请令牌只存散列；明文只在创建/重置时返回一次 */
     inviteTokenHash: text('invite_token_hash').notNull(),
     /** 控制版本号：select/start/end 等控制命令乐观并发 */
@@ -105,6 +110,8 @@ export const rooms = pgTable(
   (t) => [
     uniqueIndex('rooms_invite_token_uq').on(t.inviteTokenHash),
     index('rooms_status_idx').on(t.status),
+    // 大厅列表只扫公开且未归档的房间
+    index('rooms_public_idx').on(t.isPublic).where(sql`is_public = true`),
   ],
 );
 
@@ -159,6 +166,11 @@ export const userLobbies = pgTable(
       .references(() => user.id, { onDelete: 'cascade' }),
     status: lobbyStatusEnum('status').notNull().default('closed'),
     capacity: integer('capacity').notNull().default(8),
+    /**
+     * 下一局的公开偏好：true 时开局建出来的房间是公开房间（18-HALL-PUBLIC-ROOMS）。
+     * 与 capacity 同性质：房主的持久偏好，start 事务复制进新房间后不清空。
+     */
+    isPublic: boolean('is_public').notNull().default(false),
     /** 主持人形态：ai = Jev 主持；user = 用户主持（17-USER-HOST-MODE） */
     hostMode: hostModeEnum('host_mode').notNull().default('ai'),
     /** 当前会客厅的用户主持人（null = 无） */
