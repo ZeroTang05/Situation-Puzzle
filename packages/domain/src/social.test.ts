@@ -73,21 +73,19 @@ describe('发送好友申请', () => {
 
 describe('处理好友申请', () => {
   it('收到申请的一方可以处理', () => {
-    expect(
-      friendResponseBlockReason({ responderId: 'b', requesterUserId: 'a', status: 'pending' }),
-    ).toBeNull();
+    expect(friendResponseBlockReason({ responderId: 'b', targetUserId: 'b', status: 'pending' })).toBeNull();
   });
 
   it('发起人自己不能处理自己的申请', () => {
-    expect(
-      friendResponseBlockReason({ responderId: 'a', requesterUserId: 'a', status: 'pending' }),
-    ).toBe('not_target');
+    expect(friendResponseBlockReason({ responderId: 'a', targetUserId: 'b', status: 'pending' })).toBe('not_target');
+  });
+
+  it('无关的第三方不能处理别人的申请', () => {
+    expect(friendResponseBlockReason({ responderId: 'c', targetUserId: 'b', status: 'pending' })).toBe('not_target');
   });
 
   it('已经处理过的申请不能重复处理', () => {
-    expect(
-      friendResponseBlockReason({ responderId: 'b', requesterUserId: 'a', status: 'accepted' }),
-    ).toBe('already_handled');
+    expect(friendResponseBlockReason({ responderId: 'b', targetUserId: 'b', status: 'accepted' })).toBe('already_handled');
   });
 
   it('拒绝原因映射到稳定错误码', () => {

@@ -61,13 +61,13 @@ export function friendRequestBlockError(block: FriendRequestBlock): { code: Erro
 export type FriendResponseBlock = 'not_target' | 'already_handled';
 
 export function friendResponseBlockReason(input: {
-  /** 当前操作人（收到申请的一方） */
+  /** 当前操作人 */
   responderId: string;
-  /** 申请发起人 */
-  requesterUserId: string;
+  /** 申请接收方（收到申请的那一方） */
+  targetUserId: string;
   status: FriendRequestStatus;
 }): FriendResponseBlock | null {
-  if (input.responderId === input.requesterUserId) return 'not_target';
+  if (input.responderId !== input.targetUserId) return 'not_target';
   if (input.status !== 'pending') return 'already_handled';
   return null;
 }

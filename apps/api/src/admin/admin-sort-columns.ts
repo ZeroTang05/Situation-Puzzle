@@ -6,7 +6,7 @@
  * 与列表 SELECT 共用同一段片段，保证「看到的值」和「排序依据」一致。
  */
 import { sql } from 'drizzle-orm';
-import { orders, profiles, puzzleRights, puzzleVersions, puzzles, reports, rooms, user } from '@jev/database';
+import { announcements, orders, profiles, puzzleRights, puzzleVersions, puzzles, reports, rooms, user } from '@jev/database';
 import type { SortWhitelist } from './admin-sort.js';
 
 /** 赞 / 踩计数：列表与排序共用。 */
@@ -78,4 +78,13 @@ export const ORDER_SORT: SortWhitelist = {
   merchantOrderNo: orders.merchantOrderNo,
   createdAt: orders.createdAt,
   paidAt: orders.paidAt,
+};
+
+/** 站内信（群发公告）列表的排序列。 */
+export const ANNOUNCEMENT_SORT: SortWhitelist = {
+  id: announcements.id,
+  title: announcements.title,
+  createdBy: announcements.createdBy,
+  publishedAt: announcements.publishedAt,
+  createdAt: announcements.createdAt,
 };

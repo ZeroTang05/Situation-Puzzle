@@ -22,6 +22,13 @@ import { RedeemCodesService } from './billing/redeem-codes.service.js';
 import { CreationsController } from './creations/creations.controller.js';
 import { GovernanceController } from './governance/governance.controller.js';
 import { AdminController } from './admin/admin.controller.js';
+import { FriendsController } from './social/friends.controller.js';
+import { FriendsService } from './social/friends.service.js';
+import { ChatController } from './social/chat.controller.js';
+import { ChatService } from './social/chat.service.js';
+import { NotificationsController } from './social/notifications.controller.js';
+import { NotificationsService } from './social/notifications.service.js';
+import { AnnouncementsController } from './social/announcements.controller.js';
 
 @Module({
   controllers: [
@@ -37,6 +44,10 @@ import { AdminController } from './admin/admin.controller.js';
     CreationsController,
     GovernanceController,
     AdminController,
+    FriendsController,
+    ChatController,
+    NotificationsController,
+    AnnouncementsController,
   ],
   providers: [
     RoomsService,
@@ -45,6 +56,9 @@ import { AdminController } from './admin/admin.controller.js';
     HallService,
     OrdersService,
     RedeemCodesService,
+    FriendsService,
+    ChatService,
+    NotificationsService,
     { provide: APP_INTERCEPTOR, useClass: EnvelopeInterceptor },
     // 限流在守卫之后执行：按用户的规则要拿到 SessionGuard 写入的 sessionUser
     { provide: APP_INTERCEPTOR, useClass: RateLimitInterceptor },

@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS "notifications" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "user_id" text NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
   "type" "notification_type" NOT NULL,
-  "title" text NOT NULL,
+  "title" text,
   "body" text,
   "actor_user_id" text REFERENCES "user"("id") ON DELETE SET NULL,
   "conversation_id" uuid REFERENCES "conversations"("id") ON DELETE CASCADE,

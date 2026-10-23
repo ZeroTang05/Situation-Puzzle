@@ -211,7 +211,12 @@ export const notifications = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     type: notificationTypeEnum('type').notNull(),
-    title: text('title').notNull(),
+    /**
+     * 展示标题：null = 由服务端按通知类型与阅读者语言即时拼装（站内信除外，
+     * 站内信直接用公告原文）。语言不落库，所以标题不写死。
+     */
+    title: text('title'),
+    /** 正文投影：私聊摘录 / 申请附言 / 站内信正文 */
     body: text('body'),
     /** 触发者：发消息 / 发申请 / 开局的人 */
     actorUserId: text('actor_user_id').references(() => user.id, { onDelete: 'set null' }),
