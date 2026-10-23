@@ -44,6 +44,8 @@ export const friendSummarySchema = z.object({
   nickname: z.string(),
   /** 成为好友的时间 */
   since: z.string(),
+  /** 与该好友的会话 id：好友列表点「消息」直接进这个会话 */
+  conversationId: z.string().uuid().nullable(),
 });
 
 export const friendListResponseSchema = z.object({
@@ -104,9 +106,13 @@ export const friendRequestReviewResponseSchema = z.object({
 
 // ---------- 私聊 ----------
 
-/** 私聊消息类型：text 普通文本；room_invite 是「来一局」生成的开局卡片。 */
+/** 私聊消息类型：text 普通文本；room_invite 是「来一局」生成的邀请卡片。 */
 export const dmMessageKindSchema = z.enum(['text', 'room_invite']);
 export type DmMessageKind = z.infer<typeof dmMessageKindSchema>;
+
+/** 房间状态：卡片按它决定按钮是「进入房间」还是「房间已结束」。 */
+export const roomStatusSchema = z.enum(['waiting', 'playing', 'closed']);
+export type RoomStatus = z.infer<typeof roomStatusSchema>;
 
 export const dmMessageSchema = z.object({
   id: z.string().uuid(),
@@ -119,6 +125,12 @@ export const dmMessageSchema = z.object({
   text: z.string(),
   /** kind='room_invite' 时指向开局房间 */
   roomId: z.string().uuid().nullable(),
+  /** kind='room_invite' 时：房间当前状态（null = 房间已不存在） */
+  roomStatus: roomStatusSchema.nullable(),
+  /** kind='room_invite' 时：邀请链接的令牌明文（拼 /room/invite/:token） */
+  inviteToken: z.string().nullable(),
+  /** kind='room_invite' 时：对方是否已经进房 */
+  peerJoined: z.boolean(),
   createdAt: z.string(),
 });
 
@@ -154,6 +166,17 @@ export const conversationListResponseSchema = z.object({
   conversations: z.array(conversationSummarySchema),
 });
 
+/** 会话详情：聊天页顶栏显示对方昵称用。 */
+export const conversationDetailSchema = z.object({
+  conversationId: z.string().uuid(),
+  peerUserId: z.string(),
+  peerNickname: z.string(),
+});
+
+export const conversationDetailResponseSchema = z.object({
+  conversation: conversationDetailSchema,
+});
+
 /**
  * 推进已读水位：省略 lastReadSeq 表示「整段会话已读」。
  * 水位只前进不后退（服务端取两者较大值）。
@@ -170,7 +193,8 @@ export const dmReadResponseSchema = z.object({
 // ---------- 快捷开局 ----------
 
 /**
- * 「来一局」：在私聊里一键建房直接开局，双方直接进同一个房间。
+ * 「来一局」：在私聊里开一局并给对方发一张邀请卡片。
+ * 对方不是自动进房：卡片上的「进入房间」是邀请链接，对方点了才进。
  * puzzleId 省略时由服务端随机挑一道已发布题目。
  */
 export const quickRoomRequestSchema = z.object({
@@ -180,7 +204,9 @@ export const quickRoomRequestSchema = z.object({
 
 export const quickRoomResponseSchema = z.object({
   roomId: z.string().uuid(),
-  /** 落在私聊里的开局卡片消息 */
+  /** 房间邀请令牌明文（只返回这一次，落在私聊卡片里） */
+  inviteToken: z.string(),
+  /** 落在私聊里的邀请卡片消息 */
   message: dmMessageSchema,
 });
 
