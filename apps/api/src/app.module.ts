@@ -22,6 +22,8 @@ import { RedeemCodesService } from './billing/redeem-codes.service.js';
 import { CreationsController } from './creations/creations.controller.js';
 import { GovernanceController } from './governance/governance.controller.js';
 import { AdminController } from './admin/admin.controller.js';
+import { BackupController } from './backup/backup.controller.js';
+import { BackupService } from './backup/backup.service.js';
 import { FriendsController } from './social/friends.controller.js';
 import { FriendsService } from './social/friends.service.js';
 import { ChatController } from './social/chat.controller.js';
@@ -44,6 +46,7 @@ import { AnnouncementsController } from './social/announcements.controller.js';
     CreationsController,
     GovernanceController,
     AdminController,
+    BackupController,
     FriendsController,
     ChatController,
     NotificationsController,
@@ -56,6 +59,7 @@ import { AnnouncementsController } from './social/announcements.controller.js';
     HallService,
     OrdersService,
     RedeemCodesService,
+    BackupService,
     FriendsService,
     ChatService,
     NotificationsService,

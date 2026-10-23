@@ -93,6 +93,22 @@ const envSchema = z.object({
   /** 同一用户同时保持的实时连接数上限（每进程计数，默认 5；多开标签页会被拒） */
   WS_MAX_CONNECTIONS_PER_USER: z.coerce.number().int().min(1).max(50).default(5),
 
+  // 对象存储（项目备份）：S3 兼容服务；缺 S3_BUCKET 即视为未接入，备份功能整体关闭
+  /** 兼容 S3 的服务地址（MinIO / 阿里云 OSS S3 兼容等）；缺省走 AWS 官方 endpoint */
+  S3_ENDPOINT: z.string().optional(),
+  S3_REGION: z.string().default('us-east-1'),
+  S3_BUCKET: z.string().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  /** 临时凭据（STS）的会话令牌 */
+  S3_SESSION_TOKEN: z.string().optional(),
+  /** path style 寻址：默认有 S3_ENDPOINT 时开、否则关；显式配置优先 */
+  S3_FORCE_PATH_STYLE: z.enum(['true', 'false']).optional(),
+  /** 备份文件在桶内的前缀 */
+  S3_BACKUP_PREFIX: z.string().default('jev-backups/'),
+  /** 自动备份间隔（小时）；0 = 关闭定时备份 */
+  BACKUP_INTERVAL_HOURS: z.coerce.number().int().min(0).default(0),
+
   /** Bootstrap admin：启动时若 user 不存在则创建（按 better-auth 标准 hash 存 account.password）；
    *  写完 user 后插入 role_assignments.role='admin'。已存在则跳过建账号，仅补 admin 角色。
    *  该变量仍可保留作"兜底授角色"，与 BOOTSTRAP_ADMIN/EMAIL+PASSWORD 独立使用。 */
@@ -118,6 +134,10 @@ export function loadEnv(): Env {
   }
   if (env.GOOGLE_OAUTH_PROXY_BASE_URL && !env.GOOGLE_OAUTH_PROXY_SHARED_SECRET) {
     throw new Error('环境配置校验失败 → 配置了 GOOGLE_OAUTH_PROXY_BASE_URL 就必须配置 GOOGLE_OAUTH_PROXY_SHARED_SECRET');
+  }
+  // 对象存储跨字段校验：配了桶就必须有凭据，否则备份功能带病运行
+  if (env.S3_BUCKET && (!env.S3_ACCESS_KEY_ID || !env.S3_SECRET_ACCESS_KEY)) {
+    throw new Error('环境配置校验失败 → 配置了 S3_BUCKET 就必须配置 S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY');
   }
   parseExtraOrigins(env.APP_EXTRA_ORIGINS);
   if (env.NODE_ENV === 'production') {

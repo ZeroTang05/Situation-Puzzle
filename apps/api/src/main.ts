@@ -15,6 +15,7 @@ import { jevConfigFromEnv } from '@jev/jev';
 import { createAppContext } from './bootstrap.js';
 import { AppModule } from './app.module.js';
 import { OrdersService } from './billing/orders.service.js';
+import { BackupService } from './backup/backup.service.js';
 import { GlobalExceptionFilter } from './exception.filter.js';
 import { RealtimeGateway } from './realtime/realtime.gateway.js';
 
@@ -65,6 +66,9 @@ async function main(): Promise<void> {
     60_000,
   );
   sweepTimer.unref();
+  // 定时备份：BACKUP_INTERVAL_HOURS > 0 时按间隔自动备份（启动后先等一个间隔，不在启动瞬间打桶）
+  const backupService = nestApp.get(BackupService);
+  backupService.startScheduledBackups();
   const gateway = new RealtimeGateway();
   // 踢人命令经此钩子立即断开被移除者的实时订阅
   context.realtime = {
@@ -78,6 +82,7 @@ async function main(): Promise<void> {
   gateway.attach(httpServer);
   const graceful = async () => {
     clearInterval(sweepTimer);
+    backupService.stopScheduledBackups();
     await gateway.shutdown();
     await context.queue.close();
     await db.close();

@@ -1,12 +1,9 @@
-/** 「我的」：账号卡片（头像 + 额度/会员数字）、昵称编辑、退出、多人历史列表。 */
+/** 「我的」：账号卡片（头像 + 额度/会员数字）、多人历史列表；昵称 / 语言 / 退出登录在设置页。 */
 import { useNavigate, Link } from 'react-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api, translateApiError } from '../api/client.js';
-import { signOut } from '../api/auth-client.js';
 import { useLanguage } from '../state/language.js';
-import { clearRoomLocal } from '../rooms/room-local.js';
-import { useDialog } from '@jev/ui';
 import { useBack } from '../back.js';
 import { format } from '@jev/i18n';
 import type { Language } from '@jev/i18n';
@@ -14,7 +11,6 @@ import type { Session } from '../session.js';
 import { creationCopy } from '../creations/copy.js';
 import { SponsorPanel } from './sponsor-panel.js';
 import { NotificationBell } from '../social/notification-bell.js';
-import { ChatEntryButton } from '../social/chat-entry-button.js';
 
 /** 把服务端 round.status 翻译成用户文案；未识别值回退到原值便于排查。 */
 function roundStatusLabel(status: string, language: Language, copy: { roundStatusActive: string; roundStatusSolved: string; roundStatusRevealed: string; roundStatusAbandoned: string; roundStatusAborted: string }) {
@@ -69,30 +65,10 @@ export function MePage({ session }: { session: Session | null }) {
   const { copy, language } = useLanguage();
   const navigate = useNavigate();
   const back = useBack('/');
-  const queryClient = useQueryClient();
-  const dialog = useDialog();
-  const [editingNickname, setEditingNickname] = useState(false);
-  const [nicknameDraft, setNicknameDraft] = useState('');
-  const [nicknameError, setNicknameError] = useState<string | null>(null);
-  const [savingNickname, setSavingNickname] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
 
   const me = useQuery({ queryKey: ['me'], queryFn: () => api<MeResponse>('/me'), enabled: session !== null, retry: false });
   const history = useQuery({ queryKey: ['me-history', session?.user.id, historyPage], queryFn: () => api<HistoryResponse>(`/me/history?page=${historyPage}&limit=5`), enabled: session !== null, retry: false });
-
-  const saveNickname = async () => {
-    setSavingNickname(true);
-    setNicknameError(null);
-    try {
-      await api<{ nickname: string }>('/me/nickname', { method: 'PATCH', body: { nickname: nicknameDraft } });
-      await queryClient.invalidateQueries({ queryKey: ['me'] });
-      setEditingNickname(false);
-    } catch (error) {
-      setNicknameError(translateApiError(error, language, copy.saveFail));
-    } finally {
-      setSavingNickname(false);
-    }
-  };
 
   if (!session) {
     return (
@@ -114,17 +90,7 @@ export function MePage({ session }: { session: Session | null }) {
   // 名字与邮箱都来自 /me：没回来就整卡占骨架，回来一起出；不读会话字段，避免分两步加载
   const displayName = me.data?.nickname ?? null;
   const displayEmail = me.data?.email ?? null;
-  const accountLoadFail = language === 'zh' ? '账号信息加载失败，请重试。' : 'Could not load your account. Please try again.';
-  const logoutConfirmText = language === 'zh' ? '确定退出当前账号吗？' : 'Sign out of this account?';
-
-  /** 退出登录走二次确认，避免误触后丢掉本地单人进度入口。 */
-  const logout = async () => {
-    if (!(await dialog.confirm(logoutConfirmText, copy.logout))) return;
-    await clearRoomLocal(session.user.id);
-    await signOut();
-    queryClient.clear();
-    navigate('/');
-  };
+  const accountLoadFail = copy.accountLoadFail;
 
   return (
     <main className="shell narrow">
@@ -143,25 +109,7 @@ export function MePage({ session }: { session: Session | null }) {
             <h2 className="me-name">{displayName ?? <span className="me-skeleton-bar me-name-skeleton" aria-hidden />}</h2>
             <p className="me-email muted">{displayEmail ?? <span className="me-skeleton-bar me-email-skeleton" aria-hidden />}</p>
           </div>
-          {!editingNickname && (
-            <button className="btn btn-ghost btn-sm" onClick={() => { setNicknameDraft(me.data?.nickname ?? ''); setNicknameError(null); setEditingNickname(true); }}>{copy.modify}</button>
-          )}
         </div>
-
-        {editingNickname && (
-          <form className="me-edit" onSubmit={(e) => { e.preventDefault(); if (!savingNickname && nicknameDraft.trim().length > 0) void saveNickname(); }}>
-            <label className="field-label" htmlFor="nickname">
-              <span className="muted">{copy.nickname}</span>
-              <input id="nickname" className="field" type="text" value={nicknameDraft} maxLength={30} autoFocus onChange={(e) => setNicknameDraft(e.target.value)} />
-              <span className="field-help muted">{copy.nicknameRule}</span>
-            </label>
-            {nicknameError && <p className="error-text" role="alert">{nicknameError}</p>}
-            <div className="me-edit-actions">
-              <button type="submit" className="btn btn-sm btn-primary" disabled={savingNickname || nicknameDraft.trim().length === 0}>{savingNickname ? copy.submitting : copy.saved}</button>
-              <button type="button" className="btn btn-sm" disabled={savingNickname} onClick={() => setEditingNickname(false)}>{copy.cancelEdit}</button>
-            </div>
-          </form>
-        )}
 
         <div className="me-stats">
           <div className="me-stat">
@@ -196,7 +144,7 @@ export function MePage({ session }: { session: Session | null }) {
         </div>
         <div className="me-card-actions">
           <button className="btn" onClick={() => navigate('/friends')}>{copy.friends}</button>
-          <ChatEntryButton className="btn" />
+          <button className="btn" onClick={() => navigate('/settings')}>{copy.settings}</button>
         </div>
       </section>
 
@@ -252,9 +200,6 @@ export function MePage({ session }: { session: Session | null }) {
           })}
         </ul>
       </section>
-
-      {/* 退出登录放在页面末尾：账号区保持聚焦，误触概率更低 */}
-      <button className="btn me-logout" onClick={() => void logout()}>{copy.logout}</button>
     </main>
   );
 }

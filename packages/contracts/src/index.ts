@@ -5,3 +5,4 @@ export * from './events.js';
 export * from './creations.js';
 export * from './catalog.js';
 export * from './social.js';
+export * from './backup.js';

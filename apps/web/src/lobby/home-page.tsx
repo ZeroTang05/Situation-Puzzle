@@ -10,10 +10,9 @@ import type { Session } from '../session.js';
 import { creationCopy } from '../creations/copy.js';
 import { BrandHeading } from '../brand-heading.js';
 import { NotificationBell } from '../social/notification-bell.js';
-import { ChatEntryButton } from '../social/chat-entry-button.js';
 
 export function HomePage({ session }: { session: Session | null }) {
-  const { copy, language, setLanguage } = useLanguage();
+  const { copy, language } = useLanguage();
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -42,9 +41,6 @@ export function HomePage({ session }: { session: Session | null }) {
           <NotificationBell />
           <button className="btn btn-ghost btn-sm help-btn" type="button" aria-label={copy.howToPlay} title={copy.howToPlay} onClick={() => setIntroOpen(true)}>
             ?
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}>
-            {language === 'zh' ? copy.languageSwitchToEn : copy.languageSwitchToZh}
           </button>
           {session ? (
             <button className="btn btn-ghost btn-sm" onClick={() => navigate('/me')}>
@@ -99,7 +95,6 @@ export function HomePage({ session }: { session: Session | null }) {
           <button className="btn btn-sm" onClick={() => navigate(session ? '/friends' : '/login?next=%2Ffriends')}>
             {copy.friends}
           </button>
-          <ChatEntryButton />
         </div>
       </section>
 

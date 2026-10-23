@@ -90,8 +90,8 @@ const baseProvider: DataProvider = {
 export { baseProvider as dataProvider };
 
 /** 业务动作：审核、退款、封禁等专用端点。 */
-export async function adminAction(path: string, body: Record<string, unknown>): Promise<unknown> {
-  return adminFetch(path, { method: 'POST', body: JSON.stringify(body) });
+export async function adminAction(path: string, body: Record<string, unknown>, method: 'POST' | 'DELETE' = 'POST'): Promise<unknown> {
+  return adminFetch(path, { method, body: JSON.stringify(body) });
 }
 
 /** 只读查询：后台各处按需取单个端点（如批次内的码明细）。 */

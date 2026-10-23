@@ -13,14 +13,16 @@
 
 **大厅与公开房间**（`docs/rebuild/18-HALL-PUBLIC-ROOMS.md`）：房主可把房间设为**公开**，公开房间出现在大厅（`GET /hall`），其他人可直接加入（`POST /rooms/:id/join-public`，不需要邀请 token）。房间与会客厅各持一份开关：`rooms.is_public` / `user_lobbies.is_public`（默认 false＝全部是私人房间）。等待室的开关是「**下一局**」的偏好（与 `capacity` 同性质，start 事务复制进新房后不清空）；房间内的开关走**房间命令通道** `set_visibility`（host-only + 幂等 + 控制版本乐观并发 + 广播 `room.visibility_changed`）。切回私人只影响大厅可见性，已在房内的人不受影响、邀请链接照旧有效；房间归档（closed）必须从大厅消失。
 
-**加好友 + 私聊 + 快捷开局 + 通知**（`docs/rebuild/19-FRIENDS-DM-NOTIFICATIONS.md`）：按邮箱**精确**搜索（不做前缀模糊搜索，避免枚举站内邮箱）→ 发好友申请 → 对方同意才成为好友（申请-同意制）。申请按 `user_low`/`user_high` 规范化，A→B 与 B→A 互斥，数据库部分唯一索引 `friend_requests_pending_pair_uq` 兜底。好友之间有私聊会话（同意申请时同事务建），消息按**会话内序号** `dm_messages.seq` 排序，已读水位 `conversation_reads.last_read_seq` **只前进不后退**（不用时间戳：同毫秒发消息会丢）。私聊里可「来一局」发起一局（`POST /conversations/:id/start-room`）：**对方不被自动拉进房间**，卡片上的「进入房间」是邀请链接（`/room/invite/<token>`，令牌明文随卡片落在 `dm_messages.invite_token`），对方点了才进房；卡片按钮按房间当前状态变化（归档后变「房间已结束」）。**没有会话列表页**：`/chat` 不存在，好友列表是唯一入口，点好友的「消息」直达 `/chat/:conversationId`。私聊消息 / 好友申请 / 开局邀请 / 站内信统一进通知中心（`notifications`），铃铛角标 10 秒轮询、聊天页 3 秒轮询——**本轮不走 WebSocket**，实时网关留作后续扩展点。通知标题**不落库**：读取时按 `X-Jev-Language` 即时拼装（站内信用公告原文）。
+**加好友 + 私聊 + 快捷开局 + 通知**（`docs/rebuild/19-FRIENDS-DM-NOTIFICATIONS.md`）：按邮箱**精确**搜索（不做前缀模糊搜索，避免枚举站内邮箱）→ 发好友申请 → 对方同意才成为好友（申请-同意制）。申请按 `user_low`/`user_high` 规范化，A→B 与 B→A 互斥，数据库部分唯一索引 `friend_requests_pending_pair_uq` 兜底。好友之间有私聊会话（同意申请时同事务建），消息按**会话内序号** `dm_messages.seq` 排序，已读水位 `conversation_reads.last_read_seq` **只前进不后退**（不用时间戳：同毫秒发消息会丢）。私聊里可「来一局」发起一局（`POST /conversations/:id/start-room`）：**对方不被自动拉进房间**，卡片上的「进入房间」是邀请链接（`/room/invite/<token>`，令牌明文随卡片落在 `dm_messages.invite_token`），对方点了才进房；卡片按钮按房间当前状态变化（归档后变「房间已结束」）。**没有会话列表页**：`/chat` 不存在，好友列表是唯一入口，点好友名整行直达 `/chat/:conversationId`（站内没有「消息」按钮，全站不再提供该入口）。私聊消息 / 好友申请 / 开局邀请 / 站内信统一进通知中心（`notifications`），铃铛角标 10 秒轮询、聊天页 3 秒轮询——**本轮不走 WebSocket**，实时网关留作后续扩展点。通知标题**不落库**：读取时按 `X-Jev-Language` 即时拼装（站内信用公告原文）。
+
+**项目备份（后台）**：管理员在后台「项目备份」页把整个数据库做逻辑快照、存进 **S3 兼容对象存储**，并可从任一备份还原。实现走**纯 Node**（`apps/api/src/backup/`），不依赖 `pg_dump` 等外部二进制：导出时每列在 SQL 侧 `::text` 文本化（bytea/jsonb/数组/numeric/enum 都靠「文本 → 目标类型」cast 无损往返，NULL 原样保留），还原在**单个事务**里完成（`TRUNCATE … RESTART IDENTITY CASCADE` → 按外键拓扑序写回 → 重置序列），任一步失败整体回滚。归档类型串拼进 SQL 前必须过白名单，否则抛 `BACKUP_INVALID_ARCHIVE`。对象存储未配置（缺 `S3_BUCKET`）时整体降级为「未接入」，后台只显示提示、不做任何写操作。还原是不可逆操作：请求体必须带固定确认口令 `RESTORE` + 操作理由，写操作全部留审计（`audit_logs`，objectType=`backup`）；**还原的审计写在提交之后**——还原会 TRUNCATE `audit_logs` 自己。
 
 ## 目录结构
 
 ```
-apps/web        玩家端（React 19 + Vite）：首页、题库、单人、会客厅、房间、邀请、创作、我的、登录、找回密码、好友、私聊、通知中心
-apps/admin      管理端（React-admin）：题库审核、用户、房间调查、举报、订单、赞助码（发码/对账/作废）、站内信群发、总览；所有列表表头可点排序（后端列名白名单，见 admin-sort-columns.ts）
-apps/api        NestJS 服务：认证 auth、题库 catalog、单人 solo、房间与会客厅 rooms、实时网关 realtime、赞助订单 billing、创作 creations、治理 governance、后台 admin、社交 social（好友/私聊/通知/站内信）
+apps/web        玩家端（React 19 + Vite）：首页、题库、单人、会客厅、房间、邀请、创作、我的、设置、登录、找回密码、好友、私聊、通知中心
+apps/admin      管理端（React-admin）：题库审核、用户、房间调查、举报、订单、赞助码（发码/对账/作废）、项目备份（备份/还原/下载）、站内信群发、总览；所有列表表头可点排序（后端列名白名单，见 admin-sort-columns.ts）
+apps/api        NestJS 服务：认证 auth、题库 catalog、单人 solo、房间与会客厅 rooms、实时网关 realtime、赞助订单 billing、创作 creations、治理 governance、后台 admin、备份 backup、社交 social（好友/私聊/通知/站内信）
 apps/jobs       pg-boss 任务进程：dispatch-room / process-turn / review-puzzle / maintenance
 apps/app        Android 壳工程（Capacitor 8，包名 cn.xiaobaozi.sp，App 名「Jev 海龟汤」）：apps/web 构建产物打进 WebView；插件 @capacitor/app browser clipboard keyboard（OAuth 回流系统浏览器、深链事件、剪贴板邀请过渡、键盘避让）；OAuth 回流端点 `/api/v1/app-session/handoff|exchange`（60 秒 jose code 换 Bearer 令牌）；计划与认证适配方案见 docs/rebuild/13-APP-VERSION.md
 packages/contracts   跨端 Zod 契约：HTTP 请求响应、WS 事件、稳定错误码（客户端只准引用这里）
@@ -98,7 +100,14 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   （`JevClient.ask/solve/review(input, language)`，同一部署可同时判中英文题）；
   用户界面语言只存本地（`localStorage['jev.language']`），前端每个请求带
   `X-Jev-Language` 头显式上报，服务端按请求分流（事务邮件发中文还是英文）；
-  头缺失时回落中文
+  头缺失时回落中文。**界面语言切换只有两个入口**：登录/注册页（`/login`，含注册模式）
+  与设置页（`/settings`）；首页、找回密码页等都不再放切换按钮
+- **设置页**（`/settings`）：昵称修改、语言修改、退出登录三件事都收在这里，
+  「我的」页（`/me`）只留账号卡、赞助面板与多人历史，并提供设置页入口；
+  昵称写入走 `PATCH /me/nickname`
+- **认证错误也要 i18n**：better-auth 直接回英文原文（如 `Invalid email or password`），
+  前端一律用 `displayAuthError(code, language, fallback)`（`packages/i18n`）按 code 翻译，
+  **不透传** better-auth 的 message
 - **认证**：Better Auth（邮箱/密码 + Email OTP + Google + LINUX DO）；`trustedOrigins` 来自 `PUBLIC_BASE_URL` +
   `APP_EXTRA_ORIGINS`（App 壳 WebView 来源 `https://localhost`），改来源先看 `apps/api/src/auth/auth.instance.ts`；
   整站 CORS 在 `bootstrap.ts` 挂 express 层（better-auth 路由先于 Nest 注册，enableCors 盖不到它）；
@@ -124,6 +133,11 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   计数落 PG 表 `rate_limit_buckets`（跨进程共享）。已生效：投稿每天 5 篇、
   创作每分钟 20 次、举报每小时 5 条、后台每分钟 120 次、支付通知每 IP 每分钟 120 次、
   WebSocket 每用户 5 条连接。清单见 `docs/rebuild/16-CONCURRENCY-LIMITS.md`
+- **备份不变量**：① 只备份 `public` schema 的普通表（分区子表按父表、生成列不入档）；
+  ② 备份 / 还原同一时刻只允许一个任务在跑（`BACKUP_IN_PROGRESS`）；
+  ③ 还原必须带确认口令 `RESTORE` + 理由，key 只能落在 `S3_BACKUP_PREFIX` 前缀内；
+  ④ 还原是全局独占写操作，期间的其它写事务会等待或锁超时（锁序约定对它不适用）；
+  ⑤ 归档里的类型串会拼进 SQL，拼之前必须过白名单（防归档被篡改）
 
 ## 踩坑点
 
@@ -171,6 +185,9 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
 - 用户主持人 E2E：`pnpm e2e:host`（`scripts/e2e-node-run.mjs` 自建临时库 + 收信台 + API + jobs，40 项断言）
 - 跨平台编排：`pnpm e2e:local <multiplayer|host|votes|playwright>`（不依赖 bash/docker，只要有一个可连的 PostgreSQL）
 - 真实库集成测试：设 `HOST_MODE_TEST_DATABASE_URL` 后跑 `apps/api/src/rooms/host-mode.integration.test.ts`；
-  社交域设 `SOCIAL_TEST_DATABASE_URL` 后跑 `apps/api/src/social/social.integration.test.ts`（16 项断言）
+  社交域设 `SOCIAL_TEST_DATABASE_URL` 后跑 `apps/api/src/social/social.integration.test.ts`（16 项断言）；
+  备份域设 `BACKUP_TEST_DATABASE_URL` 后跑 `apps/api/src/backup/backup.integration.test.ts`
+  （5 项断言；自建临时库、结束整库删除）
 - 浏览器套件：`pnpm --filter @jev/web test:e2e`（真实 Chromium；房间相关用例已迁到会客厅流程）
-- 浏览器实测：登录、建房、邀请、提问、提示、公布答案、切题、解散；用户主持模式另测申请/审批/主持判定/汤底可见性/退出
+- 浏览器实测：登录、建房、邀请、提问、提示、公布答案、切题、解散；用户主持模式另测申请/审批/主持判定/汤底可见性/退出；
+  设置页另测昵称保存、语言切换、退出登录；后台另测备份/还原/下载（需先配好 `S3_*` 环境变量）

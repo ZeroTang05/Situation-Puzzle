@@ -6,9 +6,10 @@ import { useLanguage } from '../state/language.js';
 import { useBack } from '../back.js';
 import { BrandHeading } from '../brand-heading.js';
 import { authStepHref } from './login-navigation.js';
+import { displayAuthError } from '@jev/i18n';
 
 export function ForgotPasswordPage() {
-  const { copy, language, setLanguage } = useLanguage();
+  const { copy, language } = useLanguage();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const next = params.get('next');
@@ -28,7 +29,7 @@ export function ForgotPasswordPage() {
     });
     setBusy(false);
     if (resetError) {
-      setError(resetError.message ?? copy.sendCodeFail);
+      setError(displayAuthError(resetError.code, language, copy.sendCodeFail));
       return;
     }
     setSent(true);
@@ -39,14 +40,6 @@ export function ForgotPasswordPage() {
       <header className="topbar topbar-title">
         <button type="button" className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
         <BrandHeading>{copy.brand}</BrandHeading>
-        <button
-          type="button"
-          className="btn btn-sm btn-ghost lang-switch"
-          aria-label={copy.langSwitchAria}
-          onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
-        >
-          {language === 'zh' ? copy.languageSwitchToEn : copy.languageSwitchToZh}
-        </button>
       </header>
       <section className="panel stack">
         <h2>{copy.forgotPasswordTitle}</h2>

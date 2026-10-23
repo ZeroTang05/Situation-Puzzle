@@ -24,7 +24,7 @@ interface FriendSummary {
   userId: string;
   nickname: string;
   since: string;
-  /** 与该好友的会话 id：点「消息」直接进这个会话 */
+  /** 与该好友的会话 id：点好友名直接进这个会话 */
   conversationId: string | null;
 }
 
@@ -272,17 +272,17 @@ export function FriendsPage() {
           <ul className="friend-list">
             {friendList.map((friend) => (
               <li key={friend.userId} className="friend-row">
-                <div className="friend-row-main">
-                  <p className="friend-row-name">{friend.nickname}</p>
-                </div>
+                {/* 好友名整行可点：点谁就跟谁私聊（没有会话时不可点） */}
+                <button
+                  type="button"
+                  className="friend-row-open"
+                  disabled={friend.conversationId === null}
+                  onClick={() => friend.conversationId && navigate(`/chat/${friend.conversationId}`)}
+                >
+                  <span className="friend-row-name">{friend.nickname}</span>
+                  <span className="friend-row-chevron" aria-hidden>›</span>
+                </button>
                 <div className="friend-row-actions">
-                  <button
-                    className="btn btn-sm"
-                    disabled={friend.conversationId === null}
-                    onClick={() => friend.conversationId && navigate(`/chat/${friend.conversationId}`)}
-                  >
-                    {copy.messages}
-                  </button>
                   <button
                     className="btn btn-sm btn-danger"
                     disabled={removingId !== null}

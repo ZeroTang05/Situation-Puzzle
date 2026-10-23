@@ -256,7 +256,14 @@ export function createAlipayAdapter(env: AlipayEnv): PayAdapter | null {
         product_code: productCode,
       };
       if (product === 'page') {
-        return { payUrl: buildPagePayUrl(bizContent, { notifyUrl: input.notifyUrl, returnUrl: input.returnUrl }), qrContent: null };
+        // exactOptionalPropertyTypes：可选属性不能显式传 undefined，用条件展开
+        return {
+          payUrl: buildPagePayUrl(bizContent, {
+            notifyUrl: input.notifyUrl,
+            ...(input.returnUrl ? { returnUrl: input.returnUrl } : {}),
+          }),
+          qrContent: null,
+        };
       }
       const result = await call<{ qr_code?: string; code: string; msg: string; sub_code?: string; sub_msg?: string }>(
         'alipay.trade.precreate',

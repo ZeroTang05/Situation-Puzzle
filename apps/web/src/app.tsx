@@ -1,4 +1,4 @@
-/** 路由结构：单人 / 大厅 / 题库 / 房间 / 邀请 / 创作中心 / 我的 / 好友 / 私聊 / 通知 / 登录。 */
+/** 路由结构：单人 / 大厅 / 题库 / 房间 / 邀请 / 创作中心 / 我的 / 设置 / 好友 / 私聊 / 通知 / 登录。 */
 import { Navigate, Route, Routes } from 'react-router';
 import { HomePage } from './lobby/home-page.js';
 import { HallPage } from './hall/hall-page.js';
@@ -8,6 +8,7 @@ import { RoomPage } from './rooms/room-page.js';
 import { LobbyPage } from './rooms/lobby-page.js';
 import { InvitePage } from './rooms/invite-page.js';
 import { MePage } from './me/me-page.js';
+import { SettingsPage } from './settings/settings-page.js';
 import { LoginPage } from './auth/login-page.js';
 import { ForgotPasswordPage } from './auth/forgot-password-page.js';
 import { ResetPasswordPage } from './auth/reset-password-page.js';
@@ -40,6 +41,7 @@ export function App() {
       <Route path="/lobby/invite/:token" element={<InvitePage kind="lobby" session={session} />} />
       <Route path="/room/invite/:token" element={<InvitePage kind="room" session={session} />} />
       <Route path="/me" element={<RequireSession session={session}><MePage session={session} /></RequireSession>} />
+      <Route path="/settings" element={<RequireSession session={session}><SettingsPage /></RequireSession>} />
       <Route path="/friends" element={<RequireSession session={session}><FriendsPage /></RequireSession>} />
       <Route path="/chat/:conversationId" element={<RequireSession session={session}><ChatPage /></RequireSession>} />
       <Route path="/notifications" element={<RequireSession session={session}><NotificationsPage /></RequireSession>} />

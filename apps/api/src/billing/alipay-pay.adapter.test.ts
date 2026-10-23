@@ -247,7 +247,9 @@ describe('支付宝适配器（对本地 mock 网关）', () => {
       total_amount: '6.00',
       sign_type: 'RSA2',
     };
-    params.sign = signParams(params, PRIVATE_PEM);
+    // 异步通知验签：按官方规则 sign 与 sign_type 都不参与签名（适配器同此）
+    const { sign_type: _signType, ...signed } = params;
+    params.sign = signParams(signed, PRIVATE_PEM);
     const body = Buffer.from(new URLSearchParams(params).toString(), 'utf8');
 
     const verified = adapter.verifyNotification({ headers: {}, rawBody: body });

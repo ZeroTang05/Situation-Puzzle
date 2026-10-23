@@ -13,7 +13,7 @@ import { useLanguage } from '../state/language.js';
 import { BrandHeading } from '../brand-heading.js';
 import { authStepHref, loginDestination } from './login-navigation.js';
 import { useBack } from '../back.js';
-import { format } from '@jev/i18n';
+import { displayAuthError, format } from '@jev/i18n';
 import { otpCooldownKey, readOtpDeadline, remainingOtpSeconds, sendOtpCode, OtpSendError } from './otp-cooldown.js';
 import { isAppShell, openSystemBrowser, siteOrigin } from '../app-runtime.js';
 
@@ -90,7 +90,7 @@ export function LoginPage() {
     const { error: verifyError } = await authClient.signIn.emailOtp({ email: email.trim().toLowerCase(), otp: code });
     setBusy(false);
     if (verifyError) {
-      setError(verifyError.message ?? copy.otpInvalid);
+      setError(displayAuthError(verifyError.code, language, copy.otpInvalid));
       return;
     }
     window.location.replace(next);
@@ -103,14 +103,13 @@ export function LoginPage() {
     const { error: verifyError } = await authClient.emailOtp.checkVerificationOtp({ email: email.trim().toLowerCase(), otp: code, type: 'sign-in' });
     setBusy(false);
     if (verifyError) {
-      const msg = verifyError.message ?? '';
       if (verifyError.code === 'USER_NOT_FOUND') {
         // 邮箱尚未注册 → OTP 视为有效（这一步只能确认 OTP 一致性；最终注册由 sign-up 写库）
         setSignupOtpVerified(true);
         setNotice(copy.emailVerified);
         return;
       }
-      setError(msg || copy.otpInvalid);
+      setError(displayAuthError(verifyError.code, language, copy.otpInvalid));
       return;
     }
     // 走到了：邮箱其实已注册，提示用户去登录
@@ -124,7 +123,7 @@ export function LoginPage() {
     const { error: pwError } = await authClient.signIn.email({ email: email.trim().toLowerCase(), password });
     setBusy(false);
     if (pwError) {
-      setError(pwError.message ?? copy.signinFail);
+      setError(displayAuthError(pwError.code, language, copy.signinFail));
       return;
     }
     window.location.replace(next);
@@ -146,7 +145,7 @@ export function LoginPage() {
     );
     setBusy(false);
     if (signErr) {
-      setError(signErr.message ?? copy.signupFail);
+      setError(displayAuthError(signErr.code, language, copy.signupFail));
       return;
     }
     // 注册完成 → 自动登录
@@ -178,7 +177,7 @@ export function LoginPage() {
     });
     setBusy(false);
     if (oauthError) {
-      setError(oauthError.message ?? copy.oauthFail);
+      setError(displayAuthError(oauthError.code, language, copy.oauthFail));
       return;
     }
     if (data?.url) {

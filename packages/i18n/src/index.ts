@@ -82,11 +82,55 @@ const errorCopy: Record<ErrorCode, Record<Language, string>> = {
   ALREADY_FRIENDS: { zh: '你们已经是好友了。', en: 'You are already friends.' },
   FRIEND_REQUEST_EXISTS: { zh: '好友申请已经发过了，等对方确认吧。', en: 'The friend request is already pending.' },
   NOT_FRIENDS: { zh: '只有好友才能私聊。', en: 'Only friends can chat.' },
+  BACKUP_NOT_CONFIGURED: { zh: '尚未接入对象存储，备份功能不可用。', en: 'Object storage is not configured yet, so backups are unavailable.' },
+  BACKUP_FAILED: { zh: '备份操作失败，请查看服务端日志。', en: 'The backup operation failed. Check the server logs.' },
+  BACKUP_NOT_FOUND: { zh: '找不到这个备份文件。', en: 'That backup file no longer exists.' },
+  BACKUP_INVALID_ARCHIVE: { zh: '备份文件已损坏或格式不兼容，无法还原。', en: 'The archive is corrupted or incompatible and cannot be restored.' },
+  BACKUP_IN_PROGRESS: { zh: '已有备份任务在执行，请稍后再试。', en: 'A backup job is already running. Try again shortly.' },
 };
 
 export function displayError(code: string, language: Language, fallback?: string): string {
   const entry = (errorCopy as Record<string, Record<Language, string>>)[code];
   return entry?.[language] ?? fallback ?? code;
+}
+
+/**
+ * better-auth 错误码 → 面向用户的文案。
+ *
+ * 认证接口不走统一信封，better-auth 直接回英文原文（如 "Invalid email or password"），
+ * 这里按 code 翻译；code 未登记时回落到调用方给的本地化兜底文案，绝不把英文原文透给用户。
+ */
+const authErrorCopy: Record<string, Record<Language, string>> = {
+  INVALID_EMAIL_OR_PASSWORD: { zh: '邮箱或密码不正确。', en: 'Wrong email or password.' },
+  INVALID_EMAIL: { zh: '邮箱格式不正确。', en: 'That email address is not valid.' },
+  EMAIL_CAN_NOT_BE_UPDATED: { zh: '邮箱不支持直接修改。', en: 'The email address cannot be changed.' },
+  INVALID_PASSWORD: { zh: '密码不符合要求，至少 8 位。', en: 'Password does not meet the requirements (8 characters minimum).' },
+  PASSWORD_TOO_SHORT: { zh: '密码不符合要求，至少 8 位。', en: 'Password does not meet the requirements (8 characters minimum).' },
+  USER_ALREADY_EXISTS: { zh: '该邮箱已注册，请直接登录。', en: 'That email is already registered. Please sign in.' },
+  USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: { zh: '该邮箱已注册，请换一个邮箱或直接登录。', en: 'That email is already registered. Use another email or sign in.' },
+  USER_NOT_FOUND: { zh: '该邮箱未注册，请先注册。', en: 'That email is not registered yet. Sign up first.' },
+  EMAIL_NOT_VERIFIED: { zh: '邮箱尚未验证，请先完成验证。', en: 'This email is not verified yet.' },
+  CREDENTIAL_ACCOUNT_NOT_FOUND: { zh: '该账号没有密码登录方式，请改用邮箱验证码登录。', en: 'This account has no password. Sign in with an email code instead.' },
+  INVALID_TOKEN: { zh: '链接或验证码已失效，请重新获取。', en: 'That link or code is no longer valid. Request a new one.' },
+  INVALID_OTP: { zh: '验证码不正确。', en: 'That code is incorrect.' },
+  INVALID_CODE: { zh: '验证码不正确。', en: 'That code is incorrect.' },
+  OTP_EXPIRED: { zh: '验证码已过期，请重新获取。', en: 'That code has expired. Request a new one.' },
+  CODE_EXPIRED: { zh: '验证码已过期，请重新获取。', en: 'That code has expired. Request a new one.' },
+  TOO_MANY_REQUESTS: { zh: '尝试次数过多，请稍后再试。', en: 'Too many attempts. Please try again later.' },
+  SOCIAL_ACCOUNT_ALREADY_LINKED: { zh: '该第三方账号已经绑定过其他站内账号。', en: 'That third-party account is already linked to another account.' },
+  ACCOUNT_NOT_FOUND: { zh: '账号不存在。', en: 'That account does not exist.' },
+  UNAUTHORIZED: { zh: '请先登录。', en: 'Please sign in first.' },
+};
+
+/**
+ * 认证错误翻译：只认稳定 code，不透传 better-auth 的英文 message。
+ * @param code better-auth 返回的错误码（可能为空）
+ * @param fallback 未登记 code 时的本地化兜底文案
+ */
+export function displayAuthError(code: string | null | undefined, language: Language, fallback: string): string {
+  if (!code) return fallback;
+  const entry = authErrorCopy[code];
+  return entry?.[language] ?? fallback;
 }
 
 /** 置信度（0~1 概率）展示 */
@@ -315,6 +359,15 @@ export const copy = {
     activeRooms: '进行中的房间',
     settings: '设置',
     language: '语言',
+    settingsTitle: '设置',
+    settingsProfile: '个人资料',
+    settingsLanguage: '界面语言',
+    settingsAccount: '账号',
+    languageChinese: '中文',
+    languageEnglish: 'English',
+    accountLoadFail: '账号信息加载失败，请重试。',
+    logoutConfirm: '确定退出当前账号吗？',
+    nicknameUpdated: '昵称已更新',
     offline: '连接已断开，正在重连…',
     newMessages: '有新消息',
     submitting: '正在提交…',
@@ -791,6 +844,15 @@ export const copy = {
     activeRooms: 'Active rooms',
     settings: 'Settings',
     language: 'Language',
+    settingsTitle: 'Settings',
+    settingsProfile: 'Profile',
+    settingsLanguage: 'Interface language',
+    settingsAccount: 'Account',
+    languageChinese: 'Chinese',
+    languageEnglish: 'English',
+    accountLoadFail: 'Could not load your account. Please try again.',
+    logoutConfirm: 'Sign out of this account?',
+    nicknameUpdated: 'Nickname updated',
     offline: 'Connection lost. Reconnecting…',
     newMessages: 'New messages',
     submitting: 'Submitting…',

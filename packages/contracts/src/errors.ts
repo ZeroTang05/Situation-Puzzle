@@ -45,6 +45,12 @@ export const ERROR_CODES = [
   'ORDER_EXPIRED',
   'PAYMENT_CHANNEL_UNAVAILABLE',
   'ORDER_STATE_CONFLICT',
+  // 项目备份（对象存储 + 数据库快照）
+  'BACKUP_NOT_CONFIGURED',
+  'BACKUP_FAILED',
+  'BACKUP_NOT_FOUND',
+  'BACKUP_INVALID_ARCHIVE',
+  'BACKUP_IN_PROGRESS',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
@@ -85,6 +91,11 @@ export const ERROR_STATUS: Record<ErrorCode, number> = {
   ORDER_EXPIRED: 409,
   PAYMENT_CHANNEL_UNAVAILABLE: 503,
   ORDER_STATE_CONFLICT: 409,
+  BACKUP_NOT_CONFIGURED: 503,
+  BACKUP_FAILED: 500,
+  BACKUP_NOT_FOUND: 404,
+  BACKUP_INVALID_ARCHIVE: 400,
+  BACKUP_IN_PROGRESS: 409,
 };
 
 /** 单人请求永远不返回赞助类错误（docs/rebuild/03-SPEC.md §6）。 */

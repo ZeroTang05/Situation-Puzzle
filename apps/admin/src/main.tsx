@@ -9,6 +9,7 @@ import { dataProvider } from './data-provider.js';
 import { PuzzleList, VersionDetail } from './puzzles.js';
 import { UserList, RoomList, ReportList, OrderList, Dashboard, LangSwitch } from './resources.js';
 import { RedeemCodeList } from './redeem-codes.js';
+import { BackupList } from './backups.js';
 import { AdminLoginRedirect } from './admin-login-redirect.js';
 import { LanguageProvider, useLanguage } from './language.js';
 import { copy } from './copy.js';
@@ -48,6 +49,8 @@ function AdminShell() {
       <Resource name="orders" list={OrderList} recordRepresentation="orderId" options={{ label: c.menuOrders }} />
       {/* 赞助码：列表接口是批次视图（/redeem-codes/batches），码明细按批次另查 */}
       <Resource name="redeem-codes" list={RedeemCodeList} recordRepresentation="batchId" options={{ label: c.menuRedeemCodes }} />
+      {/* 项目备份：不是普通资源列表，页面自己取元信息并渲染（对象存储里的备份文件） */}
+      <Resource name="backups" list={BackupList} options={{ label: c.menuBackups }} />
       {/* 总览是统计页：后端没有列表接口，直接渲染 Dashboard（ListGuesser 会走 getList 取 items 而崩溃） */}
       <Resource name="overview" list={Dashboard} options={{ label: c.menuOverview }} />
     </Admin>

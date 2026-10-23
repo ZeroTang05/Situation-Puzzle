@@ -61,6 +61,7 @@ export function copy(language: Language) {
     menuReports: language === 'zh' ? '举报' : 'Reports',
     menuOrders: w.orders,
     menuRedeemCodes: language === 'zh' ? '赞助码' : 'Redeem codes',
+    menuBackups: language === 'zh' ? '项目备份' : 'Backups',
     menuOverview: language === 'zh' ? '总览' : 'Overview',
     dashboardTitle: language === 'zh' ? '运营总览' : 'Operations dashboard',
     // 总览统计卡片
@@ -177,6 +178,46 @@ export function copy(language: Language) {
 
     // 顶部语言切换
     switchTo: language === 'zh' ? 'EN' : '中文',
+
+    // 项目备份
+    backupTitle: language === 'zh' ? '项目备份' : 'Project backups',
+    backupStorageTitle: language === 'zh' ? '对象存储' : 'Object storage',
+    backupNotConfigured: language === 'zh'
+      ? '尚未接入对象存储：环境变量 S3_BUCKET / S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY 未配置，备份与还原不可用。'
+      : 'Object storage is not configured yet (S3_BUCKET / S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY are missing), so backup and restore are unavailable.',
+    backupBucket: language === 'zh' ? '存储桶' : 'Bucket',
+    backupEndpoint: language === 'zh' ? '接入地址' : 'Endpoint',
+    backupRegion: language === 'zh' ? '区域' : 'Region',
+    backupPrefix: language === 'zh' ? '文件前缀' : 'Prefix',
+    backupCreate: language === 'zh' ? '立即备份' : 'Back up now',
+    backupCreateDone: language === 'zh' ? '备份完成，已上传到对象存储' : 'Backup finished and uploaded',
+    backupRefresh: language === 'zh' ? '刷新' : 'Refresh',
+    backupListTitle: language === 'zh' ? '备份文件' : 'Backup files',
+    backupTimeCol: language === 'zh' ? '备份时间' : 'Created',
+    backupSizeCol: language === 'zh' ? '大小' : 'Size',
+    backupFileCol: language === 'zh' ? '文件' : 'File',
+    backupActionCol: language === 'zh' ? '操作' : 'Actions',
+    backupRestore: language === 'zh' ? '还原' : 'Restore',
+    backupDownload: language === 'zh' ? '下载' : 'Download',
+    backupDelete: language === 'zh' ? '删除' : 'Delete',
+    backupRestoreTitle: language === 'zh' ? '还原数据库' : 'Restore database',
+    backupRestoreWarning: language === 'zh'
+      ? '还原会用这个备份文件覆盖当前数据库的全部业务数据，且不可撤销。建议先做一次备份。'
+      : 'Restoring overwrites all current data with this backup file and cannot be undone. Back up first.',
+    backupRestoreConfirmLabel: language === 'zh' ? '请输入 RESTORE 以确认' : 'Type RESTORE to confirm',
+    backupRestoreConfirmHint: language === 'zh' ? '输入 RESTORE 后才能执行还原' : 'The restore button unlocks after typing RESTORE',
+    backupRestoreReasonLabel: language === 'zh' ? '还原理由' : 'Reason',
+    backupRestoreDone: language === 'zh' ? '还原完成，数据库已回滚到该备份' : 'Restored: the database matches this backup',
+    backupDeleteDone: language === 'zh' ? '备份文件已删除' : 'Backup file deleted',
+    backupDeleteConfirm: language === 'zh' ? '删除这个备份文件？删除后无法恢复。' : 'Delete this backup file? It cannot be recovered.',
+    backupDownloadFailed: language === 'zh' ? '下载失败，请稍后再试' : 'Download failed. Please try again.',
+    backupEmpty: language === 'zh' ? '还没有备份文件' : 'No backups yet',
+    backupPromptReason: language === 'zh' ? '请输入操作理由' : 'Reason for this action',
+    backupSizeText: (bytes: number) => {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+    },
   };
 }
 

@@ -399,7 +399,7 @@ test('等待室确认选题后显示题名，支持重选和刷新恢复', async
   }
 });
 
-test('我的房间历史每页五间，翻页不重复；语言切换仅在首页', async ({ page, context }) => {
+test('我的房间历史每页五间，翻页不重复；语言切换仅在登录页与设置页', async ({ page, context }) => {
   await register(context, '历史分页测试');
   const catalog = await getData(context.request, '/puzzles?language=zh&limit=1');
   const lobbyResponse = await context.request.post('/api/v1/lobbies', { data: { capacity: 8 } });
@@ -418,8 +418,11 @@ test('我的房间历史每页五间，翻页不重复；语言切换仅在首�
   expect(second.rooms).toHaveLength(1);
   expect(second.hasMore).toBe(false);
   expect(first.rooms.map((room: { roomId: string }) => room.roomId)).not.toContain(second.rooms[0].roomId);
+  // 语言切换入口收敛：首页没有开关，只有登录页与设置页能改
   await page.goto('/');
-  await expect(page.getByRole('button', { name: 'EN', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'EN', exact: true })).toHaveCount(0);
+  await page.goto('/settings');
+  await expect(page.getByRole('button', { name: 'English', exact: true })).toBeVisible();
   await page.goto('/me');
   await expect(page.getByRole('button', { name: 'EN', exact: true })).toHaveCount(0);
   const history = page.locator('section').filter({ has: page.getByRole('heading', { name: '多人历史' }) });

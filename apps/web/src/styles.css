@@ -67,6 +67,11 @@ a { text-decoration: none; }
 /* 退出登录：放在页面末尾，默认低调，悬停才变红 */
 .me-logout { width: 100%; margin-top: 20px; color: var(--muted); border-color: rgba(115, 191, 220, .18); background: transparent; }
 .me-logout:hover:not(:disabled) { color: var(--danger); border-color: rgba(255, 143, 143, .5); }
+/* 设置页：左标签右值的行；语言切换两个按钮并排 */
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.settings-value { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 15px; color: var(--ink); overflow-wrap: anywhere; }
+.settings-lang { display: flex; gap: 10px; }
+.settings-lang .btn { flex: 1 1 auto; }
 /* 会客厅摘要行 */
 .lobby-summary { margin: 0; font-size: 14px; color: var(--muted); }
 .me-section { display: flex; flex-direction: column; }
@@ -1336,6 +1341,12 @@ textarea.composer-input, .composer .composer-input {
 .friend-row-extra { margin: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 .friend-row-actions { flex: none; display: flex; align-items: center; gap: 8px; }
 .friend-row .btn { flex: none; }
+/* 好友名整行可点进私聊：没有会话时置灰不可点 */
+.friend-row-open { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 0; border: none; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.friend-row-open:disabled { cursor: default; opacity: .55; }
+.friend-row-open:hover:not(:disabled) .friend-row-name { color: #9ae6bd; }
+.friend-row-chevron { flex: none; color: rgba(115, 191, 220, .5); font-size: 18px; line-height: 1; }
+.friend-row-open:hover:not(:disabled) .friend-row-chevron { color: #9ae6bd; }
 
 /* 私聊页：整页一屏，消息区自己滚动，输入行钉在底部 */
 .chat-shell { display: flex; flex-direction: column; height: 100dvh; }

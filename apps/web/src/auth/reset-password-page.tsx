@@ -6,9 +6,10 @@ import { useLanguage } from '../state/language.js';
 import { useBack } from '../back.js';
 import { BrandHeading } from '../brand-heading.js';
 import { authStepHref } from './login-navigation.js';
+import { displayAuthError } from '@jev/i18n';
 
 export function ResetPasswordPage() {
-  const { copy } = useLanguage();
+  const { copy, language } = useLanguage();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const next = params.get('next');
@@ -30,7 +31,7 @@ export function ResetPasswordPage() {
     const { error: resetError } = await authClient.resetPassword({ newPassword: password, token });
     setBusy(false);
     if (resetError) {
-      setError(resetError.message ?? copy.resetFail);
+      setError(displayAuthError(resetError.code, language, copy.resetFail));
       return;
     }
     navigate(authStepHref('/login?reset=1', next), { replace: true });
