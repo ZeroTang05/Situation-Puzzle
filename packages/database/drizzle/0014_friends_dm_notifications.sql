@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS "dm_messages" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "conversation_id" uuid NOT NULL REFERENCES "conversations"("id") ON DELETE CASCADE,
   "sender_user_id" text NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
+  "seq" bigint NOT NULL,
   "kind" "dm_message_kind" NOT NULL DEFAULT 'text',
   "text" text NOT NULL,
   "room_id" uuid REFERENCES "rooms"("id") ON DELETE SET NULL,
@@ -86,10 +87,14 @@ CREATE TABLE IF NOT EXISTS "dm_messages" (
 
 CREATE INDEX IF NOT EXISTS "dm_messages_conversation_idx" ON "dm_messages" ("conversation_id", "created_at");
 
+-- 不变量 3：同一会话内消息序号唯一（已读水位按序号，不按时间戳）
+CREATE UNIQUE INDEX IF NOT EXISTS "dm_messages_conversation_seq_uq"
+  ON "dm_messages" ("conversation_id", "seq");
+
 CREATE TABLE IF NOT EXISTS "conversation_reads" (
   "conversation_id" uuid NOT NULL REFERENCES "conversations"("id") ON DELETE CASCADE,
   "user_id" text NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
-  "last_read_at" timestamp with time zone NOT NULL DEFAULT now(),
+  "last_read_seq" bigint NOT NULL DEFAULT 0,
   CONSTRAINT "conversation_reads_pkey" PRIMARY KEY ("conversation_id", "user_id")
 );
 
@@ -123,5 +128,5 @@ CREATE TABLE IF NOT EXISTS "notifications" (
 
 CREATE INDEX IF NOT EXISTS "notifications_user_idx" ON "notifications" ("user_id", "created_at");
 
--- 不变量 3：未读统计走部分索引
+-- 不变量 4：未读统计走部分索引
 CREATE INDEX IF NOT EXISTS "notifications_unread_idx" ON "notifications" ("user_id") WHERE "read_at" IS NULL;

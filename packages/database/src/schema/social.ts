@@ -5,7 +5,8 @@
  *  1. 同一对用户同时最多一条待审好友申请（按 user_low/user_high 规范化，双向都算）
  *  2. 好友关系是双向两行（user_id → friend_user_id），主键保证不重复、不能指向自己
  *  3. 两个用户之间最多一个会话（同样按规范化的一对唯一）
- *  4. 通知的未读统计靠 (user_id, read_at IS NULL) 部分索引
+ *  4. 同一会话内消息序号唯一（已读水位按序号，不用时间戳）
+ *  5. 通知的未读统计靠 (user_id, read_at IS NULL) 部分索引
  *
  * 隐私口径：邮箱只用于「精确匹配添加好友」，不做前缀模糊搜索，避免枚举站内邮箱。
  */
@@ -17,6 +18,7 @@ import {
   uuid,
   timestamp,
   boolean,
+  bigint,
   index,
   uniqueIndex,
   primaryKey,
@@ -150,16 +152,22 @@ export const dmMessages = pgTable(
     senderUserId: text('sender_user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
+    /** 会话内递增序号：已读水位与排序都按它，不用时间戳（同毫秒会丢消息） */
+    seq: bigint('seq', { mode: 'number' }).notNull(),
     kind: dmMessageKindEnum('kind').notNull().default('text'),
     text: text('text').notNull(),
     /** kind='room_invite' 时指向开局房间；房间归档后卡片仍留，但不再可点进去 */
     roomId: uuid('room_id').references(() => rooms.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   },
-  (t) => [index('dm_messages_conversation_idx').on(t.conversationId, t.createdAt)],
+  (t) => [
+    index('dm_messages_conversation_idx').on(t.conversationId, t.createdAt),
+    // 不变量 4：同一会话内序号唯一
+    uniqueIndex('dm_messages_conversation_seq_uq').on(t.conversationId, t.seq),
+  ],
 );
 
-/** 每个用户在每个会话的已读水位：未读数 = 消息数 - 已读水位之后的消息数。 */
+/** 每个用户在每个会话的已读水位：未读数 = 该水位之后的消息数。 */
 export const conversationReads = pgTable(
   'conversation_reads',
   {
@@ -169,7 +177,7 @@ export const conversationReads = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    lastReadAt: timestamp('last_read_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    lastReadSeq: bigint('last_read_seq', { mode: 'number' }).notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.conversationId, t.userId] })],
 );
@@ -222,5 +230,7 @@ export const notifications = pgTable(
   ],
 );
 
-/** 好友申请的附言长度上限（前后端共用同一口径）。 */
-export const FRIEND_REQUEST_MESSAGE_MAX = 200;
+/**
+ * 好友申请的附言长度上限在 @jev/contracts（FRIEND_REQUEST_MESSAGE_MAX），
+ * 数据库不重复定义，避免两处口径漂移。
+ */

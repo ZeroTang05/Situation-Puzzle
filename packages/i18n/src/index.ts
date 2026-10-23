@@ -79,6 +79,9 @@ const errorCopy: Record<ErrorCode, Record<Language, string>> = {
   ORDER_STATE_CONFLICT: { zh: '订单状态已变化，请刷新查看。', en: 'Order state changed. Please refresh.' },
   USER_NOT_FOUND: { zh: '该邮箱未注册，请先注册。', en: 'This email is not registered yet. Sign up first.' },
   USER_ALREADY_EXISTS: { zh: '该邮箱已注册，请直接登录。', en: 'This email is already registered. Please sign in.' },
+  ALREADY_FRIENDS: { zh: '你们已经是好友了。', en: 'You are already friends.' },
+  FRIEND_REQUEST_EXISTS: { zh: '好友申请已经发过了，等对方确认吧。', en: 'The friend request is already pending.' },
+  NOT_FRIENDS: { zh: '只有好友才能私聊。', en: 'Only friends can chat.' },
 };
 
 export function displayError(code: string, language: Language, fallback?: string): string {
