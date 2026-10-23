@@ -80,10 +80,11 @@ export const friendRequestCreateResponseSchema = z.object({
 export const friendRequestItemSchema = z.object({
   requestId: z.string().uuid(),
   direction: z.enum(['incoming', 'outgoing']),
-  /** 对方（申请发起人） */
+  /** 对方（相对当前用户）：收到的申请里是发起人，发出的申请里是接收人 */
   userId: z.string(),
   nickname: z.string(),
   message: z.string().nullable(),
+  status: z.enum(['pending', 'accepted', 'rejected', 'canceled']),
   createdAt: z.string(),
 });
 

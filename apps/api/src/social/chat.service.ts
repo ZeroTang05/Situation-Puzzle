@@ -75,7 +75,7 @@ export class ChatService {
 
     // 每个会话的最新消息序号
     const maxSeqRows = await this.db.db
-      .select({ conversationId: dmMessages.conversationId, maxSeq: sql<number>`max(${dmMessages.seq})` })
+      .select({ conversationId: dmMessages.conversationId, maxSeq: sql<number>`max(${dmMessages.seq})::int` })
       .from(dmMessages)
       .where(inArray(dmMessages.conversationId, ids))
       .groupBy(dmMessages.conversationId);
@@ -167,7 +167,7 @@ export class ChatService {
       assertCanMessage({ senderId: user.userId, peerId: peerUserId, isFriend: true });
 
       const [maxRow] = await tx
-        .select({ maxSeq: sql<number>`coalesce(max(${dmMessages.seq}), 0)` })
+        .select({ maxSeq: sql<number>`coalesce(max(${dmMessages.seq}), 0)::int` })
         .from(dmMessages)
         .where(eq(dmMessages.conversationId, conversationId));
       const seq = (maxRow?.maxSeq ?? 0) + 1;
@@ -218,7 +218,7 @@ export class ChatService {
       let target = lastReadSeq;
       if (target === undefined) {
         const [maxRow] = await tx
-          .select({ maxSeq: sql<number>`coalesce(max(${dmMessages.seq}), 0)` })
+          .select({ maxSeq: sql<number>`coalesce(max(${dmMessages.seq}), 0)::int` })
           .from(dmMessages)
           .where(eq(dmMessages.conversationId, conversationId));
         target = maxRow?.maxSeq ?? 0;
@@ -334,7 +334,7 @@ export class ChatService {
 
       // 私聊里落一张开局卡片
       const [maxRow] = await tx
-        .select({ maxSeq: sql<number>`coalesce(max(${dmMessages.seq}), 0)` })
+        .select({ maxSeq: sql<number>`coalesce(max(${dmMessages.seq}), 0)::int` })
         .from(dmMessages)
         .where(eq(dmMessages.conversationId, conversationId));
       const seq = (maxRow?.maxSeq ?? 0) + 1;

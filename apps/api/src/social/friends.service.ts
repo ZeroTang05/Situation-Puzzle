@@ -147,6 +147,8 @@ export class FriendsService {
       .select({
         id: friendRequests.id,
         requesterUserId: friendRequests.requesterUserId,
+        userLow: friendRequests.userLow,
+        userHigh: friendRequests.userHigh,
         status: friendRequests.status,
         message: friendRequests.message,
         createdAt: friendRequests.createdAt,
@@ -165,17 +167,29 @@ export class FriendsService {
       .limit(100);
 
     if (rows.length === 0) return { requests: [] };
-    const nicknames = await nicknamesOf(rows.map((row) => row.requesterUserId));
+    // userId / nickname 一律指「对方（相对当前用户）」：
+    // 收到的申请里对方是发起人，发出的申请里对方是接收人
+    const peerOf = rows.map((row) =>
+      row.requesterUserId === user.userId
+        ? row.userLow === user.userId
+          ? row.userHigh
+          : row.userLow
+        : row.requesterUserId,
+    );
+    const nicknames = await nicknamesOf(peerOf);
     return {
-      requests: rows.map((row) => ({
-        requestId: row.id,
-        direction: row.requesterUserId === user.userId ? 'outgoing' : 'incoming',
-        userId: row.requesterUserId,
-        nickname: displayNickname(nicknames.get(row.requesterUserId), row.requesterUserId),
-        message: row.message,
-        status: row.status,
-        createdAt: row.createdAt.toISOString(),
-      })),
+      requests: rows.map((row, index) => {
+        const peerUserId = peerOf[index]!;
+        return {
+          requestId: row.id,
+          direction: row.requesterUserId === user.userId ? 'outgoing' : 'incoming',
+          userId: peerUserId,
+          nickname: displayNickname(nicknames.get(peerUserId), peerUserId),
+          message: row.message,
+          status: row.status,
+          createdAt: row.createdAt.toISOString(),
+        };
+      }),
     };
   }
 
@@ -197,9 +211,10 @@ export class FriendsService {
         .limit(1);
       if (!request) throw new DomainError('NOT_FOUND', '好友申请不存在');
 
+      const targetUserId = request.requesterUserId === request.userLow ? request.userHigh : request.userLow;
       const block = friendResponseBlockReason({
         responderId: user.userId,
-        targetUserId: request.requesterUserId === request.userLow ? request.userHigh : request.userLow,
+        targetUserId,
         status: request.status,
       });
       if (block) {
@@ -207,7 +222,8 @@ export class FriendsService {
         throw new DomainError(error.code, error.message);
       }
 
-      const otherUserId = request.requesterUserId === request.userLow ? request.userHigh : request.userLow;
+      // 对方 = 申请发起人（当前操作人是接收方）
+      const otherUserId = request.requesterUserId;
       const now = new Date();
 
       if (accept) {
