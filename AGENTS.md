@@ -13,24 +13,26 @@
 
 **大厅与公开房间**（`docs/rebuild/18-HALL-PUBLIC-ROOMS.md`）：房主可把房间设为**公开**，公开房间出现在大厅（`GET /hall`），其他人可直接加入（`POST /rooms/:id/join-public`，不需要邀请 token）。房间与会客厅各持一份开关：`rooms.is_public` / `user_lobbies.is_public`（默认 false＝全部是私人房间）。等待室的开关是「**下一局**」的偏好（与 `capacity` 同性质，start 事务复制进新房后不清空）；房间内的开关走**房间命令通道** `set_visibility`（host-only + 幂等 + 控制版本乐观并发 + 广播 `room.visibility_changed`）。切回私人只影响大厅可见性，已在房内的人不受影响、邀请链接照旧有效；房间归档（closed）必须从大厅消失。
 
+**加好友 + 私聊 + 快捷开局 + 通知**（`docs/rebuild/19-FRIENDS-DM-NOTIFICATIONS.md`）：按邮箱**精确**搜索（不做前缀模糊搜索，避免枚举站内邮箱）→ 发好友申请 → 对方同意才成为好友（申请-同意制）。申请按 `user_low`/`user_high` 规范化，A→B 与 B→A 互斥，数据库部分唯一索引 `friend_requests_pending_pair_uq` 兜底。好友之间有私聊会话（同意申请时同事务建），消息按**会话内序号** `dm_messages.seq` 排序，已读水位 `conversation_reads.last_read_seq` **只前进不后退**（不用时间戳：同毫秒发消息会丢）。私聊里可「来一局」一键建房直接开局（`POST /conversations/:id/start-room`，双方都是 room_members + round_participants，开局卡片落在私聊里）。私聊消息 / 好友申请 / 开局邀请 / 站内信统一进通知中心（`notifications`），铃铛角标 10 秒轮询、聊天页 3 秒轮询——**本轮不走 WebSocket**，实时网关留作后续扩展点。通知标题**不落库**：读取时按 `X-Jev-Language` 即时拼装（站内信用公告原文）。
+
 ## 目录结构
 
 ```
-apps/web        玩家端（React 19 + Vite）：首页、题库、单人、会客厅、房间、邀请、创作、我的、登录、找回密码
-apps/admin      管理端（React-admin）：题库审核、用户、房间调查、举报、订单、赞助码（发码/对账/作废）、总览；所有列表表头可点排序（后端列名白名单，见 admin-sort-columns.ts）
-apps/api        NestJS 服务：认证 auth、题库 catalog、单人 solo、房间与会客厅 rooms、实时网关 realtime、赞助订单 billing、创作 creations、治理 governance、后台 admin
+apps/web        玩家端（React 19 + Vite）：首页、题库、单人、会客厅、房间、邀请、创作、我的、登录、找回密码、好友、私聊、通知中心
+apps/admin      管理端（React-admin）：题库审核、用户、房间调查、举报、订单、赞助码（发码/对账/作废）、站内信群发、总览；所有列表表头可点排序（后端列名白名单，见 admin-sort-columns.ts）
+apps/api        NestJS 服务：认证 auth、题库 catalog、单人 solo、房间与会客厅 rooms、实时网关 realtime、赞助订单 billing、创作 creations、治理 governance、后台 admin、社交 social（好友/私聊/通知/站内信）
 apps/jobs       pg-boss 任务进程：dispatch-room / process-turn / review-puzzle / maintenance
 apps/app        Android 壳工程（Capacitor 8，包名 cn.xiaobaozi.sp，App 名「Jev 海龟汤」）：apps/web 构建产物打进 WebView；插件 @capacitor/app browser clipboard keyboard（OAuth 回流系统浏览器、深链事件、剪贴板邀请过渡、键盘避让）；OAuth 回流端点 `/api/v1/app-session/handoff|exchange`（60 秒 jose code 换 Bearer 令牌）；计划与认证适配方案见 docs/rebuild/13-APP-VERSION.md
 packages/contracts   跨端 Zod 契约：HTTP 请求响应、WS 事件、稳定错误码（客户端只准引用这里）
-packages/domain      纯业务规则：房间状态机、排队容量、赞助自然月算法、授权来源判定（配单测）
-packages/database    Drizzle 表结构（40 张表）、追加式迁移（drizzle/）、房间事务封装（rooms-tx）、题库导入
+packages/domain      纯业务规则：房间状态机、排队容量、赞助自然月算法、授权来源判定、好友申请与私聊权限（配单测）
+packages/database    Drizzle 表结构（47 张表）、追加式迁移（drizzle/）、房间事务封装（rooms-tx）、题库导入
 packages/jev         Jev SystemOne 适配：20s 超时、错误分类、缺概率=协议错误、阈值 0.5、配置版本号；MiniMax 大模型补判（置信度不足自动补判，还原可手动切换，提示词版本 v4-2026-10）；判题输入带最近几轮问答（`JEV_RECENT_QA_LIMIT` 环境变量，默认 6；多人查 turns 表、单人客户端回传最多 10 条由服务端裁剪），评测脚本 scripts/eval-context.ts
 packages/i18n        稳定枚举/错误码 → 中英文案
 packages/ui          设计变量（深海色系、16px 正文、44px 触控）
 infra/               web/admin/api/jobs 各自 Dockerfile（apps/web+apps/admin 静态烘进 nginx，api 容器启动自动跑迁移）、web.nginx.conf / admin.nginx.conf
 scripts/             冒烟与端到端联调脚本（smoke-new-system.sh、e2e-run.sh、e2e-node-run.mjs 跨平台编排器、e2e-multiplayer/e2e-host-mode/e2e-votes 剧本、dev-env.sh、dev-mailsink.mjs）
 data/                题库 JSON 导入源：根 library.json / library.en.json 同 ID 配套（顺序须一致，当前 446 题 = 天堂精选 93 置顶 + 首发 7 + 扩展 10 + 小小耶精选 240 + 许二木精选 96，许二木批 2026-10-15 入库追加于库尾；zh 条目 category 本格/变格由导入映射为 puzzle_category 枚举 honkaku/henkaku；第一题固定「终点线」，各批次保持批内原序；seed 导入统一署名「初始题库」（signature 模式，前端按语言本地化））；sources.md 全库来源总览与逐题对照（编号=现役库位置 1–446）；scoring/ 打分口径与全部批次评分（编号 1–493 连续续写，与 sources.md 编号相互独立）；curated/ 各 UP 主批逐篇评审与存档（天堂/小小耶/许二木三批普通题均已并入根库，特殊玩法与未采用稿留存于各自目录）；reference/ 真实游玩素材（group 原始字幕 → real 抽取稿，按 UP 主分目录）
-docs/rebuild/        产品与架构设计文档（01~18：10 房间生命周期修订、11 赞踩署名、12 连接体验、13 App 版本计划、14 赞助码通道、15 支付通道凭据清单、16 并发与限流盘点、17 用户主持人模式、18 大厅与公开房间）
+docs/rebuild/        产品与架构设计文档（01~19：10 房间生命周期修订、11 赞踩署名、12 连接体验、13 App 版本计划、14 赞助码通道、15 支付通道凭据清单、16 并发与限流盘点、17 用户主持人模式、18 大厅与公开房间、19 加好友/私聊/通知）
 ```
 
 ## 常用命令
@@ -68,6 +70,13 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   的判定在 `packages/domain/src/public-rooms.ts`（纯函数，服务端与前端共用口径）；
   房间内的公开开关走房间命令 `set_visibility`（不能另开 HTTP 端点），会客厅没有命令通道
   才单独用 `POST /lobbies/:id/visibility`
+- **社交不变量**：① 同一对用户同时最多一条待审好友申请（部分唯一索引，双向互斥）；
+  ② 好友关系是双向两行，删好友要删两行；③ 两个用户之间最多一个会话（规范化一对唯一）；
+  ④ 同一会话内消息序号唯一；⑤ 通知未读走 `(user_id, read_at IS NULL)` 部分索引。
+  判定口径在 `packages/domain/src/social.ts`（纯函数），表结构在
+  `packages/database/src/schema/social.ts`。邮箱只做精确匹配（不做前缀模糊搜索）
+- **社交送达走轮询**：私聊 3 秒、铃铛 10 秒。实时网关只服务房间事件流，本轮不动它；
+  消息表已有 `seq`，后续接网关时可直接复用房间事件流的补齐逻辑
 - **计费不变量**：免费开房 `(room_id, action)` 唯一流水；首次有效判定或公布答案即消费；
   一房一题，换题新建房间并重新授权；CHECK 约束禁止负余额；赞助检查与扣减同事务同锁
 - **赞助码通道**：`redeem_codes` 一码一权（`code_key` 唯一）；核销时对码行 `FOR UPDATE`，
@@ -128,6 +137,9 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
 - **better-auth Origin 校验**：浏览器 Origin 必须在 `trustedOrigins`（= `PUBLIC_BASE_URL`），
   本地前端跑 5173 就把 `PUBLIC_BASE_URL` 设为 `http://localhost:5173`
 - **zod v4 改名**：`z.number().nonnegative()`（不是 nonneg）；`z.record` 两参
+- **bigint 聚合经 pg 驱动返回字符串**：`sql`max(${col})``（col 是 bigint）拿到的是字符串，
+  `'1' + 1` 会变成 `'11'`。要么聚合上 `::int`，要么显式 `Number()` 转换
+  （`dm_messages.seq` 分配序号踩过这个坑）
 - **exactOptionalPropertyTypes 开启**：可选属性赋 `undefined` 要用条件展开
 - **Windows CRLF**：shell 脚本入库加 `.gitattributes`；容器内执行前 `sed -i 's/\r$//'`（Dockerfile 已处理）
 - **开发期邮箱**：本地联调用 `scripts/dev-mailsink.mjs`（真实 SMTP 协议收信台）+
@@ -158,6 +170,7 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
 - 双人 E2E：`pnpm e2e:multiplayer`（真实 SMTP 登录 + 真实 Jev + 账本断言）
 - 用户主持人 E2E：`pnpm e2e:host`（`scripts/e2e-node-run.mjs` 自建临时库 + 收信台 + API + jobs，40 项断言）
 - 跨平台编排：`pnpm e2e:local <multiplayer|host|votes|playwright>`（不依赖 bash/docker，只要有一个可连的 PostgreSQL）
-- 真实库集成测试：设 `HOST_MODE_TEST_DATABASE_URL` 后跑 `apps/api/src/rooms/host-mode.integration.test.ts`
+- 真实库集成测试：设 `HOST_MODE_TEST_DATABASE_URL` 后跑 `apps/api/src/rooms/host-mode.integration.test.ts`；
+  社交域设 `SOCIAL_TEST_DATABASE_URL` 后跑 `apps/api/src/social/social.integration.test.ts`（16 项断言）
 - 浏览器套件：`pnpm --filter @jev/web test:e2e`（真实 Chromium；房间相关用例已迁到会客厅流程）
 - 浏览器实测：登录、建房、邀请、提问、提示、公布答案、切题、解散；用户主持模式另测申请/审批/主持判定/汤底可见性/退出
