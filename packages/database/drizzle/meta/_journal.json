@@ -99,6 +99,13 @@
       "when": 1804000000000,
       "tag": "0013_public_rooms",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1805000000000,
+      "tag": "0014_friends_dm_notifications",
+      "breakpoints": true
     }
   ]
 }
