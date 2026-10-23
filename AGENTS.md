@@ -25,7 +25,7 @@ apps/jobs       pg-boss 任务进程：dispatch-room / process-turn / review-puz
 apps/app        Android 壳工程（Capacitor 8，包名 cn.xiaobaozi.sp，App 名「Jev 海龟汤」）：apps/web 构建产物打进 WebView；插件 @capacitor/app browser clipboard keyboard（OAuth 回流系统浏览器、深链事件、剪贴板邀请过渡、键盘避让）；OAuth 回流端点 `/api/v1/app-session/handoff|exchange`（60 秒 jose code 换 Bearer 令牌）；计划与认证适配方案见 docs/rebuild/13-APP-VERSION.md
 packages/contracts   跨端 Zod 契约：HTTP 请求响应、WS 事件、稳定错误码（客户端只准引用这里）
 packages/domain      纯业务规则：房间状态机、排队容量、赞助自然月算法、授权来源判定、好友申请与私聊权限（配单测）
-packages/database    Drizzle 表结构（47 张表）、追加式迁移（drizzle/）、房间事务封装（rooms-tx）、题库导入
+packages/database    Drizzle 表结构（49 张表）、追加式迁移（drizzle/）、房间事务封装（rooms-tx）、题库导入
 packages/jev         Jev SystemOne 适配：20s 超时、错误分类、缺概率=协议错误、阈值 0.5、配置版本号；MiniMax 大模型补判（置信度不足自动补判，还原可手动切换，提示词版本 v4-2026-10）；判题输入带最近几轮问答（`JEV_RECENT_QA_LIMIT` 环境变量，默认 6；多人查 turns 表、单人客户端回传最多 10 条由服务端裁剪），评测脚本 scripts/eval-context.ts
 packages/i18n        稳定枚举/错误码 → 中英文案
 packages/ui          设计变量（深海色系、16px 正文、44px 触控）
