@@ -62,6 +62,8 @@ export interface PayAdapter {
     amountMinor: number;
     description: string;
     notifyUrl: string;
+    /** 浏览器支付完成后跳回的页面（电脑网站支付的 return_url）；扫码类通道可忽略。 */
+    returnUrl?: string;
   }): Promise<CreatedPayment>;
   /** 查单：关单前先查，避免「先支付后超时」的竞争。 */
   queryOrder(merchantOrderNo: string): Promise<{ status: 'success' | 'failed' | 'pending'; transactionId?: string }>;

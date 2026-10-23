@@ -66,12 +66,25 @@ export function beijingTimestamp(date: Date = new Date()): string {
 }
 
 /**
- * 生成待签名字符串：排除 sign 与空值，按参数名 ASCII 升序，拼成 key=value&key=value。
+ * 生成待签名字符串：排除空值，按参数名 ASCII 升序，拼成 key=value&key=value。
  * 值用**原始值**（不 URL 编码）——支付宝 SDK 也是这么签的。
+ *
+ * 两种场景规则不对称（官方 SDK 同此处理）：
+ *  - 请求签名：只排除 sign，sign_type 参与签名；
+ *  - 异步通知验签：必须连 sign_type 一起排除，否则永远验不过。
  */
-export function buildSignContent(params: Record<string, string | undefined>): string {
+export function buildSignContent(
+  params: Record<string, string | undefined>,
+  options: { excludeSignType?: boolean } = {},
+): string {
   return Object.keys(params)
-    .filter((key) => key !== 'sign' && params[key] !== undefined && params[key] !== '')
+    .filter(
+      (key) =>
+        key !== 'sign' &&
+        (!options.excludeSignType || key !== 'sign_type') &&
+        params[key] !== undefined &&
+        params[key] !== '',
+    )
     .sort()
     .map((key) => `${key}=${(params[key] as string).trim()}`)
     .join('&');
@@ -219,9 +232,13 @@ export function createAlipayAdapter(env: AlipayEnv): PayAdapter | null {
   }
 
   /** 页面支付：把已签名参数拼成跳转 URL（支付宝支持 GET 跳转）。 */
-  function buildPagePayUrl(bizContent: Record<string, unknown>, returnUrl?: string): string {
-    const params = buildParams('alipay.trade.page.pay', bizContent);
-    if (returnUrl) params.return_url = returnUrl;
+  function buildPagePayUrl(
+    bizContent: Record<string, unknown>,
+    options: { notifyUrl?: string; returnUrl?: string } = {},
+  ): string {
+    // notify_url 必须随请求带上：不带的话支付宝不会发异步通知，权益永远发不出去
+    const params = buildParams('alipay.trade.page.pay', bizContent, options.notifyUrl);
+    if (options.returnUrl) params.return_url = options.returnUrl;
     const sign = signParams(params, privateKeyPem);
     const query = new URLSearchParams({ ...params, sign }).toString();
     return `${gateway}?${query}`;
@@ -239,7 +256,7 @@ export function createAlipayAdapter(env: AlipayEnv): PayAdapter | null {
         product_code: productCode,
       };
       if (product === 'page') {
-        return { payUrl: buildPagePayUrl(bizContent), qrContent: null };
+        return { payUrl: buildPagePayUrl(bizContent, { notifyUrl: input.notifyUrl, returnUrl: input.returnUrl }), qrContent: null };
       }
       const result = await call<{ qr_code?: string; code: string; msg: string; sub_code?: string; sub_msg?: string }>(
         'alipay.trade.precreate',
@@ -300,7 +317,7 @@ export function createAlipayAdapter(env: AlipayEnv): PayAdapter | null {
       if (flat.sign_type && flat.sign_type !== SIGN_TYPE) {
         throw new Error(`支付宝通知 sign_type 不支持：${flat.sign_type}`);
       }
-      if (!verifySign(buildSignContent(flat), sign, publicKeyPem)) {
+      if (!verifySign(buildSignContent(flat, { excludeSignType: true }), sign, publicKeyPem)) {
         throw new Error('支付宝通知验签失败');
       }
       // 收款方与金额必须对得上，否则拒绝入账

@@ -183,6 +183,8 @@ export class OrdersService {
 
     const merchantOrderNo = `JEV${Date.now()}${randomBytes(4).toString('hex').toUpperCase()}`;
     const notifyUrl = this.notifyUrlFor(channel);
+    // 电脑网站支付付完款由支付宝把浏览器跳回「我的」页（return_url）；扫码通道不使用
+    const returnUrl = new URL('/me', (app().env as { PUBLIC_BASE_URL: string }).PUBLIC_BASE_URL).toString();
     const [order] = await db.db
       .insert(orders)
       .values({
@@ -203,6 +205,7 @@ export class OrdersService {
       amountMinor: product.priceMinor,
       description: product.title,
       notifyUrl,
+      returnUrl,
     });
     await db.db
       .update(orders)

@@ -103,6 +103,13 @@ export function SponsorPanel() {
     onSuccess: (result) => {
       setOrder(result);
       setCodeError(null);
+      // 电脑网站支付（page）只返回跳转链接不返回二维码，直接自动跳转省一次点击。
+      // 优先新开标签页以保住本页的订单轮询；被弹窗拦截（移动端异步 window.open
+      // 常被拦）时退化为当前页跳转。扫码通道（qrContent 非空）不在此列。
+      if (result.payUrl && !result.qrContent) {
+        const opened = window.open(result.payUrl, '_blank');
+        if (!opened) window.location.href = result.payUrl;
+      }
     },
   });
 

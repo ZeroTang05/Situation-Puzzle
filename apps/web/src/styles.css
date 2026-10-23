@@ -222,6 +222,10 @@ a { text-decoration: none; }
   color: #8fc6ff;
 }
 .shell.narrow a:hover { color: #b4d8ff; }
+/* 上面这条是给 auth 页内联链接用的，但会把 <a> 做的按钮也染蓝（特异性压过
+   .btn-primary 自身的文字色）。按钮型链接恢复按钮自己的文字色，与 button 元素版一致。 */
+.shell.narrow a.btn { color: var(--accent); }
+.shell.narrow a.btn-primary { color: var(--accent-ink); }
 
 /* 登录/注册 topbar 里的语言切换：紧凑 ghost 按钮，不挤压 brand */
 .lang-switch {

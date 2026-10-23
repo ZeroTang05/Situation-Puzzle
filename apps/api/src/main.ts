@@ -14,6 +14,7 @@ import { createAuth } from './auth/auth.types.js';
 import { jevConfigFromEnv } from '@jev/jev';
 import { createAppContext } from './bootstrap.js';
 import { AppModule } from './app.module.js';
+import { OrdersService } from './billing/orders.service.js';
 import { GlobalExceptionFilter } from './exception.filter.js';
 import { RealtimeGateway } from './realtime/realtime.gateway.js';
 
@@ -56,6 +57,14 @@ async function main(): Promise<void> {
   nestApp.enableShutdownHooks();
 
   await nestApp.init();
+  // 过期订单巡检：关单，以及「已支付但异步通知丢失」的查单补发（15-PAYMENT-CHANNELS）。
+  // 不带这层兜底，通知打不通时用户付了钱权益永远不会到账。
+  const ordersService = nestApp.get(OrdersService);
+  const sweepTimer = setInterval(
+    () => void ordersService.sweepExpiredOrders().catch((error) => logger.error('订单巡检失败', error)),
+    60_000,
+  );
+  sweepTimer.unref();
   const gateway = new RealtimeGateway();
   // 踢人命令经此钩子立即断开被移除者的实时订阅
   context.realtime = {
@@ -68,6 +77,7 @@ async function main(): Promise<void> {
   );
   gateway.attach(httpServer);
   const graceful = async () => {
+    clearInterval(sweepTimer);
     await gateway.shutdown();
     await context.queue.close();
     await db.close();
