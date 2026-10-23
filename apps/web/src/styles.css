@@ -673,7 +673,6 @@ a { text-decoration: none; }
 
 /* 公开 / 私人开关：与站内拨杆同一套尺寸与配色 */
 .visibility-box { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid rgba(115, 191, 220, .18); border-radius: var(--radius-sm); background: rgba(115, 191, 220, .05); }
-.visibility-box p { margin: 0; font-size: 12px; line-height: 1.5; }
 .visibility-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer; user-select: none; }
 .visibility-toggle input {
   appearance: none;

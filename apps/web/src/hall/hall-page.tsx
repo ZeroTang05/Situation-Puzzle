@@ -68,8 +68,6 @@ export function HallPage() {
       </header>
 
       <section className="panel stack">
-        <p className="muted">{copy.hallHint}</p>
-
         {hall.isPending ? (
           <p className="muted">{copy.loadingRound}</p>
         ) : hall.isError ? (

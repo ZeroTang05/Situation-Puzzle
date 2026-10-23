@@ -261,7 +261,6 @@ export function RoomPage({ session }: { session: Session | null }) {
         {isHost && state.roomStatus !== 'closed' && <>
           <div className="visibility-box">
             <VisibilityToggle checked={state.isPublic} disabled={busy} onChange={(next) => void run('set_visibility', { isPublic: next })} />
-            <p className="muted">{copy.visibilityHint}</p>
           </div>
           <div className="room-management-actions">
             <button className="btn room-management-wide" disabled={busy} onClick={() => void copyInvite()}>{copy.invite}</button>

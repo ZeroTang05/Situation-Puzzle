@@ -162,7 +162,6 @@ export const copy = {
     // ---------- 大厅与公开房间（18-HALL-PUBLIC-ROOMS） ----------
     hall: '大厅',
     hallTitle: '公开房间',
-    hallHint: '这里是房主公开的房间，随时可以进去一起玩。',
     hallEmpty: '现在还没有公开房间，回头再来看看。',
     hallLoadFail: '大厅加载失败，请重试。',
     hallJoin: '加入',
@@ -173,7 +172,6 @@ export const copy = {
     hallPlayers: '{n}/{cap} 人',
     hallNoTitle: '还没出题',
     visibilityToggle: '公开房间',
-    visibilityHint: '开启后房间会出现在大厅，任何人都能直接进来；关掉就只有邀请链接能进。',
     visibilityFail: '切换失败，请重试。',
     previousPage: '上一页',
     nextPage: '下一页',
@@ -592,7 +590,6 @@ export const copy = {
     // ---------- Hall & public rooms (18-HALL-PUBLIC-ROOMS) ----------
     hall: 'Hall',
     hallTitle: 'Public rooms',
-    hallHint: 'Rooms the host made public. Join one any time.',
     hallEmpty: 'No public rooms right now. Check back later.',
     hallLoadFail: 'Could not load the hall. Please retry.',
     hallJoin: 'Join',
@@ -603,7 +600,6 @@ export const copy = {
     hallPlayers: '{n}/{cap} players',
     hallNoTitle: 'No puzzle yet',
     visibilityToggle: 'Public room',
-    visibilityHint: 'When on, the room shows up in the hall and anyone can join. When off, only the invite link works.',
     visibilityFail: 'Could not switch. Please retry.',
     previousPage: 'Previous',
     nextPage: 'Next',

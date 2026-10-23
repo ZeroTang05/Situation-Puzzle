@@ -268,7 +268,6 @@ export function LobbyPage({ session }: { session: Session | null }) {
             </button>
             <div className="visibility-box">
               <VisibilityToggle checked={data.isPublic} disabled={busy} onChange={toggleVisibility} />
-              <p className="muted">{copy.visibilityHint}</p>
             </div>
             <div className="hint-row">
               <button className="btn" disabled={busy} onClick={() => void copyInvite()}>{copy.invite}</button>
