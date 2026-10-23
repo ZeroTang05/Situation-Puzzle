@@ -2,10 +2,11 @@
  * 私聊 HTTP 接口（docs/rebuild/19-FRIENDS-DM-NOTIFICATIONS.md）。
  *
  * GET  /conversations                我的会话列表
+ * GET  /conversations/:id            会话详情（对方昵称）
  * GET  /conversations/:id/messages   拉消息（聊天页 3 秒轮询）
  * POST /conversations/:id/messages   发消息
  * POST /conversations/:id/read       推进已读水位
- * POST /conversations/:id/start-room 快捷开局（来一局）：一键建房直接开局
+ * POST /conversations/:id/start-room 快捷开局（来一局）：建房 + 给对方发邀请卡片
  */
 import { Body, Controller, Get, HttpCode, HttpStatus, Inject, Param, Post } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common';
@@ -27,6 +28,13 @@ export class ChatController {
   @Get('conversations')
   async conversations(@CurrentUser() user: SessionUser) {
     return this.chatService.listConversations(user);
+  }
+
+  /** 会话详情：聊天页顶栏显示对方昵称。 */
+  @RateLimit({ scope: 'chat.conversation', limit: 60, windowSeconds: 60, keyBy: 'user' })
+  @Get('conversations/:id')
+  async conversation(@CurrentUser() user: SessionUser, @Param('id') id: string) {
+    return this.chatService.getConversation(user, id);
   }
 
   @RateLimit({ scope: 'chat.messages', limit: 120, windowSeconds: 60, keyBy: 'user' })
@@ -58,7 +66,7 @@ export class ChatController {
     return this.chatService.markRead(user, id, body.lastReadSeq);
   }
 
-  /** 快捷开局：建房间 + 建局 + 双方直接进房，私聊里落一张开局卡片。 */
+  /** 快捷开局：建房 + 建局 + 给对方发邀请卡片（对方点了卡片才进房）。 */
   @RateLimit({ scope: 'chat.quickRoom', limit: 10, windowSeconds: 60, keyBy: 'user' })
   @HttpCode(HttpStatus.CREATED)
   @Post('conversations/:id/start-room')

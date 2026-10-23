@@ -37,7 +37,7 @@ export class FriendsService {
   }
 
   /** 我的好友列表（按成为好友的时间倒序）。 */
-  async list(user: SessionUser): Promise<{ friends: Array<{ userId: string; nickname: string; since: string }> }> {
+  async list(user: SessionUser): Promise<{ friends: Array<{ userId: string; nickname: string; since: string; conversationId: string | null }> }> {
     const rows = await this.db.db
       .select({ friendUserId: friendships.friendUserId, createdAt: friendships.createdAt })
       .from(friendships)
@@ -45,11 +45,20 @@ export class FriendsService {
       .orderBy(desc(friendships.createdAt));
     if (rows.length === 0) return { friends: [] };
     const nicknames = await nicknamesOf(rows.map((row) => row.friendUserId));
+    // 好友列表点「消息」要直接进对应会话：会话按规范化的一对唯一，这里一次查全
+    const conversationRows = await this.db.db
+      .select({ id: conversations.id, userLow: conversations.userLow, userHigh: conversations.userHigh })
+      .from(conversations)
+      .where(or(eq(conversations.userLow, user.userId), eq(conversations.userHigh, user.userId)));
+    const conversationByPeer = new Map(
+      conversationRows.map((row) => [row.userLow === user.userId ? row.userHigh : row.userLow, row.id]),
+    );
     return {
       friends: rows.map((row) => ({
         userId: row.friendUserId,
         nickname: displayNickname(nicknames.get(row.friendUserId), row.friendUserId),
         since: row.createdAt.toISOString(),
+        conversationId: conversationByPeer.get(row.friendUserId) ?? null,
       })),
     };
   }

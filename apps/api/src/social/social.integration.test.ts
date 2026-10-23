@@ -2,7 +2,7 @@
  * 好友 / 私聊 / 快捷开局 / 通知的真实数据库验证：需 SOCIAL_TEST_DATABASE_URL。
  *
  * 覆盖：邮箱搜索 → 申请 → 同意（双向好友关系 + 会话）→ 反向申请互斥 →
- * 重复处理申请 → 私聊消息与序号 → 已读水位只前进 → 快捷开局（双方进房 + 开局卡片）→
+ * 重复处理申请 → 私聊消息与序号 → 已读水位只前进 → 快捷开局（邀请卡片，对方点链接才进房）→
  * 站内信群发。
  * 用独立临时库跑（迁移脚本写死 public schema），结束后整库删除，不碰其它库的数据。
  */
@@ -19,6 +19,7 @@ import { setAppContext } from '../context.js';
 import { FriendsService } from './friends.service.js';
 import { ChatService } from './chat.service.js';
 import { NotificationsService } from './notifications.service.js';
+import { RoomsService } from '../rooms/rooms.service.js';
 import type { SessionUser } from '../common/http.js';
 
 const databaseUrl = process.env.SOCIAL_TEST_DATABASE_URL;
@@ -31,6 +32,7 @@ describe.runIf(!!databaseUrl)('好友 / 私聊 / 通知（真实数据库）', (
   const friends = new FriendsService();
   const chat = new ChatService();
   const notifications = new NotificationsService();
+  const rooms = new RoomsService();
 
   const alice = session('alice', '阿离');
   const bob = session('bob', '小博');
@@ -158,6 +160,10 @@ describe.runIf(!!databaseUrl)('好友 / 私聊 / 通知（真实数据库）', (
     const conversations = await handle.db.select().from(schemaModule.conversations);
     expect(conversations).toHaveLength(1);
 
+    // 好友列表带会话 id：好友页点「消息」直接进这个会话
+    const friendList = await friends.list(alice);
+    expect(friendList.friends[0]!.conversationId).toBe(conversations[0]!.id);
+
     // 已经是好友就不能再申请
     await expect(friends.createRequest(alice, 'bob@example.com')).rejects.toThrow(/已经是好友/);
   });
@@ -253,27 +259,62 @@ describe.runIf(!!databaseUrl)('好友 / 私聊 / 通知（真实数据库）', (
 
   // ---------- 快捷开局 ----------
 
-  it('来一局：双方都进房，私聊里落开局卡片，对方收到通知', async () => {
+  it('来一局：只发起一局并发邀请卡片，对方点链接才进房', async () => {
     const conversationId = (await handle.db.select().from(schemaModule.conversations))[0]!.id;
     const result = await chat.startQuickRoom(alice, conversationId, undefined, 'zh');
     expect(result.roomId).toBeTruthy();
+    expect(result.inviteToken).toBeTruthy();
     expect(result.message.kind).toBe('room_invite');
     expect(result.message.roomId).toBe(result.roomId);
+    expect(result.message.inviteToken).toBe(result.inviteToken);
+    expect(result.message.roomStatus).toBe('playing');
+    expect(result.message.peerJoined).toBe(false);
 
+    // 对方没有被自动拉进房间：只有发起人是成员与本局参与者
     const members = await handle.db.select().from(schemaModule.roomMembers)
       .where(eq(schemaModule.roomMembers.roomId, result.roomId));
-    expect(members.map((m) => m.userId).sort()).toEqual([alice.userId, bob.userId].sort());
+    expect(members.map((m) => m.userId)).toEqual([alice.userId]);
 
     const participants = await handle.db.select().from(schemaModule.roundParticipants);
-    expect(participants).toHaveLength(2);
+    expect(participants).toHaveLength(1);
 
     const [room] = await handle.db.select().from(schemaModule.rooms).where(eq(schemaModule.rooms.id, result.roomId));
     expect(room?.status).toBe('playing');
     // 快捷开局是私人房间：不出现在大厅
     expect(room?.isPublic).toBe(false);
 
+    // 通知里的链接是邀请链接：对方还不是成员，只能走这个链接进房
     const list = await notifications.list(bob, 'zh', 50);
-    expect(list.notifications.some((n) => n.type === 'room_invite')).toBe(true);
+    const invite = list.notifications.find((n) => n.type === 'room_invite');
+    expect(invite?.link).toBe(`/room/invite/${result.inviteToken}`);
+
+    // 对方点了邀请链接才进房
+    const joined = await rooms.joinRoom(bob, result.inviteToken);
+    expect(joined.roomId).toBe(result.roomId);
+    const afterMembers = await handle.db.select().from(schemaModule.roomMembers)
+      .where(eq(schemaModule.roomMembers.roomId, result.roomId));
+    expect(afterMembers.map((m) => m.userId).sort()).toEqual([alice.userId, bob.userId].sort());
+    const afterParticipants = await handle.db.select().from(schemaModule.roundParticipants);
+    expect(afterParticipants).toHaveLength(2);
+
+    // 卡片按房间当前状态渲染：对方已进房
+    const messages = await chat.listMessages(bob, conversationId);
+    const card = messages.messages.find((m) => m.kind === 'room_invite');
+    expect(card?.roomStatus).toBe('playing');
+    expect(card?.peerJoined).toBe(true);
+  });
+
+  it('房间归档后邀请卡片变成「房间已结束」', async () => {
+    const conversationId = (await handle.db.select().from(schemaModule.conversations))[0]!.id;
+    const result = await chat.startQuickRoom(alice, conversationId, undefined, 'zh');
+    await handle.db.update(schemaModule.rooms)
+      .set({ status: 'closed', closedAt: new Date() })
+      .where(eq(schemaModule.rooms.id, result.roomId));
+    const messages = await chat.listMessages(alice, conversationId);
+    const card = messages.messages.find((m) => m.kind === 'room_invite' && m.roomId === result.roomId);
+    expect(card?.roomStatus).toBe('closed');
+    // 房间关了，邀请链接就该失效
+    await expect(rooms.joinRoom(bob, result.inviteToken)).rejects.toThrow(/房间已关闭/);
   });
 
   it('非会话成员不能发起快捷开局', async () => {

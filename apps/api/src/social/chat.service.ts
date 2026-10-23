@@ -43,7 +43,16 @@ interface DmMessageView {
   kind: 'text' | 'room_invite';
   text: string;
   roomId: string | null;
+  roomStatus: 'waiting' | 'playing' | 'closed' | null;
+  inviteToken: string | null;
+  peerJoined: boolean;
   createdAt: string;
+}
+
+/** 邀请卡片背后房间的状态：按钮据此显示「进入房间」还是「房间已结束」。 */
+interface RoomCardState {
+  status: 'waiting' | 'playing' | 'closed';
+  peerJoined: boolean;
 }
 
 @Injectable()
@@ -138,9 +147,33 @@ export class ChatService {
 
   // ---------- 消息 ----------
 
+  /** 会话详情：聊天页顶栏显示对方昵称。 */
+  async getConversation(user: SessionUser, conversationId: string): Promise<{
+    conversation: { conversationId: string; peerUserId: string; peerNickname: string };
+  }> {
+    const [conversation] = await this.db.db
+      .select()
+      .from(conversations)
+      .where(eq(conversations.id, conversationId))
+      .limit(1);
+    if (!conversation) throw new DomainError('NOT_FOUND', '会话不存在');
+    if (conversation.userLow !== user.userId && conversation.userHigh !== user.userId) {
+      throw new DomainError('FORBIDDEN', '你不在这个会话里');
+    }
+    const peerUserId = conversation.userLow === user.userId ? conversation.userHigh : conversation.userLow;
+    const nicknames = await nicknamesOf([peerUserId]);
+    return {
+      conversation: {
+        conversationId,
+        peerUserId,
+        peerNickname: displayNickname(nicknames.get(peerUserId), peerUserId),
+      },
+    };
+  }
+
   /** 拉会话消息：按序号升序返回最近一批。 */
   async listMessages(user: SessionUser, conversationId: string): Promise<{ messages: DmMessageView[] }> {
-    await this.assertParticipant(user.userId, conversationId);
+    const peerUserId = await this.assertParticipant(user.userId, conversationId);
     const rows = await this.db.db
       .select()
       .from(dmMessages)
@@ -149,7 +182,14 @@ export class ChatService {
       .limit(MESSAGE_PAGE_SIZE);
     const ordered = rows.reverse();
     const nicknames = await nicknamesOf(ordered.map((row) => row.senderUserId));
-    return { messages: ordered.map((row) => this.toView(row, nicknames)) };
+    // 邀请卡片要按房间当前状态渲染按钮：一次性把这些房间的状态与成员查出来
+    const roomStates = await this.roomCardStates(
+      ordered.map((row) => row.roomId).filter((id): id is string => id !== null),
+      peerUserId,
+    );
+    return {
+      messages: ordered.map((row) => this.toView(row, nicknames, row.roomId ? roomStates.get(row.roomId) : undefined)),
+    };
   }
 
   /** 发消息：只有好友能私聊（会话存在即好友，但这里再兜一层）。 */
@@ -252,15 +292,19 @@ export class ChatService {
   // ---------- 快捷开局（来一局） ----------
 
   /**
-   * 一键建房直接开局：建房间 + 建局 + 双方都进房，私聊里落一张开局卡片。
-   * 对方点卡片直接进 /rooms/:roomId（两人已是成员，不需要邀请 token）。
+   * 「来一局」= 发起一局并给对方发一张邀请卡片。
+   *
+   * 对方**不会**被自动拉进房间：卡片上的「进入房间」是邀请链接，
+   * 对方点了才通过令牌进房（没点就一直只是房主一个人在房里）。
+   * 房间邀请令牌明文随卡片消息落库（rooms 表只存散列），
+   * 这样卡片长期可点，房间归档后按钮自动变成「房间已结束」。
    */
   async startQuickRoom(
     user: SessionUser,
     conversationId: string,
     puzzleId: string | undefined,
     language: 'zh' | 'en',
-  ): Promise<{ roomId: string; message: DmMessageView }> {
+  ): Promise<{ roomId: string; inviteToken: string; message: DmMessageView }> {
     return this.db.tx(async (tx) => {
       const [conversation] = await tx
         .select()
@@ -296,8 +340,9 @@ export class ChatService {
       if (!version) throw new DomainError('PUZZLE_UNPUBLISHED', '题目不可用或未发布');
 
       const now = new Date();
-      // 房间邀请 token 仍然必填（表结构约束），但两位玩家都已是成员，不需要用它
-      const inviteTokenHash = createHash('sha256').update(randomBytes(16)).digest('hex');
+      // 邀请令牌明文只出现这一次：散列进房间表，明文进私聊卡片
+      const inviteToken = randomBytes(16).toString('hex');
+      const inviteTokenHash = createHash('sha256').update(inviteToken).digest('hex');
       const roomId = await createRoomWithEntitlementTx(tx, {
         creatorUserId: user.userId,
         capacity: QUICK_ROOM_CAPACITY,
@@ -305,8 +350,6 @@ export class ChatService {
         now,
         isPublic: false,
       });
-      // 对方直接进房
-      await tx.insert(roomMembers).values({ roomId, userId: peerUserId, status: 'joined' });
 
       const [round] = await tx
         .insert(rounds)
@@ -319,9 +362,8 @@ export class ChatService {
         })
         .returning();
       if (!round) throw new DomainError('INTERNAL', '创建本局失败');
-      for (const uid of [user.userId, peerUserId]) {
-        await tx.insert(roundParticipants).values({ roundId: round.id, userId: uid }).onConflictDoNothing();
-      }
+      // 只有发起人是本局参与者；对方点了邀请链接进房时由 joinRoom 补上
+      await tx.insert(roundParticipants).values({ roundId: round.id, userId: user.userId }).onConflictDoNothing();
       await tx.update(rooms).set({ status: 'playing', lastActivityAt: now }).where(eq(rooms.id, roomId));
       await appendEvent(tx, {
         roomId,
@@ -340,7 +382,7 @@ export class ChatService {
         },
       });
 
-      // 私聊里落一张开局卡片
+      // 私聊里落一张邀请卡片
       const [maxRow] = await tx
         .select({ maxSeq: sql<number>`coalesce(max(${dmMessages.seq}), 0)::int` })
         .from(dmMessages)
@@ -356,6 +398,7 @@ export class ChatService {
           kind: 'room_invite',
           text: cardText,
           roomId,
+          inviteToken,
         })
         .returning();
       if (!inserted) throw new DomainError('INTERNAL', '开局卡片发送失败');
@@ -367,18 +410,23 @@ export class ChatService {
         actorUserId: user.userId,
         conversationId,
         roomId,
-        link: `/rooms/${roomId}`,
+        // 对方还不是成员，只能走邀请链接进房
+        link: `/room/invite/${inviteToken}`,
       });
 
       const nicknames = await nicknamesOf([user.userId]);
-      return { roomId, message: this.toView(inserted, nicknames) };
+      return {
+        roomId,
+        inviteToken,
+        message: this.toView(inserted, nicknames, { status: 'playing', peerJoined: false }),
+      };
     });
   }
 
   // ---------- 内部工具 ----------
 
-  /** 会话参与校验：我必须是这两人之一。 */
-  private async assertParticipant(userId: string, conversationId: string): Promise<void> {
+  /** 会话参与校验：我必须是这两人之一。返回对方（相对当前用户）。 */
+  private async assertParticipant(userId: string, conversationId: string): Promise<string> {
     const [conversation] = await this.db.db
       .select({ userLow: conversations.userLow, userHigh: conversations.userHigh })
       .from(conversations)
@@ -388,12 +436,45 @@ export class ChatService {
     if (conversation.userLow !== userId && conversation.userHigh !== userId) {
       throw new DomainError('FORBIDDEN', '你不在这个会话里');
     }
+    return conversation.userLow === userId ? conversation.userHigh : conversation.userLow;
+  }
+
+  /**
+   * 批量查邀请卡片背后房间的状态与对方是否已进房。
+   * 房间可能已被归档（closed）或整行删除（查不到），后者按「房间不存在」处理。
+   */
+  private async roomCardStates(roomIds: string[], peerUserId: string): Promise<Map<string, RoomCardState>> {
+    const states = new Map<string, RoomCardState>();
+    if (roomIds.length === 0) return states;
+    const unique = [...new Set(roomIds)];
+    const roomRows = await this.db.db
+      .select({ id: rooms.id, status: rooms.status })
+      .from(rooms)
+      .where(inArray(rooms.id, unique));
+    const memberRows = await this.db.db
+      .select({ roomId: roomMembers.roomId, userId: roomMembers.userId })
+      .from(roomMembers)
+      .where(and(inArray(roomMembers.roomId, unique), eq(roomMembers.status, 'joined')));
+    const joined = new Map<string, Set<string>>();
+    for (const member of memberRows) {
+      const set = joined.get(member.roomId) ?? new Set<string>();
+      set.add(member.userId);
+      joined.set(member.roomId, set);
+    }
+    for (const room of roomRows) {
+      states.set(room.id, {
+        status: room.status,
+        peerJoined: joined.get(room.id)?.has(peerUserId) ?? false,
+      });
+    }
+    return states;
   }
 
   /** 消息行的展示投影。 */
   private toView(
     row: typeof dmMessages.$inferSelect,
     nicknames: Map<string, string>,
+    roomState?: RoomCardState,
   ): DmMessageView {
     return {
       id: row.id,
@@ -404,6 +485,9 @@ export class ChatService {
       kind: row.kind,
       text: row.text,
       roomId: row.roomId,
+      roomStatus: roomState?.status ?? null,
+      inviteToken: row.kind === 'room_invite' ? row.inviteToken : null,
+      peerJoined: roomState?.peerJoined ?? false,
       createdAt: row.createdAt.toISOString(),
     };
   }
