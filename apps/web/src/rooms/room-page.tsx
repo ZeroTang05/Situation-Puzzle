@@ -62,6 +62,33 @@ export function RoomPage({ session }: { session: Session | null }) {
   const [showConnection, setShowConnection] = useState(false);
   const pendingCurrent = outbox.local?.pending.some((p) => p.input.type === inputMode && (p.status === 'sending' || p.status === 'confirming')) ?? false;
 
+  // 被拒绝的操作（房间已关闭等）改走悬浮条：只提示一次，不占状态槽、不挤动游戏区
+  const [rejectedNotice, setRejectedNotice] = useState<string | null>(null);
+  const shownRejectsRef = useRef<Set<string>>(new Set());
+  const mountedRef = useRef(false);
+  const pendingList = outbox.local?.pending ?? [];
+  const lastRejected = useMemo(() => {
+    for (let index = pendingList.length - 1; index >= 0; index -= 1) {
+      const item = pendingList[index]!;
+      if (['ask', 'solve', 'discussion'].includes(item.input.type)) continue;
+      if (item.status !== 'rejected') continue;
+      return item;
+    }
+    return null;
+  }, [pendingList]);
+  useEffect(() => {
+    if (!mountedRef.current) {
+      // 首帧不弹：上一次会话遗留的拒绝记录不该在进页面时再报一遍
+      mountedRef.current = true;
+      return;
+    }
+    if (!lastRejected) return;
+    const id = lastRejected.input.clientRequestId;
+    if (shownRejectsRef.current.has(id)) return;
+    shownRejectsRef.current.add(id);
+    setRejectedNotice(lastRejected.error ?? copy.confirm);
+  }, [lastRejected, copy.confirm]);
+
   // 输入框预提示：随机抽一条常见问题，给不会玩的用户一个起点（进入页面时定一次）
   const askPlaceholder = useMemo(() => {
     const list = copy.askPlaceholderExamples;
@@ -220,7 +247,9 @@ export function RoomPage({ session }: { session: Session | null }) {
   // 头部状态行（掉线/存储错误/进行中的非聊天操作）：任一存在即展开状态槽，收起时不顶动游戏区
   // 主持形态提示与操作错误已改为悬浮条，不再占状态槽
   const pendingNotices = (outbox.local?.pending ?? []).filter((p) => !['ask', 'solve', 'discussion'].includes(p.input.type) && p.status !== 'sent');
-  const hasStatus = (showConnection && status !== 'ready') || Boolean(outbox.storageError || translatedPuzzle.isError) || pendingNotices.length > 0;
+  // 被拒绝的不进状态槽：改由悬浮条提示
+  const inlineNotices = pendingNotices.filter((p) => p.status !== 'rejected');
+  const hasStatus = (showConnection && status !== 'ready') || Boolean(outbox.storageError || translatedPuzzle.isError) || inlineNotices.length > 0;
 
   return (
     <RoomShell playing={round?.status === 'active' && state.roomStatus === 'playing'}>
@@ -237,14 +266,15 @@ export function RoomPage({ session }: { session: Session | null }) {
           {showConnection && status !== 'ready' && <p className="offline-banner" role="status">{status === 'auth_required' ? copy.authExpired : status === 'offline' ? copy.networkKeptDraft : copy.reconnecting}{status === 'auth_required' && <a href={`/login?next=/rooms/${roomId}`}>{copy.reconnect}</a>}</p>}
           {outbox.storageError && <p className="error-text" role="alert">{outbox.storageError}</p>}
           {translatedPuzzle.isError && <p className="error-text" role="alert">{language === 'zh' ? copy.translatedFail : copy.translatedFailEn}</p>}
-          {pendingNotices.map((p) => <div key={p.input.clientRequestId} role="status">
-            <p>{p.status === 'rejected' ? p.error : p.status === 'sending' ? copy.operationSubmitting : copy.confirming}</p>
+          {inlineNotices.map((p) => <div key={p.input.clientRequestId} role="status">
+            <p>{p.status === 'sending' ? copy.operationSubmitting : copy.confirming}</p>
             {p.status === 'confirming' && <button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>{copy.keepConfirming}</button>}
           </div>)}
         </div>
       </div>
       {/* 操作反馈改为悬浮条：不挤占布局，到点自动消失 */}
       {error && <Toast message={error} tone="error" durationMs={4000} onDone={() => setError(null)} />}
+      {rejectedNotice && <Toast message={rejectedNotice} tone="error" durationMs={4000} onDone={() => setRejectedNotice(null)} />}
       {managementOpen && <section ref={managementRef} className="panel stack room-management game-scroll" aria-label={copy.membersManagement}>
         <h2>{copy.membersHeader}</h2>
         <MemberList
