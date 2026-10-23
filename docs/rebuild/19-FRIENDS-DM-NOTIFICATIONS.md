@@ -99,6 +99,7 @@ DELETE /friends/:userId         → { ok: true }
 
 ```
 GET  /conversations                → { conversations: [{ conversationId, peerUserId, peerNickname, lastMessage, unreadCount }] }
+GET  /conversations/:id            → { conversation: { conversationId, peerUserId, peerNickname } }
 GET  /conversations/:id/messages   → { messages: [...] }
 POST /conversations/:id/messages   { text } → { message }
 POST /conversations/:id/read       { lastReadSeq? } → { lastReadSeq, unreadCount }
@@ -106,24 +107,29 @@ POST /conversations/:id/read       { lastReadSeq? } → { lastReadSeq, unreadCou
 
 - `POST .../messages`：锁会话行 → 分配 `seq`（当前最大 + 1）→ 落消息 → 给对方落一条 `dm` 通知（正文是截断后的摘录）；
 - `POST .../read`：`lastReadSeq` 省略时表示「整段会话已读」（取会话当前最大序号）；
-- 未读数 = 该会话中 `seq > 我的 last_read_seq` 的消息条数。
+- 未读数 = 该会话中 `seq > 我的 last_read_seq` 的消息条数；
+- 聊天页顶栏显示对方昵称，取自 `GET /conversations/:id`；会话详情与消息轮询是两个接口，前端各拉一次。
 
 ### 4.3 快捷开局（来一局）
 
 ```
-POST /conversations/:id/start-room  { puzzleId?, language } → { roomId, message }
+POST /conversations/:id/start-room  { puzzleId?, language } → { roomId, inviteToken, message }
 ```
 
 单事务内完成：
 
 1. 选题（指定 `puzzleId` 就取它的当前发布版，没指定就随机挑一道该语言的已发布题）；
 2. `createRoomWithEntitlementTx` 建房间（容量固定 2，私人房间，开房额度记在发起人头上）；
-3. 对方写入 `room_members`（直接进房，不需要邀请 token）；
-4. 建 `rounds`（第 1 局）与双方的 `round_participants`（双方都有提问权与历史阅读权）；
-5. 房间置 `playing`，广播 `round.started` 事件；
-6. 私聊里落一条 `kind = 'room_invite'` 的消息（带 `room_id`），并给对方落一条 `room_invite` 通知。
+3. 建 `rounds`（第 1 局）与发起人的 `round_participants`（对方点了邀请链接进房时由 `joinRoom` 补上参与者）；
+4. 房间置 `playing`，广播 `round.started` 事件；
+5. 私聊里落一条 `kind = 'room_invite'` 的消息（带 `room_id` 与 `invite_token` 明文），并给对方落一条 `room_invite` 通知。
 
-对方在私聊里看到的是一张开局卡片，点一下直接进 `/rooms/:roomId`（两人已是房间成员，不需要邀请 token）。
+**对方不会被自动拉进房间**：「来一局」= 发起一局并发出邀请，卡片上的「进入房间」是邀请链接
+（`/room/invite/<token>`），对方点了才通过令牌进房。
+
+- 房间表只存邀请令牌散列，明文令牌随卡片消息落在 `dm_messages.invite_token`（只有会话双方能读到）；
+- 卡片按钮按房间当前状态渲染：进行中显示「进入房间」，房间归档（`closed`）或被删除后显示「房间已结束」；
+- 通知里的 `link` 也是邀请链接（对方此时还不是成员，`/rooms/:roomId` 进不去）。
 
 ### 4.4 通知与站内信
 
@@ -193,6 +199,7 @@ GET  /admin/announcements         → { items, total }
 | `DELETE /friends/requests/:id` | 用户 | 每分钟 30 次 | `friends.request.cancel` |
 | `DELETE /friends/:userId` | 用户 | 每分钟 30 次 | `friends.remove` |
 | `GET /conversations` | 用户 | 每分钟 60 次 | `chat.conversations` |
+| `GET /conversations/:id` | 用户 | 每分钟 60 次 | `chat.conversation` |
 | `GET /conversations/:id/messages` | 用户 | 每分钟 120 次 | `chat.messages` |
 | `POST /conversations/:id/messages` | 用户 | 每分钟 60 次 | `chat.send` |
 | `POST /conversations/:id/read` | 用户 | 每分钟 120 次 | `chat.read` |
@@ -212,10 +219,12 @@ GET  /admin/announcements         → { items, total }
 | --- | --- |
 | 首页 | 次要入口加「好友」「消息」；顶栏加铃铛角标 |
 | 「我的」页 | 账号卡下方加「好友」「消息」入口；顶栏加铃铛角标 |
-| `/friends` | 搜索加好友 + 好友申请（同意 / 拒绝 / 撤回）+ 我的好友 |
-| `/chat` | 会话列表（未读数、最后一条摘要），3 秒轮询 |
-| `/chat/:conversationId` | 消息窗（左右分栏）、开局卡片、底部输入框、「来一局」按钮 |
+| `/friends` | 搜索加好友 + 好友申请（同意 / 拒绝 / 撤回）+ 我的好友（每个好友一个「消息」按钮，直达该好友的会话） |
+| `/chat/:conversationId` | 消息窗、开局卡片（邀请链接）、底部输入框；顶栏是对方昵称 + 右侧「来一局」 |
 | `/notifications` | 通知列表（未读高亮、点一条即跳转并标记已读）、全部已读 |
+
+**没有会话列表页**：`/chat` 不存在。好友列表是唯一入口——点某个好友的「消息」直接进 `/chat/:conversationId`。
+首页与「我的」页的「消息」按钮进最近一条会话（一条会话都没有时进好友页）。
 
 铃铛角标是独立组件 `apps/web/src/social/notification-bell.tsx`，10 秒轮询未读数，首页与「我的」页共用。
 
@@ -223,7 +232,8 @@ GET  /admin/announcements         → { items, total }
 
 ## 九、数据迁移
 
-`0014_friends_dm_notifications.sql`：新建三张枚举类型 + 七张表 + 五个索引。
+- `0014_friends_dm_notifications.sql`：新建三张枚举类型 + 七张表 + 五个索引；
+- `0015_quick_room_invite_token.sql`：`dm_messages` 加一列 `invite_token`（邀请卡片要长期当链接用，明文令牌随消息落库）。
 
 存量数据为空表，**无需回填**，行为与改动前完全一致。
 
@@ -235,6 +245,7 @@ GET  /admin/announcements         → { items, total }
 - **通知会重复**：每次私聊消息都给对方落一条通知，没做「同一会话合并成一条未读」。消息多时通知列表会变长——列表按 50 条封顶，角标只算未读总数。
 - **站内信给每个 active 用户落一行**：用户量小的时候没问题；量级上来后要改成「拉取时按公告表实时算未读」，现在是「发布时展开」。
 - **快捷开局固定两人**：容量写死 2，不是 `ROOM_CAPACITY`。要拉第三个人进这局得走正常邀请链接。
+- **快捷开局是邀请不是自动开局**：对方不会被自动拉进房间（见 §4.3）。房主点了「来一局」就消耗一次开房额度，对方一直不来这局就白建了——额度按房主算，房主自己决定要不要开。
 - **快捷开局不选具体题目**：默认随机挑一道该语言的已发布题。指定题目（`puzzleId`）接口层已支持，前端暂未开放。
 - **私聊暂不走 WebSocket**：见 §六，消息表已有 `seq`，后续接网关时可直接复用房间事件流的补齐逻辑。
 - **删好友不删历史消息**：会话与消息保留，对方不再是好友后看不到（会话列表只列好友之间），但数据还在库里。
