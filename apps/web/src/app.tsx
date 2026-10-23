@@ -18,7 +18,6 @@ import { CreationEditorPage } from './creations/creation-editor-page.js';
 import { CreationPreviewPage } from './creations/creation-preview-page.js';
 import { RequireSession } from './auth/require-session.js';
 import { FriendsPage } from './social/friends-page.js';
-import { ChatListPage } from './social/chat-list-page.js';
 import { ChatPage } from './social/chat-page.js';
 import { NotificationsPage } from './social/notifications-page.js';
 
@@ -42,7 +41,6 @@ export function App() {
       <Route path="/room/invite/:token" element={<InvitePage kind="room" session={session} />} />
       <Route path="/me" element={<RequireSession session={session}><MePage session={session} /></RequireSession>} />
       <Route path="/friends" element={<RequireSession session={session}><FriendsPage /></RequireSession>} />
-      <Route path="/chat" element={<RequireSession session={session}><ChatListPage /></RequireSession>} />
       <Route path="/chat/:conversationId" element={<RequireSession session={session}><ChatPage /></RequireSession>} />
       <Route path="/notifications" element={<RequireSession session={session}><NotificationsPage /></RequireSession>} />
       <Route path="/creations" element={<RequireSession session={session}><CreationListPage session={session} /></RequireSession>} />

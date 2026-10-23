@@ -1333,18 +1333,8 @@ textarea.composer-input, .composer .composer-input {
 .friend-row-actions { flex: none; display: flex; align-items: center; gap: 8px; }
 .friend-row .btn { flex: none; }
 
-/* 会话列表：整行可点进会话 */
-.chat-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.chat-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: var(--tap); padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: rgba(115, 191, 220, .06); color: inherit; text-align: left; transition: border-color .15s, background .15s; }
-.chat-row:hover { border-color: rgba(125, 216, 198, .45); background: rgba(125, 216, 198, .1); }
-.chat-row-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.chat-row-title { font-size: 15px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chat-row-meta { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chat-row-unread { flex: none; align-self: center; padding: 2px 8px; border: 1px solid rgba(255, 155, 120, .45); border-radius: 999px; color: var(--coral); font-size: 12px; font-weight: 600; white-space: nowrap; }
-
 /* 私聊页：整页一屏，消息区自己滚动，输入行钉在底部 */
 .chat-shell { display: flex; flex-direction: column; height: 100dvh; }
-.chat-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 2px 0 8px; }
 .chat-thread { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 0 8px; }
 .chat-msg { flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; max-width: 84%; }
 .chat-msg.is-mine { align-self: flex-end; align-items: flex-end; }
@@ -1355,6 +1345,8 @@ textarea.composer-input, .composer .composer-input {
 /* 开局卡片：来一局生成的房间邀请 */
 .chat-card { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 10px 12px; border: 1px solid rgba(125, 216, 198, .35); border-radius: 12px; background: rgba(125, 216, 198, .1); }
 .chat-card-text { margin: 0; font-size: 15px; color: var(--ink); overflow-wrap: anywhere; }
+/* 卡片状态行：房间已结束 / 等待对方加入 */
+.chat-card-state { margin: 0; font-size: 13px; color: var(--muted); }
 .chat-input-row { display: flex; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
 .chat-input-row input { flex: 1 1 auto; min-width: 0; }
 .chat-input-row .btn { flex: none; }

@@ -14,6 +14,7 @@ import type { Session } from '../session.js';
 import { creationCopy } from '../creations/copy.js';
 import { SponsorPanel } from './sponsor-panel.js';
 import { NotificationBell } from '../social/notification-bell.js';
+import { ChatEntryButton } from '../social/chat-entry-button.js';
 
 /** 把服务端 round.status 翻译成用户文案；未识别值回退到原值便于排查。 */
 function roundStatusLabel(status: string, language: Language, copy: { roundStatusActive: string; roundStatusSolved: string; roundStatusRevealed: string; roundStatusAbandoned: string; roundStatusAborted: string }) {
@@ -195,7 +196,7 @@ export function MePage({ session }: { session: Session | null }) {
         </div>
         <div className="me-card-actions">
           <button className="btn" onClick={() => navigate('/friends')}>{copy.friends}</button>
-          <button className="btn" onClick={() => navigate('/chat')}>{copy.messages}</button>
+          <ChatEntryButton className="btn" />
         </div>
       </section>
 

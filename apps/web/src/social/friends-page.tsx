@@ -24,6 +24,8 @@ interface FriendSummary {
   userId: string;
   nickname: string;
   since: string;
+  /** 与该好友的会话 id：点「消息」直接进这个会话 */
+  conversationId: string | null;
 }
 
 interface FriendRequestItem {
@@ -274,7 +276,13 @@ export function FriendsPage() {
                   <p className="friend-row-name">{friend.nickname}</p>
                 </div>
                 <div className="friend-row-actions">
-                  <button className="btn btn-sm" onClick={() => navigate('/chat')}>{copy.messages}</button>
+                  <button
+                    className="btn btn-sm"
+                    disabled={friend.conversationId === null}
+                    onClick={() => friend.conversationId && navigate(`/chat/${friend.conversationId}`)}
+                  >
+                    {copy.messages}
+                  </button>
                   <button
                     className="btn btn-sm btn-danger"
                     disabled={removingId !== null}

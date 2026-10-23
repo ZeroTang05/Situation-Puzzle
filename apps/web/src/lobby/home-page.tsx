@@ -10,6 +10,7 @@ import type { Session } from '../session.js';
 import { creationCopy } from '../creations/copy.js';
 import { BrandHeading } from '../brand-heading.js';
 import { NotificationBell } from '../social/notification-bell.js';
+import { ChatEntryButton } from '../social/chat-entry-button.js';
 
 export function HomePage({ session }: { session: Session | null }) {
   const { copy, language, setLanguage } = useLanguage();
@@ -98,9 +99,7 @@ export function HomePage({ session }: { session: Session | null }) {
           <button className="btn btn-sm" onClick={() => navigate(session ? '/friends' : '/login?next=%2Ffriends')}>
             {copy.friends}
           </button>
-          <button className="btn btn-sm" onClick={() => navigate(session ? '/chat' : '/login?next=%2Fchat')}>
-            {copy.messages}
-          </button>
+          <ChatEntryButton />
         </div>
       </section>
 
