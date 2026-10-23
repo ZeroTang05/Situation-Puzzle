@@ -13,6 +13,7 @@ import type { Language } from '@jev/i18n';
 import type { Session } from '../session.js';
 import { creationCopy } from '../creations/copy.js';
 import { SponsorPanel } from './sponsor-panel.js';
+import { NotificationBell } from '../social/notification-bell.js';
 
 /** 把服务端 round.status 翻译成用户文案；未识别值回退到原值便于排查。 */
 function roundStatusLabel(status: string, language: Language, copy: { roundStatusActive: string; roundStatusSolved: string; roundStatusRevealed: string; roundStatusAbandoned: string; roundStatusAborted: string }) {
@@ -129,6 +130,9 @@ export function MePage({ session }: { session: Session | null }) {
       <header className="topbar topbar-title">
         <button className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
         <h1 className="brand brand-sm">{copy.me}</h1>
+        <div className="topbar-actions">
+          <NotificationBell />
+        </div>
       </header>
 
       {/* 账号卡片：头像 + 昵称 + 额度/会员两个关键数字 */}
@@ -188,6 +192,10 @@ export function MePage({ session }: { session: Session | null }) {
 
         <div className="me-card-actions">
           <button className="btn btn-primary" onClick={() => navigate('/creations')}>{creationCopy(language).works}</button>
+        </div>
+        <div className="me-card-actions">
+          <button className="btn" onClick={() => navigate('/friends')}>{copy.friends}</button>
+          <button className="btn" onClick={() => navigate('/chat')}>{copy.messages}</button>
         </div>
       </section>
 

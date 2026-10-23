@@ -9,6 +9,7 @@ import { useLanguage } from '../state/language.js';
 import type { Session } from '../session.js';
 import { creationCopy } from '../creations/copy.js';
 import { BrandHeading } from '../brand-heading.js';
+import { NotificationBell } from '../social/notification-bell.js';
 
 export function HomePage({ session }: { session: Session | null }) {
   const { copy, language, setLanguage } = useLanguage();
@@ -37,6 +38,7 @@ export function HomePage({ session }: { session: Session | null }) {
       <header className="topbar">
         <BrandHeading>{copy.brand}</BrandHeading>
         <div className="topbar-actions">
+          <NotificationBell />
           <button className="btn btn-ghost btn-sm help-btn" type="button" aria-label={copy.howToPlay} title={copy.howToPlay} onClick={() => setIntroOpen(true)}>
             ?
           </button>
@@ -92,6 +94,12 @@ export function HomePage({ session }: { session: Session | null }) {
           </button>
           <button className="btn btn-sm" onClick={() => navigate('/creations')}>
             {creationCopy(language).works}
+          </button>
+          <button className="btn btn-sm" onClick={() => navigate(session ? '/friends' : '/login?next=%2Ffriends')}>
+            {copy.friends}
+          </button>
+          <button className="btn btn-sm" onClick={() => navigate(session ? '/chat' : '/login?next=%2Fchat')}>
+            {copy.messages}
           </button>
         </div>
       </section>
