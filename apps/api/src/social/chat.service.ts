@@ -9,7 +9,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
-import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne, or, sql } from 'drizzle-orm';
 import {
   appendEvent,
   conversations,
@@ -97,13 +97,15 @@ export class ChatService {
       for (const message of picked) lastMessages.set(message.conversationId, message);
     }
 
-    // 未读数：消息序号大于我的已读水位
+    // 未读数：消息序号大于我的已读水位，且**不是我自己发的**
+    // （自己发出去的消息永远不算未读）
     const unreadRows = await this.db.db
       .select({ conversationId: dmMessages.conversationId, n: sql<number>`count(*)::int` })
       .from(dmMessages)
       .where(
         and(
           inArray(dmMessages.conversationId, ids),
+          ne(dmMessages.senderUserId, user.userId),
           sql`${dmMessages.seq} > coalesce((select r.last_read_seq from conversation_reads r where r.conversation_id = ${dmMessages.conversationId} and r.user_id = ${user.userId}), 0)`,
         ),
       )
@@ -236,7 +238,13 @@ export class ChatService {
       const [unread] = await tx
         .select({ n: sql<number>`count(*)::int` })
         .from(dmMessages)
-        .where(and(eq(dmMessages.conversationId, conversationId), sql`${dmMessages.seq} > ${next}`));
+        .where(
+          and(
+            eq(dmMessages.conversationId, conversationId),
+            ne(dmMessages.senderUserId, user.userId),
+            sql`${dmMessages.seq} > ${next}`,
+          ),
+        );
       return { lastReadSeq: next, unreadCount: unread?.n ?? 0 };
     });
   }

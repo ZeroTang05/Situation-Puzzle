@@ -222,8 +222,22 @@ describe.runIf(!!databaseUrl)('好友 / 私聊 / 通知（真实数据库）', (
     expect(back.lastReadSeq).toBe(2);
   });
 
+  it('自己发的消息不算未读', async () => {
+    const conversations = await handle.db.select().from(schemaModule.conversations);
+    const conversationId = conversations[0]!.id;
+
+    // bob 发一条（自己发的不算未读），alice 再发一条（算一条未读）
+    await chat.sendMessage(bob, conversationId, '我也说一句');
+    await chat.sendMessage(alice, conversationId, '你回一句');
+    const list = await chat.listConversations(bob);
+    expect(list.conversations[0]!.unreadCount).toBe(1);
+  });
+
   it('会话列表带未读数与对方昵称', async () => {
-    await chat.sendMessage(alice, (await handle.db.select().from(schemaModule.conversations))[0]!.id, '第三条');
+    const conversationId = (await handle.db.select().from(schemaModule.conversations))[0]!.id;
+    // 先把已有消息读干净，再让 alice 发一条：未读数应当正好是 1
+    await chat.markRead(bob, conversationId);
+    await chat.sendMessage(alice, conversationId, '第三条');
     const list = await chat.listConversations(bob);
     expect(list.conversations).toHaveLength(1);
     expect(list.conversations[0]!.peerNickname).toBe('阿离');
