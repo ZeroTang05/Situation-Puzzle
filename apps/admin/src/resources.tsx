@@ -230,10 +230,12 @@ function RefundField() {
   const notify = useNotify();
   const refresh = useRefresh();
   const { language } = useLanguage(); const c = copy(language);
-  if (!record || record.status !== 'paid') return null;
+  // paid：首次审核退款；refund_pending：上次通道退款失败后的重试（后端复用原退款单号，幂等）
+  if (!record || (record.status !== 'paid' && record.status !== 'refund_pending')) return null;
+  const retrying = record.status === 'refund_pending';
   return (
     <Button
-      label={c.reviewRefund}
+      label={retrying ? c.retryRefund : c.reviewRefund}
       onClick={async () => {
         const reason = await dialog.prompt(c.promptRefund);
         if (reason === null) return;

@@ -378,6 +378,8 @@ export class OrdersService {
    *
    * 通道退款成功 → 撤销授权、订单置 refunded；失败 → 退款单置 failed，
    * 授权保持冻结等人工跟进（不静默当成已退钱）。
+   * 失败后（典型如商户余额不足 NOT_ENOUGH）可对 refund_pending 订单再次发起：
+   * 复用原退款单号重试，网关按单号幂等不会重复退钱。
    *
    * 赞助码等线下收款通道没有「线上退款」这一步（钱是线下收的），
    * 由运营方线下退钱，站内直接撤销权益——不能停在 frozen 让用户永久失去权益。
@@ -397,6 +399,40 @@ export class OrdersService {
     const prepared = await db.tx(async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).for('update').limit(1);
       if (!order) throw new DomainError('NOT_FOUND', '订单不存在');
+
+      // 重试：上次通道退款失败后订单停在 refund_pending。复用**原退款单号**再次发起
+      // （两个网关都按单号幂等，不会重复退钱）；冻结与流水首次已落，这里不重复写。
+      if (order.status === 'refund_pending') {
+        const [last] = await tx
+          .select()
+          .from(refunds)
+          .where(eq(refunds.orderId, orderId))
+          .orderBy(desc(refunds.createdAt))
+          .limit(1);
+        if (last?.status === 'pending') {
+          throw new DomainError('ORDER_STATE_CONFLICT', '上一笔退款仍在处理中，请稍后再试');
+        }
+        if (last?.status === 'failed') {
+          await tx.update(refunds).set({ status: 'pending', reason, updatedAt: new Date() }).where(eq(refunds.id, last.id));
+          await tx.insert(auditLogs).values({
+            operatorUserId,
+            action: 'order.refund_retry',
+            objectType: 'order',
+            objectId: orderId,
+            reason,
+            afterSummary: { refundNo: last.refundNo },
+          });
+          return {
+            refundId: last.id,
+            refundNo: last.refundNo,
+            channel: order.channel,
+            merchantOrderNo: order.merchantOrderNo,
+            amountMinor: order.amountMinor,
+            userId: order.userId,
+          };
+        }
+      }
+
       if (order.status !== 'paid') throw new DomainError('ORDER_STATE_CONFLICT', '只有已支付订单可以退款');
 
       const refundNo = `RF${Date.now()}${randomBytes(4).toString('hex').toUpperCase()}`;

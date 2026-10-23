@@ -79,6 +79,7 @@ export function copy(language: Language) {
     forceClose: language === 'zh' ? '强制关闭' : 'Force close',
     markResolved: language === 'zh' ? '标记处理' : 'Mark resolved',
     reviewRefund: language === 'zh' ? '审核退款' : 'Review refund',
+    retryRefund: language === 'zh' ? '重试退款' : 'Retry refund',
     approveLanguage: language === 'zh' ? '批准当前语言' : 'Approve this language',
     reject: language === 'zh' ? '退回' : 'Reject',
     takedown: language === 'zh' ? '下架' : 'Take down',
