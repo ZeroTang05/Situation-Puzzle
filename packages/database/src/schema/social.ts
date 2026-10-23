@@ -158,6 +158,12 @@ export const dmMessages = pgTable(
     text: text('text').notNull(),
     /** kind='room_invite' 时指向开局房间；房间归档后卡片仍留，但不再可点进去 */
     roomId: uuid('room_id').references(() => rooms.id, { onDelete: 'set null' }),
+    /**
+     * kind='room_invite' 时保存房间邀请令牌的明文。
+     * rooms 表只存散列，明文只在创建时返回一次；卡片要能长期当邀请链接用，
+     * 所以明文随消息落在这行（只有会话双方能读到）。
+     */
+    inviteToken: text('invite_token'),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   },
   (t) => [
