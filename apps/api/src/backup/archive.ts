@@ -6,7 +6,7 @@
  *  - 导出统一在 SQL 侧 ::text 文本化：bytea（\x…）、jsonb、数组字面量、numeric、enum
  *    都变成文本，NULL 天然保留；
  *  - 还原用「文本 → 目标类型」的 cast 写回，类型串取自 format_type(atttypid, atttypmod)，
- *    拼进 SQL 前必须过白名单（归档文件在对象存储里可能被篡改）；
+ *    还原时与目标库结构严格匹配，SQL 类型只取目标库元数据；
  *  - 还原在单个事务里完成：任一步失败整体回滚，当前数据保持不变。
  */
 import { gunzipSync, gzipSync } from 'node:zlib';
@@ -19,12 +19,6 @@ const ARCHIVE_VERSION = 1;
 
 /** 每批插入的行数：控制单条语句的参数体积。 */
 const INSERT_BATCH_SIZE = 500;
-
-/**
- * 类型串白名单：只允许类型名可能出现的字符（字母数字、下划线、空格、点、逗号、括号、双引号、方括号）。
- * 方括号是数组类型（如 text[]）必须的；其余字符一律拒绝。
- */
-const SAFE_TYPE = /^[A-Za-z0-9_ .,()"\[\]]+$/;
 
 export interface BackupColumn {
   name: string;
@@ -112,20 +106,16 @@ export async function restoreArchive(
   client: PoolClient,
   archive: BackupArchive,
 ): Promise<{ tableCount: number; rowCount: number }> {
-  // 类型串要先校验：它在下面会被拼进 SQL，篡改过的归档不能碰到数据库
-  for (const table of archive.tables) {
-    for (const column of table.columns) {
-      if (!SAFE_TYPE.test(column.type)) {
-        throw new DomainError('BACKUP_INVALID_ARCHIVE', `表 ${table.name} 的列 ${column.name} 类型串非法`);
-      }
-    }
-  }
-
-  const order = await insertionOrder(client, archive.tables);
   let rowCount = 0;
-
   await client.query('BEGIN');
   try {
+    const liveTables = await listPublicTables(client);
+    if (liveTables.length) {
+      // 元数据验证和写入持有相同的表锁，期间不允许并发 DDL 改变列类型。
+      await client.query(`LOCK TABLE ${liveTables.map(t => qualified(t.schema, t.name)).join(', ')} IN ACCESS EXCLUSIVE MODE`);
+    }
+    const trustedTables = await matchArchiveTables(client, archive.tables, liveTables);
+    const order = await insertionOrder(client, trustedTables);
     await disableForeignKeyTriggers(client);
     await truncatePublicTables(client);
     for (const table of order) {
@@ -223,6 +213,29 @@ async function readRows(
 
 // ---------- 还原内部实现 ----------
 
+/** 将归档结构与当前普通表逐列匹配；写入只使用数据库返回的类型。 */
+async function matchArchiveTables(
+  client: PoolClient,
+  archived: BackupTable[],
+  live: Array<{ schema: string; name: string }>,
+): Promise<BackupTable[]> {
+  const remaining = new Set(live.map(t => t.name));
+  const trusted: BackupTable[] = [];
+  for (const table of archived) {
+    if (table.schema !== 'public' || !remaining.delete(table.name)) {
+      throw new DomainError('BACKUP_INVALID_ARCHIVE', '归档表与当前数据库不匹配');
+    }
+    const columns = await listColumns(client, 'public', table.name);
+    const expected = new Map(columns.map(c => [c.name, c.type]));
+    if (columns.length !== table.columns.length || table.columns.some(c => expected.get(c.name) !== c.type || !expected.delete(c.name))) {
+      throw new DomainError('BACKUP_INVALID_ARCHIVE', `表 ${table.name} 的列或类型与当前数据库不匹配`);
+    }
+    trusted.push({ ...table, columns });
+  }
+  if (remaining.size) throw new DomainError('BACKUP_INVALID_ARCHIVE', '归档缺少当前数据库的表');
+  return trusted;
+}
+
 /**
  * 关掉外键触发器：session_replication_role=replica 时外键不再即时校验。
  * 权限不足（非超级用户）会报 42501，这时退化为「按外键依赖顺序插入」也能保证约束成立。
@@ -293,7 +306,7 @@ async function insertionOrder(client: PoolClient, tables: BackupTable[]): Promis
 }
 
 /**
- * 写回一张表：JSON 批量灌入，列值按归档里的类型串 cast 回目标类型。
+ * 写回一张表：JSON 批量灌入，列值按已验证的目标库类型转换。
  */
 async function insertTable(client: PoolClient, table: BackupTable, archive: BackupArchive): Promise<number> {
   const rows = archive.rows[`${table.schema}.${table.name}`] ?? [];

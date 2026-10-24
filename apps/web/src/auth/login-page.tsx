@@ -16,6 +16,7 @@ import { useBack } from '../back.js';
 import { displayAuthError, format } from '@jev/i18n';
 import { otpCooldownKey, readOtpDeadline, remainingOtpSeconds, sendOtpCode, OtpSendError } from './otp-cooldown.js';
 import { isAppShell, openSystemBrowser, siteOrigin } from '../app-runtime.js';
+import { beginAppOAuth } from './app-oauth.js';
 
 type Mode = 'signin' | 'signup';
 type Method = 'password' | 'otp';
@@ -168,8 +169,10 @@ export function LoginPage() {
     // App 壳：授权页在系统浏览器打开（WebView 会被 Google 拦），
     // 回调经服务端 handoff 302 到深链回 App，由 app-shell-links 换回令牌
     const nextUrl = new URL(next);
+    const appNext = nextUrl.pathname + nextUrl.search + nextUrl.hash;
+    const challenge = isAppShell ? await beginAppOAuth(appNext) : null;
     const callbackURL = isAppShell
-      ? `${siteOrigin()}/api/v1/app-session/handoff?next=${encodeURIComponent(nextUrl.pathname + nextUrl.search + nextUrl.hash)}`
+      ? `${siteOrigin()}/api/v1/app-session/handoff?next=${encodeURIComponent(appNext)}&challenge=${encodeURIComponent(challenge!)}`
       : next;
     const { data, error: oauthError } = await authClient.signIn.social({
       provider,

@@ -193,6 +193,30 @@ describe.runIf(!!databaseUrl)('备份归档（真实数据库）', () => {
     expect(await readParentText()).toEqual(before);
   });
 
+  it.each(['text IN (SELECT concat(pg_sleep(0)))', 'boolean OR true', 'text', 'pg_catalog.bool'])('归档类型 %s 与真实列不符时拒绝，数据库不变', async (type) => {
+    const before = await readParentText();
+    const archive = await dumpArchive(client);
+    const table = archive.tables.find(t => t.name === 'backup_test_parent')!;
+    table.columns.find(c => c.name === 'flag')!.type = type;
+    await expect(restoreArchive(client, archive)).rejects.toMatchObject({ code: 'BACKUP_INVALID_ARCHIVE' });
+    expect(await readParentText()).toEqual(before);
+  });
+
+  it('归档不能指向 public 以外的表，也不能遗漏或重复列', async () => {
+    for (const mutate of [
+      (a: BackupArchive) => { a.tables[0]!.schema = 'pg_catalog'; },
+      (a: BackupArchive) => { a.tables[0]!.columns.pop(); },
+      (a: BackupArchive) => { a.tables[0]!.columns[1] = a.tables[0]!.columns[0]!; },
+      (a: BackupArchive) => { a.tables.pop(); },
+    ]) {
+      const archive = await dumpArchive(client);
+      const before = await readParentText();
+      mutate(archive);
+      await expect(restoreArchive(client, archive)).rejects.toMatchObject({ code: 'BACKUP_INVALID_ARCHIVE' });
+      expect(await readParentText()).toEqual(before);
+    }
+  });
+
   it('解码：不是合法归档文件时报 BACKUP_INVALID_ARCHIVE', async () => {
     expect(() => decodeArchive(Buffer.from('not gzip'))).toThrow(DomainError);
     expect(() => decodeArchive(encodeArchive({ format: 'other', version: 1 } as unknown as BackupArchive))).toThrow(

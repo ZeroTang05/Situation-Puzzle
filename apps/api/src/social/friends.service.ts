@@ -285,14 +285,17 @@ export class FriendsService {
 
   /** 删除好友：双向两行一起删。 */
   async removeFriend(user: SessionUser, friendUserId: string): Promise<void> {
-    await this.db.db
-      .delete(friendships)
-      .where(
-        or(
-          and(eq(friendships.userId, user.userId), eq(friendships.friendUserId, friendUserId)),
-          and(eq(friendships.userId, friendUserId), eq(friendships.friendUserId, user.userId)),
-        ),
-      );
+    const pair = normalizeUserPair(user.userId, friendUserId);
+    await this.db.tx(async (tx) => {
+      // 与发消息、快捷开局共享会话锁；删除提交后不再允许新的写入。
+      await tx.select({ id: conversations.id }).from(conversations)
+        .where(and(eq(conversations.userLow, pair.userLow), eq(conversations.userHigh, pair.userHigh)))
+        .for('update');
+      await tx.delete(friendships).where(or(
+        and(eq(friendships.userId, user.userId), eq(friendships.friendUserId, friendUserId)),
+        and(eq(friendships.userId, friendUserId), eq(friendships.friendUserId, user.userId)),
+      ));
+    });
   }
 
   /** 好友关系判定（只看 user_id = 我 这一侧）。 */

@@ -17,3 +17,6 @@ mailsink.json
 .env
 .env.local
 .env.production
+
+# 本地浏览器登录资料不进入构建上下文
+data/xhs

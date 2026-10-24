@@ -1,82 +1,86 @@
 /**
- * App 壳 OAuth 回流的会话交接（docs/rebuild/13-APP-VERSION.md §5、M2）。
- *
- * 系统（浏览）器里完成 OAuth 后，会话 Cookie 落在系统浏览器的 Cookie 罐里，
- * App 的 WebView 拿不到。链条：
- *   1. App 发起 OAuth 时把 callbackURL 指到本控制器 handoff（https 站内地址）；
- *   2. 系统浏览器带着刚设置的会话 Cookie GET handoff → 换 60 秒一次性 code，
- *      302 到 App 自定义 scheme（cn.xiaobaozi.sp:/oauth，包名拍板后不可改故写死）；
- *   3. Android 以深链唤起 App，App 用 code 调 exchange 换回 Bearer 令牌存本地。
- * code 是 jose HS256 签名的短期令牌（载荷含会话令牌本身），无服务端状态、不可伪造。
+ * App OAuth 会话交接：随机短期 code 绑定本机 verifier 摘要，数据库原子消费一次。
+ * 系统浏览器仅传递摘要；真正的 verifier 保留在发起登录的 App 私有存储中。
  */
 import { Controller, Get, Post, Body, HttpCode, Query, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { SignJWT, jwtVerify } from 'jose';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { getSessionCookie } from 'better-auth/cookies';
+import { and, eq, gt, like, lte } from 'drizzle-orm';
+import { profiles, verification } from '@jev/database';
 import { DomainError } from '@jev/domain';
 import { app } from '../context.js';
 import { Anonymous, Public } from '../common/public.js';
 import { ZodValidationPipe } from '../common/http.js';
-import { appSessionExchangeRequestSchema } from '@jev/contracts';
+import { appSessionChallengeSchema, appSessionExchangeRequestSchema } from '@jev/contracts';
 import type { z } from 'zod';
 
-/** better-auth 默认会话 Cookie 名（bearer 令牌 = 该 Cookie 的完整值 token.signature） */
-const SESSION_COOKIE = 'better-auth.session_token';
-/** App 深链回调地址：与 AndroidManifest 的 intent-filter 对应 */
 const APP_OAUTH_DEEPLINK = 'cn.xiaobaozi.sp:/oauth';
-const ISSUER = 'jev-app-oauth';
+const HANDOFF_PREFIX = 'jev-app-handoff:';
 
-/** 深链回 App 的 next 只接受站内相对路径（以单个 / 开头），防借深链做跳转 */
+/** 深链 next 只接受站内相对路径。 */
 function safeNext(raw: string | undefined): string {
   if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\')) return '/';
   return raw;
 }
 
+/** code 的散列与本机摘要共同定位记录，错误 verifier 无法消费合法 code。 */
+function identifierOf(code: string, challenge: string): string {
+  return `${HANDOFF_PREFIX}${createHash('sha256').update(code).digest('hex')}:${challenge}`;
+}
+
 @Controller('app-session')
 export class AppSessionController {
-  private secret(): Uint8Array {
-    return new TextEncoder().encode(app().env.AUTH_SECRET);
-  }
-
-  /**
-   * 会话交接：系统浏览器持 Cookie 访问，签发一次性 code 后 302 回 App。
-   * 未登录（无 Cookie）也走 302，带 error 参数让 App 端给出可读提示。
-   */
+  /** 验证浏览器会话后签发 60 秒交接码，支持 Better Auth 的安全 Cookie 名。 */
   @Public()
   @Get('handoff')
-  async handoff(@Req() req: Request, @Res() res: Response, @Query('next') next?: string) {
-    const cookieHeader = req.headers.cookie ?? '';
-    const sessionCookie = cookieHeader
-      .split(';')
-      .map((part) => part.trim())
-      .find((part) => part.startsWith(`${SESSION_COOKIE}=`));
-    const target = safeNext(next);
-    if (!sessionCookie) {
-      res.redirect(302, `${APP_OAUTH_DEEPLINK}?error=unauthenticated&next=${encodeURIComponent(target)}`);
+  async handoff(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('challenge', new ZodValidationPipe(appSessionChallengeSchema)) challenge: string,
+    @Query('next') next?: string,
+  ) {
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    const callback = new URL(APP_OAUTH_DEEPLINK);
+    callback.searchParams.set('state', challenge);
+    callback.searchParams.set('next', safeNext(next));
+    const headers = new Headers({ cookie: req.headers.cookie ?? '' });
+    const auth = await app().auth.api.getSession({ headers });
+    const token = getSessionCookie(headers);
+    const [profile] = auth ? await app().db.db.select({ status: profiles.status }).from(profiles)
+      .where(eq(profiles.userId, auth.user.id)).limit(1) : [];
+    if (!auth || !token || profile?.status !== 'active') {
+      callback.searchParams.set('error', 'unauthenticated');
+      res.redirect(302, callback.toString());
       return;
     }
-    const token = sessionCookie.slice(SESSION_COOKIE.length + 1);
-    const code = await new SignJWT({ t: token })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuer(ISSUER)
-      .setIssuedAt()
-      .setExpirationTime('60s')
-      .sign(this.secret());
-    res.redirect(302, `${APP_OAUTH_DEEPLINK}?code=${encodeURIComponent(code)}&next=${encodeURIComponent(target)}`);
+    const now = new Date();
+    await app().db.db.delete(verification).where(and(
+      like(verification.identifier, `${HANDOFF_PREFIX}%`), lte(verification.expiresAt, now),
+    ));
+    const code = randomBytes(32).toString('base64url');
+    await app().db.db.insert(verification).values({
+      id: randomUUID(), identifier: identifierOf(code, challenge), value: token,
+      expiresAt: new Date(now.getTime() + 60_000),
+    });
+    callback.searchParams.set('code', code);
+    res.redirect(302, callback.toString());
   }
 
-  /** App 端用一次性 code 换回 Bearer 令牌；过期或伪造直接失败，不编造会话。 */
+  /** 正确 verifier、有效期和单次消费同时成立才返回会话令牌。 */
   @Anonymous()
   @HttpCode(200)
   @Post('exchange')
   async exchange(
     @Body(new ZodValidationPipe(appSessionExchangeRequestSchema)) body: z.infer<typeof appSessionExchangeRequestSchema>,
   ): Promise<{ token: string }> {
-    try {
-      const { payload } = await jwtVerify(body.code, this.secret(), { issuer: ISSUER });
-      if (typeof payload.t !== 'string' || payload.t.length === 0) throw new Error('载荷缺少令牌');
-      return { token: payload.t };
-    } catch {
-      throw new DomainError('UNAUTHORIZED', '回流凭证无效或已过期，请重新登录');
-    }
+    const challenge = createHash('sha256').update(body.verifier).digest('base64url');
+    const [consumed] = await app().db.db.delete(verification).where(and(
+      eq(verification.identifier, identifierOf(body.code, challenge)),
+      gt(verification.expiresAt, new Date()),
+    )).returning({ token: verification.value });
+    if (!consumed) throw new DomainError('UNAUTHORIZED', '回流凭证无效或已过期，请重新登录');
+    return { token: consumed.token };
   }
 }

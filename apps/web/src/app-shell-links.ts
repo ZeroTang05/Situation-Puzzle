@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router';
 import { useDialog } from '@jev/ui';
 import { api, translateApiError } from './api/client.js';
 import { useLanguage } from './state/language.js';
+import { consumeAppOAuthCallback } from './auth/app-oauth.js';
 import {
   apiBase,
   closeSystemBrowser,
@@ -25,12 +26,6 @@ import {
 /** 上一条已提示过的剪贴板邀请路径：同一页面运行期不重复打扰 */
 let lastPromptedInvite: string | null = null;
 
-/** 深链 next 只接受站内相对路径，防借深链参数跳到外部地址 */
-function safeNext(raw: string | null): string {
-  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\')) return '/';
-  return raw;
-}
-
 export function useAppShellLinks(): void {
   const navigate = useNavigate();
   const dialog = useDialog();
@@ -40,14 +35,14 @@ export function useAppShellLinks(): void {
     if (!isAppShell) return;
 
     const unbindUrl = onAppUrlOpen((url) => {
+      const callback = consumeAppOAuthCallback(url);
+      if (!callback) return;
+      const { code, verifier, next } = callback;
       void (async () => {
-        const parsed = new URL(url);
-        const code = parsed.searchParams.get('code');
-        const next = safeNext(parsed.searchParams.get('next'));
         await closeSystemBrowser();
         if (code) {
           try {
-            const { token } = await api<{ token: string }>('/app-session/exchange', { method: 'POST', body: { code } });
+            const { token } = await api<{ token: string }>('/app-session/exchange', { method: 'POST', body: { code, verifier } });
             storeBearerToken(token);
             window.location.assign(next);
             return;

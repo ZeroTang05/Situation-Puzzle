@@ -1,7 +1,7 @@
 # AI 海龟汤 — 项目导览
 
 移动优先的多人海龟汤（情境猜谜）网页：玩家提问，AI「Jev」回答 是/否/无关/无法确定。
-房间新规则见 `docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md`（v3）：会客厅（lobby）与房间（room）生命周期彻底解耦。每个用户固定一个会客厅 id（`user_lobbies.host_user_id UNIQUE` 物理保证 1:1，永久不变），房主可以同时拥有任意多个 active 房间；同一用户也可以同时是别的 lobby 的成员；踢人 = DELETE 座位行不留 kicked 软标记；邀请 URL 路径区分 `/lobby/invite/<hex>` 与 `/room/invite/<hex>`，后端两条独立 endpoint 无 fallback；先选题后开局，start 单事务建房+迁成员+建局+撤销旧邀请；start 事务提交后通过实时网关向所有 lobby 订阅者推送 `lobby.started` 帧（携带 roomId+inviteToken），客户端收到后立即 navigate 到房间，避免客人因轮询延迟被误报"等待室已解散"；一房一题（局结束即归档）；单人无业务限流。
+房间新规则见 `docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md`（v3）：会客厅（lobby）与房间（room）生命周期彻底解耦。每个用户固定一个会客厅 id（`user_lobbies.host_user_id UNIQUE` 物理保证 1:1，永久不变），房主可以同时拥有任意多个 active 房间；同一用户也可以同时是别的 lobby 的成员；踢人 = DELETE 座位行不留 kicked 软标记；邀请 URL 路径区分 `/lobby/invite/<hex>` 与 `/room/invite/<hex>`，后端两条独立 endpoint 无 fallback；先选题后开局，start 单事务建房+迁成员+建局+撤销旧邀请；start 事务提交后通过实时网关向新房当前成员中会话有效的 lobby 订阅者推送 `lobby.started` 帧（携带 roomId+inviteToken），客户端收到后立即 navigate 到房间，避免客人因轮询延迟被误报"等待室已解散"；一房一题（局结束即归档）；单人无业务限流。
 单人模式无需登录、永久免费、对话只存浏览器；多人房间（容量由 `ROOM_CAPACITY` 环境变量配置，默认 8）、服务端保存并实时同步；
 未赞助账号累计可开 10 个房间，月度赞助 6 元 / 永久 20 元不限开房。
 **收款通道有三条**：微信支付 v3 Native（扫码，需商户资质，未配置凭据时前台显示「支付通道开通中」）、
@@ -15,7 +15,7 @@
 
 **加好友 + 私聊 + 快捷开局 + 通知**（`docs/rebuild/19-FRIENDS-DM-NOTIFICATIONS.md`）：按邮箱**精确**搜索（不做前缀模糊搜索，避免枚举站内邮箱）→ 发好友申请 → 对方同意才成为好友（申请-同意制）。申请按 `user_low`/`user_high` 规范化，A→B 与 B→A 互斥，数据库部分唯一索引 `friend_requests_pending_pair_uq` 兜底。好友之间有私聊会话（同意申请时同事务建），消息按**会话内序号** `dm_messages.seq` 排序，已读水位 `conversation_reads.last_read_seq` **只前进不后退**（不用时间戳：同毫秒发消息会丢）。私聊里可「来一局」发起一局（`POST /conversations/:id/start-room`）：**对方不被自动拉进房间**，卡片上的「进入房间」是邀请链接（`/room/invite/<token>`，令牌明文随卡片落在 `dm_messages.invite_token`），对方点了才进房；卡片按钮按房间当前状态变化（归档后变「房间已结束」）。**没有会话列表页**：`/chat` 不存在，好友列表是唯一入口，点好友名整行直达 `/chat/:conversationId`（站内没有「消息」按钮，全站不再提供该入口）。私聊消息 / 好友申请 / 开局邀请 / 站内信统一进通知中心（`notifications`），铃铛角标 10 秒轮询、聊天页 3 秒轮询——**本轮不走 WebSocket**，实时网关留作后续扩展点。通知标题**不落库**：读取时按 `X-Jev-Language` 即时拼装（站内信用公告原文）。
 
-**项目备份（后台）**：管理员在后台「项目备份」页把整个数据库做逻辑快照、存进 **S3 兼容对象存储**，并可从任一备份还原。实现走**纯 Node**（`apps/api/src/backup/`），不依赖 `pg_dump` 等外部二进制：导出时每列在 SQL 侧 `::text` 文本化（bytea/jsonb/数组/numeric/enum 都靠「文本 → 目标类型」cast 无损往返，NULL 原样保留），还原在**单个事务**里完成（`TRUNCATE … RESTART IDENTITY CASCADE` → 按外键拓扑序写回 → 重置序列），任一步失败整体回滚。归档类型串拼进 SQL 前必须过白名单，否则抛 `BACKUP_INVALID_ARCHIVE`。对象存储未配置（缺 `S3_BUCKET`）时整体降级为「未接入」，后台只显示提示、不做任何写操作。还原是不可逆操作：请求体必须带固定确认口令 `RESTORE` + 操作理由，写操作全部留审计（`audit_logs`，objectType=`backup`）；**还原的审计写在提交之后**——还原会 TRUNCATE `audit_logs` 自己。
+**项目备份（后台）**：管理员在后台「项目备份」页把整个数据库做逻辑快照、存进 **S3 兼容对象存储**，并可从任一备份还原。实现走**纯 Node**（`apps/api/src/backup/`），不依赖 `pg_dump` 等外部二进制：导出时每列在 SQL 侧 `::text` 文本化（bytea/jsonb/数组/numeric/enum 都靠「文本 → 目标类型」cast 无损往返，NULL 原样保留），还原在**单个事务**里完成（`TRUNCATE … RESTART IDENTITY CASCADE` → 按外键拓扑序写回 → 重置序列），任一步失败整体回滚。归档表与字段类型必须与目标库元数据严格匹配，SQL 类型只取目标库，否则抛 `BACKUP_INVALID_ARCHIVE`。对象存储未配置（缺 `S3_BUCKET`）时整体降级为「未接入」，后台只显示提示、不做任何写操作。还原是不可逆操作：请求体必须带固定确认口令 `RESTORE` + 操作理由，写操作全部留审计（`audit_logs`，objectType=`backup`）；**还原的审计写在提交之后**——还原会 TRUNCATE `audit_logs` 自己。
 
 ## 目录结构
 
@@ -24,7 +24,7 @@ apps/web        玩家端（React 19 + Vite）：首页、题库、单人、会�
 apps/admin      管理端（React-admin）：题库审核、用户、房间调查、举报、订单、赞助码（发码/对账/作废）、项目备份（备份/还原/下载）、站内信群发、总览；所有列表表头可点排序（后端列名白名单，见 admin-sort-columns.ts）
 apps/api        NestJS 服务：认证 auth、题库 catalog、单人 solo、房间与会客厅 rooms、实时网关 realtime、赞助订单 billing、创作 creations、治理 governance、后台 admin、备份 backup、社交 social（好友/私聊/通知/站内信）
 apps/jobs       pg-boss 任务进程：dispatch-room / process-turn / review-puzzle / maintenance
-apps/app        Android 壳工程（Capacitor 8，包名 cn.xiaobaozi.sp，App 名「Jev 海龟汤」）：apps/web 构建产物打进 WebView；插件 @capacitor/app browser clipboard keyboard（OAuth 回流系统浏览器、深链事件、剪贴板邀请过渡、键盘避让）；OAuth 回流端点 `/api/v1/app-session/handoff|exchange`（60 秒 jose code 换 Bearer 令牌）；计划与认证适配方案见 docs/rebuild/13-APP-VERSION.md
+apps/app        Android 壳工程（Capacitor 8，包名 cn.xiaobaozi.sp，App 名「Jev 海龟汤」）：apps/web 构建产物打进 WebView；插件 @capacitor/app browser clipboard keyboard（OAuth 回流系统浏览器、深链事件、剪贴板邀请过渡、键盘避让）；OAuth 回流端点 `/api/v1/app-session/handoff|exchange`（60 秒随机单次 code + 本机 verifier 校验后换 Bearer 令牌）；计划与认证适配方案见 docs/rebuild/13-APP-VERSION.md
 packages/contracts   跨端 Zod 契约：HTTP 请求响应、WS 事件、稳定错误码（客户端只准引用这里）
 packages/domain      纯业务规则：房间状态机、排队容量、赞助自然月算法、授权来源判定、好友申请与私聊权限（配单测）
 packages/database    Drizzle 表结构（49 张表）、追加式迁移（drizzle/）、房间事务封装（rooms-tx）、题库导入
@@ -137,7 +137,7 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   ② 备份 / 还原同一时刻只允许一个任务在跑（`BACKUP_IN_PROGRESS`）；
   ③ 还原必须带确认口令 `RESTORE` + 理由，key 只能落在 `S3_BACKUP_PREFIX` 前缀内；
   ④ 还原是全局独占写操作，期间的其它写事务会等待或锁超时（锁序约定对它不适用）；
-  ⑤ 归档里的类型串会拼进 SQL，拼之前必须过白名单（防归档被篡改）
+  ⑤ 归档表与列类型必须匹配目标库元数据；还原 SQL 只使用目标库类型，禁止插入归档类型串
 
 ## 踩坑点
 

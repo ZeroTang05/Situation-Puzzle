@@ -194,6 +194,23 @@ describe.runIf(!!databaseUrl)('好友 / 私聊 / 通知（真实数据库）', (
     await friends.removeFriend(alice, bob.userId);
     const rows = await handle.db.select().from(schemaModule.friendships);
     expect(rows).toHaveLength(0);
+    const conversationId = (await handle.db.select().from(schemaModule.conversations))[0]!.id;
+    const beforeMessages = await handle.db.select().from(schemaModule.dmMessages);
+    const beforeNotifications = await handle.db.select().from(schemaModule.notifications);
+    const beforeRooms = await handle.db.select().from(schemaModule.rooms);
+    for (const sender of [alice, bob]) {
+      await expect(chat.sendMessage(sender, conversationId, '删除后发送')).rejects.toMatchObject({ code: 'NOT_FRIENDS' });
+      await expect(chat.startQuickRoom(sender, conversationId, undefined, 'zh')).rejects.toMatchObject({ code: 'NOT_FRIENDS' });
+    }
+    expect(await handle.db.select().from(schemaModule.dmMessages)).toEqual(beforeMessages);
+    expect(await handle.db.select().from(schemaModule.notifications)).toEqual(beforeNotifications);
+    expect(await handle.db.select().from(schemaModule.rooms)).toEqual(beforeRooms);
+    expect((await chat.listMessages(alice, conversationId)).messages).toEqual([]);
+
+    // 重新通过真实好友申请恢复关系，后面的正常收发继续复用原会话。
+    const request = await friends.createRequest(alice, bob.email, '重新添加');
+    await friends.reviewRequest(bob, request.requestId, true);
+    expect(await handle.db.select().from(schemaModule.conversations)).toHaveLength(1);
   });
 
   // ---------- 私聊 ----------
@@ -346,4 +363,46 @@ describe.runIf(!!databaseUrl)('好友 / 私聊 / 通知（真实数据库）', (
     const aliceUnread = await notifications.unreadCount(alice);
     expect(aliceUnread.unread).toBeGreaterThan(0);
   });
+  it('删除与发送并发：撤权提交后消息和邀请均拒绝，历史保留', async () => {
+    const conversationId = (await handle.db.select().from(schemaModule.conversations))[0]!.id;
+    const before = await chat.listMessages(alice, conversationId);
+    const blocker = await pool.connect();
+    try {
+      await blocker.query('BEGIN');
+      await blocker.query('SELECT id FROM conversations WHERE id = $1 FOR UPDATE', [conversationId]);
+      const removal = friends.removeFriend(alice, bob.userId);
+      await waitForLocks(1);
+      const writes = Promise.allSettled([
+        chat.sendMessage(alice, conversationId, '并发消息'),
+        chat.startQuickRoom(bob, conversationId, undefined, 'zh'),
+      ]);
+      await waitForLocks(3);
+      await blocker.query('COMMIT');
+      await removal;
+      const outcomes = await writes;
+      for (const outcome of outcomes) {
+        expect(outcome.status).toBe('rejected');
+        if (outcome.status === 'rejected') expect(outcome.reason.code).toBe('NOT_FRIENDS');
+      }
+      expect(await chat.listMessages(alice, conversationId)).toEqual(before);
+    } finally {
+      await blocker.query('ROLLBACK');
+      blocker.release();
+    }
+  });
+
+  /** 用真实 PostgreSQL 锁等待确认先后顺序，不依赖固定延时。 */
+  async function waitForLocks(count: number): Promise<void> {
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
+      const result = await pool.query(
+        `SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = current_database()
+           AND wait_event_type = 'Lock' AND query LIKE '%"conversations"%'`,
+      );
+      if (result.rows[0].n >= count) return;
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    throw new Error('等待会话行锁超时');
+  }
+
 });

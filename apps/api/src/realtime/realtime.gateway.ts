@@ -235,8 +235,7 @@ export class RealtimeGateway {
       state.subscriptions.set(frame.roomId, sub);
       if (await this.deliver(socket, state, sub)) this.send(socket, { type: 'sync.ready', roomId: sub.roomId, watermark: sub.lastSeq });
     }
-    // lobby 订阅只校验 session 有效性 + 当前用户在该 lobby 内（房主或成员）；
-    // lobby id 是 UUID 难猜，且无事件补齐，被恶意订阅也不会泄漏业务数据。
+    // 订阅时检查会客厅成员；开局通知另按新房间的当前成员权限检查。
     if (frame.type === 'lobby.subscribe') {
       if (!await this.lobbyAuthorized(socket, state, frame.lobbyId)) return;
       state.lobbySubscriptions.add(frame.lobbyId);
@@ -290,14 +289,18 @@ export class RealtimeGateway {
   }
 
   /**
-   * 会客厅开局广播：start() 事务成功后调用，向所有订阅了 lobbyId 的 socket 推送 lobby.started。
-   * 找不到订阅者也没关系——客户端走 2 秒轮询兜底，会看到 status='closed' + 空 members，
-   * 但已经不再有 selectedPuzzle，不会拿到"等待室已解散"误报；这时由前端再 fallback 一次导航即可。
+   * 开局后座位已经迁入房间：按房间成员和有效会话鉴权，再发送邀请。
+   * 本次会客厅订阅随通知消费，避免固定 lobby id 在下一局复用旧订阅。
    */
   broadcastLobbyStarted(lobbyId: string, roomId: string, inviteToken: string): void {
     for (const [socket, state] of this.clients) {
       if (state.lobbySubscriptions.has(lobbyId)) {
-        this.send(socket, { type: 'lobby.started', lobbyId, roomId, inviteToken });
+        state.lobbySubscriptions.delete(lobbyId);
+        this.enqueue(socket, state, async () => {
+          if (await this.authorized(socket, state, roomId)) {
+            this.send(socket, { type: 'lobby.started', lobbyId, roomId, inviteToken });
+          }
+        });
       }
     }
   }

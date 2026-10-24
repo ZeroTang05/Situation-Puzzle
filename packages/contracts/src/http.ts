@@ -145,8 +145,10 @@ export const soloRevealRequestSchema = z.object({
 
 // ---------- App 壳会话交接（OAuth 系统浏览器回流后换 Bearer 令牌） ----------
 
+export const appSessionChallengeSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
 export const appSessionExchangeRequestSchema = z.object({
-  code: z.string().min(1),
+  code: appSessionChallengeSchema,
+  verifier: appSessionChallengeSchema,
 });
 
 export const appSessionExchangeResponseSchema = z.object({

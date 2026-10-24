@@ -27,7 +27,7 @@ COPY tsconfig.base.json ./
 COPY packages ./packages
 COPY apps/api ./apps/api
 # 题库导入源（seed profile 使用）
-COPY data ./data
+COPY data/library.json data/library.en.json ./data/
 EXPOSE 8080
 # 迁移是追加式且幂等：每次启动先执行，再启动 API
 CMD ["sh", "-c", "pnpm --dir packages/database run db:migrate && exec pnpm --dir apps/api exec tsx src/main.ts"]

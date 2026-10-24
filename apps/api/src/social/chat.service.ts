@@ -15,6 +15,8 @@ import {
   conversations,
   conversationReads,
   dmMessages,
+  friendships,
+  type Tx,
   puzzles,
   puzzleVersions,
   roomMembers,
@@ -192,7 +194,7 @@ export class ChatService {
     };
   }
 
-  /** 发消息：只有好友能私聊（会话存在即好友，但这里再兜一层）。 */
+  /** 会话保留历史；发送权限按当前好友关系判定。 */
   async sendMessage(user: SessionUser, conversationId: string, text: string): Promise<{ message: DmMessageView }> {
     return this.db.tx(async (tx) => {
       const [conversation] = await tx
@@ -206,7 +208,7 @@ export class ChatService {
       if (conversation.userLow !== user.userId && conversation.userHigh !== user.userId) {
         throw new DomainError('FORBIDDEN', '你不在这个会话里');
       }
-      assertCanMessage({ senderId: user.userId, peerId: peerUserId, isFriend: true });
+      await this.assertCurrentFriend(tx, user.userId, peerUserId);
 
       const [maxRow] = await tx
         .select({ maxSeq: sql<number>`coalesce(max(${dmMessages.seq}), 0)::int` })
@@ -318,6 +320,8 @@ export class ChatService {
       }
       const peerUserId = conversation.userLow === user.userId ? conversation.userHigh : conversation.userLow;
 
+      await this.assertCurrentFriend(tx, user.userId, peerUserId);
+
       // 选题：指定题目就取它的当前发布版，没指定就随机挑一道
       const conditions = [eq(puzzles.unavailable, false), eq(puzzleVersions.language, language)];
       if (puzzleId) conditions.push(eq(puzzles.id, puzzleId));
@@ -424,6 +428,13 @@ export class ChatService {
   }
 
   // ---------- 内部工具 ----------
+
+  /** 调用方已锁会话行；删除好友也锁同一行，发送和撤权按事务顺序生效。 */
+  private async assertCurrentFriend(tx: Tx, userId: string, peerId: string): Promise<void> {
+    const [friend] = await tx.select({ userId: friendships.userId }).from(friendships)
+      .where(and(eq(friendships.userId, userId), eq(friendships.friendUserId, peerId))).limit(1);
+    assertCanMessage({ senderId: userId, peerId, isFriend: friend !== undefined });
+  }
 
   /** 会话参与校验：我必须是这两人之一。返回对方（相对当前用户）。 */
   private async assertParticipant(userId: string, conversationId: string): Promise<string> {
