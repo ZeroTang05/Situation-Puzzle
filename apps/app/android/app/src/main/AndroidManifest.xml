@@ -32,6 +32,17 @@
                 <data android:scheme="cn.xiaobaozi.sp" android:pathPrefix="/oauth" />
             </intent-filter>
 
+            <!-- App Links：官网域名的邀请链接直达 App（autoVerify 靠
+                 sp.xiaobaozi.cn/.well-known/assetlinks.json 认领，指纹来自签名密钥）。
+                 未装 App 时浏览器正常打开网页邀请页，两边共用同一路径 -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="sp.xiaobaozi.cn" android:pathPrefix="/lobby/invite/" />
+                <data android:scheme="https" android:host="sp.xiaobaozi.cn" android:pathPrefix="/room/invite/" />
+            </intent-filter>
+
         </activity>
 
         <provider

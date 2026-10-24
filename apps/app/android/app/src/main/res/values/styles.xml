@@ -16,7 +16,11 @@
     </style>
 
 
+    <!-- 启动屏（androidx core-splashscreen）：品牌底色 + 居中 App 图标，
+         显示完按 postSplashScreenTheme 切回正式主题。不用整张拉伸的
+         splash.png——屏幕比例不同会变形。 -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">@color/ic_launcher_background</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
     </style>
 </resources>

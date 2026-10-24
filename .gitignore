@@ -42,3 +42,6 @@ data/curated
 # 小红书海龟汤日更产物（海报图/文案/请求稿，不入库）
 data/xhs
 
+# App 安装包只存服务器 dl/ 目录（说明见 dl/README.md）
+dl/*.apk
+

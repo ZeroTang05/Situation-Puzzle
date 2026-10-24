@@ -13,6 +13,10 @@ services:
     # 高位端口外暴：宿主 Nginx 用 127.0.0.1:18081 反代 / (玩家端)
     ports:
       - '127.0.0.1:${WEB_HOST_PORT:-18081}:80'
+    # App 安装包直链分发：宿主 ./dl 挂到容器 /dl，nginx /dl/ 按文件原样提供
+    # （放包与目录说明见 dl/README.md；APK 不进镜像也不进 git）
+    volumes:
+      - ./dl:/usr/share/nginx/html/dl:ro
     depends_on:
       api:
         condition: service_healthy

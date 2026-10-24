@@ -1,6 +1,6 @@
 # 13 — App 版本开发计划
 
-状态：已拍板（决策记录见 §9）。M0 / M1 / M2 代码均已落地（M2 2026-10-17 模拟器验证通过），真机验收与 M3 交付待做。
+状态：已拍板（决策记录见 §9）。M0 / M1 / M2 / M3 代码均已落地（M2 2026-10-17 模拟器验证通过；M3 2026-10-24 签名 APK 构建验签通过），真机验收与 M4 上架待做。
 日期：2026-10-17；代码基线：dev `4e4b3ed`。
 
 ## 0. 结论
@@ -162,6 +162,17 @@ M2 完成记录（2026-10-17，代码落地、模拟器验证通过、待真机�
 - **插件**：apps/app 增 `@capacitor/app` `browser` `clipboard` `keyboard` 四件；web 侧经 `window.Capacitor.Plugins` 动态调用，web 工作区仍不引 Capacitor 依赖
 - **模拟器验证**：深链假 code 全链路（intent 捕获 → appUrlOpen → exchange 对生产 404 → 弹窗 → 落 `/login`）；冷启动令牌恢复连测两次正常；首页渲染与安全区间距（24px）视检通过；`pnpm typecheck` + `pnpm test` 全绿
 - **真机验收要点**：两台真机互发邀请对局；OAuth 回流要后端部署到生产 + LINUX DO / Google 凭据至少一个可用；剪贴板邀请提示与软键盘避让模拟器验不了（模拟器带硬件键盘、剪贴板种不进数据），真机确认
+
+M3 完成记录（2026-10-24，代码落地、签名包本地验签通过、待真机验收与生产部署）：
+
+- **签名**：本地生成上传密钥 `apps/app/android/keystores/sp-upload.jks`（PKCS12 / RSA 2048 / 30 年 / alias `sp-upload`），口令在 gitignored 的 `keystore.properties`；`app/build.gradle` 按该文件是否存在条件启用 `signingConfigs.release`（缺文件仍可构建未签名包）。密钥备份要求写在 `keystores/README.md`——**密钥丢失即无法再给已装机用户发更新，生成后必须离线备份**
+- **图标**：`scripts/app-icons.mjs` 从 `apps/web/public/icon.svg`（品牌汤碗 + 问号）渲染全密度图标（launcher / round / 自适应 foreground 五档密度 15 张 PNG），自适应图标背景层换成品牌深海底色 `#0a1522`；模板矢量与拉伸式 splash 图全部删除
+- **启动屏**：改用 androidx core-splashscreen 标准做法（`Theme.SplashScreen` + `windowSplashScreenBackground` 品牌底色 + 默认居中自适应图标 + `postSplashScreenTheme` 切回正式主题），`MainActivity` 在 `super.onCreate` 前调 `installSplashScreen()`；任何屏幕比例都不变形
+- **App Links**：manifest 加 `autoVerify` 的 https intent-filter（`sp.xiaobaozi.cn` 的 `/lobby/invite/` 与 `/room/invite/`）；认领文件 `apps/web/public/.well-known/assetlinks.json`（Vite 原样拷进构建产物）写入上传密钥 SHA-256 指纹；nginx 加该路径的静态路由（application/json）。壳内 `app-shell-links.ts` 的 `appUrlOpen` 增加邀请分支：识别本站邀请 URL 后直接 navigate 进邀请页，与剪贴板过渡共用 `matchInvitePath`
+- **官网分发**：`docker-compose.yml` 给 web 容器挂只读 `./dl` 卷，nginx `/dl/` 按文件原样返回（缺文件 404，不落回 SPA）；APK 只存服务器（根 `.gitignore` 排除 `dl/*.apk`），放包步骤见 `dl/README.md`；下载地址固定 `https://sp.xiaobaozi.cn/dl/jev-turtle-soup.apk`
+- **官网页面**：`apps/web/src/site/` 新增 `/app` 下载页（下载按钮 + 扫码 + Android 7.0 要求 + 未知来源安装提示；壳内显示「你已经在 App 里」）与 `/privacy` 中文隐私政策页；首页底部加弱化入口（App 下载 / 隐私政策，壳内不显示下载入口）
+- **验证**：`pnpm typecheck` 通过；`pnpm build:app` + `gradlew assembleRelease` 成功，apksigner 验签 SHA-256 与 assetlinks.json 指纹一致
+- **待办（生产侧）**：部署后用 Google 官方 [assetlinks 验证器](https://developers.google.com/digital-asset-links/tools/generator) 确认识领生效；`support@xiaobaozi.cn` 邮箱需要真的开通（隐私政策联系地址）；真机装机验收
 
 每阶段收尾跑 `pnpm typecheck` + `pnpm test`；网页端用现有 e2e 保障（App 适配全部开关式，网页默认路径不变）。
 

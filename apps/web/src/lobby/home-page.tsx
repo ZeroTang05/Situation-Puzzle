@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Modal } from '@jev/ui';
 import { api, translateApiError } from '../api/client.js';
 import { openOrGetLobby } from '../rooms/create-lobby.js';
+import { isAppShell } from '../app-runtime.js';
 import { useLanguage } from '../state/language.js';
 import type { Session } from '../session.js';
 import { creationCopy } from '../creations/copy.js';
@@ -121,6 +122,18 @@ export function HomePage({ session }: { session: Session | null }) {
           {entitlement.data.sponsored && <span className="verdict-badge verdict-solved">{copy.sponsored}</span>}
         </section>
       )}
+
+      {/* 站点入口：App 下载（壳内已经在 App 里，不显示）与隐私政策 */}
+      <footer className="site-footer">
+        {!isAppShell && (
+          <button type="button" onClick={() => navigate('/app')}>
+            {language === 'zh' ? 'App 下载' : 'Get the App'}
+          </button>
+        )}
+        <button type="button" onClick={() => navigate('/privacy')}>
+          {language === 'zh' ? '隐私政策' : 'Privacy Policy'}
+        </button>
+      </footer>
 
       <Modal open={introOpen} onOpenChange={setIntroOpen} title={copy.howToPlay} closeLabel={copy.gotIt}>
         <p>{copy.introWhat}</p>

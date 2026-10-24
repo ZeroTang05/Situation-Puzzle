@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "cn.xiaobaozi.sp",
+      "sha256_cert_fingerprints": [
+        "32:9D:F5:B5:1D:CD:EB:D1:FD:D2:C8:61:C0:AF:1B:29:2F:26:92:7E:DA:D6:A3:04:A4:34:D2:F0:DF:C9:7E:8A"
+      ]
+    }
+  }
+]

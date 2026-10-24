@@ -1381,3 +1381,19 @@ textarea.composer-input, .composer .composer-input {
 
 /* 通知页顶栏：右侧「全部已读」比返回按钮宽，第三列按内容宽度排，避免中文英文都被挤断 */
 .topbar-title.topbar-wide-actions { grid-template-columns: minmax(64px, 1fr) minmax(0, 2fr) max-content; }
+
+/* ---------- 站点页（App 下载 / 隐私政策） ---------- */
+
+/* 首页底部站点链接：弱化的文字入口，不与主操作抢注意力 */
+.site-footer { display: flex; justify-content: center; gap: 24px; margin-top: 4px; padding: 8px 0 16px; }
+.site-footer button, .link-like { border: 0; background: none; padding: 8px; color: var(--muted); font-size: 13px; cursor: pointer; }
+.site-footer button:hover, .link-like:hover { color: var(--ink); }
+.site-footer-links { margin: 8px 0 0; text-align: center; }
+
+/* App 下载页：二维码居中展示（白底盒由 sponsor-qr 样式提供，扫码需要） */
+.app-download-qr { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 8px 0; }
+.app-download-qr p { margin: 0; }
+
+/* 隐私政策：条款分节排版 */
+.privacy-body h3 { margin: 16px 0 8px; }
+.privacy-body ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; color: var(--ink); }

@@ -1,4 +1,4 @@
-/** 路由结构：单人 / 大厅 / 题库 / 房间 / 邀请 / 创作中心 / 我的 / 设置 / 好友 / 私聊 / 通知 / 登录。 */
+/** 路由结构：单人 / 大厅 / 题库 / 房间 / 邀请 / 创作中心 / 我的 / 设置 / 好友 / 私聊 / 通知 / 登录 / 站点页。 */
 import { Navigate, Route, Routes } from 'react-router';
 import { HomePage } from './lobby/home-page.js';
 import { HallPage } from './hall/hall-page.js';
@@ -21,6 +21,8 @@ import { RequireSession } from './auth/require-session.js';
 import { FriendsPage } from './social/friends-page.js';
 import { ChatPage } from './social/chat-page.js';
 import { NotificationsPage } from './social/notifications-page.js';
+import { AppDownloadPage } from './site/app-download-page.js';
+import { PrivacyPage } from './site/privacy-page.js';
 
 export function App() {
   const { session, isPending } = useJevSession();
@@ -52,6 +54,8 @@ export function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/app" element={<AppDownloadPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

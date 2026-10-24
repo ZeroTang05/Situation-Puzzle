@@ -24,7 +24,7 @@ apps/web        玩家端（React 19 + Vite）：首页、题库、单人、会�
 apps/admin      管理端（React-admin）：题库审核、用户、房间调查、举报、订单、赞助码（发码/对账/作废）、项目备份（备份/还原/下载）、站内信群发、总览；所有列表表头可点排序（后端列名白名单，见 admin-sort-columns.ts）
 apps/api        NestJS 服务：认证 auth、题库 catalog、单人 solo、房间与会客厅 rooms、实时网关 realtime、赞助订单 billing、创作 creations、治理 governance、后台 admin、备份 backup、社交 social（好友/私聊/通知/站内信）
 apps/jobs       pg-boss 任务进程：dispatch-room / process-turn / review-puzzle / maintenance
-apps/app        Android 壳工程（Capacitor 8，包名 cn.xiaobaozi.sp，App 名「Jev 海龟汤」）：apps/web 构建产物打进 WebView；插件 @capacitor/app browser clipboard keyboard（OAuth 回流系统浏览器、深链事件、剪贴板邀请过渡、键盘避让）；OAuth 回流端点 `/api/v1/app-session/handoff|exchange`（60 秒随机单次 code + 本机 verifier 校验后换 Bearer 令牌）；计划与认证适配方案见 docs/rebuild/13-APP-VERSION.md
+apps/app        Android 壳工程（Capacitor 8，包名 cn.xiaobaozi.sp，App 名「Jev 海龟汤」）：apps/web 构建产物打进 WebView；插件 @capacitor/app browser clipboard keyboard（OAuth 回流系统浏览器、深链事件、剪贴板邀请过渡、键盘避让）；OAuth 回流端点 `/api/v1/app-session/handoff|exchange`（60 秒随机单次 code + 本机 verifier 校验后换 Bearer 令牌）；M3 交付：签名密钥 `keystores/sp-upload.jks`（gitignored，`keystore.properties` 存在时 gradle 才启用 release 签名，备份要求见 keystores/README.md）、品牌图标与启动屏（scripts/app-icons.mjs + core-splashscreen）、App Links（manifest autoVerify + `apps/web/public/.well-known/assetlinks.json` 域名认领 + 壳内 https 邀请直达）、官网 `/app` 下载页与 `/privacy` 隐私政策；计划与认证适配方案见 docs/rebuild/13-APP-VERSION.md
 packages/contracts   跨端 Zod 契约：HTTP 请求响应、WS 事件、稳定错误码（客户端只准引用这里）
 packages/domain      纯业务规则：房间状态机、排队容量、赞助自然月算法、授权来源判定、好友申请与私聊权限（配单测）
 packages/database    Drizzle 表结构（49 张表）、追加式迁移（drizzle/）、房间事务封装（rooms-tx）、题库导入
@@ -32,6 +32,7 @@ packages/jev         Jev SystemOne 适配：20s 超时、错误分类、缺概�
 packages/i18n        稳定枚举/错误码 → 中英文案
 packages/ui          设计变量（深海色系、16px 正文、44px 触控）
 infra/               web/admin/api/jobs 各自 Dockerfile（apps/web+apps/admin 静态烘进 nginx，api 容器启动自动跑迁移）、web.nginx.conf / admin.nginx.conf
+dl/                  App 安装包服务器分发目录（web 容器只读挂载、nginx /dl/ 直链；APK 不入库，放包步骤见 dl/README.md）
 scripts/             冒烟与端到端联调脚本（smoke-new-system.sh、e2e-run.sh、e2e-node-run.mjs 跨平台编排器、e2e-multiplayer/e2e-host-mode/e2e-votes 剧本、dev-env.sh、dev-mailsink.mjs）
 data/                题库 JSON 导入源：根 library.json / library.en.json 同 ID 配套（顺序须一致，当前 446 题 = 天堂精选 93 置顶 + 首发 7 + 扩展 10 + 小小耶精选 240 + 许二木精选 96，许二木批 2026-10-15 入库追加于库尾；zh 条目 category 本格/变格由导入映射为 puzzle_category 枚举 honkaku/henkaku；第一题固定「终点线」，各批次保持批内原序；seed 导入统一署名「初始题库」（signature 模式，前端按语言本地化））；sources.md 全库来源总览与逐题对照（编号=现役库位置 1–446）；scoring/ 打分口径与全部批次评分（编号 1–493 连续续写，与 sources.md 编号相互独立）；curated/ 各 UP 主批逐篇评审与存档（天堂/小小耶/许二木三批普通题均已并入根库，特殊玩法与未采用稿留存于各自目录）；reference/ 真实游玩素材（group 原始字幕 → real 抽取稿，按 UP 主分目录）
 docs/rebuild/        产品与架构设计文档（01~19：10 房间生命周期修订、11 赞踩署名、12 连接体验、13 App 版本计划、14 赞助码通道、15 支付通道凭据清单、16 并发与限流盘点、17 用户主持人模式、18 大厅与公开房间、19 加好友/私聊/通知）
