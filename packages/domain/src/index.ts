@@ -1,6 +1,7 @@
 /** 领域规则出口。 */
 export * from './error.js';
 export * from './sponsorship.js';
+export * from './room-bonus.js';
 export * from './rooms.js';
 export * from './creation-review.js';
 export * from './redeem-codes.js';

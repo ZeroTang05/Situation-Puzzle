@@ -19,6 +19,7 @@ import { RealtimeController } from './realtime/realtime.controller.js';
 import { BillingController } from './billing/billing.controller.js';
 import { OrdersService } from './billing/orders.service.js';
 import { RedeemCodesService } from './billing/redeem-codes.service.js';
+import { RoomBonusService } from './billing/room-bonus.service.js';
 import { CreationsController } from './creations/creations.controller.js';
 import { GovernanceController } from './governance/governance.controller.js';
 import { AdminController } from './admin/admin.controller.js';
@@ -59,6 +60,7 @@ import { AnnouncementsController } from './social/announcements.controller.js';
     HallService,
     OrdersService,
     RedeemCodesService,
+    RoomBonusService,
     BackupService,
     FriendsService,
     ChatService,

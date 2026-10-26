@@ -1,0 +1,49 @@
+/* 首页专属样式：hero 区从 web styles.css 平移（渐变日晕 + 两档入口） */
+
+.help-btn {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 15px;
+}
+
+.hero-card {
+  position: relative;
+  margin-top: 8px;
+  padding: 20px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(150deg, #0d426d, #052747);
+  overflow: hidden;
+}
+
+.tagline {
+  margin: 0 0 14px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+
+.hero-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hero-actions .btn {
+  width: 100%;
+}
+
+.hero-secondary {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(150, 186, 216, 0.14);
+}
+
+.hero-secondary .btn {
+  flex: 1;
+  min-height: 40px;
+  color: var(--muted);
+}

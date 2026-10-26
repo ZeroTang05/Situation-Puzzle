@@ -1,5 +1,5 @@
 /**
- * 设置页：个人资料（昵称）、界面语言、退出登录。
+ * 设置页：个人资料（昵称）、界面语言、兑换码、关于（隐私政策）、退出登录。
  *
  * 语言切换只在这里和登录/注册页开放；改完立刻写进 localStorage，
  * 并由每个请求的 X-Jev-Language 头上报给服务端（服务端据此分流邮件语言）。
@@ -13,6 +13,7 @@ import { signOut } from '../api/auth-client.js';
 import { useLanguage } from '../state/language.js';
 import { clearRoomLocal } from '../rooms/room-local.js';
 import { useBack } from '../back.js';
+import { RedeemSection } from './redeem-section.js';
 import type { Language } from '@jev/i18n';
 
 interface MeResponse {
@@ -144,6 +145,20 @@ export function SettingsPage() {
             {copy.languageEnglish}
           </button>
         </div>
+      </section>
+
+      {/* 兑换码：运营发码后在此兑换会员（原在「我的」页赞助面板） */}
+      <section className="panel stack">
+        <h3>{copy.redeemCodeTitle}</h3>
+        <RedeemSection />
+      </section>
+
+      {/* 关于：隐私政策 */}
+      <section className="panel stack">
+        <h3>{language === 'zh' ? '关于' : 'About'}</h3>
+        <button className="btn" onClick={() => navigate('/privacy')}>
+          {language === 'zh' ? '隐私政策' : 'Privacy Policy'}
+        </button>
       </section>
 
       {/* 账号：退出登录 */}

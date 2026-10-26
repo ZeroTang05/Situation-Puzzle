@@ -112,12 +112,17 @@ export function freeRoomsRemaining(account: FreeRoomAccountLike): number {
   return account.total - account.consumed - account.reserved;
 }
 
-/** 开房授权来源判定：先赞助后免费；都不行抛出对应错误码。 */
+/**
+ * 开房授权来源判定：内测期直接放行（beta）；正式期先赞助后免费；都不行抛出对应错误码。
+ * beta 只在 BETA_OPEN_ROOM=true 时由调用方传入（内测期拉新手段，见 21-MONETIZATION-REVISION.md）。
+ */
 export function resolveEntitlementSource(
   grants: GrantLike[],
   freeAccount: FreeRoomAccountLike,
   now: Date,
-): { source: 'sponsorship' | 'free'; grantId?: string } {
+  options: { betaOpen?: boolean } = {},
+): { source: 'beta' | 'sponsorship' | 'free'; grantId?: string } {
+  if (options.betaOpen) return { source: 'beta' };
   if (hasActiveSponsorship(grants, now)) return { source: 'sponsorship' };
   if (freeRoomsRemaining(freeAccount) > 0) return { source: 'free' };
   if (freeRoomsRemaining(freeAccount) <= 0 && freeAccount.consumed + freeAccount.reserved >= freeAccount.total) {

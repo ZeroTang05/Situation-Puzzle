@@ -1,5 +1,5 @@
-/** 当前账号：身份、赞助有效期、免费开房余量、多人历史。 */
-import { Body, Controller, Get, Patch, Query } from '@nestjs/common';
+/** 当前账号：身份、赞助有效期、免费开房余量、邀请信息、多人历史。 */
+import { Body, Controller, Get, Inject, Patch, Query } from '@nestjs/common';
 import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import {
   freeRoomAccounts,
@@ -17,17 +17,24 @@ import { freeRoomsRemaining, hasActiveSponsorship, hasLifetimeGrant } from '@jev
 import { app } from '../context.js';
 import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http.js';
 import { meResponseSchema, nicknameUpdateRequestSchema, roomHistoryQuerySchema } from '@jev/contracts';
+import { RoomBonusService } from '../billing/room-bonus.service.js';
 import { z } from 'zod';
 
 @Controller('me')
 export class MeController {
+  // tsx(esbuild) 不生成参数类型元数据：显式 @Inject 声明依赖令牌
+  constructor(@Inject(RoomBonusService) private readonly roomBonusService: RoomBonusService) {}
+
   @Get()
   async me(@CurrentUser() user: SessionUser): Promise<z.infer<typeof meResponseSchema>> {
     const context = app();
     const now = new Date();
-    const [grants, freeRows] = await Promise.all([
+    const [grants, freeRows, invitedCount, inviteCode] = await Promise.all([
       context.db.db.select().from(sponsorGrants).where(eq(sponsorGrants.userId, user.userId)),
       context.db.db.select().from(freeRoomAccounts).where(eq(freeRoomAccounts.userId, user.userId)).limit(1),
+      this.roomBonusService.invitedCount(user.userId),
+      // 邀请码首次读取时懒生成，之后一直用同一个
+      this.roomBonusService.ensureInviteCode(user.userId),
     ]);
     // 有期限授权（月度/注册礼）中最晚的到期日：过期也返回，前端显示「已到期」
     const termUntil = grants
@@ -51,6 +58,8 @@ export class MeController {
         consumed: free.consumed,
         reserved: free.reserved,
       },
+      invite: { code: inviteCode, invitedCount },
+      betaOpen: context.env.BETA_OPEN_ROOM,
     };
   }
 

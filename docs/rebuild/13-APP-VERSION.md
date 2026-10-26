@@ -59,7 +59,7 @@ flowchart LR
 
 | 位置 | 内容 | 性质 |
 | --- | --- | --- |
-| `apps/app`（新增） | Capacitor 8 壳工程：Android 平台代码、图标、启动屏、深链配置（包名 `cn.xiaobaozi.sp`，App 名「Jev 海龟汤」） | 新代码，量小 |
+| `apps/app`（新增） | Capacitor 8 壳工程：Android 平台代码、图标、启动屏、深链配置（包名 `cn.xiaobaozi.sp`，App 名「AI 海龟汤」（2026-10-24 更名，原「Jev 海龟汤」）） | 新代码，量小 |
 | `apps/web`（改造） | 适配层：接口/WS 基址可配、令牌登录、系统浏览器开外链、安全区 | 全部开关式，网页行为零变化 |
 | `apps/api`（小改） | 允许的来源从单个改为列表；登录给 App 客户端发令牌；实时票据接受令牌 | 向后兼容 |
 | `infra/`（小改） | nginx 加深链验证文件（`assetlinks.json`）的静态路由 | 静态文件 |
@@ -170,9 +170,10 @@ M3 完成记录（2026-10-24，代码落地、签名包本地验签通过、待�
 - **启动屏**：改用 androidx core-splashscreen 标准做法（`Theme.SplashScreen` + `windowSplashScreenBackground` 品牌底色 + 默认居中自适应图标 + `postSplashScreenTheme` 切回正式主题），`MainActivity` 在 `super.onCreate` 前调 `installSplashScreen()`；任何屏幕比例都不变形
 - **App Links**：manifest 加 `autoVerify` 的 https intent-filter（`sp.xiaobaozi.cn` 的 `/lobby/invite/` 与 `/room/invite/`）；认领文件 `apps/web/public/.well-known/assetlinks.json`（Vite 原样拷进构建产物）写入上传密钥 SHA-256 指纹；nginx 加该路径的静态路由（application/json）。壳内 `app-shell-links.ts` 的 `appUrlOpen` 增加邀请分支：识别本站邀请 URL 后直接 navigate 进邀请页，与剪贴板过渡共用 `matchInvitePath`
 - **官网分发**：`docker-compose.yml` 给 web 容器挂只读 `./dl` 卷，nginx `/dl/` 按文件原样返回（缺文件 404，不落回 SPA）；APK 只存服务器（根 `.gitignore` 排除 `dl/*.apk`），放包步骤见 `dl/README.md`；下载地址固定 `https://sp.xiaobaozi.cn/dl/jev-turtle-soup.apk`
-- **官网页面**：`apps/web/src/site/` 新增 `/app` 下载页（下载按钮 + 扫码 + Android 7.0 要求 + 未知来源安装提示；壳内显示「你已经在 App 里」）与 `/privacy` 中文隐私政策页；首页底部加弱化入口（App 下载 / 隐私政策，壳内不显示下载入口）
+- **官网页面**：`apps/web/src/site/` 新增 `/app` 下载页（下载按钮 + 扫码 + Android 7.0 要求 + 未知来源安装提示；壳内显示「你已经在 App 里」）与 `/privacy` 中英隐私政策页（联系邮箱 + 玩家交流 QQ 群）；隐私政策入口收在设置页，首页底部只留 App 下载弱化入口（壳内不显示）
 - **验证**：`pnpm typecheck` 通过；`pnpm build:app` + `gradlew assembleRelease` 成功，apksigner 验签 SHA-256 与 assetlinks.json 指纹一致
 - **待办（生产侧）**：部署后用 Google 官方 [assetlinks 验证器](https://developers.google.com/digital-asset-links/tools/generator) 确认识领生效；`support@xiaobaozi.cn` 邮箱需要真的开通（隐私政策联系地址）；真机装机验收
+- **2026-10-24 追加**：① App 更名「AI 海龟汤」（原「Jev 海龟汤」，与站名统一；strings.xml + capacitor.config.ts）；② 修复侧键无法退出——`@capacitor/app` 的返回键回调在 WebView 历史回退到头时不做任何事（没有退出兜底），web 层注册 `backButton` 监听接管：应用内有来路回上一页（判定依据与 `useBack` 相同：react-router 的 history idx），栈底则 `App.exitApp()`（`app-runtime.ts` + `app-shell-links.ts`）；③ 兑换码从「我的」赞助面板迁入设置页（`settings/redeem-section.tsx`）；④ 首页铃铛与「?」按钮调换位置
 
 每阶段收尾跑 `pnpm typecheck` + `pnpm test`；网页端用现有 e2e 保障（App 适配全部开关式，网页默认路径不变）。
 
@@ -194,5 +195,5 @@ M3 完成记录（2026-10-24，代码落地、签名包本地验签通过、待�
 2. 平台范围：只做 Android，iOS 不做
 3. 分发：上架 Google Play；大陆用户走网页，官网 APK 直装作辅助渠道
 4. 包名：`cn.xiaobaozi.sp`（上架后不可改）
-5. App 名称：Jev 海龟汤
+5. App 名称：AI 海龟汤（2026-10-24 由「Jev 海龟汤」更名，统一站名 IP）
 6. PWA manifest：跳过

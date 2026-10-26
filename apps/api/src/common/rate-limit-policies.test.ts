@@ -48,6 +48,21 @@ describe('限流策略清单', () => {
     expect(rule).toEqual({ scope: 'payments.notify', limit: 120, windowSeconds: 60, keyBy: 'ip' });
   });
 
+  it('广告意图令牌：每人每小时 30 次（发放上限由服务端日额度管）', () => {
+    const rule = ruleOf(BillingController.prototype.adIntent, BillingController);
+    expect(rule).toEqual({ scope: 'ads.intent', limit: 30, windowSeconds: 3_600, keyBy: 'user' });
+  });
+
+  it('激励视频回调：按客户端 IP 每分钟 120 次（微信服务器 GET，与支付通知同形态）', () => {
+    const rule = ruleOf(BillingController.prototype.wechatAdNotify, BillingController);
+    expect(rule).toEqual({ scope: 'ads.notify', limit: 120, windowSeconds: 60, keyBy: 'ip' });
+  });
+
+  it('邀请领取：每人每小时 10 次（终身一次的幂等键在数据库层兜底）', () => {
+    const rule = ruleOf(BillingController.prototype.inviteClaim, BillingController);
+    expect(rule).toEqual({ scope: 'invites.claim', limit: 10, windowSeconds: 3_600, keyBy: 'user' });
+  });
+
   it('单人模式不加业务限流（产品既定：永久免费）', () => {
     expect(ruleOf(SoloController.prototype.judge, SoloController)).toBeUndefined();
     expect(ruleOf(SoloController.prototype.createSession, SoloController)).toBeUndefined();

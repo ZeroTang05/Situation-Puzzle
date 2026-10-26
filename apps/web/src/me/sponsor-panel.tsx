@@ -1,12 +1,12 @@
 /**
- * 「我的」页的赞助面板：商品列表 + 在线支付 + 兑换码。
+ * 「我的」页的赞助面板：商品列表 + 在线支付。
  *
- * 三条收款路径并存：
+ * 两条在线收款路径并存：
  *  - 微信支付 Native（需商户资质）：扫码购买；
- *  - 支付宝（需商户资质）：扫码或跳转页面购买；
- *  - 兑换码（零资质）：始终可用，运营方用个人收款码收款后发码。
+ *  - 支付宝（需商户资质）：扫码或跳转页面购买。
+ * 兑换码（零资质通道）的入口在设置页。
  *
- * 权益只来自服务端：支付回调或兑换成功后由服务端发放授权，前端只刷新 /me。
+ * 权益只来自服务端：支付回调后由服务端发放授权，前端只刷新 /me。
  * 浏览器回跳不发放权益（前端只轮询订单状态）。
  */
 import { useEffect, useState } from 'react';
@@ -29,14 +29,6 @@ interface Product {
 
 interface ChannelsResponse {
   channels: Array<{ channel: PayChannel | 'redeem_code'; available: boolean; label: string }>;
-}
-
-interface RedeemResponse {
-  orderId: string;
-  status: string;
-  title: string;
-  amountMinor: number;
-  currency: string;
 }
 
 interface OrderView {
@@ -80,9 +72,6 @@ function useNarrowViewport() {
 export function SponsorPanel() {
   const { copy, language } = useLanguage();
   const queryClient = useQueryClient();
-  const [code, setCode] = useState('');
-  const [codeError, setCodeError] = useState<string | null>(null);
-  const [codeDone, setCodeDone] = useState(false);
   const [channel, setChannel] = useState<PayChannel>('wechat_native');
   const [order, setOrder] = useState<OrderView | null>(null);
 
@@ -102,7 +91,6 @@ export function SponsorPanel() {
       api<OrderView>('/orders', { method: 'POST', body: { productVersionId, channel } }),
     onSuccess: (result) => {
       setOrder(result);
-      setCodeError(null);
       // 电脑网站支付（page）只返回跳转链接不返回二维码，直接自动跳转省一次点击。
       // 优先新开标签页以保住本页的订单轮询；被弹窗拦截（移动端异步 window.open
       // 常被拦）时退化为当前页跳转。扫码通道（qrContent 非空）不在此列。
@@ -129,29 +117,6 @@ export function SponsorPanel() {
     }, 3000);
     return () => clearInterval(timer);
   }, [order, queryClient]);
-
-  const redeem = useMutation({
-    mutationFn: (value: string) => api<RedeemResponse>('/orders/redeem', { method: 'POST', body: { code: value } }),
-    onSuccess: async () => {
-      setCodeDone(true);
-      setCodeError(null);
-      setCode('');
-      await queryClient.invalidateQueries({ queryKey: ['me'] });
-    },
-    onError: (error) => {
-      setCodeDone(false);
-      setCodeError(translateApiError(error, language, copy.sponsorRedeemUnavailable));
-    },
-  });
-
-  const submitCode = () => {
-    const value = code.trim();
-    if (value.length < 6) {
-      setCodeError(copy.redeemCodeFailed);
-      return;
-    }
-    redeem.mutate(value);
-  };
 
   return (
     <section className="me-section sponsor-panel">
@@ -232,26 +197,6 @@ export function SponsorPanel() {
           )}
         </div>
       )}
-
-      <div className="sponsor-redeem">
-        <h4 className="sponsor-redeem-title">{copy.redeemCodeTitle}</h4>
-        <div className="sponsor-redeem-row">
-          <input
-            className="sponsor-redeem-input"
-            value={code}
-            onChange={(event) => { setCode(event.target.value); setCodeDone(false); }}
-            placeholder={copy.redeemCodePlaceholder}
-            aria-label={copy.redeemCodeTitle}
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <button className="btn btn-primary btn-sm" disabled={redeem.isPending} onClick={submitCode}>
-            {copy.redeemCodeSubmit}
-          </button>
-        </div>
-        {codeError && <p className="error-text" role="alert">{codeError}</p>}
-        {codeDone && <p className="sponsor-redeem-ok" role="status">{copy.redeemCodeSuccess}</p>}
-      </div>
     </section>
   );
 }

@@ -8,8 +8,10 @@ import { useBack } from '../back.js';
 import { format } from '@jev/i18n';
 import type { Language } from '@jev/i18n';
 import type { Session } from '../session.js';
+import { isAppShell } from '../app-runtime.js';
 import { creationCopy } from '../creations/copy.js';
 import { SponsorPanel } from './sponsor-panel.js';
+import { InviteCard } from './invite-card.js';
 import { NotificationBell } from '../social/notification-bell.js';
 
 /** 把服务端 round.status 翻译成用户文案；未识别值回退到原值便于排查。 */
@@ -49,6 +51,8 @@ interface MeResponse {
   email: string;
   sponsorship: { monthlyUntil: string | null; lifetime: boolean };
   freeRooms: { total: number; consumed: number; reserved: number };
+  invite: { code: string; invitedCount: number };
+  betaOpen: boolean;
 }
 
 interface HistoryResponse {
@@ -86,6 +90,7 @@ export function MePage({ session }: { session: Session | null }) {
   const monthlyExpired = monthlyUntil !== null && new Date(monthlyUntil) < new Date();
   // 到期的月度会员不再给不限次数，展示成「已到期」
   const hasUnlimited = lifetime || (monthlyUntil !== null && !monthlyExpired);
+  const betaOpen = me.data?.betaOpen ?? false;
   const remaining = freeRooms ? freeRooms.total - freeRooms.consumed - freeRooms.reserved : null;
   // 名字与邮箱都来自 /me：没回来就整卡占骨架，回来一起出；不读会话字段，避免分两步加载
   const displayName = me.data?.nickname ?? null;
@@ -114,8 +119,14 @@ export function MePage({ session }: { session: Session | null }) {
         <div className="me-stats">
           <div className="me-stat">
             <span className="me-stat-label">{copy.freeRooms}</span>
-            <span className={`me-stat-value${hasUnlimited ? ' is-ok' : ''}`}>
-              {hasUnlimited ? copy.unlimited : remaining === null ? '—' : <>{remaining}<span className="me-stat-sub"> / {freeRooms!.total}</span></>}
+            <span className={`me-stat-value${betaOpen || hasUnlimited ? ' is-ok' : ''}`}>
+              {betaOpen
+                ? copy.betaBadge
+                : hasUnlimited
+                  ? copy.unlimited
+                  : remaining === null
+                    ? '—'
+                    : <>{remaining}<span className="me-stat-sub"> / {freeRooms!.total}</span></>}
             </span>
           </div>
           {(lifetime || monthlyUntil !== null) && (
@@ -131,6 +142,8 @@ export function MePage({ session }: { session: Session | null }) {
             </div>
           )}
         </div>
+
+        {betaOpen && <p className="muted beta-hint">{copy.betaHint}</p>}
 
         {me.isError && (
           <div className="me-load-error">
@@ -148,8 +161,11 @@ export function MePage({ session }: { session: Session | null }) {
         </div>
       </section>
 
-      {/* 赞助面板：商品 + 兑换码（权益只来自服务端） */}
-      <SponsorPanel />
+      {/* 邀请好友：链接 + 复制 + 已邀人数（奖励发给邀请人，见 InviteCard） */}
+      {me.data?.invite && <InviteCard invite={me.data.invite} />}
+
+      {/* 赞助面板：商品 + 兑换码（权益只来自服务端）；App 壳关闭购买入口，只留设置页的兑换码 */}
+      {!isAppShell && <SponsorPanel />}
 
       {/* 房间历史：整行可点进房间，局状态用颜色区分 */}
       <section className="me-section">

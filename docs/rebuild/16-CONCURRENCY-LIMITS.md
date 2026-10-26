@@ -171,6 +171,9 @@ if ((recent?.count ?? 0) >= DISCUSSION_PER_MINUTE) throw new DomainError('RATE_L
 | `POST /reports` | 用户 | 每小时 5 条 | `reports` |
 | 后台 `/api/v1/admin/*` | 用户（管理员） | 每分钟 120 次 | `admin` |
 | `POST /payments/:channel/notify` | **客户端 IP** | 每分钟 120 次 | `payments.notify` |
+| `POST /ads/intent`（广告意图令牌） | 用户 | 每小时 30 次 | `ads.intent` |
+| `GET /ads/wechat/notify`（激励视频服务端验证回调） | **客户端 IP** | 每分钟 120 次 | `ads.notify` |
+| `POST /invites/claim`（领取邀请奖励） | 用户 | 每小时 10 次 | `invites.claim` |
 | `GET /hall`（大厅列表） | 用户 | 每分钟 60 次 | `hall.list` |
 | `POST /rooms/:id/join-public`（直接加入公开房） | 用户 | 每分钟 20 次 | `hall.join` |
 | WebSocket `/ws` | 用户 | 同时 **5 条**连接（`WS_MAX_CONNECTIONS_PER_USER`） | — |
@@ -181,6 +184,12 @@ if ((recent?.count ?? 0) >= DISCUSSION_PER_MINUTE) throw new DomainError('RATE_L
 关于支付通知：平台不会带会话 Cookie，只能按 IP 计数。每次通知都要做一次验签
 （支付宝 RSA2 / 微信平台公钥解密），这是通知接口唯一的 CPU 开销，必须挡住刷量。
 超限返回 **429**，两个平台都会按失败重试，不会丢通知。
+
+关于奖励额度三件套（21-MONETIZATION-REVISION.md）：广告回调与支付通知同理
+（微信服务器 GET、无会话、验签即全部 CPU 开销），按 IP 每分钟 120 次；
+意图令牌按用户每小时 30 次——真正的发放上限是**服务端日额度**
+（广告/邀请各 10 次/东八区自然日，锁免费账户行计数），HTTP 限流只挡无意义刷量；
+邀请领取按用户每小时 10 次，幂等键（一账号终身一次）在数据库层兜底。
 
 关于大厅（18-HALL-PUBLIC-ROOMS）：大厅是全局视图，前端 5 秒轮询一次，
 每分钟 60 次的额度相当于「每秒 1 次」，留了一倍余量；直接加入是写操作，

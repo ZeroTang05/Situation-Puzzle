@@ -67,6 +67,7 @@ export function creationCopy(language: Language) {
     public: copy[language].playPublished,
     playShort: language === 'zh' ? '游玩' : 'Play',
     loadFail: language === 'zh' ? '作品加载失败，请重试。' : 'Could not load your puzzles. Please try again.',
+    rewardHint: language === 'zh' ? '作品通过人工复核发布后，奖励 10 次开房次数。' : 'Each puzzle published after human review earns 10 room credits.',
     filterAll: language === 'zh' ? '全部' : 'All',
     filterDrafts: language === 'zh' ? '草稿' : 'Drafts',
     filterReview: language === 'zh' ? '审核中' : 'In review',

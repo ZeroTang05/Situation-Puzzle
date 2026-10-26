@@ -14,7 +14,7 @@ import type { HostVerdict } from '@jev/contracts';
 import { useRoomSync } from './use-room-sync.js';
 import { useRoomOutbox } from './use-room-outbox.js';
 import type { InputMode } from './room-local.js';
-import { HintCapsule } from '../game/hint-capsule.js';
+import { HintCapsule, useHintPlayer } from '../game/hint-capsule.js';
 import { GameHeader } from '../game/game-header.js';
 import { ChatInput } from '../game/chat-input.js';
 import { LargeModelToggle } from '../game/large-model-toggle.js';
@@ -154,6 +154,8 @@ export function RoomPage({ session }: { session: Session | null }) {
   const round = state?.round ?? null;
   const answered = round && (round.status === 'solved' || round.status === 'revealed');
   const hints = round ? round.hints.filter(Boolean) : [];
+  // 提示悬浮播放器：房主解锁时展示新提示，其余角色用按钮循环翻阅已开放的提示
+  const hintPlayer = useHintPlayer(hints);
   // 公布答案/破解后结算面板排在聊天下方，页面不会自动滚过去：这里主动带到视野里
   useEffect(() => {
     if (answered) answeredRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -275,6 +277,8 @@ export function RoomPage({ session }: { session: Session | null }) {
       {/* 操作反馈改为悬浮条：不挤占布局，到点自动消失 */}
       {error && <Toast message={error} tone="error" durationMs={4000} onDone={() => setError(null)} />}
       {rejectedNotice && <Toast message={rejectedNotice} tone="error" durationMs={4000} onDone={() => setRejectedNotice(null)} />}
+      {/* 提示悬浮胶囊：固定定位不占布局，10 秒自动收起 */}
+      <HintCapsule hints={hints} open={hintPlayer.open} index={hintPlayer.index} onIndex={hintPlayer.show} />
       {managementOpen && <section ref={managementRef} className="panel stack room-management game-scroll" aria-label={copy.membersManagement}>
         <h2>{copy.membersHeader}</h2>
         <MemberList
@@ -398,10 +402,6 @@ export function RoomPage({ session }: { session: Session | null }) {
             <button className="btn btn-sm" onClick={() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); atBottom.current = true; setNewMessages(false); }}>{copy.newMessages} ↓</button>
           </div>
 
-          <div className={`appear-slot${hints.length ? ' open' : ''}`}>
-            <HintCapsule hints={hints} />
-          </div>
-
           {/* ---------- 操作行 ---------- */}
           {round.status === 'active' && (
             <footer className="composer">
@@ -449,9 +449,26 @@ export function RoomPage({ session }: { session: Session | null }) {
                 )}
               </div>
               <div className="room-actions">
+                {/* 玩家/用户主持人：房主开放提示后，用按钮循环翻阅悬浮窗里的已开放提示 */}
+                {!isHost && hints.length > 0 && (
+                  <button className="btn btn-sm" onClick={() => hintPlayer.cycle()}>
+                    {copy.hint} {hints.length}/3
+                  </button>
+                )}
                 {isHost && (
                   <>
-                    <button className="btn btn-sm" disabled={busy || round.hintsRevealed >= 3} onClick={() => void run('reveal_hint', undefined, round.roundId)}>
+                    <button
+                      className="btn btn-sm"
+                      disabled={busy}
+                      onClick={() => {
+                        // 还有未开放的提示：开放并悬浮展示新一条；全部开放后：按钮变成循环翻阅
+                        if (round.hintsRevealed < 3) {
+                          void run('reveal_hint', undefined, round.roundId).then(() => hintPlayer.show(hints.length));
+                        } else {
+                          hintPlayer.cycle();
+                        }
+                      }}
+                    >
                       {copy.hint} {round.hintsRevealed}/3
                     </button>
                     <button

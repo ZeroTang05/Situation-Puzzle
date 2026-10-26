@@ -559,11 +559,40 @@ export const meResponseSchema = z.object({
     consumed: z.number().int(),
     reserved: z.number().int(),
   }),
+  /** 邀请信息（docs/rebuild/21-MONETIZATION-REVISION.md）：code 首次读取时懒生成 */
+  invite: z.object({
+    code: z.string(),
+    /** 已通过 claim 入账的邀请奖励次数（成功邀请的人数） */
+    invitedCount: z.number().int(),
+  }),
+  /** 内测期开关回显：true 时开房不占次数，前端展示「内测畅玩」 */
+  betaOpen: z.boolean(),
 });
 
 /** 修改昵称：允许与其他玩家重名，仅约束 1～30 字符（服务端去首尾空格） */
 export const nicknameUpdateRequestSchema = z.object({
   nickname: z.string().trim().min(1).max(30),
+});
+
+/** 邀请码格式：8 位、去除易混字符（0/O/1/I/L）的大写表，与 @jev/domain INVITE_CODE_PATTERN 同步 */
+const inviteCodeField = z.string().regex(/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$/, '邀请码格式无效');
+
+/** 领取邀请奖励：被邀请人登录后凭邀请链接里的 code 调用，奖励发给邀请人 */
+export const inviteClaimRequestSchema = z.object({
+  code: inviteCodeField,
+});
+
+export const inviteClaimResponseSchema = z.object({
+  /** granted = 本次入账（邀请人 +5）；already_claimed = 本账号领过一次；inviter_daily_limit = 邀请人今日已达上限 */
+  result: z.enum(['granted', 'already_claimed', 'inviter_daily_limit']),
+  /** 本次实际发放的开房次数（granted 为 5，其余为 0） */
+  rewardRooms: z.number().int(),
+});
+
+/** 看广告前置：换服务端意图令牌（5 分钟有效），看完广告微信回调凭它定位发奖用户 */
+export const adIntentResponseSchema = z.object({
+  token: z.string(),
+  expiresIn: z.number().int(),
 });
 
 export const sponsorProductSchema = z.object({

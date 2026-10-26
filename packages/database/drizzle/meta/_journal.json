@@ -113,6 +113,20 @@
       "when": 1806000000000,
       "tag": "0015_quick_room_invite_token",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1807000000000,
+      "tag": "0016_ad_bonus_invite_beta",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1808000000000,
+      "tag": "0017_creation_bonus",
+      "breakpoints": true
     }
   ]
 }

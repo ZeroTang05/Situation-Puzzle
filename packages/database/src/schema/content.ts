@@ -56,15 +56,21 @@ export const puzzleCategoryEnum = pgEnum('puzzle_category', ['honkaku', 'henkaku
 // ---------- 身份扩展 ----------
 
 /** 业务档案：与 Better Auth 的 user 一对一；单人游玩完全不经过这里。 */
-export const profiles = pgTable('profiles', {
-  userId: text('user_id')
-    .primaryKey()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  nickname: text('nickname').notNull(),
-  status: profileStatusEnum('status').notNull().default('active'),
-  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-});
+export const profiles = pgTable(
+  'profiles',
+  {
+    userId: text('user_id')
+      .primaryKey()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    nickname: text('nickname').notNull(),
+    /** 邀请码：每人一个，注册时生成，存量用户在首次读取时懒生成回填 */
+    inviteCode: text('invite_code'),
+    status: profileStatusEnum('status').notNull().default('active'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('profiles_invite_code_uq').on(t.inviteCode)],
+);
 
 /** 后台角色：普通玩家没有任何行；权限在 API 服务端逐项校验。 */
 export const roleAssignments = pgTable(

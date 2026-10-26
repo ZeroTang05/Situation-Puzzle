@@ -66,8 +66,14 @@ interface BrowserPlugin {
 }
 /** 监听句柄：Android 桥同步返回 { remove }，web 代理返回 Promise<{ remove }>，两种形状都收 */
 type ListenerHandle = { remove(): Promise<void> } | Promise<{ remove(): Promise<void> }>;
+/** 原生事件数据：appUrlOpen 带 url，backButton 带 canGoBack，只声明用到的字段 */
+interface NativeEventData {
+  url?: string;
+  canGoBack?: boolean;
+}
 interface AppPlugin {
-  addListener(eventName: 'appUrlOpen' | 'resume', callback: (data: { url: string }) => void): ListenerHandle;
+  addListener(eventName: 'appUrlOpen' | 'resume' | 'backButton', callback: (data: NativeEventData) => void): ListenerHandle;
+  exitApp(): void;
 }
 interface ClipboardPlugin {
   read(): Promise<{ value?: string; type?: string }>;
@@ -98,7 +104,7 @@ export async function closeSystemBrowser(): Promise<void> {
 }
 
 /** 注册原生事件监听：句柄形状归一化后统一管理，返回解绑函数 */
-function bindNativeListener(event: 'appUrlOpen' | 'resume', callback: (data: { url: string }) => void): () => void {
+function bindNativeListener(event: 'appUrlOpen' | 'resume' | 'backButton', callback: (data: NativeEventData) => void): () => void {
   const app = nativePlugins()?.App;
   let handle: { remove(): Promise<void> } | undefined;
   let disposed = false;
@@ -116,12 +122,25 @@ function bindNativeListener(event: 'appUrlOpen' | 'resume', callback: (data: { u
 
 /** 深链进入 App（OAuth 回流 cn.xiaobaozi.sp:/oauth?...）；返回解绑函数 */
 export function onAppUrlOpen(callback: (url: string) => void): () => void {
-  return bindNativeListener('appUrlOpen', (data) => callback(data.url));
+  return bindNativeListener('appUrlOpen', (data) => callback(data.url ?? ''));
 }
 
 /** App 回到前台（含启动），剪贴板邀请检测用 */
 export function onAppResume(callback: () => void): () => void {
   return bindNativeListener('resume', () => callback());
+}
+
+/**
+ * Android 侧键（返回键/手势）按下。App 插件接管了返回键且默认行为没有「退出」
+ * 兜底（WebView 历史回退到头时什么都不发生），必须在 web 层监听并自己收尾。
+ */
+export function onAppBackButton(callback: () => void): () => void {
+  return bindNativeListener('backButton', () => callback());
+}
+
+/** 结束 App（侧键在历史栈底时的退出动作） */
+export function exitApp(): void {
+  nativePlugins()?.App?.exitApp();
 }
 
 export async function readClipboardText(): Promise<string | null> {

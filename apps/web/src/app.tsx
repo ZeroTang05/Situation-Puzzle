@@ -14,6 +14,7 @@ import { ForgotPasswordPage } from './auth/forgot-password-page.js';
 import { ResetPasswordPage } from './auth/reset-password-page.js';
 import { useJevSession } from './api/auth-client.js';
 import { useAppShellLinks } from './app-shell-links.js';
+import { useInviteRefClaim } from './me/invite-ref.js';
 import { CreationListPage } from './creations/creation-list-page.js';
 import { CreationEditorPage } from './creations/creation-editor-page.js';
 import { CreationPreviewPage } from './creations/creation-preview-page.js';
@@ -27,6 +28,7 @@ import { PrivacyPage } from './site/privacy-page.js';
 export function App() {
   const { session, isPending } = useJevSession();
   useAppShellLinks();
+  useInviteRefClaim(session);
 
   if (isPending) {
     return <div className="page-loading">加载中…</div>;

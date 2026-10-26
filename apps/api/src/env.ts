@@ -22,6 +22,8 @@ const envSchema = z.object({
   ROOM_CAPACITY: z.coerce.number().int().min(2).max(50).default(8),
   /** 判题附带的最近问答轮数（0=关闭），单人/多人共用；单人客户端最多发 10 条，服务端按此值裁剪 */
   JEV_RECENT_QA_LIMIT: z.coerce.number().int().min(0).max(10).default(3),
+  /** 内测期开关：true 时所有人开房以 beta 来源放行，不占免费次数也不看赞助（拉新期畅玩） */
+  BETA_OPEN_ROOM: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
 
   // 邮件（Email OTP 必需）：通道由 MAIL_TRANSPORT 显式选择，配置缺失启动失败
   MAIL_TRANSPORT: z.enum(['resend', 'smtp']).default('resend'),
@@ -65,6 +67,8 @@ const envSchema = z.object({
   WECHAT_PAY_NOTIFY_URL: z.string().optional(),
   /** 微信支付平台公钥 PEM：用于回调验签（商户平台下载） */
   WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH: z.string().optional(),
+  /** 微信激励视频广告服务端验证密钥（流量主后台配置）；未配置时小程序看广告入口不发放奖励 */
+  WECHAT_AD_CALLBACK_SECRET: z.string().optional(),
 
   // 支付宝开放平台（当面付扫码 / 电脑网站支付跳转）
   ALIPAY_APP_ID: z.string().optional(),

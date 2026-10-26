@@ -33,6 +33,17 @@ describe('公开路由清单', () => {
     expect(accessOf(BillingController.prototype.notify)).toBe('public');
   });
 
+  it('微信激励视频奖励回调允许无会话访问（发奖只靠验签 + 意图令牌）', () => {
+    // 微信服务器 GET 不会带我们的会话 Cookie；漏标 @Public() 会被守卫 401，
+    // 与支付回调同一种事故形态
+    expect(accessOf(BillingController.prototype.wechatAdNotify)).toBe('public');
+  });
+
+  it('奖励入口默认需要登录会话', () => {
+    expect(accessOf(BillingController.prototype.adIntent)).toBe('session');
+    expect(accessOf(BillingController.prototype.inviteClaim)).toBe('session');
+  });
+
   it('健康检查与公开题库允许匿名访问', () => {
     expect(accessOf(HealthController.prototype.live)).toBe('public');
     expect(accessOf(HealthController.prototype.ready)).toBe('public');

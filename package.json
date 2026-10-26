@@ -13,6 +13,8 @@
     "build:web": "pnpm --dir apps/web build",
     "build:admin": "pnpm --dir apps/admin build",
     "build:app": "pnpm --dir apps/web build --mode app && pnpm --dir apps/app sync",
+    "dev:mp": "pnpm --dir apps/miniprogram dev:weapp",
+    "build:mp": "pnpm --dir apps/miniprogram build:weapp",
     "db:migrate": "pnpm --dir packages/database db:migrate",
     "db:seed": "pnpm --dir packages/database db:import-library",
     "smoke": "bash scripts/smoke-new-system.sh",
@@ -24,6 +26,17 @@
   },
   "devDependencies": {
     "@types/node": "^24.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "@swc/core",
+      "esbuild",
+      "@tarojs/binding",
+      "@tarojs/cli",
+      "core-js",
+      "core-js-pure"
+    ]
   },
   "engines": {
     "node": ">=22"

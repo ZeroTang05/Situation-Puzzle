@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    // 小程序运行时没有 DOM：lib 只留 ES2022（基础配置即如此），组件类型来自 @tarojs/taro
+    "types": ["@tarojs/taro", "webpack-env", "node"],
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src", "config", "types"]
+}

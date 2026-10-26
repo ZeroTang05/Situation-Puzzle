@@ -48,6 +48,7 @@ export function CreationListPage({ session }: { session: Session | null }) {
     </header>
 
     <h2 className="creation-section-title">{text.works}</h2>
+    <p className="muted creation-reward-hint">{text.rewardHint}</p>
     {showFilter && (
       <div className="mode-tabs" role="tablist" aria-label={text.works}>
         {filters.map(({ key, label }) => (

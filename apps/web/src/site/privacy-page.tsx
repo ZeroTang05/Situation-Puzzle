@@ -47,7 +47,7 @@ const zh = {
     },
     {
       heading: '联系我们',
-      items: ['对隐私有任何疑问：support@xiaobaozi.cn'],
+      items: ['玩家交流 QQ 群：126328391', '对隐私有任何疑问：support@xiaobaozi.cn'],
     },
   ],
 };
@@ -93,7 +93,7 @@ const en = {
     },
     {
       heading: 'Contact',
-      items: ['Questions about privacy: support@xiaobaozi.cn'],
+      items: ['Player community (QQ group): 126328391', 'Questions about privacy: support@xiaobaozi.cn'],
     },
   ],
 };

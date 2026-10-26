@@ -27,7 +27,8 @@ export async function createRoomWithEntitlementTx(
   const free = freeRows[0];
   if (!free) throw new DomainError('ACCOUNT_NOT_INITIALIZED', '账号未初始化免费次数账户');
 
-  const { source, grantId } = resolveEntitlementSource(grants, free, now);
+  // 内测期（BETA_OPEN_ROOM=true）直接以 beta 来源放行，不占免费次数也不看赞助
+  const { source, grantId } = resolveEntitlementSource(grants, free, now, { betaOpen: app().env.BETA_OPEN_ROOM });
 
   const inserted = await tx
     .insert(rooms)

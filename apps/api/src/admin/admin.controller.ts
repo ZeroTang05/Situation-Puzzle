@@ -34,6 +34,7 @@ import { RateLimit } from '../common/rate-limit.js';
 import { SessionGuard } from '../auth/session.guard.js';
 import { RedeemCodesService } from '../billing/redeem-codes.service.js';
 import { OrdersService } from '../billing/orders.service.js';
+import { RoomBonusService } from '../billing/room-bonus.service.js';
 import { orderBySort } from './admin-sort.js';
 import {
   ORDER_SORT,
@@ -75,6 +76,7 @@ export class AdminController {
   constructor(
     @Inject(RedeemCodesService) private readonly redeemCodesService: RedeemCodesService,
     @Inject(OrdersService) private readonly ordersService: OrdersService,
+    @Inject(RoomBonusService) private readonly roomBonusService: RoomBonusService,
   ) {}
 
   /** 审计：操作留痕（docs/rebuild/03-SPEC.md §5.2）。 */
@@ -205,7 +207,13 @@ export class AdminController {
         afterSummary: { scope: body.scope, versionNo: version.versionNo, language: candidate.language, moderationStatus: 'published' },
       })));
       await tx.insert(moderationReviews).values(affected.map((candidate) => ({ versionId: candidate.id, stage: 'human', conclusion: 'published', reason: body.reason, operatorUserId: operator.userId })));
-      return { puzzleId: version.puzzleId, publishedLanguages: selected.map((candidate) => candidate.language) };
+      // 作者奖励：投稿（community）首次发布 +10 次开房额度，与发布同一事务
+      // （幂等键 creation-bonus:<puzzleId>，修订版再发布不重发；官方/导入题不发）
+      let creationBonus = false;
+      if (puzzle.source === 'community' && puzzle.authorUserId) {
+        creationBonus = await this.roomBonusService.awardCreationBonusTx(tx, puzzle.authorUserId, puzzle.id);
+      }
+      return { puzzleId: version.puzzleId, publishedLanguages: selected.map((candidate) => candidate.language), creationBonus };
     });
     return result;
   }

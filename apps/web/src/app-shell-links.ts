@@ -8,6 +8,8 @@
  *   （manifest autoVerify + /.well-known/assetlinks.json 认领）
  * - 邀请链接过渡：App 回到前台时读剪贴板，发现本站邀请链接则询问是否加入；
  *   同一条链接本次运行内只问一次
+ * - 侧键退出：App 插件接管返回键后没有默认退出兜底，这里按「有来路回上一页、
+ *   无来路退出」收尾（判定依据与 useBack 相同：react-router 的 history idx）
  */
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
@@ -18,7 +20,9 @@ import { consumeAppOAuthCallback } from './auth/app-oauth.js';
 import {
   apiBase,
   closeSystemBrowser,
+  exitApp,
   isAppShell,
+  onAppBackButton,
   onAppResume,
   onAppUrlOpen,
   readClipboardText,
@@ -82,9 +86,16 @@ export function useAppShellLinks(): void {
       })();
     });
 
+    const unbindBack = onAppBackButton(() => {
+      const idx = (window.history.state as { idx?: number } | null)?.idx;
+      if (typeof idx === 'number' && idx > 0) window.history.back();
+      else exitApp();
+    });
+
     return () => {
       unbindUrl();
       unbindResume();
+      unbindBack();
     };
   }, [dialog, navigate, copy, language]);
 }

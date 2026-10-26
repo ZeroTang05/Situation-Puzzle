@@ -7,7 +7,7 @@ import { useLanguage } from '../state/language.js';
 import { useBack } from '../back.js';
 import type { Session } from '../session.js';
 import { soloStore, type SoloSessionRow } from '../solo/local-store.js';
-import { HintCapsule } from '../game/hint-capsule.js';
+import { HintCapsule, useHintPlayer } from '../game/hint-capsule.js';
 import { TurnCard, type PreviewTurn } from '../game/turn-card.js';
 import { GameHeader } from '../game/game-header.js';
 import { ChatInput } from '../game/chat-input.js';
@@ -23,6 +23,9 @@ export function CreationPreviewPage({ session: account }: { session: Session | n
   const [busy, setBusy] = useState(false); const [error, setError] = useState<string | null>(null); const [revision, setRevision] = useState(0);
   const [useLargeModel, setUseLargeModel] = useState(false);
   const forceNew = useRef(false); const chatRef = useRef<HTMLElement>(null);
+  // 已解锁提示文本（hook 依赖它，须在提前 return 之前算好）
+  const hintList = turns.filter((turn) => turn.result === 'hint').map((turn) => turn.text);
+  const hintPlayer = useHintPlayer(hintList);
   useEffect(() => {
     if (!account || !puzzleId) return;
     let cancelled = false;
@@ -101,6 +104,8 @@ export function CreationPreviewPage({ session: account }: { session: Session | n
   const hintProgress = `${local.hintsUnlocked.length}/${preview.hintsTotal}`;
   return (
     <main className="shell solo-shell">
+      {/* 提示悬浮胶囊：固定定位不占布局，10 秒自动收起 */}
+      <HintCapsule hints={hintList} total={preview.hintsTotal} open={hintPlayer.open} index={hintPlayer.index} onIndex={hintPlayer.show} />
       <GameHeader
         title={text.previewTitle}
         back={<button className="btn btn-ghost btn-sm" onClick={back}>{text.backEditor}</button>}
@@ -140,11 +145,15 @@ export function CreationPreviewPage({ session: account }: { session: Session | n
         <div className={`appear-slot${error ? ' open' : ''}`}>
           <p className="error-text" role="alert">{error}</p>
         </div>
-        <div className={`appear-slot${turns.some((turn) => turn.result === 'hint') ? ' open' : ''}`}>
-          <HintCapsule hints={turns.filter((turn) => turn.result === 'hint').map((turn) => turn.text)} total={preview.hintsTotal} />
-        </div>
         <section className="solo-action-row" role="group" aria-label={text.hint}>
-          <button className="btn btn-sm" disabled={busy || local.hintsUnlocked.length >= preview.hintsTotal} onClick={() => void hint()}>
+          <button className="btn btn-sm" disabled={busy} onClick={() => {
+            // 还有未解锁的提示：解锁并悬浮展示最新一条；全部解锁后：按钮变成循环翻阅
+            if (local.hintsUnlocked.length < preview.hintsTotal) {
+              void hint().then(() => hintPlayer.show(hintList.length));
+            } else {
+              hintPlayer.cycle();
+            }
+          }}>
             {text.hint} {hintProgress}
           </button>
           <button className="btn btn-sm" aria-pressed={mode === 'solve'} disabled={busy || solved || Boolean(local.revealedAnswer)} onClick={() => {

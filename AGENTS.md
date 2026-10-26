@@ -7,6 +7,7 @@
 **收款通道有三条**：微信支付 v3 Native（扫码，需商户资质，未配置凭据时前台显示「支付通道开通中」）、
 **支付宝开放平台**（当面付扫码 / 电脑网站支付跳转，凭据清单见 `docs/rebuild/15-PAYMENT-CHANNELS.md`）
 与**赞助码**（零实名通道：运营方用个人收款码收款后发码，用户在「我的」页兑换，站内自动核销并发授权；见 `docs/rebuild/14-REDEEM-CODE-CHANNEL.md`）。
+**免费额度的补量与内测期**（`docs/rebuild/21-MONETIZATION-REVISION.md`）：看激励视频广告 +2 次（小程序端，流量主开通前显示「开通中」）、邀请好友注册 +5 次（邀请人得，全端）；`BETA_OPEN_ROOM=true` 时内测畅玩（开房记 `beta` 来源，不占免费次数）。打赏购买只在 web 端，App 壳隐藏入口，小程序与 App 靠广告/邀请补量；兑换码全端保留。
 本文档面向开发与维护；用户视角的宣传页在 `README.md`。
 
 **用户主持人模式**（`docs/rebuild/17-USER-HOST-MODE.md`）：除 AI「Jev」外，玩家也能自己当主持人。房间与会客厅各持一份主持人状态：`rooms.host_mode`（ai/user）+ `rooms.user_host_id`（谁在主持）+ `room_members.role`（成员身份镜像）/ `host_requested_at`（待审申请），会客厅同理。成员在会客厅或房间右上角玩家列表申请，房主审核（房主自申请直接通过）；房主也可**撤销**他人已有的主持身份（降级为玩家，房间回到 Jev 主持）。用户主持模式下，玩家的**提问与还原都挂起等主持人判定**（不进 AI 队列、`deadline_at` 置空不参与排队超时）：主持人在「问 Jev」页给「是/否/无关」，在「查看汤底」页（主持视角下「还原真相」页签改名）给「破解成功/接近真相/还没猜对」，判定为破解成功即终局归档；退出或被撤销即回到 Jev 主持。汤底只走 `GET /rounds/:id/host-view` 单独下发（仅本房间用户主持人可读），不进快照与事件。
@@ -24,7 +25,8 @@ apps/web        玩家端（React 19 + Vite）：首页、题库、单人、会�
 apps/admin      管理端（React-admin）：题库审核、用户、房间调查、举报、订单、赞助码（发码/对账/作废）、项目备份（备份/还原/下载）、站内信群发、总览；所有列表表头可点排序（后端列名白名单，见 admin-sort-columns.ts）
 apps/api        NestJS 服务：认证 auth、题库 catalog、单人 solo、房间与会客厅 rooms、实时网关 realtime、赞助订单 billing、创作 creations、治理 governance、后台 admin、备份 backup、社交 social（好友/私聊/通知/站内信）
 apps/jobs       pg-boss 任务进程：dispatch-room / process-turn / review-puzzle / maintenance
-apps/app        Android 壳工程（Capacitor 8，包名 cn.xiaobaozi.sp，App 名「Jev 海龟汤」）：apps/web 构建产物打进 WebView；插件 @capacitor/app browser clipboard keyboard（OAuth 回流系统浏览器、深链事件、剪贴板邀请过渡、键盘避让）；OAuth 回流端点 `/api/v1/app-session/handoff|exchange`（60 秒随机单次 code + 本机 verifier 校验后换 Bearer 令牌）；M3 交付：签名密钥 `keystores/sp-upload.jks`（gitignored，`keystore.properties` 存在时 gradle 才启用 release 签名，备份要求见 keystores/README.md）、品牌图标与启动屏（scripts/app-icons.mjs + core-splashscreen）、App Links（manifest autoVerify + `apps/web/public/.well-known/assetlinks.json` 域名认领 + 壳内 https 邀请直达）、官网 `/app` 下载页与 `/privacy` 隐私政策；计划与认证适配方案见 docs/rebuild/13-APP-VERSION.md
+apps/app        Android 壳工程（Capacitor 8，包名 cn.xiaobaozi.sp，App 名「AI 海龟汤」（2026-10-24 更名，原「Jev 海龟汤」））：apps/web 构建产物打进 WebView；插件 @capacitor/app browser clipboard keyboard（OAuth 回流系统浏览器、深链事件、剪贴板邀请过渡、键盘避让）；OAuth 回流端点 `/api/v1/app-session/handoff|exchange`（60 秒随机单次 code + 本机 verifier 校验后换 Bearer 令牌）；M3 交付：签名密钥 `keystores/sp-upload.jks`（gitignored，`keystore.properties` 存在时 gradle 才启用 release 签名，备份要求见 keystores/README.md）、品牌图标与启动屏（scripts/app-icons.mjs + core-splashscreen）、App Links（manifest autoVerify + `apps/web/public/.well-known/assetlinks.json` 域名认领 + 壳内 https 邀请直达）、官网 `/app` 下载页与 `/privacy` 隐私政策；计划与认证适配方案见 docs/rebuild/13-APP-VERSION.md
+apps/miniprogram 微信小程序端（Taro 4.3 + React 18，只编译 weapp，docs/rebuild/20-MINIPROGRAM.md）：功能一比一复刻、界面层按小程序运行时重写；复用 @jev/contracts + @jev/i18n 与 App 版 Bearer 令牌链路（api/client.ts + Taro storage），设计变量与基础控件类从 @jev/ui theme.css 平移进 src/app.css；designWidth 375 使 px 值与 web 一致；主体=个体工商户+商户号，AI 类目按深度合成申报（以 MiniMax 名义）；提审内容风险与预案见 20 号文档 §1/§7
 packages/contracts   跨端 Zod 契约：HTTP 请求响应、WS 事件、稳定错误码（客户端只准引用这里）
 packages/domain      纯业务规则：房间状态机、排队容量、赞助自然月算法、授权来源判定、好友申请与私聊权限（配单测）
 packages/database    Drizzle 表结构（49 张表）、追加式迁移（drizzle/）、房间事务封装（rooms-tx）、题库导入
@@ -35,7 +37,7 @@ infra/               web/admin/api/jobs 各自 Dockerfile（apps/web+apps/admin 
 dl/                  App 安装包服务器分发目录（web 容器只读挂载、nginx /dl/ 直链；APK 不入库，放包步骤见 dl/README.md）
 scripts/             冒烟与端到端联调脚本（smoke-new-system.sh、e2e-run.sh、e2e-node-run.mjs 跨平台编排器、e2e-multiplayer/e2e-host-mode/e2e-votes 剧本、dev-env.sh、dev-mailsink.mjs）
 data/                题库 JSON 导入源：根 library.json / library.en.json 同 ID 配套（顺序须一致，当前 446 题 = 天堂精选 93 置顶 + 首发 7 + 扩展 10 + 小小耶精选 240 + 许二木精选 96，许二木批 2026-10-15 入库追加于库尾；zh 条目 category 本格/变格由导入映射为 puzzle_category 枚举 honkaku/henkaku；第一题固定「终点线」，各批次保持批内原序；seed 导入统一署名「初始题库」（signature 模式，前端按语言本地化））；sources.md 全库来源总览与逐题对照（编号=现役库位置 1–446）；scoring/ 打分口径与全部批次评分（编号 1–493 连续续写，与 sources.md 编号相互独立）；curated/ 各 UP 主批逐篇评审与存档（天堂/小小耶/许二木三批普通题均已并入根库，特殊玩法与未采用稿留存于各自目录）；reference/ 真实游玩素材（group 原始字幕 → real 抽取稿，按 UP 主分目录）
-docs/rebuild/        产品与架构设计文档（01~19：10 房间生命周期修订、11 赞踩署名、12 连接体验、13 App 版本计划、14 赞助码通道、15 支付通道凭据清单、16 并发与限流盘点、17 用户主持人模式、18 大厅与公开房间、19 加好友/私聊/通知）
+docs/rebuild/        产品与架构设计文档（01~21：10 房间生命周期修订、11 赞踩署名、12 连接体验、13 App 版本计划、14 赞助码通道、15 支付通道凭据清单、16 并发与限流盘点、17 用户主持人模式、18 大厅与公开房间、19 加好友/私聊/通知、20 小程序版本计划、21 变现方式修订）
 ```
 
 ## 常用命令
@@ -55,6 +57,8 @@ pnpm e2e:votes          # 赞踩与署名 E2E：25 项断言（真实 SMTP，不
 pnpm e2e:host           # 用户主持人 E2E：40 项断言（真实 SMTP + 真实 Jev）
 pnpm e2e:local <剧本>    # 跨平台编排（不依赖 bash/docker）：multiplayer | host | votes | playwright
 pnpm build:app          # 网页产物打进 Android 壳（--mode app：接口指向生产域名）；出 APK 在 apps/app/android 跑 gradlew assembleDebug 或用 Android Studio 打开
+pnpm dev:mp             # 小程序开发构建（watch）；微信开发者工具导入 apps/miniprogram 目录预览
+pnpm build:mp           # 小程序生产构建（weapp）
 ```
 
 部署（服务器上）：`cp .env.example .env && docker compose up -d --build`；
@@ -63,7 +67,8 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
 ## 关键约定
 
 - **包边界**：`apps/web`、`apps/admin` 只准依赖 `@jev/contracts`、`@jev/i18n`、`@jev/ui`；
-  禁止引用 `@jev/database`、`@jev/jev`（构建与 code review 双重把关）
+  `apps/miniprogram` 只准依赖 `@jev/contracts`、`@jev/i18n`（`@jev/ui` 是 Radix/DOM 实现，小程序跑不了）；
+  全部 app 禁止引用 `@jev/database`、`@jev/jev`（构建与 code review 双重把关）
 - **汤底保密**：公开接口、快照、事件 payload 都不含汤底与未解锁提示；答案只在
   `GET /rounds/:id/answer`（揭晓后 + 有阅读权）与单人主动揭晓返回
 - **房间一致性**：写操作统一 HTTP 命令（`POST /rooms/:id/commands`），命令幂等
@@ -82,6 +87,16 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   消息表已有 `seq`，后续接网关时可直接复用房间事件流的补齐逻辑
 - **计费不变量**：免费开房 `(room_id, action)` 唯一流水；首次有效判定或公布答案即消费；
   一房一题，换题新建房间并重新授权；CHECK 约束禁止负余额；赞助检查与扣减同事务同锁
+- **奖励额度**（21 号修订）：广告/邀请/作品奖励直接加 `freeRoomAccounts.total`（复用免费池
+  CHECK 与消费逻辑，没有第二个额度池），流水落 `room_bonus_ledger` 且幂等键唯一
+  （广告 `ad:<trans_id>` 防微信重放、邀请 `invite-claim:<claimant>` 一账号终身一次、
+  作品 `creation-bonus:<puzzleId>` 一道作品终身一次）；
+  广告/邀请发放入账事务锁免费账户行（锁序最后一层）先数日上限再插入，东八区自然日各 10 次；
+  作品奖励（+10）**不设日上限**，挂在 admin approve 事务内与发布同生共死，只发
+  community 投稿、AI 初审自动发布的不发（人工复核是发放的门）；
+  广告回调 `GET /ads/wechat/notify` 验签 `SHA256(secret:trans_id)`，业务性拒绝（日上限/
+  重复通知）回 `errcode:0` 不入账让微信停止重试，验签失败才回非 0 让其重试；
+  内测期 `BETA_OPEN_ROOM=true` 开房记 `beta` 来源（不占免费次数、不看赞助）
 - **赞助码通道**：`redeem_codes` 一码一权（`code_key` 唯一）；核销时对码行 `FOR UPDATE`，
   码状态流转与授权发放/订单核销/流水/审计**同事务**提交（`orders.service.ts:confirmPaidTx`
   为此把核销主体拆成可传入事务的版本）；码格式规则在 `packages/domain/src/redeem-codes.ts`，
@@ -103,7 +118,7 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   `X-Jev-Language` 头显式上报，服务端按请求分流（事务邮件发中文还是英文）；
   头缺失时回落中文。**界面语言切换只有两个入口**：登录/注册页（`/login`，含注册模式）
   与设置页（`/settings`）；首页、找回密码页等都不再放切换按钮
-- **设置页**（`/settings`）：昵称修改、语言修改、退出登录三件事都收在这里，
+- **设置页**（`/settings`）：昵称修改、语言修改、兑换码、隐私政策入口、退出登录都收在这里，
   「我的」页（`/me`）只留账号卡、赞助面板与多人历史，并提供设置页入口；
   昵称写入走 `PATCH /me/nickname`
 - **认证错误也要 i18n**：better-auth 直接回英文原文（如 `Invalid email or password`），

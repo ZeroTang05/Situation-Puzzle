@@ -11,7 +11,7 @@ import { useBack } from '../back.js';
 import { displayVerdict, verdictDetail } from '@jev/i18n';
 import { soloStore, type SoloSessionRow } from './local-store.js';
 import type { Session } from '../session.js';
-import { HintCapsule } from '../game/hint-capsule.js';
+import { HintCapsule, useHintPlayer } from '../game/hint-capsule.js';
 import { confidenceLabel } from '../game/game-display.js';
 import { VoteButtons } from '../catalog/vote-buttons.js';
 import { canRateSoloPuzzle } from './rating-visibility.js';
@@ -65,6 +65,9 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
   const [publicStats, setPublicStats] = useState<{ upCount: number; downCount: number } | null>(null);
   const chatRef = useRef<HTMLElement>(null);
   const randomRequestRef = useRef<AbortController | null>(null);
+  // 已解锁提示文本（hook 依赖它，须在提前 return 之前算好）
+  const hintList = turns.filter((turn) => turn.result === 'hint').map((turn) => turn.text);
+  const hintPlayer = useHintPlayer(hintList);
   // 输入框预提示：随机抽一条常见问题，给不会玩的用户一个起点（进入页面时定一次）
   const askPlaceholder = useMemo(() => {
     const list = copy.askPlaceholderExamples;
@@ -301,10 +304,11 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
 
   const solved = session.status === 'solved';
   const canRate = canRateSoloPuzzle(session.revealedAnswer, turns);
-  const hintList = turns.filter((turn) => turn.result === 'hint').map((turn) => turn.text);
 
   return (
     <main className="shell solo-shell">
+      {/* 提示悬浮胶囊：固定定位不占布局，10 秒自动收起 */}
+      <HintCapsule hints={hintList} open={hintPlayer.open} index={hintPlayer.index} onIndex={hintPlayer.show} />
       <GameHeader
         title={session.title}
         back={<button className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>}
@@ -384,11 +388,15 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
             {storageWarning && <p className="error-text">{copy.storageNotSaved}</p>}
           </div>
         </div>
-        <div className={`appear-slot${hintList.length ? ' open' : ''}`}>
-          <HintCapsule hints={hintList} />
-        </div>
         <section className="solo-action-row" role="group" aria-label={copy.hint}>
-          <button className="btn btn-sm" disabled={changingPuzzle || hintBusy || session.status !== 'active' || session.hintsUnlocked.length >= 3} onClick={() => void unlockHint(session.hintsUnlocked.length)}>
+          <button className="btn btn-sm" disabled={changingPuzzle || hintBusy || session.status !== 'active'} onClick={() => {
+            // 还有未解锁的提示：解锁并悬浮展示最新一条；全部解锁后：按钮变成循环翻阅
+            if (session.hintsUnlocked.length < 3) {
+              void unlockHint(session.hintsUnlocked.length).then(() => hintPlayer.show(hintList.length));
+            } else {
+              hintPlayer.cycle();
+            }
+          }}>
             {copy.hint} {session.hintsUnlocked.length}/3
           </button>
           <button className="btn btn-sm" aria-pressed={inputMode === 'solve'} disabled={changingPuzzle || sending || solved || Boolean(session.revealedAnswer)} onClick={() => {

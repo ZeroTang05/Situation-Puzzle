@@ -39,10 +39,10 @@ export function HomePage({ session }: { session: Session | null }) {
       <header className="topbar">
         <BrandHeading>{copy.brand}</BrandHeading>
         <div className="topbar-actions">
-          <NotificationBell />
           <button className="btn btn-ghost btn-sm help-btn" type="button" aria-label={copy.howToPlay} title={copy.howToPlay} onClick={() => setIntroOpen(true)}>
             ?
           </button>
+          <NotificationBell />
           {session ? (
             <button className="btn btn-ghost btn-sm" onClick={() => navigate('/me')}>
               {copy.me}
@@ -123,17 +123,14 @@ export function HomePage({ session }: { session: Session | null }) {
         </section>
       )}
 
-      {/* 站点入口：App 下载（壳内已经在 App 里，不显示）与隐私政策 */}
-      <footer className="site-footer">
-        {!isAppShell && (
+      {/* 站点入口：App 下载（壳内已经在 App 里，不显示）；隐私政策收在设置页 */}
+      {!isAppShell && (
+        <footer className="site-footer">
           <button type="button" onClick={() => navigate('/app')}>
             {language === 'zh' ? 'App 下载' : 'Get the App'}
           </button>
-        )}
-        <button type="button" onClick={() => navigate('/privacy')}>
-          {language === 'zh' ? '隐私政策' : 'Privacy Policy'}
-        </button>
-      </footer>
+        </footer>
+      )}
 
       <Modal open={introOpen} onOpenChange={setIntroOpen} title={copy.howToPlay} closeLabel={copy.gotIt}>
         <p>{copy.introWhat}</p>

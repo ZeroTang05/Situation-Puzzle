@@ -53,9 +53,13 @@ export const refundStatusEnum = pgEnum('refund_status', ['pending', 'refunded', 
 /** signup_bonus：新用户注册礼（一个月赞助），不参与月度续期衔接 */
 export const grantTypeEnum = pgEnum('grant_type', ['monthly', 'lifetime', 'test', 'signup_bonus']);
 
+/** 奖励额度来源：看广告 / 邀请好友注册 / 作品通过人工审核（docs/rebuild/21-MONETIZATION-REVISION.md） */
+export const roomBonusKindEnum = pgEnum('room_bonus_kind', ['ad_bonus', 'invite_bonus', 'creation_bonus']);
+
 export const grantStatusEnum = pgEnum('grant_status', ['active', 'frozen', 'revoked']);
 
-export const entitlementSourceEnum = pgEnum('entitlement_source', ['free', 'sponsorship', 'test']);
+/** beta：内测期（BETA_OPEN_ROOM）畅玩的开房授权来源 */
+export const entitlementSourceEnum = pgEnum('entitlement_source', ['free', 'sponsorship', 'test', 'beta']);
 
 export const entitlementStatusEnum = pgEnum('entitlement_status', [
   'reserved',
@@ -332,6 +336,32 @@ export const roomCreditLedger = pgTable(
   (t) => [
     uniqueIndex('room_credit_ledger_room_action_uq').on(t.roomId, t.action),
     index('room_credit_ledger_user_idx').on(t.userId),
+  ],
+);
+
+// ---------- 奖励额度（广告 / 邀请） ----------
+
+/**
+ * 奖励额度流水：看广告、邀请好友注册发的开房次数直接加进 freeRoomAccounts.total。
+ * 幂等键唯一：广告 = 微信回调 trans_id；邀请 = 被邀请人 userId（一人只算一次被邀请）。
+ * 发放事务 = 插流水（冲突即已发放）+ total 增额，同事务提交。
+ */
+export const roomBonusLedger = pgTable(
+  'room_bonus_ledger',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id),
+    kind: roomBonusKindEnum('kind').notNull(),
+    amount: integer('amount').notNull(),
+    detail: jsonb('detail').$type<Record<string, unknown>>(),
+    idempotencyKey: text('idempotency_key').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('room_bonus_ledger_idempotency_uq').on(t.idempotencyKey),
+    index('room_bonus_ledger_user_idx').on(t.userId),
   ],
 );
 

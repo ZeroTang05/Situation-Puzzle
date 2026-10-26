@@ -1,5 +1,5 @@
 /** 赞助与订单 HTTP 接口；支付回调使用原始请求体（bootstrap 中已挂 raw 解析）。 */
-import { Body, Controller, Get, HttpCode, Inject, Param, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Inject, Param, Post, Query, Req, Res } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { eq } from 'drizzle-orm';
@@ -12,7 +12,8 @@ import { Public } from '../common/public.js';
 import { SessionGuard } from '../auth/session.guard.js';
 import { OrdersService } from './orders.service.js';
 import { RedeemCodesService } from './redeem-codes.service.js';
-import { orderCreateRequestSchema, redeemCodeRequestSchema } from '@jev/contracts';
+import { RoomBonusService } from './room-bonus.service.js';
+import { adIntentResponseSchema, inviteClaimRequestSchema, orderCreateRequestSchema, redeemCodeRequestSchema } from '@jev/contracts';
 import { z } from 'zod';
 
 @Controller()
@@ -22,6 +23,7 @@ export class BillingController {
   constructor(
     @Inject(OrdersService) private readonly ordersService: OrdersService,
     @Inject(RedeemCodesService) private readonly redeemCodesService: RedeemCodesService,
+    @Inject(RoomBonusService) private readonly roomBonusService: RoomBonusService,
   ) {}
 
   /** 当前赞助状态与免费开房余量。 */
@@ -112,5 +114,42 @@ export class BillingController {
       request.body as Buffer,
     );
     response.type(result.contentType).send(result.body);
+  }
+
+  // ---------- 奖励额度（广告 / 邀请，docs/rebuild/21-MONETIZATION-REVISION.md） ----------
+
+  /** 看广告前置：换 5 分钟意图令牌，加载广告时作为 out_return_no 透传给微信。 */
+  @RateLimit({ scope: 'ads.intent', limit: 30, windowSeconds: 3600, keyBy: 'user' })
+  @Post('ads/intent')
+  @HttpCode(200)
+  async adIntent(@CurrentUser() user: SessionUser): Promise<z.infer<typeof adIntentResponseSchema>> {
+    return this.roomBonusService.issueAdIntent(user.userId);
+  }
+
+  /**
+   * 微信激励视频服务端验证回调：无会话（微信服务器 GET）。
+   * 首次配置 URL 时微信带 echostr 校验，原样返回；奖励通知验签通过后发 +2 开房次数。
+   * 必须标 @Public()，理由同支付回调。
+   */
+  @RateLimit({ scope: 'ads.notify', limit: 120, windowSeconds: 60, keyBy: 'ip' })
+  @Public()
+  @Get('ads/wechat/notify')
+  async wechatAdNotify(@Query() query: Record<string, string | undefined>, @Res() response: Response) {
+    const result = await this.roomBonusService.handleWechatAdCallback(query);
+    if (result.echostr !== undefined) {
+      response.type('text/plain').send(result.echostr);
+      return;
+    }
+    response.json({ errcode: result.errcode, errmsg: result.errmsg });
+  }
+
+  /** 领取邀请奖励：被邀请人凭邀请链接里的 code 调用，奖励 +5 发给邀请人。 */
+  @RateLimit({ scope: 'invites.claim', limit: 10, windowSeconds: 3600, keyBy: 'user' })
+  @Post('invites/claim')
+  async inviteClaim(
+    @CurrentUser() user: SessionUser,
+    @Body(new ZodValidationPipe(inviteClaimRequestSchema)) body: z.infer<typeof inviteClaimRequestSchema>,
+  ) {
+    return this.roomBonusService.claimInviteBonus(user.userId, body.code);
   }
 }
