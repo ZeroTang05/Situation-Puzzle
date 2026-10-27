@@ -12,7 +12,13 @@ import { DomainError } from '@jev/domain';
 import type { BackupCreateResponse, BackupObject, BackupRestoreResponse, BackupStorageStatus } from '@jev/contracts';
 import { app } from '../context.js';
 import { decodeArchive, dumpArchive, encodeArchive, restoreArchive, type BackupArchive } from './archive.js';
-import { BackupStorage, backupKey, createdAtFromKey, type BackupStorageOptions } from './storage.js';
+import {
+  BackupStorage,
+  backupKey,
+  createdAtFromKey,
+  isBackupArchiveKey,
+  type BackupStorageOptions,
+} from './storage.js';
 
 /** 模块级并发标志：同一时刻只允许一个备份 / 还原任务在跑。 */
 let running = false;
@@ -31,8 +37,8 @@ export class BackupService {
       configured: Boolean(bucket),
       bucket,
       endpoint: bucket ? (env?.S3_ENDPOINT ?? null) : null,
-      region: bucket ? (env?.S3_REGION ?? 'us-east-1') : null,
-      prefix: env?.S3_BACKUP_PREFIX ?? 'jev-backups/',
+      region: bucket ? (env?.S3_REGION ?? null) : null,
+      prefix: bucket ? (env?.S3_BACKUP_PREFIX ?? null) : null,
     };
   }
 
@@ -40,7 +46,7 @@ export class BackupService {
   async list(): Promise<{ storage: BackupStorageStatus; items: BackupObject[] }> {
     const storage = this.status();
     if (!storage.configured) return { storage, items: [] };
-    const objects = await this.client().listBackups(storage.prefix);
+    const objects = await this.client().listBackups(this.prefix());
     return {
       storage,
       items: objects.map((object) => ({
@@ -54,8 +60,8 @@ export class BackupService {
 
   /** 创建备份：导出 → gzip → 存入对象存储 → 留审计。 */
   async create(operatorUserId: string | null, reason: string): Promise<BackupCreateResponse> {
-    const storage = this.status();
-    if (!storage.configured) throw new DomainError('BACKUP_NOT_CONFIGURED', '未接入对象存储，无法创建备份');
+    if (!this.status().configured) throw new DomainError('BACKUP_NOT_CONFIGURED', '未接入对象存储，无法创建备份');
+    const prefix = this.prefix();
     return this.exclusive(async () => {
       const client = await app().db.pool.connect();
       try {
@@ -71,7 +77,7 @@ export class BackupService {
         }
         const body = encodeArchive(archive);
         const now = new Date();
-        const key = backupKey(storage.prefix, archive.database, now);
+        const key = backupKey(prefix, archive.database, now);
         await this.client().putBackup(key, body);
         const tableCount = archive.tables.length;
         const rowCount = archive.tables.reduce((sum, table) => sum + table.rowCount, 0);
@@ -91,10 +97,9 @@ export class BackupService {
    * 写在前面会被自己抹掉。
    */
   async restore(operatorUserId: string | null, key: string, reason: string): Promise<BackupRestoreResponse> {
-    const storage = this.status();
-    if (!storage.configured) throw new DomainError('BACKUP_NOT_CONFIGURED', '未接入对象存储，无法还原备份');
+    if (!this.status().configured) throw new DomainError('BACKUP_NOT_CONFIGURED', '未接入对象存储，无法还原备份');
     return this.exclusive(async () => {
-      this.assertInPrefix(storage.prefix, key);
+      this.assertInPrefix(this.prefix(), key);
       const body = await this.client().getBackup(key);
       const archive = decodeArchive(body);
       const client = await app().db.pool.connect();
@@ -118,10 +123,9 @@ export class BackupService {
 
   /** 删除备份文件。 */
   async remove(operatorUserId: string | null, key: string, reason: string): Promise<void> {
-    const storage = this.status();
-    if (!storage.configured) throw new DomainError('BACKUP_NOT_CONFIGURED', '未接入对象存储，无法删除备份');
+    if (!this.status().configured) throw new DomainError('BACKUP_NOT_CONFIGURED', '未接入对象存储，无法删除备份');
     return this.exclusive(async () => {
-      this.assertInPrefix(storage.prefix, key);
+      this.assertInPrefix(this.prefix(), key);
       await this.client().deleteBackup(key);
       await this.audit(operatorUserId, 'backup.delete', key, reason, { key });
     });
@@ -129,9 +133,8 @@ export class BackupService {
 
   /** 下载备份文件本体（后台「下载备份」用）。 */
   async download(key: string): Promise<Buffer> {
-    const storage = this.status();
-    if (!storage.configured) throw new DomainError('BACKUP_NOT_CONFIGURED', '未接入对象存储，无法下载备份');
-    this.assertInPrefix(storage.prefix, key);
+    if (!this.status().configured) throw new DomainError('BACKUP_NOT_CONFIGURED', '未接入对象存储，无法下载备份');
+    this.assertInPrefix(this.prefix(), key);
     return this.client().getBackup(key);
   }
 
@@ -205,9 +208,24 @@ export class BackupService {
     }
   }
 
-  /** 只能操作备份前缀下的对象，避免后台越界读写桶里其它东西。 */
+  /**
+   * 只能操作备份前缀下的、且形状是本系统归档的对象。
+   *
+   * 前缀挡的是「越界读写桶里其它东西」（1Panel 的备份、别的项目的对象）；
+   * key 形状挡的是「前缀下同名的外来文件」——只靠前缀的话，
+   * 直接调 API 传个 key 就能让后台还原 / 删除一个根本不是数据库快照的文件。
+   */
   private assertInPrefix(prefix: string, key: string): void {
-    if (!key.startsWith(prefix)) throw new DomainError('BACKUP_NOT_FOUND', '备份对象不存在');
+    if (!key.startsWith(prefix) || !isBackupArchiveKey(key)) {
+      throw new DomainError('BACKUP_NOT_FOUND', '备份对象不存在');
+    }
+  }
+
+  /** 备份文件在桶内的前缀：来自 S3_BACKUP_PREFIX，未接入时不存在。 */
+  private prefix(): string {
+    const prefix = app().env?.S3_BACKUP_PREFIX;
+    if (!prefix) throw new DomainError('BACKUP_NOT_CONFIGURED', '未接入对象存储，无法执行备份操作');
+    return prefix;
   }
 
   /** 对象存储客户端：未接入时直接拒绝。 */
@@ -218,20 +236,25 @@ export class BackupService {
     return this.storage;
   }
 
+  /**
+   * 对象存储接入参数。
+   *
+   * 值全部来自环境变量，代码里不留默认值：配了 S3_BUCKET 就必须把整套参数配齐，
+   * 缺项在 env.ts 的跨字段校验里已经让进程启动失败，这里不再兜底。
+   */
   private storageOptions(): BackupStorageOptions | null {
     const env = app().env;
     const bucket = env?.S3_BUCKET;
-    if (!bucket) return null;
+    const region = env?.S3_REGION;
+    if (!bucket || !region) return null;
     return {
       ...(env.S3_ENDPOINT ? { endpoint: env.S3_ENDPOINT } : {}),
-      region: env.S3_REGION ?? 'us-east-1',
+      region,
       bucket,
       ...(env.S3_ACCESS_KEY_ID ? { accessKeyId: env.S3_ACCESS_KEY_ID } : {}),
       ...(env.S3_SECRET_ACCESS_KEY ? { secretAccessKey: env.S3_SECRET_ACCESS_KEY } : {}),
       ...(env.S3_SESSION_TOKEN ? { sessionToken: env.S3_SESSION_TOKEN } : {}),
-      // 自建服务默认 path style 寻址；显式配置优先
-      forcePathStyle: env.S3_FORCE_PATH_STYLE ? env.S3_FORCE_PATH_STYLE === 'true' : Boolean(env.S3_ENDPOINT),
-      prefix: env.S3_BACKUP_PREFIX ?? 'jev-backups/',
+      forcePathStyle: env.S3_FORCE_PATH_STYLE === 'true',
     };
   }
 }

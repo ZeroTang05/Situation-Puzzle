@@ -12,8 +12,8 @@ export const backupStorageStatusSchema = z.object({
   bucket: z.string().nullable(),
   endpoint: z.string().nullable(),
   region: z.string().nullable(),
-  /** 备份文件在桶内的前缀 */
-  prefix: z.string(),
+  /** 备份文件在桶内的前缀；未接入时为 null */
+  prefix: z.string().nullable(),
 });
 
 /** 桶里的一个备份对象 */

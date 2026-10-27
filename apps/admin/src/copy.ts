@@ -183,8 +183,8 @@ export function copy(language: Language) {
     backupTitle: language === 'zh' ? '项目备份' : 'Project backups',
     backupStorageTitle: language === 'zh' ? '对象存储' : 'Object storage',
     backupNotConfigured: language === 'zh'
-      ? '尚未接入对象存储：环境变量 S3_BUCKET / S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY 未配置，备份与还原不可用。'
-      : 'Object storage is not configured yet (S3_BUCKET / S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY are missing), so backup and restore are unavailable.',
+      ? '尚未接入对象存储：环境变量 S3_BUCKET 未配置，备份与还原不可用。配置 S3_BUCKET 时还需一并配置 S3_REGION / S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY / S3_FORCE_PATH_STYLE / S3_BACKUP_PREFIX。'
+      : 'Object storage is not configured yet (S3_BUCKET is missing), so backup and restore are unavailable. Setting S3_BUCKET also requires S3_REGION / S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY / S3_FORCE_PATH_STYLE / S3_BACKUP_PREFIX.',
     backupBucket: language === 'zh' ? '存储桶' : 'Bucket',
     backupEndpoint: language === 'zh' ? '接入地址' : 'Endpoint',
     backupRegion: language === 'zh' ? '区域' : 'Region',

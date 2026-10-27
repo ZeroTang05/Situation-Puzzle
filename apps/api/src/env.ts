@@ -97,19 +97,26 @@ const envSchema = z.object({
   /** 同一用户同时保持的实时连接数上限（每进程计数，默认 5；多开标签页会被拒） */
   WS_MAX_CONNECTIONS_PER_USER: z.coerce.number().int().min(1).max(50).default(5),
 
-  // 对象存储（项目备份）：S3 兼容服务；缺 S3_BUCKET 即视为未接入，备份功能整体关闭
-  /** 兼容 S3 的服务地址（MinIO / 阿里云 OSS S3 兼容等）；缺省走 AWS 官方 endpoint */
+  // 对象存储（项目备份）：S3 兼容服务。
+  // 未配 S3_BUCKET → 备份功能整体关闭（后台只显示「未接入」，不做任何写操作）。
+  // 配了 S3_BUCKET → 下面整套接入参数必须一次配齐，值一律来自环境变量，代码里不留默认值：
+  //   S3_BUCKET             纯桶名（不含路径；桶内路径写 S3_BACKUP_PREFIX）
+  //   S3_REGION             区域（Cloudflare R2 填 auto，AWS 填实际区域）
+  //   S3_BACKUP_PREFIX      桶内前缀，以 / 结尾（如 backup/海龟汤/）
+  //   S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY   访问凭据
+  //   S3_FORCE_PATH_STYLE   寻址方式（MinIO / R2 等自建服务填 true，AWS 官方填 false）
+  /** 兼容 S3 的服务地址（MinIO / 阿里云 OSS S3 兼容等）；留空 = 走 AWS 官方 endpoint */
   S3_ENDPOINT: z.string().optional(),
-  S3_REGION: z.string().default('us-east-1'),
+  S3_REGION: z.string().optional(),
   S3_BUCKET: z.string().optional(),
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
   /** 临时凭据（STS）的会话令牌 */
   S3_SESSION_TOKEN: z.string().optional(),
-  /** path style 寻址：默认有 S3_ENDPOINT 时开、否则关；显式配置优先 */
+  /** path style 寻址：MinIO / R2 等自建服务填 true，AWS 官方填 false */
   S3_FORCE_PATH_STYLE: z.enum(['true', 'false']).optional(),
-  /** 备份文件在桶内的前缀 */
-  S3_BACKUP_PREFIX: z.string().default('jev-backups/'),
+  /** 备份文件在桶内的前缀，以 / 结尾 */
+  S3_BACKUP_PREFIX: z.string().optional(),
   /** 自动备份间隔（小时）；0 = 关闭定时备份 */
   BACKUP_INTERVAL_HOURS: z.coerce.number().int().min(0).default(0),
 
@@ -139,9 +146,33 @@ export function loadEnv(): Env {
   if (env.GOOGLE_OAUTH_PROXY_BASE_URL && !env.GOOGLE_OAUTH_PROXY_SHARED_SECRET) {
     throw new Error('环境配置校验失败 → 配置了 GOOGLE_OAUTH_PROXY_BASE_URL 就必须配置 GOOGLE_OAUTH_PROXY_SHARED_SECRET');
   }
-  // 对象存储跨字段校验：配了桶就必须有凭据，否则备份功能带病运行
-  if (env.S3_BUCKET && (!env.S3_ACCESS_KEY_ID || !env.S3_SECRET_ACCESS_KEY)) {
-    throw new Error('环境配置校验失败 → 配置了 S3_BUCKET 就必须配置 S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY');
+  // 对象存储跨字段校验：配了桶就必须把整套接入参数配齐，且值要合法。
+  // 这些参数没有代码默认值——缺一个就地失败，不让备份功能带病运行到请求时才炸。
+  //
+  // S3_BUCKET 写成空字符串是「配了但没填对」：当未配置处理会让整套接入参数免于校验，
+  // 备份功能静默关闭，管理员只在点备份时才发现。当成误配置直接失败。
+  if (env.S3_BUCKET !== undefined) {
+    if (!env.S3_BUCKET.trim()) {
+      throw new Error('环境配置校验失败 → S3_BUCKET 配了但是空的：不接入对象存储请把这一行删掉或注释掉');
+    }
+    const required = ['S3_REGION', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY', 'S3_FORCE_PATH_STYLE', 'S3_BACKUP_PREFIX'] as const;
+    const missing = required.filter((key) => !env[key]);
+    if (missing.length > 0) {
+      throw new Error(`环境配置校验失败 → 配置了 S3_BUCKET 就必须同时配置：${missing.join(' / ')}`);
+    }
+    // 桶名合法性：SDK 客户端侧只挡「含 /」，其余非法名要等服务端才回 InvalidBucketName——
+    // 那时又变成「只有请求期才暴露的误配置」。这里按 S3 的桶名规则一次校验干净。
+    // 桶内路径写 S3_BACKUP_PREFIX，不要拼进 S3_BUCKET。
+    if (!isValidBucketName(env.S3_BUCKET)) {
+      throw new Error(
+        `环境配置校验失败 → S3_BUCKET 不是合法的桶名（须为 3–63 位小写字母/数字/连字符/点，首尾为字母或数字；桶内路径请写进 S3_BACKUP_PREFIX）：${env.S3_BUCKET}`,
+      );
+    }
+    // 前缀是桶内的一段路径：必须以 / 结尾，避免和同前缀下的其它 key 撞名
+    const prefix = env.S3_BACKUP_PREFIX;
+    if (!prefix || !prefix.endsWith('/')) {
+      throw new Error(`环境配置校验失败 → S3_BACKUP_PREFIX 必须以 / 结尾：${prefix ?? ''}`);
+    }
   }
   parseExtraOrigins(env.APP_EXTRA_ORIGINS);
   if (env.NODE_ENV === 'production') {
@@ -154,6 +185,17 @@ export function loadEnv(): Env {
     }
   }
   return env;
+}
+
+/**
+ * 桶名是否合法：3–63 位，只含小写字母、数字、连字符与点，首尾必须是字母或数字。
+ *
+ * AWS 与 Cloudflare R2 的桶名规则一致（点号开头/结尾的虚拟主机式桶名不算常规桶名）。
+ * SDK 客户端侧只挡「含 /」，其余非法名要等服务端才回 InvalidBucketName——
+ * 启动期自己校验一遍，配置错就别拖到第一次打桶才炸。
+ */
+function isValidBucketName(name: string): boolean {
+  return /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(name);
 }
 
 /** 解析 APP_EXTRA_ORIGINS：只接受 http(s) 纯 origin（不带路径/结尾斜杠），非法值就地失败。 */

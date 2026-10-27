@@ -16,7 +16,7 @@
 
 **加好友 + 私聊 + 快捷开局 + 通知**（`docs/rebuild/19-FRIENDS-DM-NOTIFICATIONS.md`）：按邮箱**精确**搜索（不做前缀模糊搜索，避免枚举站内邮箱）→ 发好友申请 → 对方同意才成为好友（申请-同意制）。申请按 `user_low`/`user_high` 规范化，A→B 与 B→A 互斥，数据库部分唯一索引 `friend_requests_pending_pair_uq` 兜底。好友之间有私聊会话（同意申请时同事务建），消息按**会话内序号** `dm_messages.seq` 排序，已读水位 `conversation_reads.last_read_seq` **只前进不后退**（不用时间戳：同毫秒发消息会丢）。私聊里可「来一局」发起一局（`POST /conversations/:id/start-room`）：**对方不被自动拉进房间**，卡片上的「进入房间」是邀请链接（`/room/invite/<token>`，令牌明文随卡片落在 `dm_messages.invite_token`），对方点了才进房；卡片按钮按房间当前状态变化（归档后变「房间已结束」）。**没有会话列表页**：`/chat` 不存在，好友列表是唯一入口，点好友名整行直达 `/chat/:conversationId`（站内没有「消息」按钮，全站不再提供该入口）。私聊消息 / 好友申请 / 开局邀请 / 站内信统一进通知中心（`notifications`），铃铛角标 10 秒轮询、聊天页 3 秒轮询——**本轮不走 WebSocket**，实时网关留作后续扩展点。通知标题**不落库**：读取时按 `X-Jev-Language` 即时拼装（站内信用公告原文）。
 
-**项目备份（后台）**：管理员在后台「项目备份」页把整个数据库做逻辑快照、存进 **S3 兼容对象存储**，并可从任一备份还原。实现走**纯 Node**（`apps/api/src/backup/`），不依赖 `pg_dump` 等外部二进制：导出时每列在 SQL 侧 `::text` 文本化（bytea/jsonb/数组/numeric/enum 都靠「文本 → 目标类型」cast 无损往返，NULL 原样保留），还原在**单个事务**里完成（`TRUNCATE … RESTART IDENTITY CASCADE` → 按外键拓扑序写回 → 重置序列），任一步失败整体回滚。归档表与字段类型必须与目标库元数据严格匹配，SQL 类型只取目标库，否则抛 `BACKUP_INVALID_ARCHIVE`。对象存储未配置（缺 `S3_BUCKET`）时整体降级为「未接入」，后台只显示提示、不做任何写操作。还原是不可逆操作：请求体必须带固定确认口令 `RESTORE` + 操作理由，写操作全部留审计（`audit_logs`，objectType=`backup`）；**还原的审计写在提交之后**——还原会 TRUNCATE `audit_logs` 自己。
+**项目备份（后台）**：管理员在后台「项目备份」页把整个数据库做逻辑快照、存进 **S3 兼容对象存储**，并可从任一备份还原。实现走**纯 Node**（`apps/api/src/backup/`），不依赖 `pg_dump` 等外部二进制：导出时每列在 SQL 侧 `::text` 文本化（bytea/jsonb/数组/numeric/enum 都靠「文本 → 目标类型」cast 无损往返，NULL 原样保留），还原在**单个事务**里完成（`TRUNCATE … RESTART IDENTITY CASCADE` → 按外键拓扑序写回 → 重置序列），任一步失败整体回滚。归档表与字段类型必须与目标库元数据严格匹配，SQL 类型只取目标库，否则抛 `BACKUP_INVALID_ARCHIVE`。对象存储未配置（缺 `S3_BUCKET`）时整体降级为「未接入」，后台只显示提示、不做任何写操作；**配了 `S3_BUCKET` 就必须一次配齐整套接入参数**（`S3_REGION` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_FORCE_PATH_STYLE` / `S3_BACKUP_PREFIX`），缺项在启动期就失败——代码里不留默认值。`S3_BUCKET` 只能是**纯桶名**（含 `/` 会被 S3 SDK 判成非法桶名），桶内路径写进 `S3_BACKUP_PREFIX`（以 `/` 结尾）；列表只认 `.json.gz` 结尾的归档，目录占位对象与同前缀下的其它文件不进后台列表。还原是不可逆操作：请求体必须带固定确认口令 `RESTORE` + 操作理由，写操作全部留审计（`audit_logs`，objectType=`backup`）；**还原的审计写在提交之后**——还原会 TRUNCATE `audit_logs` 自己。
 
 ## 目录结构
 
@@ -151,9 +151,13 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   WebSocket 每用户 5 条连接。清单见 `docs/rebuild/16-CONCURRENCY-LIMITS.md`
 - **备份不变量**：① 只备份 `public` schema 的普通表（分区子表按父表、生成列不入档）；
   ② 备份 / 还原同一时刻只允许一个任务在跑（`BACKUP_IN_PROGRESS`）；
-  ③ 还原必须带确认口令 `RESTORE` + 理由，key 只能落在 `S3_BACKUP_PREFIX` 前缀内；
+  ③ 还原必须带确认口令 `RESTORE` + 理由，key 只能落在 `S3_BACKUP_PREFIX` 前缀内、
+  且文件名必须符合本系统的归档形状（`<yyyymmdd'T'HHMMSS'Z'>-<库名>.json.gz`）；
   ④ 还原是全局独占写操作，期间的其它写事务会等待或锁超时（锁序约定对它不适用）；
-  ⑤ 归档表与列类型必须匹配目标库元数据；还原 SQL 只使用目标库类型，禁止插入归档类型串
+  ⑤ 归档表与列类型必须匹配目标库元数据；还原 SQL 只使用目标库类型，禁止插入归档类型串；
+  ⑥ 对象存储接入参数（`S3_BUCKET` / `S3_REGION` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` /
+  `S3_FORCE_PATH_STYLE` / `S3_BACKUP_PREFIX`）一律来自环境变量，代码里不留默认值：
+  配了 `S3_BUCKET` 就必须一次配齐，缺项在启动期失败，不拖到请求期
 
 ## 踩坑点
 
@@ -171,6 +175,17 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   `'1' + 1` 会变成 `'11'`。要么聚合上 `::int`，要么显式 `Number()` 转换
   （`dm_messages.seq` 分配序号踩过这个坑）
 - **exactOptionalPropertyTypes 开启**：可选属性赋 `undefined` 要用条件展开
+- **S3 桶名与桶内路径是两回事**：`S3_BUCKET` 只填纯桶名，桶内路径填 `S3_BACKUP_PREFIX`。
+  曾把 `other/backup/海龟汤/` 填进 `S3_BUCKET`，SDK 抛 `InvalidBucketName`，
+  而这个错误不是 `DomainError`，落到全局兜底分支只回一句「服务器出了点问题」，
+  真实原因只留在服务端日志里。现在启动期就校验桶名合法性（含 S3 桶名规则，
+  不只是「含 /」），SDK 错误也统一转成 `BACKUP_FAILED`：
+  原始错误名与消息进 `params`（诊断用）+ 服务端日志，`message` 保持稳定文案，
+  不把桶名 / endpoint 主机名 / 签名抖给浏览器。
+  注意 `DomainError` 在全局过滤器里**不落日志**——要留痕就得自己写日志
+- **桶里的东西不都是备份**：同一个桶可能还有 1Panel 的备份、目录占位对象（key 以 `/` 结尾）、
+  别的工具的导出。后台列表只认本系统的归档形状（`<yyyymmdd'T'HHMMSS'Z'>-<库名>.json.gz`），
+  还原 / 删除也按同一形状校验，避免把外来文件当备份还原
 - **Windows CRLF**：shell 脚本入库加 `.gitattributes`；容器内执行前 `sed -i 's/\r$//'`（Dockerfile 已处理）
 - **开发期邮箱**：本地联调用 `scripts/dev-mailsink.mjs`（真实 SMTP 协议收信台）+
   `MAIL_TRANSPORT=smtp`，不要把控制台打印验证码当已接入邮箱

@@ -34,7 +34,7 @@ type StorageStatus = {
   bucket: string | null;
   endpoint: string | null;
   region: string | null;
-  prefix: string;
+  prefix: string | null;
 };
 
 type BackupItem = {
@@ -152,7 +152,7 @@ export function BackupList() {
                 </TableRow>
                 <TableRow>
                   <TableCell>{c.backupPrefix}</TableCell>
-                  <TableCell>{storage.prefix}</TableCell>
+                  <TableCell>{storage.prefix ?? '—'}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
