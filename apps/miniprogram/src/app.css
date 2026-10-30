@@ -290,6 +290,20 @@ page {
   margin-top: 4px;
 }
 
+/* 微信一键登录卡片：居中单卡，主按钮上下留白 */
+.wechat-login-panel {
+  margin-top: 18vh;
+  text-align: center;
+  gap: 14px;
+}
+.wechat-login-panel .h2 {
+  margin: 0 0 4px;
+}
+.wechat-login-hint {
+  font-size: 13px;
+  text-align: center;
+}
+
 /* 设置页：左标签右值的行；语言切换两个按钮并排 */
 .settings-row {
   display: flex;

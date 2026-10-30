@@ -34,6 +34,7 @@ import { MailDeliveryError, type Mailer } from './mailer.js';
 import { OtpSendQuota, otpLimitMessage } from './otp-send-quota.js';
 import { otpRequestContext } from './otp-request-context.js';
 import { consumeSignupOtp, isDisposableEmail } from './signup-otp-gate.js';
+import { wechatMiniPlugin } from './wechat-mini.js';
 import { z } from 'zod';
 
 export interface AuthDeps {
@@ -163,7 +164,11 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
                 },
               ],
             }),
-          ]
+        ]
+      : []),
+      // 微信小程序一键登录：凭据配齐才注册（否则 /auth/wechat-mini/login 不存在）
+      ...(env.WECHAT_MINI_APPID && env.WECHAT_MINI_SECRET
+        ? [wechatMiniPlugin({ appid: env.WECHAT_MINI_APPID, secret: env.WECHAT_MINI_SECRET })]
         : []),
     ],
     session: {

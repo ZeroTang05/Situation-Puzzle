@@ -3,6 +3,36 @@
 状态：已拍板（决策记录见 §8）。M0、M1、M2 完成（2026-10-25），M3 待做。
 日期：2026-10-25；基线：feat/app-version（含 M3 Android 交付）。
 
+## M2.6 完成记录（2026-10-27：登录换微信一键登录）
+
+登录方式整体切换：**去掉邮箱登录/注册/找回密码，小程序端只留微信一键登录**
+（web/App 端不受影响，邮箱通道照旧）。
+
+- **后端**（`apps/api/src/auth/wechat-mini.ts`）：better-auth 自定义插件，
+  端点 `POST /api/v1/auth/wechat-mini/login`。服务端直连
+  `api.weixin.qq.com/sns/jscode2session`（AppSecret 只在服务端；境内服务器无需中继）
+  换 openid → 按 `(providerId='wechat-mini', accountId=openid)` 找账号，没有就
+  `createOAuthUser` 建号（占位邮箱 `wx-<openid>@wechat.invalid` 沿用 LINUX DO 的
+  `*.invalid` 约定；昵称走注册钩子默认「用户+随机编号」；注册礼/免费账户/赞助账户
+  钩子照常生效）→ `createSession` 后令牌放**响应体**（小程序无 Cookie，与 App 壳
+  Bearer 链路同约定，客户端 `storeBearerToken` 直存）。并发双击撞唯一索引时重查兜底。
+  `session_key` 不落库（本站不解密微信侧数据）；`unionid` 暂不存（站内只有小程序一个
+  微信入口，openid 已唯一；接公众号/网站微信登录时再引入列做跨端合并）。
+  凭据 `WECHAT_MINI_APPID` + `WECHAT_MINI_SECRET` 两项配齐才注册插件，缺一项端点不存在。
+  频控吃 better-auth 全局默认（20 次/分钟/IP）。微信错误码映射：40029/40126 →
+  `WECHAT_LOGIN_FAILED`（code 无效/已用，让用户重走 wx.login）、45011/-1 →
+  `WECHAT_LOGIN_BUSY`（微信侧限流/繁忙）。
+- **小程序端**：登录页重写为单按钮（`Taro.login()` → 插件端点 → 存令牌 →
+  finishLogin），登录卡片下方留隐私政策入口（提审友好）；删除邮箱登录/注册/找回密码
+  页与 OTP 倒计时模块（`pages/forgot-password`、`auth/otp-cooldown.ts`）；
+  `authClient`（better-auth vanilla 客户端）保留——会话读取/刷新/登出仍走它。
+  「我的」页邮箱展示脱敏：占位邮箱显示为「微信账号」。
+- **账号体系口径**：微信登录建的是独立账号，与 web 邮箱账号互不相通（原「邮箱登录
+  天然同步」路径随邮箱登录一起移除）；跨端权益同步靠兑换码（全端保留）。将来要打通
+  时在设置页加「绑定邮箱」即可（account 表多 provider 天然支持）。
+- 验证：全仓 typecheck 全绿、`build:weapp` 成功、`parseCode2Session` 单测 4 项通过
+  （`apps/api/src/auth/wechat-mini.test.ts`）。真实链路待 AppID/AppSecret 配置后联调。
+
 ## M2.5 完成记录（2026-10-24 补充：奖励入口）
 
 变现方式修订（21 号文档）落在小程序侧的部分：
@@ -94,14 +124,14 @@ flowchart LR
   app -- "HTTPS + Bearer" --> api
 ```
 
-后端唯一的（可选）增量：M6 微信支付 JSAPI 与 M7 微信登录（wx.login + code2Session），都需要小程序 AppID 就位后才动工，且互相独立。
+后端增量：M6 微信支付 JSAPI 仍待小程序 AppID 就位后动工；微信登录已落地（见顶部 M2.6 记录：`POST /auth/wechat-mini/login` + `WECHAT_MINI_APPID/SECRET`）。
 
 ## 4. 里程碑
 
 | 阶段 | 内容 | 验收标准 |
 | --- | --- | --- |
 | M0 骨架与适配层 | Taro 工程进 monorepo；api client（Bearer）；i18n/语言 hook；设计变量与基础 UI 件；路由表与首页静态 | `taro build weapp` 出包；微信开发者工具能打开渲染首页；typecheck 全绿 |
-| M1 认证与账号 | 登录（密码+OTP）/找回密码/设置（昵称、语言、兑换码、隐私政策）/我的（账号卡、会员面板、多人历史） | 小程序内登录拿令牌、/me 与兑换全通 |
+| M1 认证与账号 | ~~登录（密码+OTP）/找回密码~~ → 2026-10-27 换微信一键登录（M2.6 记录）；设置（昵称、语言、兑换码、隐私政策）/我的（账号卡、会员面板、多人历史） | 小程序内登录拿令牌、/me 与兑换全通 |
 | M2 题库与单人 | 题库列表（难度/类别筛选、分页、排序）、单人游玩全流程（本地存档适配、匿名凭证、判定展示、切题/换题） | 小程序内完整玩一局单人 |
 | M3 多人房间 | 会客厅（选题/开始）、房间实时流（WS 适配）、命令通道、大厅与公开房、邀请（分享卡片 + 复制链接） | 小程序与网页端同桌对局互发问答 |
 | M4 社交 | 好友（搜索/申请/同意）、私聊（3s 轮询）、通知中心（10s 轮询）、铃铛 | 跨端好友互发私聊与通知 |
@@ -113,7 +143,7 @@ flowchart LR
 
 ## 5. 需要用户准备的事（M1 前后就要用）
 
-1. **注册小程序**：[微信公众平台](https://mp.weixin.qq.com) 用个体工商户主体注册，拿到 **AppID**（开发期可先用测试号）
+1. **注册小程序**：[微信公众平台](https://mp.weixin.qq.com) 用个体工商户主体注册，拿到 **AppID + AppSecret**（开发管理 → 开发设置）；AppID/AppSecret 配进服务端 `WECHAT_MINI_APPID` / `WECHAT_MINI_SECRET` 后小程序才能登录（开发期可先用测试号，但 code2session 要真实凭据）
 2. **微信开发者工具**（Windows 稳定版）：真机预览与调试都靠它
 3. 后台「开发管理 → 服务器域名」配置：request 合法域名 `https://sp.xiaobaozi.cn`、socket 合法域名 `wss://sp.xiaobaozi.cn`
 4. M7 提审前：**MiniMax 的合作协议与算法备案截图**（MiniMax 开放平台可申请）+ 小程序 ICP 备案（注册流程自带）

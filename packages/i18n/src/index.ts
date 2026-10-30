@@ -120,6 +120,8 @@ const authErrorCopy: Record<string, Record<Language, string>> = {
   SOCIAL_ACCOUNT_ALREADY_LINKED: { zh: '该第三方账号已经绑定过其他站内账号。', en: 'That third-party account is already linked to another account.' },
   ACCOUNT_NOT_FOUND: { zh: '账号不存在。', en: 'That account does not exist.' },
   UNAUTHORIZED: { zh: '请先登录。', en: 'Please sign in first.' },
+  WECHAT_LOGIN_FAILED: { zh: '微信登录失败，请重试。', en: 'WeChat sign-in failed. Please try again.' },
+  WECHAT_LOGIN_BUSY: { zh: '微信登录繁忙，请稍后再试。', en: 'WeChat sign-in is busy. Please try again later.' },
 };
 
 /**
@@ -452,6 +454,12 @@ export const copy = {
     signIn: '登录',
     reapply: '重新申请',
     meRequiresLogin: '登录后查看账号与会员状态。单人推理无需登录。',
+
+    // ----- 微信一键登录（小程序端） -----
+    wechatLogin: '微信一键登录',
+    wechatLoginHint: '首次登录自动创建账号',
+    wechatLoginFail: '微信登录失败，请重试',
+    wechatAccountLabel: '微信账号',
 
     // ----- lobby / home -----
     creating: '正在创建…',
@@ -951,6 +959,12 @@ export const copy = {
     signIn: 'Sign in',
     reapply: 'Request again',
     meRequiresLogin: 'Sign in to view your account and membership. Solving solo does not require sign in.',
+
+    // ----- WeChat one-tap sign-in (miniprogram) -----
+    wechatLogin: 'Sign in with WeChat',
+    wechatLoginHint: 'An account is created automatically on first sign-in',
+    wechatLoginFail: 'WeChat sign-in failed. Please try again.',
+    wechatAccountLabel: 'WeChat account',
 
     // ----- lobby / home -----
     creating: 'Creating…',

@@ -217,11 +217,13 @@ function chineseNum(n) {
   return CN_DIGITS[Math.floor(n / 10)] + `十${n % 10 ? CN_DIGITS[n % 10] : ''}`;
 }
 
-/** 图序文案：单张 "图二"，多张 "图二、图三" */
+/** 图序文案：单张 "图二"，连续两张 "图二、图三"，三张及以上 "图二到图四" */
 function imageRange(start, end) {
   const a = `图${chineseNum(start)}`;
   if (!end || end <= start) return a;
-  return `${a}、图${chineseNum(end)}`;
+  // 连续三张以上不能写成 "图二、图四"（会漏掉中间的图三），必须用区间表述
+  if (end === start + 1) return `${a}、图${chineseNum(end)}`;
+  return `${a}到图${chineseNum(end)}`;
 }
 
 function buildCopy({ template, day, today, prev, statement, copy, prevImageStart, prevImageEnd }) {
@@ -231,7 +233,7 @@ function buildCopy({ template, day, today, prev, statement, copy, prevImageStart
   // 汤底起始图序由渲染后的真实页数决定：汤面占 N 张 → 汤底从第 N+1 张开始
   const range = prevImageStart ? imageRange(prevImageStart, prevImageEnd) : '';
   const prevNote = prev
-    ? `昨天那碗《${prev.title}》的完整汤底，从${range}开始 👀\n今天的答案在下一篇笔记揭晓～`
+    ? `昨天那碗《${prev.title}》的完整汤底在${range} 👀\n今天的答案在下一篇笔记揭晓～`
     : '第一篇开张！今天只有汤面，答案在下一篇笔记揭晓～';
   const filled = {
     hook: copy.hook ?? '',
@@ -297,7 +299,7 @@ function commandPlan(dateArg) {
     },
     copyNotes: [
       '图序（"图二"之类）由脚本在渲染后按真实张数自动计算，guide 里不要自己写图序。',
-      '如果确实要在自己的文案里引用汤底图序，用占位符 {{prevImageStart}}，脚本会替换成"图二"或"图二、图三"。',
+      '如果确实要在自己的文案里引用汤底图序，用占位符 {{prevImageStart}}，脚本会替换成"图二"、"图二、图三"或"图二到图四"。',
       'prevNote（"昨天那碗…的完整汤底，从图X开始" + "今天的答案在下一篇笔记揭晓"）脚本已填好，不要在 guide 里重复。',
     ],
   };
@@ -395,7 +397,8 @@ async function commandRun(inputArg) {
       badge: prev.category ?? '海龟汤',
       title: prev.title,
       text: prev.answer,
-      footer: '今日汤面在上一张图 👀',
+      // 汤面永远是图一（面区排在最前且必有卡片），不能写"上一张图"——汤底多张时上一张仍是汤底
+      footer: '今日汤面在图一 👀',
       background: bgOf('bottom'),
       cssVariant: 'warm',
     });
