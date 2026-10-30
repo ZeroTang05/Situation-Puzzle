@@ -113,32 +113,35 @@ export class LobbyService {
    * 同 lobby 同一时刻最多一条有效邀请。
    */
   async createInvite(user: SessionUser, lobbyId: string): Promise<{ token: string; kind: 'lobby' }> {
-    const [lobby] = await this.db.db
-      .select({ hostUserId: userLobbies.hostUserId })
-      .from(userLobbies)
-      .where(eq(userLobbies.id, lobbyId))
-      .limit(1);
-    if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
-    if (lobby.hostUserId !== user.userId) throw new DomainError('FORBIDDEN', '只有房主可以生成邀请');
+    return this.db.tx(async (tx) => {
+      // 与加入、开局、解散共用会客厅锁，旧邀请撤销与新邀请生成一并提交。
+      const [lobby] = await tx
+        .select({ hostUserId: userLobbies.hostUserId })
+        .from(userLobbies)
+        .where(eq(userLobbies.id, lobbyId))
+        .for('update')
+        .limit(1);
+      if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+      if (lobby.hostUserId !== user.userId) throw new DomainError('FORBIDDEN', '只有房主可以生成邀请');
 
-    const now = new Date();
-    // 同一 lobby 同一时刻最多一条有效邀请：旧邀请全部 revoke
-    await this.db.db
-      .update(lobbyInvites)
-      .set({ revokedAt: now })
-      .where(and(eq(lobbyInvites.lobbyId, lobbyId), isNull(lobbyInvites.revokedAt)));
+      const now = new Date();
+      await tx
+        .update(lobbyInvites)
+        .set({ revokedAt: now })
+        .where(and(eq(lobbyInvites.lobbyId, lobbyId), isNull(lobbyInvites.revokedAt)));
 
-    const token = randomBytes(16).toString('hex');
-    const tokenHash = createHash('sha256').update(token).digest('hex');
-    const expiresAt = new Date(Date.now() + this.inviteTtlMs());
-    await this.db.db.insert(lobbyInvites).values({ lobbyId, tokenHash, expiresAt });
-    return { token, kind: 'lobby' };
+      const token = randomBytes(16).toString('hex');
+      const tokenHash = createHash('sha256').update(token).digest('hex');
+      const expiresAt = new Date(Date.now() + this.inviteTtlMs());
+      await tx.insert(lobbyInvites).values({ lobbyId, tokenHash, expiresAt });
+      return { token, kind: 'lobby' };
+    });
   }
 
   /** 解析邀请 token：拿 lobbyId。token 失效统一归一为 LOBBY_NOT_FOUND，不重建 lobby。 */
-  async resolveInvite(token: string): Promise<{ lobbyId: string; hostUserId: string }> {
+  async resolveInvite(token: string, db: Tx | typeof this.db.db = this.db.db): Promise<{ lobbyId: string; hostUserId: string }> {
     const tokenHash = createHash('sha256').update(token).digest('hex');
-    const [row] = await this.db.db
+    const [row] = await db
       .select({
         lobbyId: lobbyInvites.lobbyId,
         expiresAt: lobbyInvites.expiresAt,
@@ -197,6 +200,9 @@ export class LobbyService {
     return this.db.tx(async (tx) => {
       const [lobby] = await tx.select().from(userLobbies).where(eq(userLobbies.id, lobbyId)).for('update').limit(1);
       if (!lobby) throw new DomainError('NOT_FOUND', '会客厅不存在');
+
+      // 等待锁期间邀请可能被撤销或过期，授予座位前必须在事务内重新验证。
+      await this.resolveInvite(token, tx);
 
       // 容量校验
       const [cnt] = await tx.select({ n: count() }).from(lobbyMembers).where(eq(lobbyMembers.lobbyId, lobbyId));

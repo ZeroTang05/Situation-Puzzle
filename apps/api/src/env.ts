@@ -69,6 +69,9 @@ const envSchema = z.object({
   WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH: z.string().optional(),
   /** 微信激励视频广告服务端验证密钥（流量主后台配置）；未配置时小程序看广告入口不发放奖励 */
   WECHAT_AD_CALLBACK_SECRET: z.string().optional(),
+  /** 小程序登录凭据（mp.weixin.qq.com 开发管理 → 开发设置）；两项配齐才注册微信登录插件 */
+  WECHAT_MINI_APPID: z.string().optional(),
+  WECHAT_MINI_SECRET: z.string().optional(),
 
   // 支付宝开放平台（当面付扫码 / 电脑网站支付跳转）
   ALIPAY_APP_ID: z.string().optional(),

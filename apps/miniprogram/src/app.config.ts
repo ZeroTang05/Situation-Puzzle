@@ -2,7 +2,6 @@ export default defineAppConfig({
   pages: [
     'pages/index/index',
     'pages/login/login',
-    'pages/forgot-password/forgot-password',
     'pages/me/me',
     'pages/settings/settings',
     'pages/privacy/privacy',

@@ -11,7 +11,7 @@ export DATABASE_URL=postgresql://jev:jev@localhost:54329/jev
 
 echo "== 启动一次性 PostgreSQL =="
 docker rm -f jev-pg-smoke > /dev/null 2>&1 || true
-docker run -d --name jev-pg-smoke -e POSTGRES_USER=jev -e POSTGRES_PASSWORD=jev -e POSTGRES_DB=jev -p 54329:5432 postgres:17 > /dev/null
+docker run -d --name jev-pg-smoke -e POSTGRES_USER=jev -e POSTGRES_PASSWORD=jev -e POSTGRES_DB=jev -p 127.0.0.1:54329:5432 postgres:17 > /dev/null
 for i in $(seq 1 30); do
   docker exec jev-pg-smoke pg_isready -U jev > /dev/null 2>&1 && break
   sleep 1

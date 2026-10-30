@@ -161,7 +161,12 @@ export default function Me() {
   const remaining = freeRooms ? freeRooms.total - freeRooms.consumed - freeRooms.reserved : null
   // 名字与邮箱都来自 /me：没回来就整卡占位，回来一起出；不读会话字段，避免分两步加载
   const displayName = me.data?.nickname ?? '…'
-  const displayEmail = me.data?.email ?? '…'
+  // 微信一键登录的账号是占位邮箱（wx-<openid>@wechat.invalid）：对外展示成「微信账号」
+  const displayEmail = !me.data
+    ? '…'
+    : me.data.email.endsWith('@wechat.invalid')
+      ? copy.wechatAccountLabel
+      : me.data.email
   const invite = me.data?.invite ?? null
   // 看广告入口：会员不限次数与内测畅玩期间都不需要
   const showAdEntry = !hasUnlimited && !betaOpen

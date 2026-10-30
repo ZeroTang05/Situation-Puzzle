@@ -49,6 +49,11 @@ export function captureBearerToken(header: Record<string, string> | undefined): 
   if (token) Taro.setStorageSync(TOKEN_KEY, token)
 }
 
+/** 直接写入 Bearer 令牌：微信一键登录的令牌在响应体里返回（无 Cookie/响应头链路） */
+export function storeBearerToken(token: string): void {
+  Taro.setStorageSync(TOKEN_KEY, token)
+}
+
 export function clearBearerToken(): void {
   Taro.removeStorageSync(TOKEN_KEY)
 }

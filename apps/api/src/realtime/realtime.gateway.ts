@@ -11,6 +11,14 @@ import { consumeJti } from './realtime.controller.js';
 import { activeRoomsForUser } from './presence-state.js';
 import { countUserConnections } from './connection-limit.js';
 
+/** 在接收入口限制内存与工作量，同时容纳登录和唤醒时的短暂连发。 */
+const MAX_MESSAGE_BYTES = 16 * 1024;
+const MAX_PENDING_TASKS = 32;
+const MAX_PENDING_BYTES = 64 * 1024;
+const MESSAGE_BURST = 60;
+const MESSAGES_PER_SECOND = 20;
+const MAX_BUFFERED_BYTES = 1024 * 1024;
+
 interface Subscription { roomId: string; lastSeq: number }
 interface ClientState {
   userId: string | null;
@@ -24,13 +32,18 @@ interface ClientState {
   connectedAt: number;
   queue: Promise<void>;
   scheduled: boolean;
+  pendingTasks: number;
+  pendingBytes: number;
+  messageTokens: number;
+  tokensUpdatedAt: number;
 }
 
 export class RealtimeGateway {
   private readonly logger = new Logger('RealtimeGateway');
   private readonly clients = new Map<WebSocket, ClientState>();
   private readonly presenceRooms = new Map<string, Set<string>>();
-  private readonly wss = new WebSocketServer({ noServer: true });
+  private readonly dirtyPresence = new Set<string>();
+  private readonly wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_BYTES });
   private ticker: NodeJS.Timeout | null = null;
   private listenClient: import('pg').PoolClient | null = null;
   private ticking = false;
@@ -78,30 +91,51 @@ export class RealtimeGateway {
 
   private connect(socket: WebSocket): void {
     const now = Date.now();
-    const state: ClientState = { userId: null, sessionId: null, subscriptions: new Map(), lobbySubscriptions: new Set(), lastPongAt: now, lastPingAt: 0, lastActiveAt: 0, connectedAt: now, queue: Promise.resolve(), scheduled: false };
+    const state: ClientState = { userId: null, sessionId: null, subscriptions: new Map(), lobbySubscriptions: new Set(), lastPongAt: now, lastPingAt: 0, lastActiveAt: 0, connectedAt: now, queue: Promise.resolve(), scheduled: false,
+      pendingTasks: 0, pendingBytes: 0, messageTokens: MESSAGE_BURST, tokensUpdatedAt: now };
     this.clients.set(socket, state);
     const authTimer = setTimeout(() => { if (!state.userId) socket.close(4401, 'auth_timeout'); }, 5_000);
     socket.on('pong', () => { state.lastPongAt = Date.now(); });
     socket.on('message', (raw) => {
-      state.lastPongAt = Date.now();
-      this.enqueue(socket, state, () => this.onMessage(socket, state, raw.toString()));
+      if (socket.readyState !== 1) return;
+      const receivedAt = Date.now();
+      state.messageTokens = Math.min(MESSAGE_BURST, state.messageTokens + (receivedAt - state.tokensUpdatedAt) * MESSAGES_PER_SECOND / 1000);
+      state.tokensUpdatedAt = receivedAt;
+      if (state.messageTokens < 1) {
+        this.reject(socket, 'RATE_LIMITED', '实时消息过于频繁', 4429);
+        return;
+      }
+      state.messageTokens -= 1;
+      state.lastPongAt = receivedAt;
+      const bytes = Array.isArray(raw) ? raw.reduce((total, part) => total + part.length, 0) : raw.byteLength;
+      this.enqueue(socket, state, () => this.onMessage(socket, state, raw.toString()), bytes);
     });
     socket.on('error', (error) => this.logger.warn(`实时连接错误: ${error.message}`));
     socket.on('close', (code) => {
       clearTimeout(authTimer);
       this.clients.delete(socket);
       this.logger.log(JSON.stringify({ event: 'ws.closed', code, durationMs: Date.now() - state.connectedAt }));
-      void this.updatePresence(state.userId).catch((error: unknown) => this.logger.error('在线状态清理失败', error));
+      if (state.userId) this.dirtyPresence.add(state.userId);
     });
   }
 
   /** 单连接任务串行，防止补齐与订阅同时改写游标。 */
-  private enqueue(socket: WebSocket, state: ClientState, action: () => Promise<void>): void {
+  private enqueue(socket: WebSocket, state: ClientState, action: () => Promise<void>, bytes = 0): void {
+    if (socket.readyState !== 1) return;
+    if (state.pendingTasks >= MAX_PENDING_TASKS || state.pendingBytes + bytes > MAX_PENDING_BYTES) {
+      this.reject(socket, 'RATE_LIMITED', '实时消息积压过多', 4429);
+      return;
+    }
+    state.pendingTasks += 1;
+    state.pendingBytes += bytes;
     state.queue = state.queue.then(async () => {
       if (socket.readyState === 1 && this.clients.get(socket) === state) await action();
     }).catch((error: unknown) => {
       this.logger.error('实时操作失败', error);
       socket.close(1011, 'operation_failed');
+    }).finally(() => {
+      state.pendingTasks -= 1;
+      state.pendingBytes -= bytes;
     });
   }
 
@@ -169,6 +203,10 @@ export class RealtimeGateway {
         if (now - state.lastPongAt > 60_000) { this.logger.log('ws heartbeat_timeout'); socket.terminate(); continue; }
         if (socket.readyState === 1 && now - state.lastPingAt >= 20_000) { socket.ping(); state.lastPingAt = now; }
       }
+      // 多个标签页与多条心跳，每个巡检周期按用户合并写一次。
+      const dirty = [...this.dirtyPresence];
+      this.dirtyPresence.clear();
+      for (const userId of dirty) await this.updatePresence(userId);
       if (now - this.lastHeartbeatAt < 15_000) return;
       this.lastHeartbeatAt = now;
       const ids = [...new Set([...this.clients.values()].flatMap((s) => [...s.subscriptions.keys()]))];
@@ -224,15 +262,16 @@ export class RealtimeGateway {
     if (!state.userId) { this.reject(socket, 'UNAUTHORIZED', '请先登录', 4401); return; }
     if (frame.type === 'ping') {
       state.lastActiveAt = frame.visible === false ? 0 : Date.now();
-      await this.updatePresence(state.userId);
+      this.dirtyPresence.add(state.userId);
       this.send(socket, { type: 'ack' });
       return;
     }
-    if (frame.type === 'unsubscribe') { state.subscriptions.delete(frame.roomId); await this.updatePresence(state.userId); return; }
+    if (frame.type === 'unsubscribe') { state.subscriptions.delete(frame.roomId); this.dirtyPresence.add(state.userId); return; }
     if (frame.type === 'subscribe') {
       if (!await this.authorized(socket, state, frame.roomId)) return;
       const sub = { roomId: frame.roomId, lastSeq: frame.lastSeq };
       state.subscriptions.set(frame.roomId, sub);
+      this.dirtyPresence.add(state.userId);
       if (await this.deliver(socket, state, sub)) this.send(socket, { type: 'sync.ready', roomId: sub.roomId, watermark: sub.lastSeq });
     }
     // 订阅时检查会客厅成员；开局通知另按新房间的当前成员权限检查。
@@ -328,6 +367,13 @@ export class RealtimeGateway {
     socket.close(closeCode, code);
   }
   private send(socket: WebSocket, frame: unknown): void {
-    if (socket.readyState === 1) socket.send(JSON.stringify(frame));
+    if (socket.readyState !== 1) return;
+    const message = JSON.stringify(frame);
+    if (socket.bufferedAmount + Buffer.byteLength(message) > MAX_BUFFERED_BYTES) {
+      this.logger.warn('ws outbound_buffer_limit');
+      socket.terminate();
+      return;
+    }
+    socket.send(message);
   }
 }
