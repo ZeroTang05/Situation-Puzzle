@@ -25,9 +25,16 @@ export function useJevSession(): { session: Session | null; isPending: boolean }
   const [isPending, setIsPending] = useState(true)
 
   const refresh = useCallback(async () => {
-    // 无会话时接口返回 401，better-auth 把它折叠成 data: null（不算错误）
-    const { data } = await authClient.getSession()
-    setSession(data ? (data as unknown as Session) : null)
+    // 无会话时接口返回 401，better-auth 把它折叠成 data: null（不算错误）；
+    // 网络失败（域名未配等）getSession 会整体 reject，按无会话处理
+    const { data } = await authClient.getSession().catch(() => ({ data: null, error: null }))
+    // 形状闸门：data 有 user 才算有效会话；异常形状当无会话并留痕（定位用）
+    if (data && typeof data === 'object' && 'user' in data) {
+      setSession(data as unknown as Session)
+    } else {
+      if (data) console.warn('[session] 异常会话形状，按未登录处理:', JSON.stringify(data).slice(0, 200))
+      setSession(null)
+    }
     setIsPending(false)
   }, [])
 

@@ -8,6 +8,57 @@
 import Taro from '@tarojs/taro'
 import { API_BASE, authorizationHeader, captureBearerToken, languageHeader } from './client'
 
+/**
+ * fetch Headers 的最小可用实现（Map 形状，key 统一小写）。
+ * better-fetch 处理响应时会 `new Headers(...)` 后调 has/get，小程序没有原生
+ * Headers，polyfills.ts 把它注册成全局；taroFetch 的响应头也用它包一层，
+ * 保证「我们的响应头」和「全局 Headers」行为一致。
+ */
+export class MiniHeaders {
+  private _map = new Map<string, string>()
+
+  constructor(init?: unknown) {
+    if (!init) return
+    if (Array.isArray(init) || typeof (init as Iterable<[string, string]>)[Symbol.iterator] === 'function') {
+      for (const [key, value] of init as Iterable<[string, unknown]>) this.set(key, value)
+      return
+    }
+    for (const [key, value] of Object.entries(init as Record<string, unknown>)) this.set(key, value)
+  }
+
+  set(name: unknown, value: unknown): this {
+    this._map.set(String(name).toLowerCase(), String(value))
+    return this
+  }
+
+  get(name: string): string | null {
+    return this._map.get(String(name).toLowerCase()) ?? null
+  }
+
+  has(name: string): boolean {
+    return this._map.has(String(name).toLowerCase())
+  }
+
+  append(name: unknown, value: unknown): this {
+    const key = String(name).toLowerCase()
+    const prev = this._map.get(key)
+    this._map.set(key, prev ? `${prev},${String(value)}` : String(value))
+    return this
+  }
+
+  delete(name: string): void {
+    this._map.delete(String(name).toLowerCase())
+  }
+
+  forEach(callback: (value: string, name: string) => void): void {
+    this._map.forEach((value, key) => callback(value, key))
+  }
+
+  *entries(): IterableIterator<[string, string]> {
+    yield* this._map.entries()
+  }
+}
+
 /** 把 fetch 可能出现的 headers 形态统一摊平成普通对象（小程序里实际只会收到普通对象） */
 function flattenHeaders(input: unknown): Record<string, string> {
   if (!input || typeof input !== 'object') return {}
@@ -46,17 +97,16 @@ export const taroFetch: typeof fetch = async (input, init) => {
 
   captureBearerToken(res.header)
 
+  // 临时诊断（定位完删除）：打印每条请求的 URL、状态码与响应类型
+  console.log(`[taroFetch] ${init?.method ?? 'GET'} ${String(input)} -> ${res.statusCode} ${typeof res.header?.['content-type'] === 'string' ? res.header['content-type'] : res.header?.['Content-Type'] ?? '?'}`)
+
   const text = typeof res.data === 'string' ? res.data : JSON.stringify(res.data ?? '')
-  const responseHeader: Record<string, string> = res.header ?? {}
-  // 只实现 better-auth 客户端用到的成员（ok/status/headers.get/json/text），结构断言到 Response
+  // 只实现 better-auth / better-fetch 用到的成员（ok/status/headers/json/text），
+  // headers 用 MiniHeaders（有 has/get/entries，better-fetch 构造时会用）
   const wrapped = {
     ok: res.statusCode >= 200 && res.statusCode < 300,
     status: res.statusCode,
-    headers: {
-      get(name: string): string | null {
-        return responseHeader[name] ?? responseHeader[name.toLowerCase()] ?? null
-      },
-    },
+    headers: new MiniHeaders(res.header ?? {}),
     json: async () => JSON.parse(text),
     text: async () => text,
   }

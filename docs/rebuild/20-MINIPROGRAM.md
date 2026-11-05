@@ -34,12 +34,23 @@ Request.prototype` 特性检测 + `customFetchImpl: fetch` 对象字面量求值
 使用方执行；已有原生实现的环境不覆盖）：
 
 - `fetch` → 补真实现（taroFetch 本来就是 fetch 形状，走 Taro.request）；
-- `Request` / `Headers` / `Response` → 补空壳类。库只拿它们做能力检测与
-  instanceof 分支，空壳让 instanceof 安全落到「鸭子类型」分支，实际行为由
-  taroFetch 保证；
+- `Headers` → 补 **MiniHeaders 真实现**（fetch-adapter.ts 导出、polyfills.ts
+  注册全局，taroFetch 响应头同款）。第一版空壳类不够：better-fetch 处理响应
+  会 `new Headers(...)` 后调 `.has('content-type')` 判断解析方式，空壳直接
+  `t.has is not a function`（真机报错实锤后才升级，教训：polyfill 的类要按
+  「库会真用哪些方法」评估，不能只看 instanceof）；
+- `Request` / `Response` → 补空壳类（目前只被 instanceof/能力检测碰到）；
 - `AbortController` → react-query 观察器构造时 `new` 它做查询取消，补最小
   实现（signal 状态 + abort 监听）。真机上必炸（开发者工具的 Chromium 内核有、
   真机运行时没有），属于「工具里正常、真机炸」的典型差异。
+
+**第四轮（真机 `t.has is not a function` + 登录提示 unexpected end of JSON
+input）**：前者即上面的 Headers 空壳问题；后者是登录接口回了空响应体，
+`json()` 对空串 JSON.parse 抛 SyntaxError 且英文原文被直接展示。登录页改用
+LoginError 区分「已翻译文案」与「意外异常」，意外异常统一回落通用文案
+（login.tsx）。空响应体的服务端原因大概率是生产未部署 wechat-mini 端点——
+联调前置：部署带端点的新代码 + 配 WECHAT_MINI_APPID/SECRET（配齐才注册）+
+小程序后台配 request 合法域名（sp.xiaobaozi.cn）。
 
 其余被扫出的名字（performance/setImmediate/MessageChannel/window/process/
 Deno/Bun/localStorage/btoa 等）各有 `typeof` 守卫、try/catch 或分支不执行，

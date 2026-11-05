@@ -95,7 +95,7 @@ export default function Me() {
     retry: false,
   })
   const history = useQuery({
-    queryKey: ['me-history', session?.user.id, historyPage],
+    queryKey: ['me-history', session?.user?.id, historyPage],
     queryFn: () => api<HistoryResponse>(`/me/history?page=${historyPage}&limit=5`),
     enabled: session !== null,
     retry: false,

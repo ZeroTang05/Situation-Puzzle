@@ -23,6 +23,9 @@ function finishLogin(): void {
   else void Taro.reLaunch({ url: '/pages/index/index' })
 }
 
+/** 带着「已翻译文案」的错误：只有这类错误的信息适合直接展示给用户 */
+class LoginError extends Error {}
+
 export default function Login() {
   const { copy, language, setLanguage } = useLanguage()
   const [busy, setBusy] = useState(false)
@@ -34,23 +37,23 @@ export default function Login() {
     setError(null)
     try {
       const { code } = await Taro.login()
-      if (!code) throw new Error('Taro.login 未返回 code')
+      if (!code) throw new LoginError(copy.wechatLoginFail)
       const res = await taroFetch(`${API_BASE}/api/v1/auth/wechat-mini/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code }),
       })
+      // 空响应体（端点未部署等）json() 会抛 SyntaxError，交给 catch 回落通用文案
       const payload = (await res.json()) as { token?: string; error?: { code?: string }; code?: string }
       if (!res.ok || !payload.token) {
         // better-auth 错误体按 code 翻译；未知形态回落通用文案
-        throw new Error(displayAuthError(payload.error?.code ?? payload.code ?? null, language, copy.wechatLoginFail))
+        throw new LoginError(displayAuthError(payload.error?.code ?? payload.code ?? null, language, copy.wechatLoginFail))
       }
       storeBearerToken(payload.token)
       finishLogin()
     } catch (err) {
-      setError(err instanceof Error && err.message !== 'Taro.login 未返回 code'
-        ? err.message
-        : copy.wechatLoginFail)
+      // 只展示已翻译的文案；意外异常（网络失败/解析错误）不把英文原文甩给用户
+      setError(err instanceof LoginError ? err.message : copy.wechatLoginFail)
     } finally {
       setBusy(false)
     }

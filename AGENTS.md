@@ -177,13 +177,15 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   可提前扫出这类语法（AST 级，四类全覆盖），别等预览报错逐个发现
 - **小程序运行时没有浏览器的 Fetch API 全局**：better-auth / better-fetch /
   react-query 会裸引用 `Request` / `fetch` / `Headers` / `Response` /
-  `AbortController`（对象字面量求值、instanceof 分支、new），缺一个运行时炸
-  ReferenceError/TypeError；开发者工具的 Chromium 内核有这些全局，**真机没有**
-  （工具里正常、真机炸的典型差异）。统一在 `apps/miniprogram/src/polyfills.ts`
-  补齐（fetch=taroFetch 真实现，其余空壳/最小实现），app.tsx 首行 + auth-client.ts
-  双保险 import。`scripts/scan-weapp-syntax.mjs` 已含「未声明全局引用」检查
-  （typeof 守卫自动识别、宿主/polyfill 白名单登记），build:mp 后跑一次两类均
-  0 才算过
+  `AbortController`（对象字面量求值、instanceof 分支、new 后调方法），缺一个
+  运行时炸 ReferenceError/TypeError；开发者工具的 Chromium 内核有这些全局，
+  **真机没有**（工具里正常、真机炸的典型差异）。统一在
+  `apps/miniprogram/src/polyfills.ts` 补齐：fetch=taroFetch 真实现；
+  Headers=MiniHeaders 真实现（**不能只给空壳**——better-fetch 会
+  `new Headers()` 后调 `.has('content-type')`，空壳报 `t.has is not a
+  function`）；其余空壳/最小实现。app.tsx 首行 + auth-client.ts 双保险 import。
+  `scripts/scan-weapp-syntax.mjs` 已含「未声明全局引用」检查（typeof 守卫自动
+  识别、宿主/polyfill 白名单登记），build:mp 后跑一次两类均 0 才算过
 - **tsx(esbuild) 不生成构造参数元数据**：Nest 依赖注入必须显式 `@Inject(Token)`，
   否则运行时 `this.service` 为 undefined
 - **Nest WsAdapter 在 tsx 下挂载不稳**：实时网关直接用 `ws` 库挂 upgrade（`realtime.gateway.ts`）
