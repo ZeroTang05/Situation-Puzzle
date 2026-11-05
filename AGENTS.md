@@ -161,6 +161,29 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
 
 ## 踩坑点
 
+- **小程序预览报 `invalid file: vendors.js SyntaxError` = 依赖里的 ES2021/ES2022
+  新语法**：微信预览器不认 class 私有字段（`#field`，报 Invalid token）与逻辑
+  赋值（`||=`/`&&=`/`??=`，报 Unexpected token =）等。本项目踩过的来源——
+  @tanstack/react-query 与 query-core、nanostores（Taro 传递依赖，`||=`）
+  都是 .js，`compile.include` 圈进即转译；better-call 与 @better-auth/core
+  只发 .mjs，`compile.include` 的脚本规则对 .mjs 实测不生效，要另挂 webpackChain
+  的 babel 规则，且 babel-loader 必须显式传
+  `{ cwd: appDir, configFile: <应用>/babel.config.js }`——不带 options 时
+  它按「被编译文件」的位置向上找配置，.pnpm 深处找不到，等于零预设空转原样输出。
+  降级清单在 `apps/miniprogram/config/index.ts` 的 `legacySyntaxPaths`（pnpm 真实
+  路径带哈希，配置加载时动态解析；很多包 exports 不暴露 `./package.json`，直接
+  `require.resolve('pkg/package.json')` 会抛 ERR_PACKAGE_PATH_NOT_EXPORTED，
+  要解析主入口后向上走找包根）。**build:weapp 后跑 `node scripts/scan-weapp-syntax.mjs`**
+  可提前扫出这类语法（AST 级，四类全覆盖），别等预览报错逐个发现
+- **小程序运行时没有浏览器的 Fetch API 全局**：better-auth / better-fetch /
+  react-query 会裸引用 `Request` / `fetch` / `Headers` / `Response` /
+  `AbortController`（对象字面量求值、instanceof 分支、new），缺一个运行时炸
+  ReferenceError/TypeError；开发者工具的 Chromium 内核有这些全局，**真机没有**
+  （工具里正常、真机炸的典型差异）。统一在 `apps/miniprogram/src/polyfills.ts`
+  补齐（fetch=taroFetch 真实现，其余空壳/最小实现），app.tsx 首行 + auth-client.ts
+  双保险 import。`scripts/scan-weapp-syntax.mjs` 已含「未声明全局引用」检查
+  （typeof 守卫自动识别、宿主/polyfill 白名单登记），build:mp 后跑一次两类均
+  0 才算过
 - **tsx(esbuild) 不生成构造参数元数据**：Nest 依赖注入必须显式 `@Inject(Token)`，
   否则运行时 `this.service` 为 undefined
 - **Nest WsAdapter 在 tsx 下挂载不稳**：实时网关直接用 `ws` 库挂 upgrade（`realtime.gateway.ts`）
@@ -211,6 +234,8 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
 ## 验证
 
 - 类型：`pnpm typecheck`；单测：`pnpm test`
+- 小程序语法兼容：`pnpm build:mp` 后跑 `node scripts/scan-weapp-syntax.mjs`（扫 dist 的
+  ES2021/2022 语法残留，微信预览器会报错的那类；0 处通过，有命中按提示补 legacySyntaxPaths）
 - 冒烟：`pnpm smoke`（Docker 一次性库 + 接口断言）
 - 双人 E2E：`pnpm e2e:multiplayer`（真实 SMTP 登录 + 真实 Jev + 账本断言）
 - 用户主持人 E2E：`pnpm e2e:host`（`scripts/e2e-node-run.mjs` 自建临时库 + 收信台 + API + jobs，40 项断言）

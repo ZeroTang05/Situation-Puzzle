@@ -3,6 +3,59 @@
 状态：已拍板（决策记录见 §8）。M0、M1、M2 完成（2026-10-25），M3 待做。
 日期：2026-10-25；基线：feat/app-version（含 M3 Android 交付）。
 
+## M2.7 完成记录（2026-10-31 / 11-05：修复预览报错 Invalid token / Unexpected token）
+
+微信开发者工具「预览」对 dist 里没做语法降级的 **ES2021/ES2022 新语法** 报
+SyntaxError，分两轮修完（配置都在 `apps/miniprogram/config/index.ts`）：
+
+**第一轮（私有字段 `#field`，报 Invalid token）**，来源两批修法不同：
+
+- **`.js` 来源**（@tanstack/react-query、query-core）：`compile.include` 圈进
+  Taro 的 babel 即可，这条早就生效。
+- **`.mjs` 来源**（better-call 的 `error.mjs`、@better-auth/core 的 `env-impl.mjs`）：
+  `compile.include` 的脚本规则对 `.mjs` 实测不生效。另挂 webpackChain 的 babel 规则
+  （`legacy-syntax-mjs`），并且 **babel-loader 必须显式传
+  `{ cwd: appDir, configFile: <应用>/babel.config.js }`**——不带 options 时
+  babel-loader 按「被编译文件」的位置向上找配置，`.pnpm` 深处的文件找不到应用的
+  babel.config.js，等于零预设空转、原样输出（这是本次卡最久的一步：构建日志看着
+  在编译、产物里 `#field` 纹丝不动）。
+
+**第二轮（逻辑赋值 `||=`，报 Unexpected token =）**：修完第一轮预览换了报错
+位置，定位到 **nanostores**（Taro 的传递依赖，`globalThis.nanostoresGlobal ||=`
+一处）——微信预览器对 ES2021 逻辑赋值同样不认。nanostores 是 .js，加进
+`legacySyntaxPaths`（从 @tarojs/taro 的目录解析）走 `compile.include` 即解决。
+
+**第三轮（编译过了，运行时浏览器全局缺失连环炸）**：语法清零后代码第一次
+真正跑起来，先后报 `Request is not defined` → `fetch is not defined`，全部出自
+better-auth 初始化链（`dist/client/config.mjs`：`"credentials" in
+Request.prototype` 特性检测 + `customFetchImpl: fetch` 对象字面量求值）。用 AST
+作用域分析把 dist 全量扫了一遍，真正会炸的浏览器全局共 **5 个**，统一在新增的
+`src/polyfills.ts` 补齐（app.tsx 首行 + auth-client.ts 双保险 import，先于一切
+使用方执行；已有原生实现的环境不覆盖）：
+
+- `fetch` → 补真实现（taroFetch 本来就是 fetch 形状，走 Taro.request）；
+- `Request` / `Headers` / `Response` → 补空壳类。库只拿它们做能力检测与
+  instanceof 分支，空壳让 instanceof 安全落到「鸭子类型」分支，实际行为由
+  taroFetch 保证；
+- `AbortController` → react-query 观察器构造时 `new` 它做查询取消，补最小
+  实现（signal 状态 + abort 监听）。真机上必炸（开发者工具的 Chromium 内核有、
+  真机运行时没有），属于「工具里正常、真机炸」的典型差异。
+
+其余被扫出的名字（performance/setImmediate/MessageChannel/window/process/
+Deno/Bun/localStorage/btoa 等）各有 `typeof` 守卫、try/catch 或分支不执行，
+确认安全。**扫描器已升级为双检查**（`scripts/scan-weapp-syntax.mjs`）：①语法
+四类；②未声明全局引用（作用域分析 + JS 内建/微信宿主白名单 + typeof 守卫识别
++ 应用 polyfill 登记），`build:mp` 后跑一次，两类均 0 通过——加新依赖后必跑，
+能把「预览逐个报错」的循环掐死在构建后。
+
+排查与验证工具沉淀为 **`scripts/scan-weapp-syntax.mjs`**：`build:mp` 之后跑，
+用 @babel/parser 解析 dist 全部 js、AST 级找出四类微信不认的节点（class 公有/
+私有字段、私有方法、静态块、逻辑赋值），0 处通过。比等预览逐个报错快得多，
+新加依赖后建议跑一次。排查方法论也记一笔：看报错位置的真实代码片段归因来源包
+（别信打包时的第一直觉，第一轮真凶 better-call、第二轮 nanostores 都与最初
+怀疑对象不同）；pnpm 真实路径带哈希没法写死，`legacySyntaxPaths` 在配置加载时
+动态解析（包 exports 不暴露 `./package.json` 时要解析主入口后向上找包根）。
+
 ## M2.6 完成记录（2026-10-27：登录换微信一键登录）
 
 登录方式整体切换：**去掉邮箱登录/注册/找回密码，小程序端只留微信一键登录**
