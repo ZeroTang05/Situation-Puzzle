@@ -1,17 +1,19 @@
 /**
- * 题库页（口径对齐 apps/web/src/catalog/library-page.tsx）：
- * 筛选（排序/难度/类别）、分页、署名与赞踩计数、已玩标记、单人开始。
- * 小程序差异：URL 参数换组件 state；「选房开局」按钮与投票按钮在多人/社交
- * 里程碑接入，本期只展示计数；翻页栏收成「上一页 / 页码 / 下一页」。
+ * 题库页（代码级对齐 apps/web/src/catalog/library-page.tsx）：
+ * 筛选胶囊（排序/难度/类别）、卡片（标题 + 徽标横排 + 汤面三行截断 + 署名与赞踩计数）、
+ * 页码栏（首尾常驻、中间围绕当前页展开）。已玩标记读本地单人历史。
+ * 小程序差异：URL 参数换组件 state；「选房开局」按钮随多人里程碑接入；
+ * 翻页后把列表滚回顶部（对应 web 的 scrollIntoView）。
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import Taro from '@tarojs/taro'
 import { Button, ScrollView, Text, View } from '@tarojs/components'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { api, translateApiError } from '../../api/client'
+import { api } from '../../api/client'
 import { useLanguage } from '../../state/language'
 import { soloStore } from '../../solo/local-store'
 import { compactVoteCount } from '../../game/game-display'
+import { VoteIcon } from '../../game/components'
 import { format } from '@jev/i18n'
 
 interface PuzzleItem {
@@ -35,7 +37,8 @@ interface PuzzlePage {
 /** 内置题库署名的 canonical 名（seed 导入固定写入），按语言本地化展示 */
 const PLATFORM_LIBRARY_AUTHOR = '初始题库'
 
-function AuthorLabel({ mode, name }: { mode: 'anonymous' | 'signature'; name: string | null }) {
+/** 列表里的只读署名展示（web vote-buttons.tsx AuthorLabel 同款） */
+function AuthorLabel({ mode, name }: { mode: 'anonymous' | 'signature'; name: string | null }): ReactNode {
   const { copy } = useLanguage()
   return (
     <Text className="muted puzzle-card-author">
@@ -48,17 +51,64 @@ function AuthorLabel({ mode, name }: { mode: 'anonymous' | 'signature'; name: st
   )
 }
 
+/** 最多展示七个位置，小屏也能保留完整的当前页上下文（web pagination.tsx 同款） */
+function paginationItems(page: number, totalPages: number): (number | 'ellipsis')[] {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1)
+  if (page <= 4) return [1, 2, 3, 4, 5, 'ellipsis', totalPages]
+  if (page >= totalPages - 3) return [1, 'ellipsis', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages]
+  return [1, 'ellipsis', page - 1, page, page + 1, 'ellipsis', totalPages]
+}
+
+/** 页码栏：摘要 + 页码行 + 步进按钮（web CatalogPagination 的移动端变体） */
+function CatalogPagination({ page, totalPages, total, busy, onPage }: {
+  page: number
+  totalPages: number
+  total: number
+  busy: boolean
+  onPage: (page: number) => void
+}): ReactNode {
+  const { language, copy } = useLanguage()
+  return (
+    <View className="library-pagination">
+      <Text className="library-pagination-summary">
+        {language === 'zh' ? `共 ${total} 题 · 第 ${page} / ${totalPages} 页` : `${total} puzzles · Page ${page} of ${totalPages}`}
+      </Text>
+      <View className="library-pagination-controls">
+        <Button className="library-page-step" disabled={busy || page <= 1} onClick={() => onPage(page - 1)}>‹</Button>
+        <View className="library-page-numbers">
+          {paginationItems(page, totalPages).map((item, index) =>
+            item === 'ellipsis' ? (
+              <Text className="library-page-ellipsis" key={`gap-${index}`}>…</Text>
+            ) : (
+              <Button
+                key={item}
+                className={`library-page-number${item === page ? ' current' : ''}`}
+                disabled={busy || item === page}
+                onClick={() => onPage(item)}
+              >
+                {item}
+              </Button>
+            ),
+          )}
+        </View>
+        <Button className="library-page-step" disabled={busy || page >= totalPages} onClick={() => onPage(page + 1)}>›</Button>
+      </View>
+    </View>
+  )
+}
+
 type Sort = 'latest' | 'popular'
 type Difficulty = 'easy' | 'medium' | 'hard' | null
 type Category = 'honkaku' | 'henkaku' | null
 
-export default function Library() {
+export default function Library(): ReactNode {
   const { copy, language } = useLanguage()
   const [sort, setSort] = useState<Sort>('popular')
   const [difficulty, setDifficulty] = useState<Difficulty>(null)
   const [category, setCategory] = useState<Category>(null)
   const [page, setPage] = useState(1)
   const [playedIds, setPlayedIds] = useState<Set<string>>(new Set())
+  const [scrollTop, setScrollTop] = useState(0)
 
   // 本地已玩标记：单人历史不上传，只在本地提示本人
   useEffect(() => {
@@ -90,6 +140,12 @@ export default function Library() {
     setPage(1)
   }
 
+  /** 更新页码并把视线带回新列表的开头（web setPage 的 scrollIntoView） */
+  const gotoPage = (value: number) => {
+    setPage(value)
+    setScrollTop((prev) => (prev === 0 ? 0.1 : 0))
+  }
+
   const enterSolo = (puzzleId: string) => {
     // 题库是单人的「选菜过渡态」：redirectTo 把题库从页面栈移除，
     // 单人页按返回直接回首页
@@ -98,11 +154,11 @@ export default function Library() {
 
   return (
     <View className="page page-full">
-      <View className="topbar">
-        <Button className="btn btn-ghost btn-sm" onClick={() => void Taro.navigateBack()}>
+      <View className="topbar topbar-title">
+        <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => void Taro.navigateBack()}>
           {copy.back}
         </Button>
-        <Text className="brand brand-sm">{copy.library}</Text>
+        <Text className="brand">{copy.library}</Text>
       </View>
 
       {/* 筛选条：排序 / 难度 / 类别各成一组胶囊 */}
@@ -153,7 +209,13 @@ export default function Library() {
         </View>
       )}
 
-      <ScrollView className={`puzzle-list${isPlaceholderData ? ' is-page-loading' : ''}`} scrollY>
+      <ScrollView
+        className={`puzzle-grid${isPlaceholderData ? ' is-page-loading' : ''}`}
+        scrollY
+        scrollTop={scrollTop}
+        enhanced
+        showScrollbar={false}
+      >
         {items?.map((puzzle) => (
           <View key={puzzle.id} className="panel puzzle-card">
             <View className="puzzle-card-heading">
@@ -174,45 +236,27 @@ export default function Library() {
             </View>
             <Text className="puzzle-surface">{puzzle.surface}</Text>
             <View className="puzzle-card-footer">
-              <AuthorLabel mode={puzzle.authorDisplay.mode} name={puzzle.authorDisplay.name} />
-              <Text className="puzzle-card-votes">
-                <Text className="vote-mark vote-mark-up">▲ {compactVoteCount(puzzle.upCount)}</Text>
-                <Text className="vote-mark vote-mark-down">▼ {compactVoteCount(puzzle.downCount)}</Text>
-              </Text>
-              <Button
-                className="btn btn-sm btn-primary puzzle-card-action"
-                disabled={isPlaceholderData}
-                onClick={() => enterSolo(puzzle.id)}
-              >
-                {copy.solo}
-              </Button>
+              <View className="puzzle-card-meta">
+                <AuthorLabel mode={puzzle.authorDisplay.mode} name={puzzle.authorDisplay.name} />
+                <View className="puzzle-card-votes">
+                  <View className="vote-mark vote-mark-up">
+                    <VoteIcon direction="up" /> <Text>{compactVoteCount(puzzle.upCount)}</Text>
+                  </View>
+                  <View className="vote-mark vote-mark-down">
+                    <VoteIcon direction="down" /> <Text>{compactVoteCount(puzzle.downCount)}</Text>
+                  </View>
+                </View>
+                <View className="puzzle-card-actions">
+                  <Button className="btn btn-sm btn-primary" disabled={isPlaceholderData} onClick={() => enterSolo(puzzle.id)}>
+                    {copy.solo}
+                  </Button>
+                </View>
+              </View>
             </View>
           </View>
         ))}
 
-        {data && (
-          <View className="me-pager library-pagination">
-            <Button
-              className="btn btn-ghost btn-sm"
-              disabled={isFetching || page <= 1}
-              onClick={() => setPage(page - 1)}
-            >
-              ‹ {copy.previousPage}
-            </Button>
-            <Text className="me-pager-page">
-              {language === 'zh'
-                ? `共 ${data.total} 题 · 第 ${page} / ${data.totalPages} 页`
-                : `${data.total} puzzles · Page ${page} of ${data.totalPages}`}
-            </Text>
-            <Button
-              className="btn btn-ghost btn-sm"
-              disabled={isFetching || page >= data.totalPages}
-              onClick={() => setPage(page + 1)}
-            >
-              {copy.nextPage} ›
-            </Button>
-          </View>
-        )}
+        {data && <CatalogPagination page={page} totalPages={data.totalPages} total={data.total} busy={isFetching} onPage={gotoPage} />}
       </ScrollView>
     </View>
   )

@@ -1,11 +1,28 @@
 /**
- * 全局样式：设计变量与基础控件类从 packages/ui theme.css 平移。
- * 小程序端差异：:root 换成 page；不支持 * 通配选择器（box-sizing 逐类声明）；
- * 原生 button 自带 ::after 边框，需要显式压掉。
+ * 全局样式：packages/ui theme.css + apps/web styles.css 的代码级平移（小程序版）。
+ * 与 web 的差异只来自运行环境，口径不变：
+ * - :root 设计变量挂到 page；WXSS 没有 * 通配，box-sizing 逐类声明；
+ * - 原生 button 自带背景/边框/字号，全局重置后由类接管；
+ * - web 的 p/h 标签在小程序用 Text 渲染，块级文本类统一 display:block 吃 margin；
+ * - hover / focus-visible 触屏不存在，media query 折叠成移动端变体（分页栏直用 ≤559 布局）。
+ * 页面容器 .page = web 的 .shell（小程序恒窄屏，恒为 narrow 宽度）。
  */
 
-/* 滚动条一律不渲染：容器照常滚动（WXSS 不支持 * 通配，webkit 伪元素规则走 WebView 层生效）。 */
+/* 滚动条一律不渲染：容器照常滚动（webkit 伪元素规则走 WebView 层生效）。 */
 ::-webkit-scrollbar { width: 0; height: 0; color: transparent; }
+
+/* 原生控件重置：button 不继承字体、自带灰底圆角边框，全部交还给类。 */
+button {
+  font: inherit;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  line-height: inherit;
+}
+input, textarea { font: inherit; }
 
 page {
   --ink: #e9eff5;
@@ -29,28 +46,43 @@ page {
   font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
   font-size: var(--font-body);
   line-height: 1.6;
-  /* radial 渐变基础库支持不稳，先铺纯色再叠渐变 */
-  background-color: #010b18;
-  background: radial-gradient(circle at 70% 0, #17476e 0, transparent 32rem), #010b18;
+  /* 页面统一纯色背景（与 web styles.css 一致；radial 海面光晕由首页 hero 承担） */
+  background-color: var(--bg);
 }
 
-/* ---------- 页面容器 ---------- */
+/* ---------- 页面容器（= web .shell / .shell.narrow） ---------- */
 
-/* 页面内容列：与 web .shell 同规格（移动优先 480px 列宽，小程序恒窄屏） */
 .page {
   box-sizing: border-box;
   min-height: 100vh;
   padding: 8px 14px calc(24px + env(safe-area-inset-bottom));
-  background: transparent;
 }
 
-/* ---------- 基础控件（与 theme.css 同名同类） ---------- */
+/* 游玩页整屏列布局：题面与对话各自滚动，输入区始终可见（web .solo-shell） */
+.page-full {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 8px 14px max(8px, env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+
+.page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  color: var(--muted);
+}
+
+/* ---------- 基础控件（theme.css 同名同类） ---------- */
 
 .btn {
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: auto;
   min-height: var(--tap);
   padding: 8px 16px;
   border: 1px solid var(--line);
@@ -63,9 +95,7 @@ page {
 }
 
 /* 微信原生 button 的边框画在 ::after 上，必须单独压掉才能吃自定义边框 */
-.btn::after {
-  border: none;
-}
+.btn::after { border: none; }
 
 .btn-primary {
   color: var(--accent-ink);
@@ -78,8 +108,19 @@ page {
   border-color: rgba(255, 143, 143, 0.4);
 }
 
-.btn-ghost {
-  color: var(--muted);
+.btn-ghost { color: var(--muted); }
+
+/* 次级操作按钮（验证码类）：带底色，和输入框、与主提交按钮都区分开 */
+.btn-soft {
+  color: var(--accent);
+  border-color: rgba(125, 216, 198, 0.4);
+  background: rgba(125, 216, 198, 0.1);
+}
+
+.btn-sm {
+  min-height: 36px;
+  padding: 4px 10px;
+  font-size: 14px;
 }
 
 .btn-lg {
@@ -87,16 +128,25 @@ page {
   font-size: 17px;
 }
 
-.btn-sm {
-  min-height: 36px;
-  padding: 4px 12px;
-  font-size: 13px;
+/* 首页玩法介绍：topbar 里的圆形问号按钮，与 btn-sm 同高 */
+.help-btn {
+  flex: none;
+  width: 36px;
+  padding: 4px 0;
+  border-radius: 50%;
+  font-weight: 700;
 }
 
-.btn[disabled],
-.btn.button-hover {
-  opacity: 0.45;
+/* 登录/注册 topbar 里的语言切换：紧凑 ghost 按钮，不挤压 brand */
+.lang-switch {
+  min-height: 28px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
+
+.btn[disabled] { opacity: 0.45; }
 
 .field {
   box-sizing: border-box;
@@ -117,15 +167,29 @@ page {
   padding: 16px;
 }
 
-.muted {
+/* panel 内标题（web: .panel h2/h3） */
+.panel .h2 { margin: 0 0 8px; font-size: 20px; font-weight: 700; display: block; }
+.panel .h3 { margin: 0 0 6px; font-size: 15px; font-weight: 700; display: block; }
+
+.muted { color: var(--muted); }
+.accent { color: var(--accent); }
+.error-text { color: var(--danger); font-size: 14px; display: block; }
+
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.stack-sm { display: flex; flex-direction: column; gap: 4px; }
+
+.field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
   color: var(--muted);
 }
 
-.accent {
-  color: var(--accent);
-}
+.field-help { font-size: 12px; line-height: 1.5; display: block; }
 
-/* 判定徽标：文字+颜色双通道（与 web 同口径） */
+/* ---------- 判定徽标：文字+颜色双通道（theme.css 同款） ---------- */
+
 .verdict-badge {
   display: inline-flex;
   align-items: center;
@@ -144,7 +208,7 @@ page {
 .verdict-close { color: var(--gold); }
 .verdict-not_yet { color: var(--coral); }
 
-/* ---------- 顶栏与品牌 ---------- */
+/* ---------- 顶栏与品牌（web styles.css 同款） ---------- */
 
 .topbar {
   display: flex;
@@ -154,10 +218,25 @@ page {
   min-height: 56px;
 }
 
-.topbar-actions {
-  display: flex;
+/* 页面顶栏：返回在左、标题居中、右侧操作在右（web styles.css 同款三列 grid，
+ * 两侧 minmax 最小列宽保证标题真居中；WXSS 不支持伪类选择器，
+ * 子元素定位用 topbar-lead/topbar-tail 显式类 + 源序自动布位） */
+.topbar-title {
+  display: grid;
+  grid-template-columns: minmax(64px, 1fr) minmax(0, 4fr) minmax(64px, 1fr);
   align-items: center;
   gap: 8px;
+}
+.topbar-lead { justify-self: start; }
+.topbar-tail { justify-self: end; }
+.topbar-title .brand { justify-self: center; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 顶栏按钮不折行：窄列里长标签曾被拆成两行 */
+.topbar-title .btn { white-space: nowrap; }
+
+.topbar-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
 
 .brand {
@@ -167,473 +246,91 @@ page {
   font-weight: 700;
 }
 
-.brand-sm {
-  font-size: 16px;
-}
+.brand-sm { font-size: 16px; }
 
-/* ---------- M1 认证与账号页（类名与 web styles.css 对齐） ---------- */
-
-/* 标题：panel 内的 h2/h3 在小程序里用 Text 渲染，统一定字号 */
-.h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-/* 垂直堆叠容器 */
-.stack {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.stack-sm {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-/* 表单行：标签在上、输入框在下 */
-.field-label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 14px;
-  color: var(--muted);
-}
-
-.field-help {
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.notice {
-  font-size: 14px;
-}
-
-.error-text {
-  color: var(--danger);
-  font-size: 14px;
-}
-
-.ok-text {
-  color: var(--ok);
-  font-size: 14px;
-}
-
-/* 登录页：密码/验证码双 tab */
-.mode-tabs {
-  display: flex;
-  align-items: stretch;
-  gap: 4px;
-  padding: 2px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: var(--field);
-  margin-bottom: 12px;
-}
-
-.mode-tab {
-  flex: 1;
-  width: auto;
-  min-height: 30px;
-  padding: 3px 6px;
-  line-height: 1.3;
-  border: 0;
-  border-radius: 3px;
-  background: transparent;
-  color: var(--muted);
-  font-weight: 600;
-  font-size: 14px;
-  margin: 0;
-}
-
-.mode-tab.active {
-  color: var(--accent-ink);
-  background: var(--accent);
-}
-
-/* 次级动作按钮（发验证码/验证邮箱）：介于 ghost 与 primary 之间 */
-.btn-soft {
-  border-color: rgba(125, 216, 198, 0.35);
-}
-
-/* 文字链接按钮：忘记密码 / 登录↔注册切换 */
-.link-btn {
-  display: inline;
-  padding: 0;
-  min-height: 0;
-  border: 0;
-  background: transparent;
-  color: var(--accent);
-  font-size: 14px;
-  line-height: 1.6;
-  margin: 0;
-  width: auto;
-}
-
-.link-btn::after {
-  border: none;
-}
-
-.mode-switch-row {
-  display: flex;
+/* 品牌标识：汤碗图标 + 文字（web .brand-identity / .brand-mark） */
+.brand-identity {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-/* 微信一键登录卡片：居中单卡，主按钮上下留白 */
-.wechat-login-panel {
-  margin-top: 18vh;
-  text-align: center;
-  gap: 14px;
-}
-.wechat-login-panel .h2 {
-  margin: 0 0 4px;
-}
-.wechat-login-hint {
-  font-size: 13px;
-  text-align: center;
-}
-
-/* 设置页：左标签右值的行；语言切换两个按钮并排 */
-.settings-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.settings-value {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   min-width: 0;
-  font-size: 15px;
-  color: var(--ink);
-  overflow-wrap: anywhere;
-}
-
-.settings-lang {
-  display: flex;
-  gap: 10px;
-}
-
-.settings-lang .btn {
-  flex: 1 1 auto;
-}
-
-.sponsor-redeem-row {
-  display: flex;
   gap: 8px;
-  align-items: stretch;
 }
 
-.sponsor-redeem-input {
-  flex: 1 1 auto;
-  min-width: 0;
+.brand-mark {
+  display: block;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
 }
 
-.me-edit-actions {
-  display: flex;
-  gap: 10px;
-}
+/* ---------- 首页 ---------- */
 
-.me-edit-actions .btn {
-  flex: 1 1 auto;
-}
-
-/* 退出登录：放在页面末尾，默认低调 */
-.me-logout {
-  width: 100%;
-  margin-top: 4px;
-  color: var(--muted);
-  border-color: rgba(115, 191, 220, 0.18);
-  background: transparent;
-}
-
-.login-prompt {
-  margin-top: 16px;
-  align-items: stretch;
-}
-
-/* ---------- 「我的」页 ---------- */
-
-.me-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.hero-card {
+  box-sizing: border-box;
+  position: relative;
   margin-top: 8px;
-  padding: 16px 14px;
-  border: 1px solid rgba(115, 191, 220, 0.22);
+  padding: 20px 16px;
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(9, 39, 62, 0.7);
-}
-
-.me-id {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.me-name {
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.35;
+  /* 日晕渐变 + 海面纵深：与 web hero 同一张三层背景；老客户端回落到 linear 一层 */
+  background: linear-gradient(150deg, #0d426d, #052747);
+  background:
+    radial-gradient(circle at 85% 14%, #ffe7a3 0 6%, transparent 6.3%),
+    radial-gradient(ellipse at 85% 18%, #497fa8 0, transparent 30%),
+    linear-gradient(150deg, #0d426d, #052747);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.me-email {
-  font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.tagline {
+  display: block;
+  margin: 0 0 14px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
 }
 
-/* 关键数字：额度 / 赞助，两块并排 */
-.me-stats {
+.hero-actions { display: flex; flex-direction: column; gap: 10px; }
+
+/* 次要入口：小按钮两列并排，视觉重量低于主行动（web .hero-secondary） */
+.hero-secondary {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(150, 186, 216, 0.14);
 }
 
-.me-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1 1 130px;
-  max-width: 260px;
-  padding: 12px 14px;
-  border: 1px solid rgba(115, 191, 220, 0.14);
-  border-radius: var(--radius-sm);
-  background: rgba(115, 191, 220, 0.05);
-}
-
-.me-stat-label {
-  font-size: 12px;
-  color: var(--muted);
-  letter-spacing: 0.04em;
-}
-
-.me-stat-value {
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1.3;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-.me-stat-value.is-ok {
-  color: #9ae6bd;
-}
-
-.me-stat-value.is-expired {
+.hero-secondary .btn {
+  flex: 1 1 40%;
+  min-height: 40px;
   color: var(--muted);
 }
 
-.me-card-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.me-card-actions .btn {
-  flex: 1 1 auto;
-}
-
-.me-section {
-  display: flex;
-  flex-direction: column;
-}
-
-.me-section-head {
+/* 开房额度行（web .entitlement-row） */
+.entitlement-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
-  padding: 20px 4px 10px;
-}
-
-.me-section-title {
+  margin-top: 12px;
+  padding: 10px 14px;
   font-size: 14px;
+}
+
+.entitlement-value {
+  color: var(--ink);
   font-weight: 600;
-  color: var(--muted);
-  letter-spacing: 0.04em;
-}
-
-/* ---------- 邀请好友卡（me 页） ---------- */
-
-.invite-card {
-  gap: 10px;
-}
-
-.invite-hint {
-  font-size: 13px;
-}
-
-.invite-count {
-  font-size: 13px;
-}
-
-.invite-link-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid rgba(115, 191, 220, 0.14);
-  border-radius: var(--radius-sm);
-  background: rgba(115, 191, 220, 0.05);
-}
-
-.invite-link {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 13px;
-}
-
-.beta-hint {
-  margin-top: 8px;
-  font-size: 13px;
-}
-
-.me-pager {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.me-pager .btn {
-  min-height: 30px;
-  padding: 2px 12px;
-  font-size: 13px;
-  width: auto;
-}
-
-.me-pager-page {
-  font-size: 12px;
-  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
-.me-history-empty {
-  padding: 8px 4px;
-}
+/* ---------- 题库 ---------- */
 
-.me-history-item {
-  border-bottom: 1px solid rgba(115, 191, 220, 0.12);
-}
-
-/* 历史行网格：日期/徽标/局状态一行，标题一行（小程序用两行 flex 近似 web 的 grid） */
-.me-history-room {
-  display: flex;
-  flex-direction: column;
-  row-gap: 3px;
-  padding: 10px 4px;
-}
-
-.me-history-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.me-history-date {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.me-history-badge {
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  color: var(--accent);
-  border: 1px solid rgba(125, 216, 198, 0.35);
-  background: rgba(125, 216, 198, 0.08);
-}
-
-.me-history-badge.me-badge-closed {
-  color: var(--muted);
-  background: rgba(142, 166, 186, 0.08);
-  border-color: rgba(142, 166, 186, 0.22);
-}
-
-.me-round-status {
-  font-size: 12px;
-  margin-left: auto;
-}
-
-.me-round-status.st-active {
-  color: #8fc6ff;
-}
-
-.me-round-status.st-solved {
-  color: #9ae6bd;
-}
-
-.me-round-status.st-revealed {
-  color: var(--gold);
-}
-
-.me-round-status.st-stopped {
-  color: var(--muted);
-}
-
-.me-history-title {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 14px;
-  color: var(--ink);
-}
-
-/* 隐私政策条目：列表用「· 」前缀的段落近似 web 的 ul/li */
-.privacy-item {
-  display: block;
-  font-size: 14px;
-  line-height: 1.7;
-  color: var(--ink);
-}
-
-/* ---------- M2 题库与单人（类名与 web styles.css 对齐，去掉 hover/focus 态） ---------- */
-
-/* 游戏页布局：整页 flex 列，滚动区各自伸缩（ScrollView 需要确定高度才能滚） */
-.page-full {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  padding: 8px 14px 8px;
-  overflow: hidden;
-  box-sizing: border-box;
-}
-
-.page-center {
-  align-items: flex-start;
-  justify-content: center;
-}
-
-/* 筛选条：排序 / 难度 / 类别各成一组胶囊 */
+/* 筛选条：胶囊分组 */
 .filter-bar {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .filter-row {
@@ -652,6 +349,10 @@ page {
 }
 
 .chip {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: auto;
   min-height: 30px;
   padding: 3px 12px;
@@ -665,27 +366,30 @@ page {
   margin: 0;
 }
 
+.chip::after { border: none; }
 .chip.active {
   color: var(--accent-ink);
   background: var(--accent);
   border-color: var(--accent);
 }
 
-/* 题库列表：ScrollView 伸缩占满剩余高度 */
-.puzzle-list {
+/* 题库列表：小程序恒窄屏，单列（web 双列只在 ≥760px 出现）；
+   在 page-full 里作为滚动容器伸缩占满剩余高度 */
+.puzzle-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   flex: 1 1 0;
   min-height: 0;
 }
 
-.puzzle-list.is-page-loading {
-  opacity: 0.5;
-}
+.puzzle-grid.is-page-loading { opacity: 0.5; }
 
 .puzzle-card {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 12px;
 }
 
 .puzzle-card-heading {
@@ -696,17 +400,21 @@ page {
 }
 
 .puzzle-card-title {
+  display: block;
   margin: 0;
   font-size: 17px;
   font-weight: 700;
   min-width: 0;
+  line-height: 1.4;
 }
 
+/* 卡片右上角 badge：一行横排（web .puzzle-card-badges） */
 .puzzle-card-badges {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   flex: none;
 }
 
@@ -717,20 +425,11 @@ page {
   flex: none;
   border-radius: 5px;
   padding: 2px 7px;
-  border: 1px solid var(--line);
   font-size: 12px;
-  line-height: 1.4;
-}
-
-.story-badge {
-  display: inline-block;
-  align-self: flex-start;
-  border-radius: 5px;
-  padding: 2px 7px;
+  font-weight: 700;
+  line-height: 1.3;
+  background: var(--panel);
   border: 1px solid var(--line);
-  font-size: 12px;
-  line-height: 1.4;
-  margin-bottom: 8px;
 }
 
 .puzzle-played {
@@ -743,138 +442,331 @@ page {
   color: #8fc6ff;
 }
 
-.puzzle-card-difficulty-easy {
-  border-color: #5cc78a;
-  color: #5cc78a;
-}
+.puzzle-card-difficulty { color: var(--muted); }
+.puzzle-card-difficulty-easy { border-color: #5cc78a; color: #5cc78a; }
+.puzzle-card-difficulty-medium { border-color: #d0a648; color: #d0a648; }
+.puzzle-card-difficulty-hard { border-color: #d96363; color: #d96363; }
 
-.puzzle-card-difficulty-medium {
-  border-color: #d0a648;
-  color: #d0a648;
-}
-
-.puzzle-card-difficulty-hard {
-  border-color: #d96363;
-  color: #d96363;
-}
-
-/* 汤面摘要：三行截断 */
 .puzzle-surface {
+  display: block;
+  box-sizing: border-box;
   margin: 0;
   color: #dce8f2;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 14px;
-  line-height: 1.6;
 }
 
 .puzzle-card-footer {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin-top: auto;
 }
 
+.puzzle-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
 .puzzle-card-author {
-  font-size: 13px;
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
 }
 
 .puzzle-card-votes {
   display: flex;
-  gap: 12px;
-  font-size: 13px;
+  flex: none;
+  gap: 14px;
+  margin-left: auto;
+  color: #b9cad8;
+  font-variant-numeric: tabular-nums;
 }
 
-.vote-mark {
+.puzzle-card-votes > .vote-mark { display: inline-flex; align-items: center; gap: 4px; }
+
+/* 题库卡片操作行：与作者/票数同行，窄屏自动换行 */
+.puzzle-card-actions {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.puzzle-card-actions .btn {
+  min-width: 0;
+  min-height: 28px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+/* 赞踩图标：CSS 边框三角形，替代 emoji（web 用 SVG，同尺寸同色） */
+.vote-icon {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  flex: none;
+}
+
+.vote-icon-up { border-bottom: 9px solid currentColor; }
+.vote-icon-down { border-top: 9px solid currentColor; }
+
+.vote-mark { display: inline-flex; align-items: center; gap: 4px; }
+.vote-mark-up { color: var(--accent); }
+.vote-mark-down { color: var(--muted); }
+
+/* 页码栏：首尾页常驻，中间页围绕当前页展开；小程序恒 ≤559px，
+   直接用 web 的移动端变体（页码一行可换行，步进按钮第二行） */
+.library-pagination {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px 8px;
+  border: 1px solid rgba(115, 191, 220, 0.18);
+  border-radius: var(--radius);
+  background: rgba(9, 39, 62, 0.55);
+}
+
+.library-pagination-summary {
+  display: block;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.library-pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.library-page-numbers {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+  gap: 2px;
+  order: -1;
+}
+
+.library-page-number,
+.library-page-step {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  width: auto;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  margin: 0;
 }
 
-.vote-mark-up {
-  color: var(--ok);
+.library-page-step {
+  border-color: rgba(115, 191, 220, 0.22);
+  font-size: 24px;
 }
 
-.vote-mark-down {
+.library-page-number.current {
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+  opacity: 1;
+}
+
+.library-page-number[disabled],
+.library-page-step[disabled] { opacity: 0.4; }
+
+.library-page-ellipsis {
+  width: 24px;
+  text-align: center;
   color: var(--muted);
 }
 
-.puzzle-card-action {
-  align-self: flex-end;
-}
+/* ---------- 游戏共用 ---------- */
 
-.library-pagination {
-  padding: 12px 0 16px;
-  justify-content: center;
-}
-
-/* ---------- 单人游玩区 ---------- */
-
-.solo-shell {
-  gap: 0;
-}
-
+/* 游玩页顶栏：等宽两侧保持题目居中（web styles.css 同款三列 grid） */
 .game-topbar {
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(84px, 1fr) minmax(0, 4fr) minmax(84px, 1fr);
+  align-items: center;
+  gap: 4px;
 }
+.game-topbar .brand { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+.game-topbar-back,
+.game-topbar-action { display: flex; min-width: 0; }
 
-.game-title {
-  flex: 1 1 auto;
-  min-width: 0;
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.game-topbar-action { justify-content: flex-end; }
+
+.game-topbar .btn {
+  padding-left: 6px;
+  padding-right: 6px;
+  font-size: 13px;
   white-space: nowrap;
 }
 
-/* 汤面卡片：可滚动，高度有上限 */
+/* 生成的海底图片按容器裁切：小程序 WXSS 不支持本地背景图，
+   用绝对定位 Image（aspectFill 居中裁切）铺底，文字叠在上层 */
 .story-wrap {
   position: relative;
   flex: 0 1 auto;
   min-height: 0;
   max-height: 30vh;
+  /* 与 web 一致：min(30dvh, 220px)；不支持 min() 的老客户端回落 30vh */
+  max-height: min(30vh, 220px);
   margin-top: 8px;
   display: flex;
 }
 
 .story-card {
+  box-sizing: border-box;
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  width: 100%;
   padding: 12px;
-  border: 1px solid rgba(115, 191, 220, 0.22);
-  border-radius: var(--radius);
-  background: rgba(9, 39, 62, 0.7);
+  border: 1px solid var(--line);
+  overflow: hidden;
 }
 
-.story {
+/* 海底图铺在 wrap 上（贴卡片固定），滚动的是上层文字 */
+.story-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.story-inner { position: relative; }
+
+.story-card .story-badge {
+  display: inline-block;
+  margin: 0 6px 12px 0;
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.story-card .story {
+  display: block;
   margin: 0;
   line-height: 1.5;
-  font-size: 14px;
 }
 
-/* 聊天流：伸缩占满中段，回合从底部往上排 */
+/* 对话流：消息贴底，历史向上滚动 */
 .chat {
-  flex: 1 1 0;
-  min-height: 0;
+  display: flex;
+  flex-direction: column;
   padding: 10px 0;
+  min-height: 24vh;
 }
 
 .chat-stream {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  justify-content: flex-end;
   min-height: 100%;
+  justify-content: flex-end;
 }
 
-.chat-empty {
-  margin: auto 0;
-  padding: 8px 2px;
+.turn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 88%;
 }
+
+/* 提问与还原都是玩家发言，贴右侧；判定面板贴左（web 同款） */
+.turn-ask,
+.turn-solve {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+/* 气泡：问题与判定同处一个气泡 */
+.turn-bubble {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px 12px 12px 3px;
+  background: var(--panel);
+}
+
+.turn-text {
+  display: block;
+  margin: 0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.turn-ask .turn-bubble {
+  border-color: rgba(125, 216, 198, 0.38);
+  border-radius: 12px 12px 3px 12px;
+  background: rgba(125, 216, 198, 0.12);
+}
+
+.turn-status {
+  display: block;
+  font-size: 13px;
+  margin: 0;
+}
+
+.turn-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.turn-result .verdict-badge { padding: 1px 6px; line-height: 1.3; }
+
+.confidence { color: var(--muted); font-size: 12px; }
+
+/* 空对话引导 */
+.chat-empty { margin: auto 0; padding: 8px 2px; }
 
 .chat-empty-title {
+  display: block;
   margin: 0 0 6px;
   font-size: 16px;
   font-weight: 600;
@@ -882,16 +774,13 @@ page {
 }
 
 .chat-empty-hint {
+  display: block;
   margin: 0 0 12px;
   font-size: 13px;
   line-height: 1.6;
 }
 
-.chat-empty-examples {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+.chat-empty-examples { display: flex; flex-direction: column; gap: 8px; }
 
 .chat-empty-example {
   width: 100%;
@@ -903,92 +792,45 @@ page {
   background: rgba(125, 216, 198, 0.06);
 }
 
-/* 问答回合气泡 */
-.turn {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-width: 88%;
-}
-
-.turn-ask {
-  align-self: flex-start;
-  align-items: flex-start;
-}
-
-.turn-solve {
-  align-self: flex-end;
-  align-items: flex-end;
-}
-
-.turn-bubble {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-width: 100%;
-  padding: 6px 10px;
-  border: 1px solid var(--line);
-}
-
-.turn-ask .turn-bubble {
-  border-color: rgba(125, 216, 198, 0.38);
-  border-radius: 12px 12px 3px 12px;
-  background: rgba(125, 216, 198, 0.12);
-}
-
-.turn-solve .turn-bubble {
-  border-color: rgba(255, 155, 120, 0.38);
-  border-radius: 12px 12px 12px 3px;
-  background: rgba(255, 155, 120, 0.12);
-}
-
-.turn-text {
-  margin: 0;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-  font-size: 15px;
-}
-
-.turn-status {
-  font-size: 13px;
-  margin: 0;
-}
-
-.turn-result {
-  margin: 4px 0 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.turn-result .verdict-badge {
-  padding: 1px 6px;
-  line-height: 1.3;
-}
-
-.turn-detail {
-  font-size: 13px;
-  flex-basis: 100%;
-}
-
-.confidence {
-  color: var(--muted);
-  font-size: 12px;
-}
-
+/* 结算 / 汤底面板出现在聊天流里 */
 .verdict-panel,
 .answer-panel {
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  box-sizing: border-box;
 }
 
-/* 底部操作区 */
+/* 槽位内容进场：淡入 + 轻微上浮（web 用 grid 行高过渡，小程序条件渲染 + 动画同观感） */
+.slot-in { animation: slot-in 0.18s ease-out; }
+
+@keyframes slot-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- 单人页（web .solo-shell 系） ---------- */
+
+.solo-shell { gap: 0; }
+
+.solo-shell .topbar { flex: none; min-height: 52px; }
+.solo-shell .btn,
+.solo-shell .field,
+.solo-shell .panel,
+.solo-shell .hero-card { border-radius: 0; }
+
+.solo-chat {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0;
+  padding: 10px 0;
+}
+
+.solo-chat .panel { border-radius: 4px; padding: 10px; }
+.solo-chat .panel .p { margin: 4px 0; }
+
 .solo-bottom {
   flex: none;
-  padding-bottom: 4px;
+  max-height: 48vh;
+  padding-bottom: 0;
 }
 
 .solo-action-row {
@@ -1007,30 +849,40 @@ page {
   line-height: 1.2;
 }
 
-.solo-action-row .btn:first-child {
-  color: var(--gold);
-  border-color: rgba(230, 192, 125, 0.5);
-}
+.solo-action-row .btn:first-child { color: var(--gold); border-color: rgba(230, 192, 125, 0.5); }
+.solo-action-row .btn:nth-child(2) { color: var(--coral); border-color: rgba(255, 155, 120, 0.5); }
+.solo-action-row .btn:last-child { color: #a9c8ec; border-color: rgba(169, 200, 236, 0.5); }
 
-.solo-action-row .btn:nth-child(2) {
-  color: var(--coral);
-  border-color: rgba(255, 155, 120, 0.5);
-}
+/* 还原模式按钮按下态（web aria-pressed 的同款底色） */
+.solo-action-row .btn.pressed { background: rgba(255, 155, 120, 0.15); }
 
-.solo-action-row .btn:last-child {
-  color: #a9c8ec;
-  border-color: rgba(169, 200, 236, 0.5);
-}
-
-/* 输入区 */
-.composer {
+.solo-composer {
   padding: 4px 0 0;
+  background: none;
 }
+
+/* ---------- 输入区（web .composer 系） ---------- */
+
+.composer { padding: 12px 0 0; }
 
 .composer-row {
   display: flex;
   gap: 5px;
-  align-items: flex-start;
+  align-items: stretch;
+}
+
+/* 两种模式共用尺寸，textarea 的长内容在内部滚动 */
+.composer-input {
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  height: 44px;
+  width: auto;
+  padding: 8px 10px;
+  border-radius: 3px;
+  line-height: 1.35;
+  font-size: var(--font-body);
 }
 
 .composer-row .btn {
@@ -1039,61 +891,10 @@ page {
   border-radius: 3px;
 }
 
-.composer-input {
-  flex: 1;
-  min-width: 0;
-  min-height: 44px;
-  width: auto;
-  line-height: 1.45;
-  font-size: 15px;
-}
+/* ---------- 大模型开关：自绘拨杆，尺寸与配色跟站内控件一致 ---------- */
 
-/* 提示悬浮胶囊：固定定位浮在操作区上方，不占布局；10 秒自动收起由 useHintPlayer 计时。
-   悬浮定位方式与 .toast-bar 同款（left 50% + translateX 居中、max-width 86vw）。 */
-.hint-capsule {
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 120px;
-  max-width: 86vw;
-  margin: 0;
-  padding: 7px 10px;
-  border: 1px solid rgba(230, 192, 125, 0.4);
-  border-radius: var(--radius-sm);
-  background: rgba(22, 43, 57, 0.97);
-  color: var(--gold);
-  z-index: 28;
-}
-
-.hint-capsule-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.hint-capsule-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--gold);
-}
-
-.hint-capsule-nav {
-  display: flex;
-  gap: 4px;
-}
-
-.hint-capsule-text {
-  margin: 3px 0 0;
-  min-height: 38px;
-  line-height: 1.45;
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-
-/* 大模型开关行（微信原生 Switch） */
 .large-model-toggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 2px 0 6px;
@@ -1101,19 +902,633 @@ page {
   color: var(--muted);
 }
 
-/* 错误悬浮条：页面内展示、4 秒自动消失 */
-.toast-bar {
+.lm-switch {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 18px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--field);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.lm-switch.checked {
+  background: rgba(125, 216, 198, 0.22);
+  border-color: rgba(125, 216, 198, 0.5);
+}
+
+.lm-switch.disabled { opacity: 0.45; }
+
+.lm-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.15s, background 0.15s;
+}
+
+.lm-switch.checked .lm-knob {
+  transform: translateX(16px);
+  background: var(--accent);
+}
+
+/* ---------- 提示悬浮胶囊 ---------- */
+
+.hint-capsule {
+  box-sizing: border-box;
   position: fixed;
+  bottom: calc(env(safe-area-inset-bottom) + 96px);
   left: 50%;
   transform: translateX(-50%);
-  bottom: 120px;
-  max-width: 86vw;
-  padding: 8px 14px;
+  width: calc(100vw - 24px);
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid rgba(230, 192, 125, 0.4);
   border-radius: var(--radius-sm);
-  background: rgba(68, 20, 20, 0.92);
-  border: 1px solid rgba(255, 143, 143, 0.4);
-  color: var(--danger);
+  background: rgba(22, 43, 57, 0.97);
+  color: var(--gold);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  animation: hint-capsule-in 0.18s ease-out;
+}
+
+@keyframes hint-capsule-in {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.hint-capsule-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 18px;
   font-size: 13px;
+  line-height: 18px;
+}
+
+.hint-capsule-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.hint-icon { font-size: 12px; line-height: 1; }
+
+.hint-capsule-nav { display: flex; gap: 4px; }
+
+.hint-capsule-head .btn {
+  min-width: 30px;
+  min-height: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 0;
+  font-size: 13px;
+  line-height: 16px;
+}
+
+/* 文本区固定两行高：翻上一条/下一条时长短不一也不跳 */
+.hint-capsule-text {
+  display: block;
+  margin: 3px 0 0;
+  min-height: 38px;
+  line-height: 1.45;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- 悬浮反馈条（web .toast：顶部居中，自动消失） ---------- */
+
+.toast {
+  box-sizing: border-box;
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: fit-content;
+  max-width: calc(100vw - 32px);
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(14, 30, 51, 0.97);
+  color: var(--ink);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  font-size: 14px;
   line-height: 1.5;
-  z-index: 30;
+  text-align: center;
+  animation: toast-in 0.18s ease-out;
+}
+
+.toast.toast-error {
+  border-color: rgba(255, 143, 143, 0.5);
+  color: #ffd9d9;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, -10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ---------- 弹窗（packages/ui dialog.css 同款深海弹窗） ---------- */
+
+.jev-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 8, 18, 0.72);
+  animation: jev-dialog-fade 0.16s ease-out;
+}
+
+.jev-dialog {
+  box-sizing: border-box;
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(100vw - 32px);
+  max-width: 400px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  font-size: 16px;
+  line-height: 1.5;
+  animation: jev-dialog-pop 0.18s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.jev-dialog-title {
+  display: block;
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.jev-dialog-description {
+  display: block;
+  margin: 0 0 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+
+.jev-dialog-body { color: var(--muted); }
+
+.jev-dialog-body .p {
+  display: block;
+  margin: 0 0 10px;
+  overflow-wrap: anywhere;
+}
+
+.jev-dialog-body .p:last-child { margin-bottom: 0; }
+
+.jev-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.jev-dialog-actions .btn {
+  min-height: 40px;
+  padding: 6px 16px;
+}
+
+.jev-dialog-cancel {
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--line);
+}
+
+.jev-dialog-confirm {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+@keyframes jev-dialog-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes jev-dialog-pop {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 10px)); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+/* ---------- 「我的」页 ---------- */
+
+.me-card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 16px 14px;
+  border: 1px solid rgba(115, 191, 220, 0.22);
+  border-radius: var(--radius);
+  background: rgba(9, 39, 62, 0.7);
+}
+
+.me-head { display: flex; align-items: center; gap: 14px; }
+
+.me-id {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.me-name {
+  display: block;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.me-email {
+  display: block;
+  margin: 0;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.me-edit { display: flex; flex-direction: column; gap: 10px; }
+
+.me-edit-actions { display: flex; gap: 10px; }
+
+.me-edit-actions .btn { flex: 1 1 auto; }
+
+/* 关键数字：额度 / 赞助，两块并排 */
+.me-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.me-stat {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 130px;
+  max-width: 260px;
+  padding: 12px 14px;
+  border: 1px solid rgba(115, 191, 220, 0.14);
+  border-radius: var(--radius-sm);
+  background: rgba(115, 191, 220, 0.05);
+}
+
+.me-stat-label {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.me-stat-value {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.me-stat-value .me-stat-sub {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.me-stat-value.is-ok { color: #9ae6bd; }
+.me-stat-value.is-expired { color: var(--muted); }
+
+.me-card-actions { display: flex; gap: 10px; }
+.me-card-actions .btn { flex: 1 1 auto; }
+
+.me-load-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* 退出登录：放在页面末尾，默认低调 */
+.me-logout {
+  width: 100%;
+  margin-top: 0;
+  color: var(--muted);
+  border-color: rgba(115, 191, 220, 0.18);
+  background: transparent;
+}
+
+.login-prompt { margin-top: 16px; align-items: stretch; }
+
+/* 会客厅摘要行 / 区块标题 */
+.me-section { display: flex; flex-direction: column; }
+
+.me-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 20px 4px 10px;
+}
+
+.me-section-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.me-pager { display: flex; align-items: center; gap: 8px; }
+
+.me-pager .btn {
+  min-height: 30px;
+  padding: 2px 12px;
+  font-size: 13px;
+}
+
+.me-pager-page {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.me-history { display: flex; flex-direction: column; }
+
+.me-history-item { border-bottom: 1px solid rgba(115, 191, 220, 0.12); }
+.me-history-item:last-child { border-bottom: 0; }
+
+/* 历史行：日期/徽标/局状态一行 + 标题一行（web grid 的两行 flex 版，chevron 贴右） */
+.me-history-room {
+  display: flex;
+  flex-direction: column;
+  row-gap: 3px;
+  padding: 10px 4px;
+}
+
+.me-history-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.me-history-date {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.me-history-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: rgba(115, 191, 220, 0.12);
+  border: 1px solid rgba(115, 191, 220, 0.25);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.me-history-badge.me-badge-closed {
+  color: var(--muted);
+  background: rgba(142, 166, 186, 0.08);
+  border-color: rgba(142, 166, 186, 0.22);
+}
+
+/* 局状态与 chevron 收在右侧一组（web grid 第四列的 flex 版） */
+.me-history-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.me-round-status {
+  font-size: 12px;
+}
+
+.me-round-status.st-active { color: #8fc6ff; }
+.me-round-status.st-solved { color: #9ae6bd; }
+.me-round-status.st-revealed { color: var(--gold); }
+.me-round-status.st-stopped { color: var(--muted); }
+
+.me-history-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.me-history-chevron {
+  flex: none;
+  color: rgba(115, 191, 220, 0.4);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.me-history-empty { display: block; margin: 8px 4px 0; }
+
+/* 历史加载骨架：两档宽度的呼吸条 */
+.me-skeleton { display: flex; flex-direction: column; padding: 4px 0; }
+
+.me-skeleton-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 4px;
+  border-bottom: 1px solid rgba(115, 191, 220, 0.08);
+}
+
+.me-skeleton-bar {
+  height: 12px;
+  border-radius: 4px;
+  background: rgba(115, 191, 220, 0.12);
+  animation: me-pulse 1.4s ease-in-out infinite;
+}
+
+.me-skeleton-row .me-skeleton-bar:nth-child(1) { width: 45%; }
+.me-skeleton-row .me-skeleton-bar:nth-child(2) { width: 72%; }
+
+/* 昵称/邮箱占位条：抬高特异性，避免被上面的百分比宽度压窄 */
+.me-skeleton-bar.me-name-skeleton { width: 120px; height: 16px; }
+.me-skeleton-bar.me-email-skeleton { width: 160px; height: 10px; }
+
+@keyframes me-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ---------- 邀请好友卡 ---------- */
+
+.invite-card { gap: 4px; }
+
+.invite-hint {
+  display: block;
+  margin: 0 4px 10px;
+  font-size: 13px;
+}
+
+.invite-count { font-size: 13px; }
+
+.invite-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(115, 191, 220, 0.14);
+  border-radius: var(--radius-sm);
+  background: rgba(115, 191, 220, 0.05);
+}
+
+.invite-link {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.invite-share { margin-top: 8px; }
+
+.beta-hint {
+  display: block;
+  margin: 8px 2px 0;
+  font-size: 13px;
+}
+
+/* ---------- 设置页 ---------- */
+
+/* 登录页底部站内链接：深海背景上默认链接色太暗，用 auth 页内联链接色（web shell.narrow a） */
+.link-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 36px;
+  padding: 4px 10px;
+  background: transparent;
+  color: #8fc6ff;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.link-btn::after { border: none; }
+
+.wechat-login-hint {
+  display: block;
+  font-size: 13px;
+  text-align: left;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-value {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 15px;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.settings-lang { display: flex; gap: 10px; }
+.settings-lang .btn { flex: 1 1 auto; }
+
+/* ---------- 兑换码（sponsor-redeem 同款） ---------- */
+
+.sponsor-redeem {
+  box-sizing: border-box;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(9, 39, 62, 0.45);
+}
+
+.sponsor-redeem-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.sponsor-redeem-input {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--tap);
+  height: var(--tap);
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sponsor-redeem-ok {
+  display: block;
+  margin: 10px 0 0;
+  color: var(--ok);
+  font-size: 13px;
+}
+
+/* ---------- 隐私政策（web .privacy-body：条款分节排版） ---------- */
+
+.privacy-body .h3 {
+  margin: 16px 0 8px;
+}
+
+.privacy-item {
+  display: block;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.privacy-item::before {
+  content: '·';
+  margin-left: -12px;
+  margin-right: 6px;
 }

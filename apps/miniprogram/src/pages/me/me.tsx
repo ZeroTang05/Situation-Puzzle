@@ -1,12 +1,12 @@
 /**
- * 「我的」页：账号卡片（昵称/邮箱 + 额度/会员两个关键数字）+ 邀请卡 + 多人历史列表。
- * 与 apps/web/src/me/me-page.tsx 同构；差异——好友/创作入口在小程序 M1 还没有
- * 落地页，点了给「即将开放」提示；历史行点击进房间在 M2 接通。
- * 昵称 / 语言 / 兑换码 / 退出登录都收在设置页。
- * 奖励入口（docs/rebuild/21-MONETIZATION-REVISION.md）：邀请好友 +5（分享卡片与
- * 复制链接），看激励视频广告 +2（流量主开通前提示「开通中」）；内测期额度卡显示畅玩徽标。
+ * 「我的」页（代码级对齐 apps/web/src/me/me-page.tsx）：
+ * 账号卡片（昵称/邮箱骨架屏 + 额度/会员两个关键数字）+ 邀请卡 + 多人历史列表。
+ * 与 web 差异只有功能里程碑——好友/创作/通知入口未接入的点了给「即将开放」提示，
+ * 历史行点击进房间在多人里程碑接通；昵称/语言/兑换码/退出登录都收在设置页。
+ * 奖励入口（docs/rebuild/21-MONETIZATION-REVISION.md）：邀请好友 +5（转发卡片与复制链接），
+ * 看激励视频广告 +2（流量主开通前提示「开通中」）；内测期额度卡显示畅玩徽标。
  */
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import Taro from '@tarojs/taro'
 import { Button, Text, View } from '@tarojs/components'
 import { useQuery } from '@tanstack/react-query'
@@ -28,7 +28,7 @@ function roundStatusLabel(
     roundStatusAbandoned: string
     roundStatusAborted: string
   },
-) {
+): string {
   switch (status) {
     case 'active': return copy.roundStatusActive
     case 'solved': return copy.roundStatusSolved
@@ -40,7 +40,7 @@ function roundStatusLabel(
 }
 
 /** round.status → 局状态文字颜色（进行中蓝 / 解开绿 / 公布金 / 停止灰） */
-function roundStatusClass(status: string) {
+function roundStatusClass(status: string): string {
   switch (status) {
     case 'active': return 'st-active'
     case 'solved': return 'st-solved'
@@ -52,7 +52,7 @@ function roundStatusClass(status: string) {
 }
 
 /** 短日期：同年只显示月日，跨年补年份 */
-function shortDate(iso: string, language: Language) {
+function shortDate(iso: string, language: Language): string {
   const date = new Date(iso)
   const sameYear = date.getFullYear() === new Date().getFullYear()
   const options: Intl.DateTimeFormatOptions = sameYear
@@ -81,7 +81,7 @@ interface HistoryResponse {
   }>
 }
 
-export default function Me() {
+export default function Me(): ReactNode {
   const { copy, language } = useLanguage()
   const { session } = useJevSession()
   const [historyPage, setHistoryPage] = useState(1)
@@ -132,8 +132,8 @@ export default function Me() {
   if (!session) {
     return (
       <View className="page">
-        <View className="topbar">
-          <Button className="btn btn-ghost btn-sm" onClick={() => void Taro.navigateBack()}>
+        <View className="topbar topbar-title">
+          <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => void Taro.navigateBack()}>
             {copy.back}
           </Button>
           <Text className="brand brand-sm">{copy.me}</Text>
@@ -159,22 +159,21 @@ export default function Me() {
   const hasUnlimited = lifetime || (monthlyUntil !== null && !monthlyExpired)
   const betaOpen = me.data?.betaOpen ?? false
   const remaining = freeRooms ? freeRooms.total - freeRooms.consumed - freeRooms.reserved : null
-  // 名字与邮箱都来自 /me：没回来就整卡占位，回来一起出；不读会话字段，避免分两步加载
-  const displayName = me.data?.nickname ?? '…'
+  // 名字与邮箱都来自 /me：没回来就整卡占骨架，回来一起出；不读会话字段，避免分两步加载
+  const invite = me.data?.invite ?? null
   // 微信一键登录的账号是占位邮箱（wx-<openid>@wechat.invalid）：对外展示成「微信账号」
   const displayEmail = !me.data
-    ? '…'
+    ? null
     : me.data.email.endsWith('@wechat.invalid')
       ? copy.wechatAccountLabel
       : me.data.email
-  const invite = me.data?.invite ?? null
   // 看广告入口：会员不限次数与内测畅玩期间都不需要
   const showAdEntry = !hasUnlimited && !betaOpen
 
   return (
     <View className="page">
-      <View className="topbar">
-        <Button className="btn btn-ghost btn-sm" onClick={() => void Taro.navigateBack()}>
+      <View className="topbar topbar-title">
+        <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => void Taro.navigateBack()}>
           {copy.back}
         </Button>
         <Text className="brand brand-sm">{copy.me}</Text>
@@ -182,9 +181,13 @@ export default function Me() {
 
       {/* 账号卡片：昵称 + 邮箱 + 额度/会员两个关键数字 */}
       <View className="me-card">
-        <View className="me-id">
-          <Text className="me-name">{displayName}</Text>
-          <Text className="me-email muted">{displayEmail}</Text>
+        <View className="me-head">
+          <View className="me-id">
+            {me.data ? <Text className="me-name">{me.data.nickname}</Text> : <Text className="me-skeleton-bar me-name-skeleton"> </Text>}
+            <Text className="me-email muted">
+              {displayEmail ?? <Text className="me-skeleton-bar me-email-skeleton"> </Text>}
+            </Text>
+          </View>
         </View>
 
         <View className="me-stats">
@@ -197,7 +200,10 @@ export default function Me() {
                   ? copy.unlimited
                   : remaining === null
                     ? '—'
-                    : `${remaining} / ${freeRooms!.total}`}
+                    : <>
+                        {remaining}
+                        <Text className="me-stat-sub"> / {freeRooms!.total}</Text>
+                      </>}
             </Text>
           </View>
           {(lifetime || monthlyUntil !== null) && (
@@ -217,7 +223,7 @@ export default function Me() {
         {betaOpen && <Text className="muted beta-hint">{copy.betaHint}</Text>}
 
         {me.isError && (
-          <View className="stack-sm">
+          <View className="me-load-error">
             <Text className="error-text">{translateApiError(me.error, language, copy.accountLoadFail)}</Text>
             <Button className="btn btn-ghost btn-sm" onClick={() => void me.refetch()}>
               {copy.retry}
@@ -225,12 +231,14 @@ export default function Me() {
           </View>
         )}
 
-        <View className="me-card-actions">
-          {showAdEntry && (
+        {showAdEntry && (
+          <View className="me-card-actions">
             <Button className="btn" disabled={adBusy} onClick={() => void watchAd()}>
               {copy.adWatchButton}
             </Button>
-          )}
+          </View>
+        )}
+        <View className="me-card-actions">
           <Button className="btn" onClick={openLater}>{copy.friends}</Button>
           <Button
             className="btn"
@@ -289,6 +297,16 @@ export default function Me() {
           )}
         </View>
 
+        {history.isPending && (
+          <View className="me-skeleton">
+            {[0, 1, 2].map((row) => (
+              <View key={row} className="me-skeleton-row">
+                <Text className="me-skeleton-bar" />
+                <Text className="me-skeleton-bar" />
+              </View>
+            ))}
+          </View>
+        )}
         {history.isError && <Text className="error-text">{copy.historyLoadFail}</Text>}
         {history.data?.rooms.length === 0 && (
           <Text className="muted me-history-empty">{copy.noRoomHistory}</Text>
@@ -307,11 +325,14 @@ export default function Me() {
                     <Text className={'me-history-badge' + (room.roomStatus === 'closed' ? ' me-badge-closed' : '')}>
                       {room.roomStatus === 'closed' ? copy.roomStatusClosed : copy.roomStatusActive}
                     </Text>
-                    {showRoundStatus && (
-                      <Text className={`me-round-status ${roundStatusClass(round.status)}`}>
-                        {roundStatusLabel(round.status, language, copy)}
-                      </Text>
-                    )}
+                    <View className="me-history-right">
+                      {showRoundStatus && (
+                        <Text className={`me-round-status ${roundStatusClass(round.status)}`}>
+                          {roundStatusLabel(round.status, language, copy)}
+                        </Text>
+                      )}
+                      <Text className="me-history-chevron">›</Text>
+                    </View>
                   </View>
                   {round?.title && <Text className="me-history-title">{round.title}</Text>}
                 </View>

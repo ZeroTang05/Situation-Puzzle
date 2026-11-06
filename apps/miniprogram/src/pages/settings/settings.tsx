@@ -1,11 +1,11 @@
 /**
- * 设置页：个人资料（昵称）、界面语言、兑换码、关于（隐私政策）、退出登录。
- * 结构与 apps/web/src/settings/settings-page.tsx 一致；差异只有两处——
- * 退出确认用微信原生对话框（Taro.showModal），页面跳转换 Taro 导航。
+ * 设置页（代码级对齐 apps/web/src/settings/settings-page.tsx）：
+ * 个人资料（昵称）、界面语言、兑换码、关于（隐私政策）、退出登录。
  * 语言切换只在这里和登录页开放，改完写进本地存储，每个请求经
  * X-Jev-Language 头上报（服务端据此分流邮件语言）。
+ * 与 web 差异只有交互载体：退出确认走深海弹窗（useDialog），页面跳转换 Taro 导航。
  */
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import Taro from '@tarojs/taro'
 import { Button, Input, Text, View } from '@tarojs/components'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -13,6 +13,7 @@ import { api, translateApiError } from '../../api/client'
 import { signOut } from '../../api/auth-client'
 import { useLanguage } from '../../state/language'
 import { notifySessionChanged } from '../../state/session'
+import { useDialog } from '../../ui/dialog'
 import type { Language } from '@jev/i18n'
 
 interface MeResponse {
@@ -26,8 +27,8 @@ interface RedeemResponse {
   status: string
 }
 
-/** 兑换码表单：输入运营方发的码，服务端核销并发放会员权益 */
-function RedeemSection() {
+/** 兑换码表单：输入运营方发的码，服务端核销并发放会员权益（web redeem-section.tsx 同款） */
+function RedeemSection(): ReactNode {
   const { copy, language } = useLanguage()
   const queryClient = useQueryClient()
   const [code, setCode] = useState('')
@@ -58,10 +59,10 @@ function RedeemSection() {
   }
 
   return (
-    <View>
+    <View className="sponsor-redeem">
       <View className="sponsor-redeem-row">
         <Input
-          className="field sponsor-redeem-input"
+          className="sponsor-redeem-input"
           type="text"
           value={code}
           onInput={(e) => {
@@ -75,14 +76,15 @@ function RedeemSection() {
         </Button>
       </View>
       {codeError && <Text className="error-text">{codeError}</Text>}
-      {codeDone && <Text className="ok-text">{copy.redeemCodeSuccess}</Text>}
+      {codeDone && <Text className="sponsor-redeem-ok">{copy.redeemCodeSuccess}</Text>}
     </View>
   )
 }
 
-export default function Settings() {
+export default function Settings(): ReactNode {
   const { copy, language, setLanguage } = useLanguage()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
 
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -116,10 +118,9 @@ export default function Settings() {
     }
   }
 
-  /** 退出登录走微信原生对话框二次确认，避免误触 */
+  /** 退出登录走二次确认（深海弹窗，与 web useDialog.confirm 同款），避免误触 */
   const logout = async () => {
-    const { confirm } = await Taro.showModal({ title: copy.logout, content: copy.logoutConfirm })
-    if (!confirm) return
+    if (!(await dialog.confirm(copy.logoutConfirm, copy.logout))) return
     await signOut()
     queryClient.clear()
     notifySessionChanged()
@@ -133,8 +134,8 @@ export default function Settings() {
 
   return (
     <View className="page">
-      <View className="topbar">
-        <Button className="btn btn-ghost btn-sm" onClick={() => void Taro.navigateBack()}>
+      <View className="topbar topbar-title">
+        <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => void Taro.navigateBack()}>
           {copy.back}
         </Button>
         <Text className="brand brand-sm">{copy.settingsTitle}</Text>
@@ -156,7 +157,7 @@ export default function Settings() {
         </View>
 
         {editing && (
-          <View className="stack">
+          <View className="me-edit">
             <View className="field-label">
               <Text className="muted">{copy.nickname}</Text>
               <Input
@@ -189,7 +190,7 @@ export default function Settings() {
         </View>
 
         {error && <Text className="error-text">{error}</Text>}
-        {notice && <Text className="ok-text">{notice}</Text>}
+        {notice && <Text>{notice}</Text>}
         {me.isError && (
           <Text className="error-text">{translateApiError(me.error, language, copy.accountLoadFail)}</Text>
         )}
