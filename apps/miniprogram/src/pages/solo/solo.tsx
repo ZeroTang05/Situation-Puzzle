@@ -1,18 +1,22 @@
 /**
- * 单人游戏页（口径对齐 apps/web/src/solo/solo-page.tsx，docs/rebuild/08-SOLO.md）：
+ * 单人游戏页（代码级对齐 apps/web/src/solo/solo-page.tsx，docs/rebuild/08-SOLO.md）：
  * 会话与问答只存小程序本地存储；退出重进恢复；断网保留输入；服务端不存单人对话。
- * 小程序差异：题目评价（赞踩投票）随社交里程碑接入；错误提示用页面内
- * 悬浮条（4 秒自动消失，与 web Toast 同行为）；换题请求用取消标志代替 AbortController。
+ * 布局对齐 web solo-shell：整屏列结构，题面（海底图汤面卡）与对话各自滚动，输入区常驻。
+ * 小程序差异：题目评价（赞踩投票）随社交里程碑接入；换题请求用取消标志代替
+ * AbortController；错误提示走顶部悬浮 Toast；公布汤底确认走深海弹窗。
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Taro from '@tarojs/taro'
-import { Button, ScrollView, Text, Textarea, View } from '@tarojs/components'
+import { Button, Image, ScrollView, Text, Textarea, View } from '@tarojs/components'
 import { api, ApiError, translateApiError } from '../../api/client'
 import { useLanguage } from '../../state/language'
 import { displayVerdict, verdictDetail } from '@jev/i18n'
 import { soloStore, type SoloSessionRow } from '../../solo/local-store'
 import { selectUnplayedPuzzle } from '../../solo/unplayed-puzzle'
 import { HintCapsule, LargeModelToggle, TurnCard, useHintPlayer } from '../../game/components'
+import { Toast } from '../../ui/toast'
+import { useDialog } from '../../ui/dialog'
+import storySea from '../../assets/story-sea.jpg'
 
 type InputMode = 'ask' | 'solve'
 
@@ -35,9 +39,10 @@ function isJudgedAsk(turn: TurnRow): turn is TurnRow & { result: AskVerdict } {
   return turn.kind === 'ask' && turn.status === 'succeeded' && turn.result !== null && askVerdicts.has(turn.result)
 }
 
-export default function Solo() {
+export default function Solo(): ReactNode {
   const puzzleId = Taro.getCurrentInstance().router?.params?.puzzleId ?? ''
   const { copy, language } = useLanguage()
+  const dialog = useDialog()
 
   const [session, setSession] = useState<SoloSessionRow | null>(null)
   const [turns, setTurns] = useState<TurnRow[]>([])
@@ -123,13 +128,12 @@ export default function Solo() {
   }, [puzzleId, language, copy.soloLoadFail])
 
   // 新回合或对局状态翻转（解出弹结算、揭晓弹汤底）把聊天滚到底
+  const [scrollAnchor, setScrollAnchor] = useState('')
   useEffect(() => {
     if (turns.length === 0) return
     // scroll-into-view 锚点：每次回合数变化后指向聊天流底部的哨兵节点
     setScrollAnchor(`turn-end-${turns.length}-${session?.status ?? ''}`)
   }, [turns.length, session?.status, session?.revealedAnswer])
-
-  const [scrollAnchor, setScrollAnchor] = useState('')
 
   const persistDraft = useCallback(
     (mode: InputMode, value: string) => {
@@ -274,22 +278,19 @@ export default function Solo() {
     }
   }
 
-  // 错误提示 4 秒自动消失（与 web Toast 同行为）
-  useEffect(() => {
-    if (!error) return
-    const timer = setTimeout(() => setError(null), 4000)
-    return () => clearTimeout(timer)
-  }, [error])
-
   if (!session) {
-    return (
-      <View className="page page-full page-center">
-        <View className="topbar">
-          <Button className="btn btn-ghost btn-sm" onClick={() => void Taro.navigateBack()}>{copy.back}</Button>
+    // 加载态：仅居中「进入对局中」；错误态：保留返回 + 错误文案（web solo-page 同款两分支）
+    if (error) {
+      return (
+        <View className="page page-full">
+          <View className="topbar">
+            <Button className="btn btn-ghost btn-sm" onClick={() => void Taro.navigateBack()}>{copy.back}</Button>
+          </View>
+          <Text className="error-text">{error}</Text>
         </View>
-        {error ? <Text className="error-text">{error}</Text> : <Text className="muted">{copy.loadingRound}</Text>}
-      </View>
-    )
+      )
+    }
+    return <View className="page page-loading">{copy.loadingRound}</View>
   }
 
   const solved = session.status === 'solved'
@@ -298,35 +299,45 @@ export default function Solo() {
     <View className="page page-full solo-shell">
       {/* 悬浮提示胶囊：固定定位不占布局，10 秒自动收起 */}
       <HintCapsule hints={hintList} open={hintPlayer.open} index={hintPlayer.index} onIndex={hintPlayer.show} />
+
+      {/* 游玩页顶栏：等宽两侧保持题目居中（web .game-topbar） */}
       <View className="topbar game-topbar">
-        <Button className="btn btn-ghost btn-sm" onClick={() => void Taro.navigateBack()}>{copy.back}</Button>
-        <Text className="brand brand-sm game-title">{session.title}</Text>
-        <Button
-          className="btn btn-ghost btn-sm"
-          disabled={changingPuzzle || sending || hintBusy || revealing}
-          onClick={() => void changePuzzle()}
-        >
-          {changingPuzzle ? copy.changingPuzzle : copy.changePuzzle}
-        </Button>
+        <View className="game-topbar-back">
+          <Button className="btn btn-ghost btn-sm" onClick={() => void Taro.navigateBack()}>{copy.back}</Button>
+        </View>
+        <Text className="brand brand-sm">{session.title}</Text>
+        <View className="game-topbar-action">
+          <Button
+            className="btn btn-ghost btn-sm"
+            disabled={changingPuzzle || sending || hintBusy || revealing}
+            onClick={() => void changePuzzle()}
+          >
+            {changingPuzzle ? copy.changingPuzzle : copy.changePuzzle}
+          </Button>
+        </View>
       </View>
 
+      {/* 汤面卡片：海底图铺底（贴卡片固定），徽标与汤面文字在上层滚动 */}
       <View className="story-wrap">
-        <ScrollView className="story-card" scrollY>
-          {session.category && (
-            <Text className="puzzle-card-category story-badge">
-              {session.category === 'honkaku' ? copy.honkaku : copy.henkaku}
-            </Text>
-          )}
-          {session.difficulty && (
-            <Text className={`puzzle-card-difficulty puzzle-card-difficulty-${session.difficulty} story-badge`}>
-              {session.difficulty === 'easy' ? copy.easy : session.difficulty === 'hard' ? copy.hard : copy.medium}
-            </Text>
-          )}
-          <Text className="story">{session.surface}</Text>
+        <Image className="story-bg" src={storySea} mode="aspectFill" />
+        <ScrollView className="story-card" scrollY enhanced showScrollbar={false}>
+          <View className="story-inner">
+            {session.category && (
+              <Text className="story-badge puzzle-card-category">
+                {session.category === 'honkaku' ? copy.honkaku : copy.henkaku}
+              </Text>
+            )}
+            {session.difficulty && (
+              <Text className={`story-badge puzzle-card-difficulty puzzle-card-difficulty-${session.difficulty}`}>
+                {session.difficulty === 'easy' ? copy.easy : session.difficulty === 'hard' ? copy.hard : copy.medium}
+              </Text>
+            )}
+            <Text className="story">{session.surface}</Text>
+          </View>
         </ScrollView>
       </View>
 
-      <ScrollView className="chat" scrollY scrollIntoView={scrollAnchor}>
+      <ScrollView className="chat solo-chat" scrollY scrollIntoView={scrollAnchor} scrollWithAnimation enhanced showScrollbar={false}>
         <View className="chat-stream">
           {turns.length === 0 && (
             <View className="chat-empty">
@@ -352,15 +363,15 @@ export default function Solo() {
             <TurnCard key={turn.localTurnId} turn={turn} copy={copy} language={language} />
           ))}
           {solved && (
-            <View className="panel verdict-panel">
+            <View className="panel verdict-panel slot-in">
               <Text className="verdict-badge verdict-solved">{displayVerdict('solved', language)}</Text>
-              <Text>{verdictDetail('solved', language)}</Text>
+              <Text className="p">{verdictDetail('solved', language)}</Text>
             </View>
           )}
           {session.revealedAnswer && (
-            <View className="panel answer-panel">
+            <View className="panel answer-panel slot-in">
               <Text className="h3">{copy.answer}</Text>
-              <Text>{session.revealedAnswer}</Text>
+              <Text className="p">{session.revealedAnswer}</Text>
             </View>
           )}
           <View id={scrollAnchor} />
@@ -384,7 +395,7 @@ export default function Solo() {
             {copy.hint} {session.hintsUnlocked.length}/3
           </Button>
           <Button
-            className={'btn btn-sm' + (inputMode === 'solve' ? ' btn-primary' : '')}
+            className={'btn btn-sm' + (inputMode === 'solve' ? ' pressed' : '')}
             disabled={changingPuzzle || sending || solved || Boolean(session.revealedAnswer)}
             onClick={() => {
               const next = inputMode === 'solve' ? 'ask' : 'solve'
@@ -399,8 +410,7 @@ export default function Solo() {
             className="btn btn-sm"
             disabled={changingPuzzle || sending || revealing || Boolean(session.revealedAnswer)}
             onClick={async () => {
-              const { confirm } = await Taro.showModal({ title: copy.soloViewAnswer, content: copy.soloRevealConfirm })
-              if (confirm) void reveal()
+              if (await dialog.confirm(copy.soloRevealConfirm, copy.soloViewAnswer)) void reveal()
             }}
           >
             {copy.soloViewAnswer}
@@ -418,7 +428,6 @@ export default function Solo() {
                 className="field composer-input"
                 value={text}
                 maxlength={inputMode === 'ask' ? 500 : 1500}
-                autoHeight
                 placeholder={inputMode === 'ask' ? askPlaceholder : copy.solvePlaceholder}
                 onInput={(e) => {
                   setText(e.detail.value)
@@ -437,7 +446,8 @@ export default function Solo() {
         )}
       </View>
 
-      {error && <Text className="toast-bar">{error}</Text>}
+      {/* 操作反馈：顶部悬浮条，不挤占布局，到点自动消失 */}
+      {error && <Toast message={error} tone="error" durationMs={4000} onDone={() => setError(null)} />}
     </View>
   )
 }

@@ -1,12 +1,11 @@
 /**
- * 游玩页共享组件（小程序版，口径对齐 apps/web/src/game/ 与 catalog/）：
- * TurnCard 问答卡片、useHintPlayer/HintCapsule 悬浮提示、LargeModelToggle 大模型开关。
- * 小程序差异：textarea 用 Taro Input/Textarea 组件、emoji 图标照用、
+ * 游玩页共享组件（代码级对齐 apps/web/src/game/ 与 catalog/）：
+ * TurnCard 问答卡片、useHintPlayer/HintCapsule 悬浮提示、LargeModelToggle 自绘拨杆、
+ * VoteIcon 三角票数图标。小程序差异：textarea 换 Taro 组件、SVG 换 CSS 边框三角形、
  * hover 态不存在（样式里去掉）。
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Button, Text, View } from '@tarojs/components'
-import { Switch } from '@tarojs/components'
 import { useLanguage } from '../state/language'
 import { displayVerdict, verdictDetail, type Language } from '@jev/i18n'
 import { confidenceLabel } from './game-display'
@@ -21,8 +20,8 @@ export interface PreviewTurn {
   failNote?: string
 }
 
-/** 单人与预览共享的问答卡片：方向由 kind 决定，状态消息贴近文本 */
-export function TurnCard({ turn, copy, language }: { turn: PreviewTurn; copy: { judging: string; failed: string }; language: Language }) {
+/** 单人与预览共享的问答卡片：提问与还原都贴右侧，判定徽标收在气泡内（web turn-card.tsx 同款） */
+export function TurnCard({ turn, copy, language }: { turn: PreviewTurn; copy: { judging: string; failed: string }; language: Language }): ReactNode {
   return (
     <View className={`turn turn-${turn.kind}`}>
       <View className="turn-bubble">
@@ -43,7 +42,7 @@ export function TurnCard({ turn, copy, language }: { turn: PreviewTurn; copy: { 
             {confidenceLabel(turn.confidence, language) && (
               <Text className="confidence">{confidenceLabel(turn.confidence, language)}</Text>
             )}
-            <Text className="muted turn-detail">{verdictDetail(turn.result, language)}</Text>
+            <Text className="muted turn-status">{verdictDetail(turn.result, language)}</Text>
           </View>
         )}
       </View>
@@ -51,9 +50,12 @@ export function TurnCard({ turn, copy, language }: { turn: PreviewTurn; copy: { 
   )
 }
 
-/** 悬浮提示播放器（口径对齐 web 版 hint-capsule）：open 是否悬浮展示、index 当前条；
- *  show 展示指定条（解锁后传新提示下标）、cycle 循环翻阅（收起态从第一条开始）；
- *  打开或翻页都会重置 10 秒自动收起计时 */
+/** 赞/踩图标：CSS 边框三角形，颜色随所在标记（web 用 SVG，同尺寸同色） */
+export function VoteIcon({ direction }: { direction: 'up' | 'down' }): ReactNode {
+  return <View className={`vote-icon vote-icon-${direction}`} />
+}
+
+/** 悬浮提示播放器（口径对齐 web hint-capsule.tsx）：open/index 受控 + 10 秒自动收起计时 */
 export function useHintPlayer(hints: string[]) {
   const [open, setOpen] = useState(false)
   const [index, setIndex] = useState(0)
@@ -75,8 +77,8 @@ export function useHintPlayer(hints: string[]) {
   return { open, index, show, cycle }
 }
 
-/** 悬浮提示胶囊：受控组件，固定定位不占布局；父层用 useHintPlayer 驱动开关与翻页 */
-export function HintCapsule({ hints, total = 3, open, index, onIndex }: { hints: string[]; total?: number; open: boolean; index: number; onIndex: (at: number) => void }) {
+/** 悬浮提示胶囊：固定定位不占布局，父层用 useHintPlayer 驱动开关与翻页（web 同款头部导航） */
+export function HintCapsule({ hints, total = 3, open, index, onIndex }: { hints: string[]; total?: number; open: boolean; index: number; onIndex: (at: number) => void }): ReactNode {
   const { copy } = useLanguage()
   if (!open || !hints.length) return null
   // index 可能指向尚未到达（状态里）的新提示：渲染时按现有条数收敛
@@ -84,7 +86,9 @@ export function HintCapsule({ hints, total = 3, open, index, onIndex }: { hints:
   return (
     <View className="hint-capsule">
       <View className="hint-capsule-head">
-        <Text className="hint-capsule-title">💡 {copy.hint} {current + 1}/{total}</Text>
+        <Text className="hint-capsule-title">
+          <Text className="hint-icon">💡</Text> {copy.hint} {current + 1}/{total}
+        </Text>
         <View className="hint-capsule-nav">
           <Button className="btn btn-sm btn-ghost" onClick={() => onIndex((current - 1 + hints.length) % hints.length)}>←</Button>
           <Button className="btn btn-sm btn-ghost" onClick={() => onIndex((current + 1) % hints.length)}>→</Button>
@@ -95,12 +99,19 @@ export function HintCapsule({ hints, total = 3, open, index, onIndex }: { hints:
   )
 }
 
-/** 单人、多人和创作试题共用的大模型还原开关（微信原生 Switch） */
-export function LargeModelToggle({ checked, disabled, onChange }: { checked: boolean; disabled: boolean; onChange: (value: boolean) => void }) {
+/** 单人、多人、创作试题共用的大模型还原开关：自绘拨杆，尺寸与配色与 web 一致 */
+export function LargeModelToggle({ checked, disabled, onChange }: { checked: boolean; disabled: boolean; onChange: (value: boolean) => void }): ReactNode {
   const { copy } = useLanguage()
   return (
-    <View className="large-model-toggle">
-      <Switch checked={checked} disabled={disabled} color="#7dd8c6" onChange={(event) => onChange(event.detail.value)} />
+    <View
+      className="large-model-toggle"
+      onClick={() => {
+        if (!disabled) onChange(!checked)
+      }}
+    >
+      <View className={`lm-switch${checked ? ' checked' : ''}${disabled ? ' disabled' : ''}`}>
+        <View className="lm-knob" />
+      </View>
       <Text>{copy.largeModel}</Text>
     </View>
   )

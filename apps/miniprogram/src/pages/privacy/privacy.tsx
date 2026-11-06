@@ -1,11 +1,13 @@
 /**
- * 隐私政策页：中英双语，纯静态说明，不需要登录。
- * 内容与 apps/web/src/site/privacy-page.tsx 同源；「本地存储」一节按小程序
- * 环境补充说明（登录令牌保存在小程序本地存储）。
+ * 隐私政策页（代码级对齐 apps/web/src/site/privacy-page.tsx）：
+ * 中英双语，纯静态说明，不需要登录。privacy-body 分节排版与 web 同款；
+ * 「本地存储」一节按小程序环境补充说明（登录令牌保存在小程序本地存储）。
  */
+import type { ReactNode } from 'react'
 import Taro from '@tarojs/taro'
-import { Button, Text, View } from '@tarojs/components'
+import { Button, Image, Text, View } from '@tarojs/components'
 import { useLanguage } from '../../state/language'
+import iconPng from '../../assets/icon.png'
 
 const zh = {
   title: '隐私政策',
@@ -99,28 +101,31 @@ const en = {
   ],
 }
 
-export default function Privacy() {
+export default function Privacy(): ReactNode {
   const { copy, language } = useLanguage()
   const c = language === 'zh' ? zh : en
 
   return (
     <View className="page">
-      <View className="topbar">
-        <Button className="btn btn-ghost btn-sm" onClick={() => void Taro.navigateBack()}>
+      <View className="topbar topbar-title">
+        <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => void Taro.navigateBack()}>
           {copy.back}
         </Button>
-        <Text className="brand brand-sm">{copy.brand}</Text>
+        <View className="brand brand-identity">
+          <Image className="brand-mark" src={iconPng} />
+          <Text>{copy.brand}</Text>
+        </View>
       </View>
 
-      <View className="panel stack">
+      <View className="panel stack privacy-body">
         <Text className="h2">{c.title}</Text>
         <Text className="muted">{c.updated}</Text>
         {c.sections.map((section) => (
-          <View key={section.heading} className="stack-sm">
+          <View key={section.heading}>
             <Text className="h3">{section.heading}</Text>
             {section.items.map((item) => (
               <Text key={item} className="privacy-item">
-                · {item}
+                {item}
               </Text>
             ))}
           </View>

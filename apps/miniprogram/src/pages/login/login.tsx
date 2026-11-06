@@ -1,18 +1,19 @@
 /**
- * 登录页（小程序版）：微信一键登录。
- * 流程：Taro.login() 拿 5 分钟临时 code → POST /auth/wechat-mini/login →
+ * 登录页（小程序版，框架对齐 apps/web/src/auth/login-page.tsx）：
+ * 微信一键登录。流程：Taro.login() 拿 5 分钟临时 code → POST /auth/wechat-mini/login →
  * 服务端 code2session 换 openid 并建号/建会话，令牌在响应体返回，本地存为 Bearer 令牌。
  * 首次登录自动创建账号（昵称由服务端默认生成）；邮箱登录/注册/找回密码不提供——
- * 微信身份即账号，无密码可忘。
+ * 微信身份即账号，无密码可忘。语言切换入口与 web 登录页同位（topbar 右侧）。
  * 登录成功后广播会话变更并返回来源页（页面栈空则回首页）。
  */
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import Taro from '@tarojs/taro'
-import { Button, Text, View } from '@tarojs/components'
+import { Button, Image, Text, View } from '@tarojs/components'
 import { AuthError, loginWithWechat } from '../../api/auth-client'
 import { useLanguage } from '../../state/language'
 import { notifySessionChanged } from '../../state/session'
 import { displayAuthError } from '@jev/i18n'
+import iconPng from '../../assets/icon.png'
 
 /** 登录完成后的去向：有页面栈就返回来源页（来源页 onShow 会重拉会话），否则回首页 */
 function finishLogin(): void {
@@ -25,7 +26,7 @@ function finishLogin(): void {
 /** 带着「已翻译文案」的错误：只有这类错误的信息适合直接展示给用户 */
 class LoginError extends Error {}
 
-export default function Login() {
+export default function Login(): ReactNode {
   const { copy, language, setLanguage } = useLanguage()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -54,21 +55,24 @@ export default function Login() {
 
   return (
     <View className="page">
-      <View className="topbar">
-        <Button className="btn btn-ghost btn-sm" onClick={() => void Taro.navigateBack()}>
+      <View className="topbar topbar-title">
+        <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => void Taro.navigateBack()}>
           {copy.back}
         </Button>
-        <Text className="brand brand-sm">{copy.brand}</Text>
+        <View className="brand brand-identity">
+          <Image className="brand-mark" src={iconPng} />
+          <Text>{copy.brand}</Text>
+        </View>
         <Button
-          className="btn btn-ghost btn-sm lang-switch"
+          className="btn btn-sm btn-ghost lang-switch topbar-tail"
           onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
         >
           {language === 'zh' ? copy.languageSwitchToEn : copy.languageSwitchToZh}
         </Button>
       </View>
 
-      <View className="panel stack wechat-login-panel">
-        <Text className="h2">{copy.brand}</Text>
+      <View className="panel stack">
+        <Text className="h2">{copy.signin}</Text>
         <Button className="btn btn-primary" disabled={busy} onClick={() => void wechatLogin()}>
           {copy.wechatLogin}
         </Button>
