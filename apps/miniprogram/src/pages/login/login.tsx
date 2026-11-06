@@ -8,7 +8,7 @@
  */
 import { useState, type ReactNode } from 'react'
 import Taro from '@tarojs/taro'
-import { Button, Text, View } from '@tarojs/components'
+import { Button, Image, Text, View } from '@tarojs/components'
 import { AuthError, loginWithWechat } from '../../api/auth-client'
 import { useLanguage } from '../../state/language'
 import { notifySessionChanged } from '../../state/session'
