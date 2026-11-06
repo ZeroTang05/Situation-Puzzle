@@ -175,17 +175,26 @@ API 容器启动自动跑迁移；演示题库 `docker compose --profile seed ru
   `require.resolve('pkg/package.json')` 会抛 ERR_PACKAGE_PATH_NOT_EXPORTED，
   要解析主入口后向上走找包根）。**build:weapp 后跑 `node scripts/scan-weapp-syntax.mjs`**
   可提前扫出这类语法（AST 级，四类全覆盖），别等预览报错逐个发现
-- **小程序运行时没有浏览器的 Fetch API 全局**：better-auth / better-fetch /
-  react-query 会裸引用 `Request` / `fetch` / `Headers` / `Response` /
-  `AbortController`（对象字面量求值、instanceof 分支、new 后调方法），缺一个
-  运行时炸 ReferenceError/TypeError；开发者工具的 Chromium 内核有这些全局，
-  **真机没有**（工具里正常、真机炸的典型差异）。统一在
-  `apps/miniprogram/src/polyfills.ts` 补齐：fetch=taroFetch 真实现；
-  Headers=MiniHeaders 真实现（**不能只给空壳**——better-fetch 会
-  `new Headers()` 后调 `.has('content-type')`，空壳报 `t.has is not a
-  function`）；其余空壳/最小实现。app.tsx 首行 + auth-client.ts 双保险 import。
+- **小程序端不要引 better-auth 客户端**：better-fetch 用 `new URL(path, base)` 取址，
+  微信运行时没有原生 URL，Taro 在**构建期**用 ProvidePlugin 把 `@tarojs/runtime`
+  的 polyfill 注入所有依赖包（运行时改全局 URL 无效）；它解析「相对地址 + 绝对
+  base」时只保留 `base.origin`、**丢掉 base 的 path 段**——`/api/v1/auth` 前缀消失，
+  请求打到站点根 `/get-session`，落到 SPA 回退页（200 text/html），会话永远读不回来
+  （「登录成功立刻又显示未登录」的典型现场）。对齐 `~/GoWith/apps/miniapp`：小程序
+  端自写 `src/api/auth-client.ts`，用 `Taro.request` 拼绝对地址
+  `${API_BASE}/api/v1/auth${path}`，不经过 URL 解析（登录响应体 `{token}`、会话
+  `{session,user}|null`、错误 `{code,message}`）
+- **小程序运行时没有浏览器的 Fetch API 全局**：开发者工具的 Chromium 内核有、
+  **真机没有**（工具里正常、真机炸的典型差异）。依赖库裸引用的目前只剩
+  `AbortController`（react-query 观察器构造时 new 它做查询取消），由
+  `apps/miniprogram/src/polyfills.ts` 在应用入口最先 import 补最小实现（signal
+  状态 + abort 监听）。会话请求自写、不走 fetch，原先为 better-auth 客户端补的
+  fetch/Headers/Request/Response 已随客户端删除。
   `scripts/scan-weapp-syntax.mjs` 已含「未声明全局引用」检查（typeof 守卫自动
   识别、宿主/polyfill 白名单登记），build:mp 后跑一次两类均 0 才算过
+- **better-auth 自定义端点别用 `metadata.SERVER_ONLY`**：在 better-call 里它表示
+  「**完全不注册路由**」，请求直接 404（`apps/api/src/auth/wechat-mini.ts` 踩过）。
+  要「可被 HTTP 命中、但不进客户端动作列表」用 `metadata: { scope: 'server' }`
 - **tsx(esbuild) 不生成构造参数元数据**：Nest 依赖注入必须显式 `@Inject(Token)`，
   否则运行时 `this.service` 为 undefined
 - **Nest WsAdapter 在 tsx 下挂载不稳**：实时网关直接用 `ws` 库挂 upgrade（`realtime.gateway.ts`）

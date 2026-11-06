@@ -8,9 +8,8 @@
  */
 import { useState, type ReactNode } from 'react'
 import Taro from '@tarojs/taro'
-import { Button, Image, Text, View } from '@tarojs/components'
-import { API_BASE, storeBearerToken } from '../../api/client'
-import { taroFetch } from '../../api/fetch-adapter'
+import { Button, Text, View } from '@tarojs/components'
+import { AuthError, loginWithWechat } from '../../api/auth-client'
 import { useLanguage } from '../../state/language'
 import { notifySessionChanged } from '../../state/session'
 import { displayAuthError } from '@jev/i18n'
@@ -39,22 +38,16 @@ export default function Login(): ReactNode {
     try {
       const { code } = await Taro.login()
       if (!code) throw new LoginError(copy.wechatLoginFail)
-      const res = await taroFetch(`${API_BASE}/api/v1/auth/wechat-mini/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
-      })
-      // 空响应体（端点未部署等）json() 会抛 SyntaxError，交给 catch 回落通用文案
-      const payload = (await res.json()) as { token?: string; error?: { code?: string }; code?: string }
-      if (!res.ok || !payload.token) {
-        // better-auth 错误体按 code 翻译；未知形态回落通用文案
-        throw new LoginError(displayAuthError(payload.error?.code ?? payload.code ?? null, language, copy.wechatLoginFail))
-      }
-      storeBearerToken(payload.token)
+      await loginWithWechat(code)
       finishLogin()
     } catch (err) {
       // 只展示已翻译的文案；意外异常（网络失败/解析错误）不把英文原文甩给用户
-      setError(err instanceof LoginError ? err.message : copy.wechatLoginFail)
+      if (err instanceof AuthError) {
+        // better-auth 错误体按 code 翻译；未知 code 回落通用文案
+        setError(displayAuthError(err.code, language, copy.wechatLoginFail))
+      } else {
+        setError(err instanceof LoginError ? err.message : copy.wechatLoginFail)
+      }
     } finally {
       setBusy(false)
     }

@@ -3,6 +3,40 @@
 状态：已拍板（决策记录见 §8）。M0、M1、M2 完成（2026-10-25），M3 待做。
 日期：2026-10-25；基线：feat/app-version（含 M3 Android 交付）。
 
+## M2.8 完成记录（2026-11-06：小程序端彻底移出 better-auth 客户端）
+
+现象：登录接口已 200，但紧跟其后的 `GET https://sp.xiaobaozi.cn/get-session -> 200
+text/html`——会话读不回来，表现为「登录成功立刻又显示未登录」。
+
+根因：better-auth 客户端取址走 better-fetch 的 `new URL(path, base)`；微信运行时
+没有原生 `URL`，Taro 用 ProvidePlugin **在构建期**把 `@tarojs/runtime` 的 `URL`
+polyfill 注入所有依赖包（运行时改全局 URL 无效）。该 polyfill 解析「相对地址 +
+绝对 base」时只保留 `base.origin`、**丢掉 base 的 path 段**——`/api/v1/auth` 前缀
+消失，请求打到站点根 `/get-session`，落到 SPA 回退页（200 text/html）。
+
+修法（对齐 `~/GoWith/apps/miniapp`：那边小程序端没有会话客户端库，只有一层自写的
+request 包装）：**小程序端不再引 better-auth 客户端**。`src/api/auth-client.ts` 用
+`Taro.request` 自己拼绝对地址 `${API_BASE}/api/v1/auth${path}`，不经过 URL 解析：
+
+- 登录 `POST /wechat-mini/login` → 响应体 `{ token }` → `storeBearerToken`；
+- 会话 `GET /get-session` → `{session,user}`，无令牌时服务端回 `null`（HTTP 200）；
+- 登出 `POST /sign-out` → `{success:true}`；
+- 错误体 `{code,message}` → `AuthError`，页面用 `displayAuthError` 按 code 翻译；
+- `dataType: 'text'` + 手动 `JSON.parse`：非 JSON 响应（如 SPA 回退页）按失败处理，
+  不再让 `SyntaxError` 把英文原文甩给用户。
+
+随之删除：`src/api/fetch-adapter.ts`（taroFetch/MiniHeaders 只为桥接 better-auth
+客户端）、`src/polyfills.ts` 里的 fetch/Headers/Request/Response 垫片（只剩
+`AbortController`）、`legacySyntaxPaths` 里的 better-auth / @better-auth/core /
+better-call 三项、`package.json` 的 `better-auth` 依赖。服务端 `wechat-mini` 插件
+与 Bearer 协议不变。
+
+同时修正 404 根因：端点 `metadata` 不能用 `SERVER_ONLY`（better-call 里它表示
+**完全不注册路由**），改用 `{ scope: 'server' }`（可被 HTTP 命中、不进客户端动作列表）。
+
+验证：`tsc --noEmit` 0、`build:weapp` 成功、`scan-weapp-syntax.mjs` 语法/未声明
+全局均 0。
+
 ## M2.7 完成记录（2026-10-31 / 11-05：修复预览报错 Invalid token / Unexpected token）
 
 微信开发者工具「预览」对 dist 里没做语法降级的 **ES2021/ES2022 新语法** 报
@@ -89,7 +123,8 @@ Deno/Bun/localStorage/btoa 等）各有 `typeof` 守卫、try/catch 或分支不
 - **小程序端**：登录页重写为单按钮（`Taro.login()` → 插件端点 → 存令牌 →
   finishLogin），登录卡片下方留隐私政策入口（提审友好）；删除邮箱登录/注册/找回密码
   页与 OTP 倒计时模块（`pages/forgot-password`、`auth/otp-cooldown.ts`）；
-  `authClient`（better-auth vanilla 客户端）保留——会话读取/刷新/登出仍走它。
+  `authClient`（better-auth vanilla 客户端）保留——会话读取/刷新/登出仍走它
+  （**M2.8 已移除**，改为自写 `src/api/auth-client.ts`，见上）。
   「我的」页邮箱展示脱敏：占位邮箱显示为「微信账号」。
 - **账号体系口径**：微信登录建的是独立账号，与 web 邮箱账号互不相通（原「邮箱登录
   天然同步」路径随邮箱登录一起移除）；跨端权益同步靠兑换码（全端保留）。将来要打通
