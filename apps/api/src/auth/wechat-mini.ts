@@ -74,7 +74,9 @@ export function wechatMiniPlugin(config: { appid: string; secret: string }): Bet
         {
           method: 'POST',
           body: z.object({ code: z.string().min(1) }),
-          metadata: { SERVER_ONLY: true },
+          // 只对服务端开放（不进 better-auth 客户端动作列表），但仍要能被 HTTP 路由命中。
+          // 不能用 SERVER_ONLY：它在 better-call 里表示「完全不注册路由」，请求会直接 404。
+          metadata: { scope: 'server' },
         },
         async (ctx) => {
           const session_result = await fetchCode2Session(config.appid, config.secret, ctx.body.code);

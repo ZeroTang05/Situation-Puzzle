@@ -51,24 +51,17 @@ function pkgRoot(fromDir: string, id: string): string {
 const appDir = path.resolve(__dirname, '..')
 const reactQueryRoot = pkgRoot(appDir, '@tanstack/react-query')
 const queryCoreRoot = pkgRoot(reactQueryRoot, '@tanstack/query-core')
-const betterAuthRoot = pkgRoot(appDir, 'better-auth')
-const betterAuthCoreRoot = pkgRoot(betterAuthRoot, '@better-auth/core')
-const betterCallRoot = pkgRoot(betterAuthRoot, 'better-call')
 const taroRoot = pkgRoot(appDir, '@tarojs/taro')
 const nanostoresRoot = pkgRoot(taroRoot, 'nanostores')
-/** 语法降级清单：react-query 核心（Query/Observer 私有字段）、better-auth 客户端链
- *  （better-call 的 error.mjs、@better-auth/core 的 env 模块都发 #field）、
+/** 语法降级清单：react-query 核心（Query/Observer 私有字段）、
  *  nanostores（Taro 传递依赖，发逻辑赋值 ||=，ES2021）；
- *  真实路径为主，符号链接路径兜底 */
+ *  真实路径为主，符号链接路径兜底。
+ *  （better-auth 客户端链已不在小程序端，见 src/api/auth-client.ts） */
 const legacySyntaxPaths = [
   reactQueryRoot,
   queryCoreRoot,
-  betterAuthRoot,
-  betterAuthCoreRoot,
-  betterCallRoot,
   nanostoresRoot,
   path.join(appDir, 'node_modules', '@tanstack', 'react-query'),
-  path.join(appDir, 'node_modules', 'better-auth'),
 ]
 
 export default defineConfig(async (merge) => {
