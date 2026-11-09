@@ -116,6 +116,18 @@ const pages = [
   ['me', '/pages/me/me'],
   ['settings', '/pages/settings/settings'],
   ['privacy', '/pages/privacy/privacy'],
+  // 多人分包：room/lobby 需要真实 id，未登录时验证登录引导态布局
+  ['hall', '/pkg-room/pages/hall/hall'],
+  ['lobby', '/pkg-room/pages/lobby/lobby?id=x'],
+  ['room', '/pkg-room/pages/room/room?id=x'],
+  ['invite-room', '/pkg-room/pages/invite/invite?kind=room&token=deadbeef'],
+  // 社交分包：chat 需要会话 id，未登录验证引导态
+  ['friends', '/pkg-social/pages/friends/friends'],
+  ['chat', '/pkg-social/pages/chat/chat?id=x'],
+  ['notifications', '/pkg-social/pages/notifications/notifications'],
+  // 创作分包：editor 无 id = 新建
+  ['creations', '/pkg-creation/pages/list/list'],
+  ['creation-editor', '/pkg-creation/pages/editor/editor'],
 ]
 
 const puzzleId = await firstPuzzleId()

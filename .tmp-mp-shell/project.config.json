@@ -1,0 +1,11 @@
+{
+  "appid": "touristappid",
+  "compileType": "miniprogram",
+  "libVersion": "3.8.10",
+  "miniprogramRoot": "E:/tzy/github/jev-turtle-soup/apps/miniprogram/dist",
+  "setting": {
+    "es6": false,
+    "postcss": false,
+    "minified": false
+  }
+}

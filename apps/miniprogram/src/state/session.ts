@@ -5,12 +5,15 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { getSession, type AuthSession } from '../api/auth-client'
+import { AuthError, getSession, type AuthSession } from '../api/auth-client'
 
 /** Better Auth 会话数据的最小投影（与 apps/web/src/session.ts 同形） */
 export type Session = AuthSession
 
 const SESSION_EVENT = 'jev:session-changed'
+
+/** 最近一次已知会话：页面挂载瞬间先用它渲染，避免守卫在会话请求返回前把人误弹去登录页 */
+let cachedSession: Session | null = null
 
 /** 登录 / 登出完成后调用：让所有已挂载页面的会话 hook 立即重拉 */
 export function notifySessionChanged(): void {
@@ -18,15 +21,25 @@ export function notifySessionChanged(): void {
 }
 
 export function useJevSession(): { session: Session | null; isPending: boolean } {
-  const [session, setSession] = useState<Session | null>(null)
-  const [isPending, setIsPending] = useState(true)
+  const [session, setSession] = useState<Session | null>(() => cachedSession)
+  const [isPending, setIsPending] = useState(cachedSession === null)
 
   const refresh = useCallback(async () => {
-    // 无有效令牌时服务端回 null（HTTP 200），按未登录处理；
-    // 网络失败（域名未配等）整体 reject，同样按无会话处理
-    const data = await getSession().catch(() => null)
-    setSession(data)
-    setIsPending(false)
+    try {
+      // 无有效令牌时服务端回 null（HTTP 200），按未登录处理
+      const data = await getSession()
+      cachedSession = data
+      setSession(data)
+    } catch (err) {
+      // 只有 401（令牌确实失效）才按未登录处理；限流 / 网络抖动保留最近一次
+      // 已知会话，避免一次抖动把已登录用户闪成未登录（守卫会把人弹去登录页）
+      if (err instanceof AuthError && err.status === 401) {
+        cachedSession = null
+        setSession(null)
+      }
+    } finally {
+      setIsPending(false)
+    }
   }, [])
 
   useEffect(() => {

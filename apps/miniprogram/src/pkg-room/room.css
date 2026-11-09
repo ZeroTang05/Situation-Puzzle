@@ -1,0 +1,440 @@
+/**
+ * 多人分包样式（pkg-room）：从 apps/web/src/styles.css 平移房间 / 会客厅 / 大厅 / 邀请相关类。
+ * 与 app.css 的分工：全局设计变量与基础控件在 app.css，这里只放多人场景专属类。
+ * WXSS 约束：只用类选择器（不用 :not() 与 :nth- 一类伪类，也不用属性选择器，> 子代组合改用显式类名）；
+ * px 值原样照抄（designWidth 375 由构建自动换算 rpx）；hover/focus 触屏不存在，一律去掉。
+ */
+
+/* ---------- 房间页布局（web .room-shell / .room-playing，styles.css:910/939） ---------- */
+
+.room-shell {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* 游玩中复用 app.css 的 .page-full（整屏列布局）；这里只收紧题面高度与输入区 */
+.room-playing .story-wrap { max-height: 22vh; }
+.room-playing .room-composer { padding: 4px 0 0; }
+
+/* 聊天容器：游玩中固定高度内部滚动（ScrollView），已归档页随页面自然滚动（View） */
+.room-chat {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 10px 0;
+}
+.room-chat-flow {
+  min-height: 0;
+  padding: 10px 0;
+}
+
+/* 「有新消息」跳底按钮行（web .chat > .appear-slot 的条件渲染版） */
+.new-messages-row {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+/* 昵称强调（web .turn .turn-text strong：accent 色 600 字重） */
+.turn-nickname {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* 用户主持人标记：与昵称同行，不另起一行（styles.css:737） */
+.host-tag {
+  margin-right: 6px;
+  padding: 1px 6px;
+  font-size: 12px;
+}
+
+/* ---------- 成员管理面板（web .room-management，styles.css:917-938） ---------- */
+
+.room-management-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+}
+
+.room-management {
+  box-sizing: border-box;
+  position: fixed;
+  top: 56px;
+  right: 14px;
+  width: 300px;
+  max-height: 60vh;
+  padding: 10px;
+  gap: 8px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+  background: rgba(9, 39, 62, .97);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.room-management-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.room-management-title {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* 面板操作：邀请占满一行，重置/解散并排，离开单独一行（web grid 的 flex 版） */
+.room-management-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.room-management-actions .btn {
+  flex: 1 1 40%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 4px 10px;
+  font-size: 13px;
+}
+.room-management-wide {
+  flex: 1 1 100%;
+  width: 100%;
+  min-height: 34px;
+  padding: 4px 10px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+/* ---------- 成员列表（styles.css:974-1052） ---------- */
+
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 2px 0;
+}
+
+/* 身份徽标不换行：窄面板里「房主」竖排成两行很难看 */
+.member-row .verdict-badge {
+  flex: none;
+  white-space: nowrap;
+  min-height: 26px;
+  padding: 1px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 5px;
+}
+
+.member-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.member-name-self { color: #ffc078; }
+
+.member-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+
+.member-actions .btn {
+  min-height: 26px;
+  padding: 1px 8px;
+  font-size: 12px;
+}
+
+.presence-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  opacity: 0.4;
+  flex: none;
+}
+
+.presence-dot.online {
+  background: var(--ok);
+  opacity: 1;
+}
+
+/* ---------- 公开 / 私人开关（styles.css:680-681；拨杆复用 app.css 的 lm-switch） ---------- */
+
+.visibility-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid rgba(115, 191, 220, .18);
+  border-radius: var(--radius-sm);
+  background: rgba(115, 191, 220, .05);
+}
+
+.visibility-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* ---------- 操作行（styles.css:845-895） ---------- */
+
+.hint-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.mode-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--field);
+  margin-bottom: 5px;
+}
+
+.mode-tab {
+  flex: 1;
+  min-height: 30px;
+  padding: 3px 6px;
+  line-height: 1.3;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.mode-tab.active {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+
+/* 底部房主操作：三个操作等宽铺满，窄屏不再挤成一排小字按钮 */
+.room-actions {
+  display: flex;
+  gap: 8px;
+  padding: 6px 0 0;
+}
+.room-actions .btn {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* 已结束房间：输入区原位换成单个继续操作（styles.css:948-960，sticky 简化为随流） */
+.room-closed-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 0 0;
+}
+.room-closed-bar .btn {
+  flex: 1 1 120px;
+  white-space: nowrap;
+}
+
+/* ---------- 状态行（styles.css:963-1098） ---------- */
+
+.offline-banner {
+  display: block;
+  padding: 6px 12px;
+  border: 1px solid rgba(230, 192, 125, 0.5);
+  border-radius: var(--radius-sm);
+  background: rgba(230, 192, 125, 0.12);
+  color: var(--gold);
+  font-size: 14px;
+  text-align: center;
+}
+
+.status-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ---------- 会客厅（styles.css:78 / 1053-1055） ---------- */
+
+.lobby-summary {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* 选题入口：整卡可点，已选题名强调展示 */
+.puzzle-selection {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.puzzle-selection-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.puzzle-selection-title {
+  color: var(--ink);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.puzzle-selection-small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---------- 大厅（styles.css:389-394） ---------- */
+
+.hall-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hall-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(115, 191, 220, .06);
+}
+
+.hall-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hall-row-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hall-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.hall-row .btn {
+  flex: none;
+}
+
+/* ---------- 用户主持人（web room-page.tsx 的 host 系类） ---------- */
+
+.host-verdict-row {
+  display: flex;
+  gap: 6px;
+  padding: 4px 0 0;
+}
+.host-verdict-row .btn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.host-mode-note {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* 汤底视角 / 结算汤底的标题（web .panel h3：panel 外用平级类名） */
+.block-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.hint-fold-toggle {
+  padding: 2px 0;
+}
+
+/* ---------- 结算投票（web vote-buttons 的 .vote-row） ---------- */
+
+.vote-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ---------- 邀请底部菜单（用户指定交互，深海色系） ---------- */
+
+.invite-sheet-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 8, 18, 0.72);
+  z-index: 10;
+  animation: jev-dialog-fade 0.16s ease-out;
+}
+
+.invite-sheet {
+  box-sizing: border-box;
+  position: fixed;
+  left: 14px;
+  right: 14px;
+  bottom: calc(env(safe-area-inset-bottom) + 12px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  z-index: 11;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  animation: invite-sheet-in 0.18s ease-out;
+}
+
+.invite-sheet-item {
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+@keyframes invite-sheet-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}

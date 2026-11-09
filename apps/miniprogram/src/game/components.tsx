@@ -3,6 +3,9 @@
  * TurnCard 问答卡片、useHintPlayer/HintCapsule 悬浮提示、LargeModelToggle 自绘拨杆、
  * VoteIcon 三角票数图标。小程序差异：textarea 换 Taro 组件、SVG 换 CSS 边框三角形、
  * hover 态不存在（样式里去掉）。
+ *
+ * 本目录在主包：单人页（主包）与房间/预览页（pkg-room/pkg-creation 分包）都用它，
+ * 按微信分包规则「分包不能引分包」，跨包共享代码必须放主包。
  */
 import { useEffect, useState, type ReactNode } from 'react'
 import { Button, Text, View } from '@tarojs/components'
@@ -64,8 +67,9 @@ export function useHintPlayer(hints: string[]) {
     const timer = setTimeout(() => setOpen(false), 10_000)
     return () => clearTimeout(timer)
   }, [open, index])
+  // show 不判 hints 空：解锁回调里的 hints 是旧渲染闭包（首次为空，判空会把首次弹出吞掉），
+  // 解锁引发的列表更新与 open 更新同批渲染；空列表时渲染层兜底不显示
   const show = (at: number) => {
-    if (!hints.length) return
     setOpen(true)
     setIndex(Math.max(0, at))
   }

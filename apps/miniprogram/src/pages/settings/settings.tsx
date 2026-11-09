@@ -12,8 +12,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, translateApiError } from '../../api/client'
 import { signOut } from '../../api/auth-client'
 import { useLanguage } from '../../state/language'
-import { notifySessionChanged } from '../../state/session'
-import { useDialog } from '../../ui/dialog'
+import { notifySessionChanged, useJevSession } from '../../state/session'
+import { clearRoomLocal } from '../../pkg-room/room/room-local'
+import { DialogHost, useDialog } from '../../ui/dialog'
 import type { Language } from '@jev/i18n'
 
 interface MeResponse {
@@ -85,6 +86,7 @@ export default function Settings(): ReactNode {
   const { copy, language, setLanguage } = useLanguage()
   const queryClient = useQueryClient()
   const dialog = useDialog()
+  const { session } = useJevSession()
 
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -121,6 +123,9 @@ export default function Settings(): ReactNode {
   /** 退出登录走二次确认（深海弹窗，与 web useDialog.confirm 同款），避免误触 */
   const logout = async () => {
     if (!(await dialog.confirm(copy.logoutConfirm, copy.logout))) return
+    // 对齐 web settings-page：登出时清掉本账号各房间的本地草稿/待发队列
+    const userId = session?.user?.id
+    if (userId) await clearRoomLocal(userId)
     await signOut()
     queryClient.clear()
     notifySessionChanged()
@@ -239,6 +244,7 @@ export default function Settings(): ReactNode {
           {copy.logout}
         </Button>
       </View>
+      <DialogHost />
     </View>
   )
 }

@@ -45,3 +45,7 @@ data/xhs
 # App 安装包只存服务器 dl/ 目录（说明见 dl/README.md）
 dl/*.apk
 
+apps/miniprogram/.swc
+
+# ZCode 工作目录（会话/工作流产物，不入库）
+.zcode/

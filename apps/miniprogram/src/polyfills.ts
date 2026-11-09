@@ -34,3 +34,8 @@ class AbortControllerStub {
 }
 
 if (!g.AbortController) g.AbortController = AbortControllerStub
+
+// zod v4 的 JIT fastpass（把 schema 编译成函数的快速通道）依赖 Function 动态编译，
+// 微信小程序运行时不支持，首次 parse 崩 TypeError。这里抢在 zod 模块加载前写入它的
+// 全局配置（zod 侧是 `?? ` 只在缺失时初始化），全局改用解释执行，性能可忽略不计。
+g.__zod_globalConfig = { jitless: true }

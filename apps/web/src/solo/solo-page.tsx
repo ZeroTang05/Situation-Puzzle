@@ -307,8 +307,6 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
 
   return (
     <main className="shell solo-shell">
-      {/* 提示悬浮胶囊：固定定位不占布局，10 秒自动收起 */}
-      <HintCapsule hints={hintList} open={hintPlayer.open} index={hintPlayer.index} onIndex={hintPlayer.show} />
       <GameHeader
         title={session.title}
         back={<button className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>}
@@ -329,7 +327,11 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
           <p className="story">{session.surface}</p>
       </StoryCard>
 
-      <section className="chat solo-chat game-scroll" ref={chatRef} aria-live="polite">
+      {/* 对话区：提示胶囊挂在区顶（题面下方），只遮对话流、不遮输入区与操作行 */}
+      <div className="chat-area">
+        {/* 提示悬浮胶囊：10 秒自动收起 */}
+        <HintCapsule hints={hintList} open={hintPlayer.open} index={hintPlayer.index} onIndex={hintPlayer.show} />
+        <section className="chat solo-chat game-scroll" ref={chatRef} aria-live="polite">
         <div className="chat-stream">
         {turns.length === 0 && (
           <div className="chat-empty">
@@ -381,6 +383,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
         </div>
         </div>
       </section>
+      </div>
 
       <div className="solo-bottom game-scroll">
         <div className={`appear-slot${storageWarning ? ' open' : ''}`}>
@@ -388,29 +391,8 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
             {storageWarning && <p className="error-text">{copy.storageNotSaved}</p>}
           </div>
         </div>
-        <section className="solo-action-row" role="group" aria-label={copy.hint}>
-          <button className="btn btn-sm" disabled={changingPuzzle || hintBusy || session.status !== 'active'} onClick={() => {
-            // 还有未解锁的提示：解锁并悬浮展示最新一条；全部解锁后：按钮变成循环翻阅
-            if (session.hintsUnlocked.length < 3) {
-              void unlockHint(session.hintsUnlocked.length).then(() => hintPlayer.show(hintList.length));
-            } else {
-              hintPlayer.cycle();
-            }
-          }}>
-            {copy.hint} {session.hintsUnlocked.length}/3
-          </button>
-          <button className="btn btn-sm" aria-pressed={inputMode === 'solve'} disabled={changingPuzzle || sending || solved || Boolean(session.revealedAnswer)} onClick={() => {
-            const next = inputMode === 'solve' ? 'ask' : 'solve';
-            setInputMode(next);
-            setText('');
-            persistDraft(next, '');
-          }}>{copy.solve}</button>
-          <button className="btn btn-sm" disabled={changingPuzzle || sending || revealing || Boolean(session.revealedAnswer)} onClick={async () => {
-            if (await dialog.confirm(copy.soloRevealConfirm, copy.soloViewAnswer)) void reveal();
-          }}>{copy.soloViewAnswer}</button>
-        </section>
-
-        {/* 输入区在解出/揭晓后整体收起：槽位常驻、动画滑出，聊天区高度不被瞬间顶变形 */}
+        {/* 输入区在解出/揭晓后整体收起：槽位常驻、动画滑出，聊天区高度不被瞬间顶变形；
+            操作行跟在输入区下方（布局对齐多人模式的「输入行在上、操作行在下」），终局后保留禁用态 */}
         <div className={`appear-slot${!solved && !session.revealedAnswer ? ' open' : ''}`} inert={solved || Boolean(session.revealedAnswer)}>
           <footer className="composer solo-composer">
             <div className={`appear-slot${inputMode === 'solve' ? ' open' : ''}`} inert={inputMode !== 'solve'}>
@@ -439,6 +421,27 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
             </div>
           </footer>
         </div>
+        <section className="solo-action-row" role="group" aria-label={copy.hint}>
+          <button className="btn btn-sm" disabled={changingPuzzle || hintBusy || session.status !== 'active'} onClick={() => {
+            // 还有未解锁的提示：解锁并悬浮展示最新一条；全部解锁后：按钮变成循环翻阅
+            if (session.hintsUnlocked.length < 3) {
+              void unlockHint(session.hintsUnlocked.length).then(() => hintPlayer.show(hintList.length));
+            } else {
+              hintPlayer.cycle();
+            }
+          }}>
+            {copy.hint} {session.hintsUnlocked.length}/3
+          </button>
+          <button className="btn btn-sm" aria-pressed={inputMode === 'solve'} disabled={changingPuzzle || sending || solved || Boolean(session.revealedAnswer)} onClick={() => {
+            const next = inputMode === 'solve' ? 'ask' : 'solve';
+            setInputMode(next);
+            setText('');
+            persistDraft(next, '');
+          }}>{copy.solve}</button>
+          <button className="btn btn-sm" disabled={changingPuzzle || sending || revealing || Boolean(session.revealedAnswer)} onClick={async () => {
+            if (await dialog.confirm(copy.soloRevealConfirm, copy.soloViewAnswer)) void reveal();
+          }}>{copy.soloViewAnswer}</button>
+        </section>
       </div>
       {/* 操作反馈改为悬浮条：不挤占布局，到点自动消失 */}
       {error && <Toast message={error} tone="error" durationMs={4000} onDone={() => setError(null)} />}

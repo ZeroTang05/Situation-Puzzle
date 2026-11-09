@@ -1,0 +1,152 @@
+/**
+ * 社交分包样式（好友 / 私聊 / 通知）：从 apps/web/src/styles.css 的
+ * 「社交：好友 / 私聊 / 通知」一节平移，px 值原样照抄（designWidth 375）。
+ * 与 web 的差异只来自运行环境：
+ * - WXSS 只用类选择器：web 的 `.chat-msg:not(.is-mine)`、`:hover`、`:disabled`、
+ *   `.social-search input` 这类伪类/标签选择器改成显式类名（is-peer / is-disabled / social-search-input）；
+ * - web 的 p/span/h3 标签在小程序用 Text 渲染，块级文本类统一 display:block 吃 margin；
+ * - 私聊整页布局：web 用 100dvh + overflow-y:auto，小程序用 .page-full（app.css）+ ScrollView。
+ * 通用类（.page / .panel / .btn / .field / .topbar-title / .muted / .error-text …）都在 app.css，
+ * 这里只补社交专属的类。
+ */
+
+/* ---------- 搜索区：输入框占满剩余宽度，按钮固定在右侧（web .social-search） ---------- */
+
+.social-search { display: flex; align-items: center; gap: 8px; }
+.social-search-input { flex: 1 1 auto; min-width: 0; }
+.social-search .btn { flex: none; }
+
+/* ---------- 好友 / 申请行：昵称与附言竖排，操作按钮在右（web .friend-list 系） ---------- */
+
+.friend-list { display: flex; flex-direction: column; gap: 8px; }
+
+.friend-row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(115, 191, 220, 0.06);
+}
+
+.friend-row-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+
+.friend-row-name {
+  display: block;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friend-row-extra { display: block; margin: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+
+.friend-row-actions { flex: none; display: flex; align-items: center; gap: 8px; }
+.friend-row .btn { flex: none; }
+
+/* 好友名整行可点进私聊：没有会话时置灰不可点（web :disabled → is-disabled） */
+.friend-row-open {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+}
+.friend-row-open.is-disabled { opacity: 0.55; }
+.friend-row-chevron { flex: none; color: rgba(115, 191, 220, 0.5); font-size: 18px; line-height: 1; }
+
+/* ---------- 私聊页：整页一屏，消息区自己滚动，输入行钉在底部（web .chat-shell 系） ---------- */
+
+/* 消息区：ScrollView 吃掉顶栏与输入行之外的全部高度（web .chat-thread 的 flex:1 + overflow-y） */
+.chat-thread {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 0;
+  padding: 4px 0 8px;
+}
+
+/* ScrollView 内的纵向列：气泡之间 10px 间距（web .chat-thread 自己是 flex 列） */
+.chat-thread-inner { display: flex; flex-direction: column; gap: 10px; }
+
+.chat-msg { flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; max-width: 84%; }
+.chat-msg.is-mine { align-self: flex-end; align-items: flex-end; }
+.chat-msg.is-peer { align-self: flex-start; align-items: flex-start; }
+
+.chat-bubble {
+  box-sizing: border-box;
+  display: block;
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(115, 191, 220, 0.08);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.chat-msg.is-mine .chat-bubble { border-color: rgba(125, 216, 198, 0.35); background: rgba(125, 216, 198, 0.16); }
+.chat-msg-meta { font-size: 12px; color: var(--muted); }
+
+/* 开局卡片：来一局生成的房间邀请（web .chat-card） */
+.chat-card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(125, 216, 198, 0.35);
+  border-radius: 12px;
+  background: rgba(125, 216, 198, 0.1);
+}
+.chat-card-text { display: block; margin: 0; font-size: 15px; color: var(--ink); overflow-wrap: anywhere; }
+/* 卡片状态行：房间已结束 / 等待对方加入 */
+.chat-card-state { display: block; margin: 0; font-size: 13px; color: var(--muted); }
+
+/* 输入行：输入框占满，发送按钮固定在右（web .chat-input-row） */
+.chat-input-row {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.chat-input { flex: 1 1 auto; min-width: 0; }
+.chat-input-row .btn { flex: none; }
+
+/* ---------- 通知列表：未读项用底色与描边区分（web .notification-list 系） ---------- */
+
+.notification-list { display: flex; flex-direction: column; gap: 8px; }
+
+.notification-item {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(115, 191, 220, 0.06);
+  color: inherit;
+  text-align: left;
+}
+.notification-item.is-unread { border-color: rgba(125, 216, 198, 0.45); background: rgba(125, 216, 198, 0.1); }
+.notification-title { display: block; font-size: 15px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.notification-body { display: block; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; white-space: pre-wrap; }
+.notification-time { display: block; font-size: 12px; color: var(--muted); }
+
+/* 通知页 / 私聊页顶栏：右侧操作比返回按钮宽，第三列按内容宽度排，
+   避免中文英文都被挤断（web .topbar-title.topbar-wide-actions） */
+.topbar-title.topbar-wide-actions { grid-template-columns: minmax(64px, 1fr) minmax(0, 2fr) max-content; }

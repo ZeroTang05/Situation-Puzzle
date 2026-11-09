@@ -1,8 +1,11 @@
 /**
  * 微信小程序兼容扫描：build:weapp / build:mp 之后跑（node scripts/scan-weapp-syntax.mjs）。
  * 两类检查（踩坑沉淀，详见 docs/rebuild/20-MINIPROGRAM.md M2.7）：
- * 1. 语法：预览器对部分 ES2021/ES2022 语法报 Invalid/Unexpected token（实测踩过
- *    私有字段 #x 与逻辑赋值 ||=），AST 找逻辑赋值、class 公有/私有字段、私有方法、静态块；
+ * 1. 语法：真机 JS 引擎对部分 ES2020+ 语法报 SyntaxError（实测踩过私有字段 #x、
+ *    逻辑赋值 ||=、空值合并 ??），AST 找逻辑赋值、class 公有/私有字段、私有方法、
+ *    静态块、空值合并（??）、可选链（?.）。
+ *    注意 ?? 与 ?. 在 IDE 模拟器（Chromium 内核）能跑，只有真机炸——扫描器是
+ *    唯一能在上真机前发现的闸门，两类都必须扫。
  * 2. 未声明全局：小程序运行时没有浏览器的 Fetch/DOM 全局（踩过 Request、fetch），
  *    作用域分析找所有「未声明的全局引用」，再对照白名单（JS 内建 + 微信宿主注入），
  *    白名单外的都是运行时 ReferenceError 风险——需要 polyfill 或从依赖里剔除。
@@ -31,8 +34,12 @@ const BAD_TYPES = new Set([
   'ClassPrivateMethod',       // 私有方法 #m(){}
   'PrivateName',              // 任何 #名字 引用
   'StaticBlock',              // static {}
+  'OptionalMemberExpression', // 可选链 a?.b（ES2020，真机报错）
+  'OptionalCallExpression',   // 可选调用 a?.()（同上）
 ])
 const BAD_ASSIGN = new Set(['||=', '&&=', '??='])
+// 空值合并 a ?? b：AST 是 LogicalExpression，按 operator 区分（|| 与 && 合法）
+const BAD_LOGICAL = new Set(['??'])
 
 // ---------- 检查二：未声明全局引用的白名单 ----------
 // JS 语言内建 + 微信小程序宿主 / webpack 模块系统真实注入的名字；
@@ -67,6 +74,8 @@ const APP_POLYFILLED = new Set(['fetch', 'Request', 'Headers', 'Response', 'Abor
 const IGNORED_GLOBALS = new Map([
   ['localStorage', 'better-auth 会话广播 fallback，调用包在 try/catch 里，ReferenceError 会被吞掉'],
   ['btoa', 'better-fetch 的 HTTP Basic 认证分支，本项目请求从不配置 Basic 认证，不会执行'],
+  ['atob', 'zod v4 内建 base64 校验器，调用包在 try/catch 里（缺全局时按校验失败处理）；契约与业务 schema 均未使用 base64 格式，分支不会执行'],
+  ['File', 'zod v4 JSON Schema 导出里的类型描述分支（instanceof File），只在调 z.toJSONSchema() 时执行；契约与业务 schema 从不导出 JSON Schema，分支不会执行'],
 ])
 
 function* walkJs(dir) {
@@ -101,6 +110,7 @@ for (const file of walkJs(join(appDir, 'dist'))) {
       const node = path.node
       if (BAD_TYPES.has(node.type)) syntax.push(node)
       else if (node.type === 'AssignmentExpression' && BAD_ASSIGN.has(node.operator)) syntax.push(node)
+      else if (node.type === 'LogicalExpression' && BAD_LOGICAL.has(node.operator)) syntax.push(node)
       else if (node.type === 'Identifier' && path.isReferencedIdentifier()) {
         // 作用域链里没声明、也不在各名单里 => 运行时去宿主全局找，小程序多半没有
         if (
@@ -116,7 +126,12 @@ for (const file of walkJs(join(appDir, 'dist'))) {
   for (const node of syntax.slice(0, 10)) {
     const at = node.start ?? 0
     const loc = node.loc?.start ? `${node.loc.start.line}:${node.loc.start.column + 1}` : '?'
-    const label = node.type === 'AssignmentExpression' ? `逻辑赋值 ${node.operator}` : node.type
+    const label =
+      node.type === 'AssignmentExpression' ? `逻辑赋值 ${node.operator}`
+      : node.type === 'LogicalExpression' ? `空值合并 ${node.operator}`
+      : node.type === 'OptionalMemberExpression' ? '可选链 ?.'
+      : node.type === 'OptionalCallExpression' ? '可选调用 ?.(...)'
+      : node.type
     console.log(`[语法] ${file} ${loc} ${label}`)
     console.log('  片段:', JSON.stringify(code.slice(Math.max(0, at - 70), at + 90)))
     syntaxHits++

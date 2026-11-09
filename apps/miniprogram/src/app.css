@@ -307,6 +307,24 @@ page {
   color: var(--muted);
 }
 
+/* 进行中的房间：标题行 + 整行可点的房间行（web .home-rooms） */
+.home-rooms { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.home-section-title { font-size: 14px; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; }
+.home-room-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(115, 191, 220, 0.06);
+  color: var(--ink);
+  font-weight: 600;
+}
+.home-room-title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-room-chevron { flex: none; color: rgba(115, 191, 220, 0.5); font-size: 18px; line-height: 1; }
+
 /* 开房额度行（web .entitlement-row） */
 .entitlement-row {
   display: flex;
@@ -836,7 +854,8 @@ page {
 .solo-action-row {
   display: flex;
   gap: 5px;
-  padding: 4px 0;
+  /* 操作行挂在输入行下方（对齐多人模式 room-actions 的节奏），底部留安全距离 */
+  padding: 6px 0 4px;
 }
 
 .solo-action-row .btn {
@@ -938,12 +957,22 @@ page {
 
 /* ---------- 提示悬浮胶囊 ---------- */
 
+/* 对话区：提示悬浮胶囊的定位锚点（区顶 = 题面下方），胶囊只遮对话流 */
+.chat-area {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .hint-capsule {
   box-sizing: border-box;
-  position: fixed;
-  bottom: calc(env(safe-area-inset-bottom) + 96px);
+  position: absolute;
+  top: 8px;
   left: 50%;
   transform: translateX(-50%);
+  z-index: 2900;
   width: calc(100vw - 24px);
   margin: 0;
   padding: 7px 10px;

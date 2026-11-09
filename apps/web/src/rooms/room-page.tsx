@@ -277,8 +277,6 @@ export function RoomPage({ session }: { session: Session | null }) {
       {/* 操作反馈改为悬浮条：不挤占布局，到点自动消失 */}
       {error && <Toast message={error} tone="error" durationMs={4000} onDone={() => setError(null)} />}
       {rejectedNotice && <Toast message={rejectedNotice} tone="error" durationMs={4000} onDone={() => setRejectedNotice(null)} />}
-      {/* 提示悬浮胶囊：固定定位不占布局，10 秒自动收起 */}
-      <HintCapsule hints={hints} open={hintPlayer.open} index={hintPlayer.index} onIndex={hintPlayer.show} />
       {managementOpen && <section ref={managementRef} className="panel stack room-management game-scroll" aria-label={copy.membersManagement}>
         <h2>{copy.membersHeader}</h2>
         <MemberList
@@ -337,7 +335,11 @@ export function RoomPage({ session }: { session: Session | null }) {
               <p className="story">{displayedSurface}</p>
           </StoryCard>
 
-          <section className="chat game-scroll" aria-live="polite">
+          {/* 对话区：提示胶囊挂在区顶（题面下方），只遮对话流、不遮 mode-tabs 与输入区 */}
+          <div className="chat-area">
+            {/* 提示悬浮胶囊：10 秒自动收起 */}
+            <HintCapsule hints={hints} open={hintPlayer.open} index={hintPlayer.index} onIndex={hintPlayer.show} />
+            <section className="chat game-scroll" aria-live="polite">
             <div className="chat-stream">
             {/* 用户主持人的「查看汤底」子页面：直接展示汤底，不弹确认框 */}
             {hostView && inputMode === 'solve' && round && <HostSecret roundId={round.roundId} />}
@@ -398,6 +400,7 @@ export function RoomPage({ session }: { session: Session | null }) {
             <div ref={chatBottomRef} />
             </div>
           </section>
+          </div>
           <div className={`appear-slot${newMessages ? ' open' : ''}`} inert={!newMessages}>
             <button className="btn btn-sm" onClick={() => { chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }); atBottom.current = true; setNewMessages(false); }}>{copy.newMessages} ↓</button>
           </div>

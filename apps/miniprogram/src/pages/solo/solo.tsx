@@ -15,7 +15,7 @@ import { soloStore, type SoloSessionRow } from '../../solo/local-store'
 import { selectUnplayedPuzzle } from '../../solo/unplayed-puzzle'
 import { HintCapsule, LargeModelToggle, TurnCard, useHintPlayer } from '../../game/components'
 import { Toast } from '../../ui/toast'
-import { useDialog } from '../../ui/dialog'
+import { DialogHost, useDialog } from '../../ui/dialog'
 import storySea from '../../assets/story-sea.jpg'
 
 type InputMode = 'ask' | 'solve'
@@ -295,11 +295,50 @@ export default function Solo(): ReactNode {
 
   const solved = session.status === 'solved'
 
+  // 底部操作行（提示 / 还原真相 / 看汤底）：布局对齐多人模式的「输入行在上、操作行在下」；
+  // 进行中时挂在输入行下方（composer 容器内），终局后输入区收起、操作行保留（禁用态）
+  const actionRow = (
+    <View className="solo-action-row">
+      <Button
+        className="btn btn-sm"
+        disabled={changingPuzzle || hintBusy || session.status !== 'active'}
+        onClick={() => {
+          // 还有未解锁的提示：解锁并悬浮展示最新一条；全部解锁后：按钮变成循环翻阅
+          if (session.hintsUnlocked.length < 3) {
+            void unlockHint(session.hintsUnlocked.length).then(() => hintPlayer.show(hintList.length))
+          } else {
+            hintPlayer.cycle()
+          }
+        }}
+      >
+        {copy.hint} {session.hintsUnlocked.length}/3
+      </Button>
+      <Button
+        className={'btn btn-sm' + (inputMode === 'solve' ? ' pressed' : '')}
+        disabled={changingPuzzle || sending || solved || Boolean(session.revealedAnswer)}
+        onClick={() => {
+          const next = inputMode === 'solve' ? 'ask' : 'solve'
+          setInputMode(next)
+          setText('')
+          persistDraft(next, '')
+        }}
+      >
+        {copy.solve}
+      </Button>
+      <Button
+        className="btn btn-sm"
+        disabled={changingPuzzle || sending || revealing || Boolean(session.revealedAnswer)}
+        onClick={async () => {
+          if (await dialog.confirm(copy.soloRevealConfirm, copy.soloViewAnswer)) void reveal()
+        }}
+      >
+        {copy.soloViewAnswer}
+      </Button>
+    </View>
+  )
+
   return (
     <View className="page page-full solo-shell">
-      {/* 悬浮提示胶囊：固定定位不占布局，10 秒自动收起 */}
-      <HintCapsule hints={hintList} open={hintPlayer.open} index={hintPlayer.index} onIndex={hintPlayer.show} />
-
       {/* 游玩页顶栏：等宽两侧保持题目居中（web .game-topbar） */}
       <View className="topbar game-topbar">
         <View className="game-topbar-back">
@@ -337,7 +376,11 @@ export default function Solo(): ReactNode {
         </ScrollView>
       </View>
 
-      <ScrollView className="chat solo-chat" scrollY scrollIntoView={scrollAnchor} scrollWithAnimation enhanced showScrollbar={false}>
+      {/* 对话区：提示胶囊挂在区顶（题面下方），只遮对话流、不遮输入区与操作行 */}
+      <View className="chat-area">
+        {/* 悬浮提示胶囊：10 秒自动收起 */}
+        <HintCapsule hints={hintList} open={hintPlayer.open} index={hintPlayer.index} onIndex={hintPlayer.show} />
+        <ScrollView className="chat solo-chat" scrollY scrollIntoView={scrollAnchor} scrollWithAnimation enhanced showScrollbar={false}>
         <View className="chat-stream">
           {turns.length === 0 && (
             <View className="chat-empty">
@@ -376,48 +419,11 @@ export default function Solo(): ReactNode {
           )}
           <View id={scrollAnchor} />
         </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       <View className="solo-bottom">
-        <View className="solo-action-row">
-          <Button
-            className="btn btn-sm"
-            disabled={changingPuzzle || hintBusy || session.status !== 'active'}
-            onClick={() => {
-              // 还有未解锁的提示：解锁并悬浮展示最新一条；全部解锁后：按钮变成循环翻阅
-              if (session.hintsUnlocked.length < 3) {
-                void unlockHint(session.hintsUnlocked.length).then(() => hintPlayer.show(hintList.length))
-              } else {
-                hintPlayer.cycle()
-              }
-            }}
-          >
-            {copy.hint} {session.hintsUnlocked.length}/3
-          </Button>
-          <Button
-            className={'btn btn-sm' + (inputMode === 'solve' ? ' pressed' : '')}
-            disabled={changingPuzzle || sending || solved || Boolean(session.revealedAnswer)}
-            onClick={() => {
-              const next = inputMode === 'solve' ? 'ask' : 'solve'
-              setInputMode(next)
-              setText('')
-              persistDraft(next, '')
-            }}
-          >
-            {copy.solve}
-          </Button>
-          <Button
-            className="btn btn-sm"
-            disabled={changingPuzzle || sending || revealing || Boolean(session.revealedAnswer)}
-            onClick={async () => {
-              if (await dialog.confirm(copy.soloRevealConfirm, copy.soloViewAnswer)) void reveal()
-            }}
-          >
-            {copy.soloViewAnswer}
-          </Button>
-        </View>
-
-        {/* 输入区在解出/揭晓后整体收起 */}
+        {/* 输入区在解出/揭晓后整体收起；操作行跟在输入行下方（对齐多人模式布局） */}
         {!solved && !session.revealedAnswer && (
           <View className="composer solo-composer">
             {inputMode === 'solve' && (
@@ -442,12 +448,16 @@ export default function Solo(): ReactNode {
                 {sending ? copy.submitting : copy.send}
               </Button>
             </View>
+            {actionRow}
           </View>
         )}
+        {/* 终局后输入区收起，操作行保留（禁用态） */}
+        {(solved || Boolean(session.revealedAnswer)) && actionRow}
       </View>
 
       {/* 操作反馈：顶部悬浮条，不挤占布局，到点自动消失 */}
       {error && <Toast message={error} tone="error" durationMs={4000} onDone={() => setError(null)} />}
+      <DialogHost />
     </View>
   )
 }

@@ -2,15 +2,20 @@
  * 题库页（代码级对齐 apps/web/src/catalog/library-page.tsx）：
  * 筛选胶囊（排序/难度/类别）、卡片（标题 + 徽标横排 + 汤面三行截断 + 署名与赞踩计数）、
  * 页码栏（首尾常驻、中间围绕当前页展开）。已玩标记读本地单人历史。
- * 小程序差异：URL 参数换组件 state；「选房开局」按钮随多人里程碑接入；
- * 翻页后把列表滚回顶部（对应 web 的 scrollIntoView）。
+ * 选题模式（?mode=select）：会客厅选题（&lobby=）或「再来一题」建新房（&followup=），
+ * 普通模式卡片多一个「开房」按钮（建/取会客厅后带题进入）。
+ * 小程序差异：筛选与页码用组件 state；翻页后把列表滚回顶部（对应 web 的 scrollIntoView）；
+ * 未登录点开房先去登录页，登录返回后由用户再点一次（不做 web 的 pick 自动续接）。
  */
 import { useEffect, useState, type ReactNode } from 'react'
-import Taro from '@tarojs/taro'
+import Taro, { useRouter } from '@tarojs/taro'
 import { Button, ScrollView, Text, View } from '@tarojs/components'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { api } from '../../api/client'
+import { api, translateApiError } from '../../api/client'
 import { useLanguage } from '../../state/language'
+import { useJevSession } from '../../state/session'
+import { openOrGetLobby, lobbyPath } from '../../lobby/create-lobby'
+import { goBack } from '../../ui/back'
 import { soloStore } from '../../solo/local-store'
 import { compactVoteCount } from '../../game/game-display'
 import { VoteIcon } from '../../game/components'
@@ -103,6 +108,11 @@ type Category = 'honkaku' | 'henkaku' | null
 
 export default function Library(): ReactNode {
   const { copy, language } = useLanguage()
+  const { session } = useJevSession()
+  const router = useRouter()
+  const mode = router.params.mode === 'select' ? 'select' : 'solo'
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [openingPuzzleId, setOpeningPuzzleId] = useState<string | null>(null)
   const [sort, setSort] = useState<Sort>('popular')
   const [difficulty, setDifficulty] = useState<Difficulty>(null)
   const [category, setCategory] = useState<Category>(null)
@@ -146,16 +156,52 @@ export default function Library(): ReactNode {
     setScrollTop((prev) => (prev === 0 ? 0.1 : 0))
   }
 
-  const enterSolo = (puzzleId: string) => {
-    // 题库是单人的「选菜过渡态」：redirectTo 把题库从页面栈移除，
-    // 单人页按返回直接回首页
+  /** 主按钮：选题模式回会客厅/建新房，普通模式进单人 */
+  const onPick = (puzzleId: string) => {
+    if (mode === 'select') {
+      const followupRoomId = router.params.followup
+      if (followupRoomId) {
+        // 再来一题：选定新题后建独立新房并迁移合格成员；新房替换题库页
+        setActionError(null)
+        void api<{ targetRoomId: string }>('/rooms/followup', {
+          method: 'POST',
+          body: { sourceRoomId: followupRoomId, puzzleId, language },
+        })
+          .then((result) => void Taro.redirectTo({ url: `/pkg-room/pages/room/room?id=${result.targetRoomId}` }))
+          .catch((err: unknown) => setActionError(translateApiError(err, language, copy.createRoomFail)))
+        return
+      }
+      const lobbyId = router.params.lobby
+      // 题库是会客厅的「选菜过渡态」：redirectTo 把题库从页面栈移除
+      if (lobbyId) void Taro.redirectTo({ url: lobbyPath(lobbyId, { puzzleId, language }) })
+      return
+    }
+    // 题库是单人的「选菜过渡态」：redirectTo 把题库从页面栈移除，单人页按返回直接回首页
     void Taro.redirectTo({ url: `/pages/solo/solo?puzzleId=${puzzleId}` })
+  }
+
+  /** 建/取会客厅后直接带上这道题；未登录先去登录 */
+  const openRoomWithPuzzle = async (puzzleId: string) => {
+    if (!session) {
+      void Taro.navigateTo({ url: '/pages/login/login' })
+      return
+    }
+    if (openingPuzzleId) return
+    setOpeningPuzzleId(puzzleId)
+    setActionError(null)
+    try {
+      const lobby = await openOrGetLobby()
+      void Taro.redirectTo({ url: lobbyPath(lobby.lobbyId, { puzzleId, language }) })
+    } catch (err) {
+      setActionError(translateApiError(err, language, copy.createRoomFail))
+      setOpeningPuzzleId(null)
+    }
   }
 
   return (
     <View className="page page-full">
       <View className="topbar topbar-title">
-        <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => void Taro.navigateBack()}>
+        <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => goBack()}>
           {copy.back}
         </Button>
         <Text className="brand">{copy.library}</Text>
@@ -208,6 +254,7 @@ export default function Library(): ReactNode {
           <Button className="btn btn-sm" onClick={() => void refetch()}>{copy.retry}</Button>
         </View>
       )}
+      {actionError && <Text className="error-text">{actionError}</Text>}
 
       <ScrollView
         className={`puzzle-grid${isPlaceholderData ? ' is-page-loading' : ''}`}
@@ -247,9 +294,18 @@ export default function Library(): ReactNode {
                   </View>
                 </View>
                 <View className="puzzle-card-actions">
-                  <Button className="btn btn-sm btn-primary" disabled={isPlaceholderData} onClick={() => enterSolo(puzzle.id)}>
-                    {copy.solo}
+                  <Button className="btn btn-sm btn-primary" disabled={isPlaceholderData} onClick={() => onPick(puzzle.id)}>
+                    {mode === 'select' ? copy.selectPuzzle : copy.solo}
                   </Button>
+                  {mode !== 'select' && (
+                    <Button
+                      className="btn btn-sm btn-compact"
+                      disabled={isPlaceholderData || openingPuzzleId !== null}
+                      onClick={() => void openRoomWithPuzzle(puzzle.id)}
+                    >
+                      {openingPuzzleId === puzzle.id ? copy.creating : copy.catalogOpenRoom}
+                    </Button>
+                  )}
                 </View>
               </View>
             </View>

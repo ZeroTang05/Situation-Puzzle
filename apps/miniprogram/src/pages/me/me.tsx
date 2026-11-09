@@ -1,8 +1,8 @@
 /**
  * 「我的」页（代码级对齐 apps/web/src/me/me-page.tsx）：
  * 账号卡片（昵称/邮箱骨架屏 + 额度/会员两个关键数字）+ 邀请卡 + 多人历史列表。
- * 与 web 差异只有功能里程碑——好友/创作/通知入口未接入的点了给「即将开放」提示，
- * 历史行点击进房间在多人里程碑接通；昵称/语言/兑换码/退出登录都收在设置页。
+ * 历史行与「我的作品」「好友」整卡可点直达对应分包页；
+ * 昵称/语言/兑换码/退出登录都收在设置页。
  * 奖励入口（docs/rebuild/21-MONETIZATION-REVISION.md）：邀请好友 +5（转发卡片与复制链接），
  * 看激励视频广告 +2（流量主开通前提示「开通中」）；内测期额度卡显示畅玩徽标。
  */
@@ -100,11 +100,6 @@ export default function Me(): ReactNode {
     enabled: session !== null,
     retry: false,
   })
-
-  const comingSoon = language === 'zh' ? '即将开放' : 'Coming soon'
-  const openLater = () => {
-    void Taro.showToast({ title: comingSoon, icon: 'none', duration: 1200 })
-  }
 
   /** 看激励视频：结果只做提示，奖励由服务端验证回调入账（看完后延迟刷新） */
   const watchAd = async () => {
@@ -239,7 +234,14 @@ export default function Me(): ReactNode {
           </View>
         )}
         <View className="me-card-actions">
-          <Button className="btn" onClick={openLater}>{copy.friends}</Button>
+          <Button className="btn btn-primary" onClick={() => void Taro.navigateTo({ url: '/pkg-creation/pages/list/list' })}>
+            {copy.myWorks}
+          </Button>
+        </View>
+        <View className="me-card-actions">
+          <Button className="btn" onClick={() => void Taro.navigateTo({ url: '/pkg-social/pages/friends/friends' })}>
+            {copy.friends}
+          </Button>
           <Button
             className="btn"
             onClick={() => void Taro.navigateTo({ url: '/pages/settings/settings' })}
@@ -318,7 +320,7 @@ export default function Me(): ReactNode {
             // 房间进行中 + 本局进行中时两个状态文案重复，只保留房间状态
             const showRoundStatus = round && !(room.roomStatus === 'playing' && round.status === 'active')
             return (
-              <View key={room.roomId} className="me-history-item">
+              <View key={room.roomId} className="me-history-item" onClick={() => void Taro.navigateTo({ url: `/pkg-room/pages/room/room?id=${room.roomId}` })}>
                 <View className="me-history-room">
                   <View className="me-history-head">
                     <Text className="me-history-date">{shortDate(room.createdAt, language)}</Text>

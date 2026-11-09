@@ -1,8 +1,8 @@
 /**
- * 深海弹窗（口径对齐 packages/ui/src/dialog.tsx + dialog.css）：
- * DialogHost 挂在 app.tsx 渲染当前弹窗（jev-dialog 同款样式），遮罩点击 = 取消
- * （对齐 web Radix onOpenChange(false) 行为）。小程序没有焦点陷阱与 Escape，
- * 交互上只保留点击选择。
+ * 深海弹窗（口径对齐 packages/ui/src/dialog.tsx + dialog.css，jev-dialog 同款样式）：
+ * 遮罩点击 = 取消（对齐 web Radix onOpenChange(false) 行为）。小程序没有焦点陷阱与
+ * Escape，交互上只保留点击选择。DialogHost 必须挂在页面内（Taro 小程序 app.tsx
+ * 自身渲染的兄弟节点不上屏），见各用到 useDialog 的页面。
  */
 import { useEffect, useState, type ReactNode } from 'react'
 import { Button, Text, View } from '@tarojs/components'
@@ -20,7 +20,7 @@ export function useDialog(): DialogActions {
   }
 }
 
-/** 应用级弹窗宿主：始终渲染在 app.tsx 里，有请求时盖在最上层 */
+/** 弹窗宿主：Taro 小程序 app.tsx 不上屏，每个用到 useDialog 的页面都要挂一个，有请求时盖在最上层 */
 export function DialogHost(): ReactNode {
   // 订阅队列变化（useState + subscribe：不依赖 useSyncExternalStore 的类型形态）
   const [request, setRequest] = useState<DialogRequest | null>(() => dialogQueue.current())

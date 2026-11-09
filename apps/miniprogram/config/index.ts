@@ -53,14 +53,19 @@ const reactQueryRoot = pkgRoot(appDir, '@tanstack/react-query')
 const queryCoreRoot = pkgRoot(reactQueryRoot, '@tanstack/query-core')
 const taroRoot = pkgRoot(appDir, '@tarojs/taro')
 const nanostoresRoot = pkgRoot(taroRoot, 'nanostores')
+const contractsRoot = pkgRoot(appDir, '@jev/contracts')
+const zodRoot = pkgRoot(contractsRoot, 'zod')
 /** 语法降级清单：react-query 核心（Query/Observer 私有字段）、
- *  nanostores（Taro 传递依赖，发逻辑赋值 ||=，ES2021）；
+ *  nanostores（Taro 传递依赖，发逻辑赋值 ||=，ES2021）、
+ *  zod v4（contracts 的传递依赖，发空值合并 ?? 与可选链 ?.，ES2020；
+ *  真机 JS 引擎解析报 SyntaxError，模拟器 Chromium 认识所以 E2E 查不出来）；
  *  真实路径为主，符号链接路径兜底。
  *  （better-auth 客户端链已不在小程序端，见 src/api/auth-client.ts） */
 const legacySyntaxPaths = [
   reactQueryRoot,
   queryCoreRoot,
   nanostoresRoot,
+  zodRoot,
   path.join(appDir, 'node_modules', '@tanstack', 'react-query'),
 ]
 
@@ -84,7 +89,12 @@ export default defineConfig(async (merge) => {
       // 必须 cwd + configFile 显式指到应用根，走 preset-taro 与 src 同一套降级口径。
       webpackChain(chain: {
         module: { rule: (name: string) => LegacyRule }
+        resolve: { set: (key: string, value: unknown) => void }
       }) {
+        // @jev/contracts 是 TS 源码包（Node ESM 风格，index.ts 里 export * from './errors.js'
+        // 指向的是 errors.ts）。分包第一次把 contracts 的运行时值（Zod schema）打进
+        // 小程序包，webpack 不会把带 .js 的请求再映射到 .ts，这里显式声明扩展名别名。
+        chain.resolve.set('extensionAlias', { '.js': ['.ts', '.js'] })
         const rule = chain.module.rule('legacy-syntax-mjs').test(/\.mjs$/)
         for (const p of legacySyntaxPaths) rule.include.add(p)
         rule.use('babel')

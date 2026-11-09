@@ -22,9 +22,10 @@ export function useHintPlayer(hints: string[]) {
     return () => window.clearTimeout(timer.current);
   }, [open, index]);
 
-  /** 打开并定位到指定条（解锁新提示后展示它；索引越界由胶囊渲染时收敛） */
+  /** 打开并定位到指定条（解锁新提示后展示它；索引越界由胶囊渲染时收敛）。
+   *  不判 hints 空：解锁回调里的 hints 是旧渲染闭包（首次为空，判空会把首次弹出吞掉），
+   *  解锁引发的列表更新与 open 更新同批渲染；空列表时渲染层兜底不显示。 */
   const show = (at: number) => {
-    if (!hints.length) return;
     setOpen(true);
     setIndex(Math.max(0, at));
   };

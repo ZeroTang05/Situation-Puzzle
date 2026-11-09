@@ -756,9 +756,13 @@ a { text-decoration: none; }
 }
 
 /* 提示悬浮胶囊：固定定位浮在底部操作区上方，不占布局；10 秒自动收起由 useHintPlayer 计时。 */
+/* 对话区：提示悬浮胶囊的定位锚点（区顶 = 题面下方），胶囊只遮对话流 */
+.chat-area { position: relative; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.chat-area .chat { flex: 1 1 auto; min-height: 0; }
+
 .hint-capsule {
-  position: fixed;
-  bottom: calc(var(--safe-area-inset-bottom, env(safe-area-inset-bottom)) + 96px);
+  position: absolute;
+  top: 8px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 2900;
@@ -801,7 +805,8 @@ a { text-decoration: none; }
 .solo-chat .panel p { margin: 4px 0; }
 .solo-bottom { flex: none; max-height: 48dvh; overflow-y: auto; overscroll-behavior: contain; }
 .solo-bottom .error-text { margin: 0; font-size: 13px; }
-.solo-action-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; padding: 4px 0; }
+/* 操作行挂在输入区下方（对齐多人模式 room-actions 的节奏），底部留安全距离 */
+.solo-action-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; padding: 6px 0 4px; }
 .solo-action-row .btn { min-width: 0; min-height: 38px; padding: 4px 2px; border-radius: 3px; font-size: 13px; line-height: 1.2; }
 .solo-action-row .btn:first-child { color: var(--gold); border-color: rgba(230, 192, 125, 0.5); }
 .solo-action-row .btn:nth-child(2) { color: var(--coral); border-color: rgba(255, 155, 120, 0.5); }
@@ -896,7 +901,7 @@ textarea.composer-input, .composer .composer-input {
 
 /* 宽屏时对话与输入区不无限拉伸：限宽居中，视线聚焦在一列上 */
 @media (min-width: 760px) {
-  .room-playing > .chat > .chat-stream,
+  .room-playing > .chat-area > .chat > .chat-stream,
   .solo-chat > .chat-stream { max-width: 640px; margin-inline: auto; width: 100%; }
   .room-playing > .composer,
   .solo-bottom { max-width: 640px; margin-inline: auto; width: 100%; }
@@ -938,8 +943,10 @@ textarea.composer-input, .composer .composer-input {
 /* 输入与操作区贴底，消息占满剩余高度并在内部滚动。 */
 .room-playing { height: 100dvh; min-height: 0; overflow: hidden; padding-bottom: max(8px, var(--safe-area-inset-bottom, env(safe-area-inset-bottom))); }
 .room-playing > * { flex-shrink: 0; }
-.room-playing > .chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-.room-playing > .chat > * { flex-shrink: 0; }
+/* 对话流包在 .chat-area（提示胶囊的定位锚点）里，滚动交给内部 .chat */
+.room-playing > .chat-area { flex: 1 1 auto; min-height: 0; flex-shrink: 1; }
+.room-playing > .chat-area > .chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.room-playing > .chat-area > .chat > * { flex-shrink: 0; }
 .room-playing > .composer { position: static; padding: 4px 0 0; background: var(--bg); }
 .room-playing > .hint-row { padding: 4px 0 0; }
 .room-playing > .story-wrap { max-height: 22dvh; }

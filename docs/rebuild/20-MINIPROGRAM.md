@@ -1,7 +1,70 @@
 # 20 — 微信小程序版本计划
 
-状态：已拍板（决策记录见 §8）。M0、M1、M2 完成（2026-10-25），M3 待做。
+状态：已拍板（决策记录见 §8）。M0–M2 完成（2026-10-25）；M3（多人）、M4（社交）、M5（创作）完成（2026-11-07，未提交待真机验收）；M6 支付引导与 M7 提审待做。
 日期：2026-10-25；基线：feat/app-version（含 M3 Android 交付）。
+
+## M3–M5 完成记录（2026-11-07：多人 / 社交 / 创作三个分包）
+
+网页端剩余路由一比一移植进三个分包（分包 = 用到时才下载的代码块，主包体积不受影响）：
+`pkg-room`（会客厅 / 房间 / 邀请落地 / 大厅，24 文件）、`pkg-social`（好友 / 私聊 / 通知中心 +
+主包铃铛组件）、`pkg-creation`（作品列表 / 编辑器 / 预览私测）。实时房间流照抄 web 的
+`use-room-sync`（票据 + auth 帧 + 指数退避重连 + seq 去重补齐 + outbox 可靠发送），传输层换
+`Taro.connectSocket` 的 SocketTask（`wss://sp.xiaobaozi.cn/ws`），页面隐藏断连、回前台重连。
+
+**邀请交互（用户拍板）**：会客厅与房间各一个「邀请」按钮，点开底部菜单（自绘 bottom sheet）：
+「邀请微信好友」用 `<Button openType="share">` 发小程序卡片（微信规定 API 调不起转发），
+`useShareAppMessage` 的 path 带邀请 token 与邀请码 ref；「复制链接」复制网页版邀请 URL。
+
+主包接入：首页「多人」真开会客厅、次要入口补大厅 / 我的作品 / 好友、进行中的房间列表；
+题库支持 `?mode=select` 会客厅选题与「再来一题」，普通模式卡片加「开房」；「我的」加作品 / 好友
+入口、历史行可点进房间；首页顶栏接通知铃铛（10s 轮询）。
+
+构建新增两处：① `config/index.ts` webpackChain 加 `extensionAlias {'.js':['.ts','.js']}`——分包
+第一次把 `@jev/contracts` 的运行时值（Zod schema）打进包，contracts 是 Node ESM 风格 TS 源码
+（`./errors.js` 实为 errors.ts），webpack 需要显式扩展名别名；② `room.css` 注释里 `:nth-*/` 的
+`*/` 会提前终结 CSS 注释导致压缩器报错，已改写。`scan-weapp-syntax.mjs` 白名单新增 `atob`
+（zod v4 内建 base64 校验器，try/catch 包裹，契约未用 base64 格式）。
+
+截图验收（未登录态）：17 页全部渲染正常；修掉三处 review 发现的问题——编辑器未登录顶栏
+「我的作品」改回返回按钮（左上角一律返回）、通知页未登录隐藏「全部已读」、私聊页未登录隐藏
+「来一局」（wide-actions 网格的空右列会把标题挤偏，未登录时回落基础三列网格）。
+残余小瑕疵：编辑器未登录态标题仍有约 15px 偏右（同结构的列表页居中正常），待真机复查。
+
+与 web 的已知差异（环境所限，功能等价）：Enter 发送未移植（软键盘回车不可靠，走按钮）；
+web 的 pointerdown 收起管理面板改为点遮罩收起；脏表单离开拦截只在返回按钮上二次确认
+（小程序页面卸载不可拦）；创作「游玩」开局语言取界面语言（web 的 `?lang=` 参数 web 端自己也未消费）。
+真机待验证：SocketTask auth/close(4401/4403) 时序、微信转发卡片落地产道、双端同桌对局。
+
+### E2E 联调记录（2026-11-07：开发者工具自动化直连生产，修掉三个页面级瘫痪 bug）
+
+常驻 E2E 设施：`apps/miniprogram/scripts/mp-e2e.mjs`（12 模块：login/home/library/solo/
+lobby/room/hall/friends/chat/notifications/creations/me，可单跑重跑；配套 `mp-probe-restart.mjs`
+重启工具并验证渲染、`mp-probe-console.mjs` 抓启动期报错）。跑法：开发者工具 CLI `auto` 拉起
+（自动化端口 9420）后 `node scripts/mp-e2e.mjs <输出目录> [模块...]`。12 模块全部功能验证通过；
+个别断言在现场偶发红字，定向探针复测均正常（IDE 自动化桥的 webview 通道错乱，属环境噪音）。
+
+三个 bug 都是「主包正常、分包/功能瘫痪」级别，E2E 逐个实锤：
+
+1. **zod v4 的 JIT 编译在小程序崩溃 → 所有分包页面白屏**（主包正常、分包 view=0、零报错）。
+   zod 首次 `parse` 会把 schema 编译成函数（fastpass），依赖 Function 动态编译，小程序运行时
+   不支持。修法：`polyfills.ts` 抢在 zod 加载前写 `globalThis.__zod_globalConfig = { jitless: true }`
+   （zod 侧 `??` 只在缺失时初始化），全局改解释执行。
+2. **微信 SocketTask 没有 web WebSocket 的 `OPEN` 常量** → `readyState === socket.OPEN` 永假 →
+   auth 帧发不出 → 房间同步永远「加载中」。修法：`use-room-sync.ts` 三处改 `readyState === 1`。
+3. **Taro 小程序 app.tsx 自身渲染的兄弟节点不上屏** → 全局 DialogHost 是死代码 → 所有
+   `dialog.confirm` 死锁（公布答案/解散/提交/退出登录的确认都点不动）。修法：每个用到
+   useDialog 的页面（settings/solo/editor/lobby/room/friends）挂页内 `<DialogHost />`，
+   app.tsx 只保留 QueryClientProvider 并注释说明。
+
+另修：大厅行整行可点（对齐整卡可点惯例，满员房除外）；房间同步失败从静默重连改为
+`console.warn` 留痕；会话请求失败仅 401 才按未登录处理（缓存最近一次会话，防启动抖动误弹登录页）。
+
+结构约定：主包业务目录（`lobby/`、`notification/`、`game/`、`solo/`、`invite/`、`ads/`、
+`state/`、`ui/`、`api/`）是被主包页面与分包页面共同引用的跨包共享代码，按「分包不能引分包」
+规则必须放主包；`pkg-*` 三个目录只放分包页面。目录名与 web 对照的映射写在各文件头注释里
+（rooms→lobby、social→notification 已就地改名消歧）。
+
+验证：`tsc --noEmit -p apps/miniprogram` 0、`build:weapp` 成功、`scan-weapp-syntax.mjs` 均 0。
 
 ## M2.8 完成记录（2026-11-06：小程序端彻底移出 better-auth 客户端）
 
@@ -86,20 +149,33 @@ LoginError 区分「已翻译文案」与「意外异常」，意外异常统一
 联调前置：部署带端点的新代码 + 配 WECHAT_MINI_APPID/SECRET（配齐才注册）+
 小程序后台配 request 合法域名（sp.xiaobaozi.cn）。
 
+**第五轮（真机调试 zod 报 `Unexpected token ?`，模拟器一直正常）**：真机调试
+在分包 `pkg-creation/sub-common/` 报 SyntaxError，AST 归因确认 14 个残留 chunk
+全部来自 **zod v4**（contracts 的传递依赖，经跨分包共享模块抽取进三个分包的
+`sub-common/`）。zod 发空值合并 `??` 与可选链 `?.`（ES2020），不在
+`legacySyntaxPaths` 里、从未被 babel 降级。此前一直没炸是因为 **IDE 模拟器是
+Chromium 内核认识 ES2020**，E2E 全绿掩盖了问题；真机 JS 引擎不认才炸。修法与
+第一轮同款：`config/index.ts` 从 `@jev/contracts` 的包根解析出 zod 真实路径加进
+`legacySyntaxPaths`（传递依赖要经依赖它的包解析，pnpm 隔离下 app 目录直接
+resolve 不到）。同轮把扫描器语法检查从四类扩到**六类**（补空值合并 `??` 与
+可选链 `?.`，`?.` 在模拟器同样能跑、必须靠扫描器把关），zod JSON Schema 导出里
+`instanceof File` 的未执行分支登记白名单。
+
 其余被扫出的名字（performance/setImmediate/MessageChannel/window/process/
-Deno/Bun/localStorage/btoa 等）各有 `typeof` 守卫、try/catch 或分支不执行，
+Deno/Bun/localStorage/btoa/File 等）各有 `typeof` 守卫、try/catch 或分支不执行，
 确认安全。**扫描器已升级为双检查**（`scripts/scan-weapp-syntax.mjs`）：①语法
-四类；②未声明全局引用（作用域分析 + JS 内建/微信宿主白名单 + typeof 守卫识别
+六类；②未声明全局引用（作用域分析 + JS 内建/微信宿主白名单 + typeof 守卫识别
 + 应用 polyfill 登记），`build:mp` 后跑一次，两类均 0 通过——加新依赖后必跑，
 能把「预览逐个报错」的循环掐死在构建后。
 
 排查与验证工具沉淀为 **`scripts/scan-weapp-syntax.mjs`**：`build:mp` 之后跑，
-用 @babel/parser 解析 dist 全部 js、AST 级找出四类微信不认的节点（class 公有/
-私有字段、私有方法、静态块、逻辑赋值），0 处通过。比等预览逐个报错快得多，
-新加依赖后建议跑一次。排查方法论也记一笔：看报错位置的真实代码片段归因来源包
-（别信打包时的第一直觉，第一轮真凶 better-call、第二轮 nanostores 都与最初
-怀疑对象不同）；pnpm 真实路径带哈希没法写死，`legacySyntaxPaths` 在配置加载时
-动态解析（包 exports 不暴露 `./package.json` 时要解析主入口后向上找包根）。
+用 @babel/parser 解析 dist 全部 js、AST 级找出六类真机不认的节点（class 公有/
+私有字段、私有方法、静态块、逻辑赋值、空值合并、可选链），0 处通过。比等预览
+逐个报错快得多，新加依赖后建议跑一次。排查方法论也记一笔：看报错位置的真实
+代码片段归因来源包（别信打包时的第一直觉，第一轮真凶 better-call、第二轮
+nanostores、第五轮 zod 都与最初怀疑对象不同）；pnpm 真实路径带哈希没法写死，
+`legacySyntaxPaths` 在配置加载时动态解析（包 exports 不暴露 `./package.json`
+时要解析主入口后向上找包根；传递依赖从依赖它的包出发解析）。
 
 ## M2.6 完成记录（2026-10-27：登录换微信一键登录）
 

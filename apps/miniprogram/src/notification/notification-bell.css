@@ -1,0 +1,28 @@
+/**
+ * 通知铃铛样式：从 apps/web/src/styles.css:1409-1410 平移（app.css 里没有这两个类）。
+ * 按钮壳本身用 app.css 现成的 .btn / .btn-ghost / .btn-sm。
+ */
+
+/* 铃铛按钮：角标的定位参照物 */
+.notification-bell {
+  position: relative;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 4px 10px;
+}
+
+/* 未读角标：钉在按钮右上角，红底黑字 */
+.notification-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--coral);
+  color: #10202f;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
