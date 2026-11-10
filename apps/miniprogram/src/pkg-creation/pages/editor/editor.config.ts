@@ -3,5 +3,5 @@
  * 正文标题由页面按「新建/编辑 + 作品标题」动态改（Taro.setNavigationBarTitle）。
  */
 export default definePageConfig({
-  navigationBarTitleText: 'AI 海龟汤'
+  navigationBarTitleText: '超好玩海龟汤'
 })

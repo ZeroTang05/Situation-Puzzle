@@ -5,7 +5,7 @@
  * 字段名（JS key）必须与 Better Auth 期望的一致，数据库列名用 snake_case。
  * 业务扩展信息（昵称、状态、角色）放在 profiles / role_assignments，与这里一对一。
  */
-import { pgTable, text, timestamp, boolean, index, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, integer, index, uniqueIndex } from 'drizzle-orm/pg-core';
 
 /** 用户主表：Better Auth 按它自己的协议读写，业务代码只读不写。 */
 export const user = pgTable(
@@ -79,3 +79,17 @@ export const verification = pgTable(
   },
   (t) => [index('verification_identifier_idx').on(t.identifier)],
 );
+
+/** 设备授权：由 Better Auth 管理确认码、有效期和一次性令牌兑换。 */
+export const deviceCode = pgTable('device_code', {
+  id: text('id').primaryKey(),
+  deviceCode: text('device_code').notNull(),
+  userCode: text('user_code').notNull(),
+  userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
+  status: text('status').notNull(),
+  lastPolledAt: timestamp('last_polled_at', { withTimezone: true, mode: 'date' }),
+  pollingInterval: integer('polling_interval'),
+  clientId: text('client_id'),
+  scope: text('scope'),
+}, (t) => [uniqueIndex('device_code_device_uq').on(t.deviceCode), uniqueIndex('device_code_user_uq').on(t.userCode)]);

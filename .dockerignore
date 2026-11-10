@@ -14,6 +14,8 @@ docs
 # 联调临时产物
 mailsink.json
 *.log
+.tmp-taptap/
+apps/taptap/artifacts/
 .env
 .env.local
 .env.production

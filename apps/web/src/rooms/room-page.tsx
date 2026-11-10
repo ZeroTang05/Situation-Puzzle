@@ -10,7 +10,7 @@ import { api, ApiError, translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
 import { useBack } from '../back.js';
 import { displayVerdict, format } from '@jev/i18n';
-import type { HostVerdict } from '@jev/contracts';
+import { canRateRoomPuzzle, type HostVerdict } from '@jev/contracts';
 import { useRoomSync } from './use-room-sync.js';
 import { useRoomOutbox } from './use-room-outbox.js';
 import type { InputMode } from './room-local.js';
@@ -152,7 +152,7 @@ export function RoomPage({ session }: { session: Session | null }) {
   }, [status]);
 
   const round = state?.round ?? null;
-  const answered = round && (round.status === 'solved' || round.status === 'revealed');
+  const answered = round && canRateRoomPuzzle(round.status);
   const hints = round ? round.hints.filter(Boolean) : [];
   // 提示悬浮播放器：房主解锁时展示新提示，其余角色用按钮循环翻阅已开放的提示
   const hintPlayer = useHintPlayer(hints);

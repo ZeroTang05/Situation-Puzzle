@@ -17,10 +17,26 @@
  * 支付宝的通知是表单（不匹配 express.json），所以只有微信通道暴露此问题。
  */
 import { once } from 'node:events';
-import type { Server } from 'node:http';
+import { request as httpRequest, type Server } from 'node:http';
 import express from 'express';
 import { describe, expect, it } from 'vitest';
 import { mountBodyParsers } from '../bootstrap.js';
+
+/** 用 Node HTTP 在操作系统分配的本地端口发送真实请求。 */
+function postJson<T>(port: number, path: string, contentType: string, body: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const request = httpRequest({ hostname: '127.0.0.1', port, path, method: 'POST', headers: { 'Content-Type': contentType } }, (response) => {
+      const chunks: Buffer[] = [];
+      response.on('data', (chunk: Buffer) => chunks.push(chunk));
+      response.on('error', reject);
+      response.on('end', () => {
+        try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')) as T); } catch (error) { reject(error); }
+      });
+    });
+    request.on('error', reject);
+    request.end(body);
+  });
+}
 
 /** 起一个真实 express 实例，POST 通知后回传「拿到的 body 是什么」。 */
 async function postNotify(contentType: string, body: string) {
@@ -38,12 +54,7 @@ async function postNotify(contentType: string, body: string) {
     await once(server, 'listening');
     const address = server.address();
     if (!address || typeof address === 'string') throw new Error('测试监听端口缺失');
-    const response = await fetch(`http://127.0.0.1:${address.port}/api/v1/payments/wechat_native/notify`, {
-      method: 'POST',
-      headers: { 'Content-Type': contentType },
-      body,
-    });
-    return (await response.json()) as { isBuffer: boolean; text: string };
+    return await postJson<{ isBuffer: boolean; text: string }>(address.port, '/api/v1/payments/wechat_native/notify', contentType, body);
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }
@@ -85,12 +96,8 @@ describe('支付回调请求体解析', () => {
       await once(server, 'listening');
       const address = server.address();
       if (!address || typeof address === 'string') throw new Error('测试监听端口缺失');
-      const response = await fetch(`http://127.0.0.1:${address.port}/api/v1/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productVersionId: 'pv_1', channel: 'wechat_native' }),
-      });
-      expect(await response.json()).toEqual({ isObject: true });
+      const response = await postJson(address.port, '/api/v1/orders', 'application/json', JSON.stringify({ productVersionId: 'pv_1', channel: 'wechat_native' }));
+      expect(response).toEqual({ isObject: true });
     } finally {
       await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
     }

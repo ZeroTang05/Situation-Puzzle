@@ -6,3 +6,5 @@ export * from './creations.js';
 export * from './catalog.js';
 export * from './social.js';
 export * from './backup.js';
+export * from './platform-auth.js';
+export * from './player-rules.js';

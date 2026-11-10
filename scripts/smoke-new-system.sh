@@ -29,7 +29,7 @@ export SMTP_HOST=127.0.0.1
 export SMTP_PORT=2525
 export SMTP_USER=smoke
 export SMTP_PASS=smoke
-export MAIL_FROM="Jev <smoke@example.com>"
+export MAIL_FROM="超好玩海龟汤 <smoke@example.com>"
 
 echo "== 启动 API（后台）=="
 pnpm --dir apps/api exec tsx src/main.ts &

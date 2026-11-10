@@ -19,7 +19,7 @@ function envValue(file, name) {
 
 // ---- 1. Resend 真实发信 ----
 const resendKey = envValue('.env', 'RESEND_API_KEY');
-const from = envValue('.env', 'MAIL_FROM') ?? 'Jev <noreply@xiaobaozi.cn>';
+const from = envValue('.env', 'MAIL_FROM') ?? '超好玩海龟汤 <noreply@xiaobaozi.cn>';
 if (!resendKey) throw new Error('.env 缺少 RESEND_API_KEY');
 const apiRequire = createRequire(new URL('../apps/api/package.json', import.meta.url));
 const { Resend } = apiRequire('resend');
@@ -29,9 +29,9 @@ const code = String(Math.floor(100000 + Math.random() * 900000));
 const sent = await resend.emails.send({
   from,
   to,
-  subject: 'Jev 登录验证码（通道验证）',
-  text: `你的 Jev 登录验证码是 ${code}，5 分钟内有效。`,
-  html: `<p>你的 Jev 登录验证码是：<b>${code}</b>（5 分钟内有效）</p>`,
+  subject: '超好玩海龟汤 登录验证码（通道验证）',
+  text: `你的 超好玩海龟汤 登录验证码是 ${code}，5 分钟内有效。`,
+  html: `<p>你的 超好玩海龟汤 登录验证码是：<b>${code}</b>（5 分钟内有效）</p>`,
 });
 if (sent.error) {
   console.error('Resend 发信失败：', sent.error);

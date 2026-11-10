@@ -10,6 +10,7 @@ import { InvitePage } from './rooms/invite-page.js';
 import { MePage } from './me/me-page.js';
 import { SettingsPage } from './settings/settings-page.js';
 import { LoginPage } from './auth/login-page.js';
+import { DevicePage } from './auth/device-page.js';
 import { ForgotPasswordPage } from './auth/forgot-password-page.js';
 import { ResetPasswordPage } from './auth/reset-password-page.js';
 import { useJevSession } from './api/auth-client.js';
@@ -54,6 +55,7 @@ export function App() {
       <Route path="/creations/:puzzleId" element={<RequireSession session={session}><CreationEditorPage session={session} /></RequireSession>} />
       <Route path="/creations/:puzzleId/preview" element={<RequireSession session={session}><CreationPreviewPage session={session} /></RequireSession>} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/device" element={<RequireSession session={session}>{session && <DevicePage session={session} />}</RequireSession>} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/app" element={<AppDownloadPage />} />

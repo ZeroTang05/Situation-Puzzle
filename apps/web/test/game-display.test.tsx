@@ -44,9 +44,11 @@ describe('模型置信度', () => {
 });
 
 describe('提示胶囊', () => {
-  it('空提示不出现，已解锁提示默认展示最新一条', () => {
-    expect(renderToStaticMarkup(<HintCapsule hints={[]} />)).toBe('');
-    const markup = renderToStaticMarkup(<HintCapsule hints={['第一条', '第二条']} />);
+  it('空提示与收起状态不出现，展开时展示指定提示', () => {
+    const onIndex = () => {};
+    expect(renderToStaticMarkup(<HintCapsule hints={[]} open index={0} onIndex={onIndex} />)).toBe('');
+    expect(renderToStaticMarkup(<HintCapsule hints={['第一条']} open={false} index={0} onIndex={onIndex} />)).toBe('');
+    const markup = renderToStaticMarkup(<HintCapsule hints={['第一条', '第二条']} open index={1} onIndex={onIndex} />);
     expect(markup).toContain('第二条');
     expect(markup).not.toContain('第一条');
     expect(markup).toContain('2/3');

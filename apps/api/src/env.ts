@@ -72,6 +72,9 @@ const envSchema = z.object({
   /** 小程序登录凭据（mp.weixin.qq.com 开发管理 → 开发设置）；两项配齐才注册微信登录插件 */
   WECHAT_MINI_APPID: z.string().optional(),
   WECHAT_MINI_SECRET: z.string().optional(),
+  /** TapTap 小游戏登录：MiniApp ID 与服务端密钥必须同时配置。 */
+  TAPTAP_MINI_APPID: z.string().regex(/^tap[a-z0-9]+$/).optional(),
+  TAPTAP_MINI_SECRET: z.string().min(1).optional(),
 
   // 支付宝开放平台（当面付扫码 / 电脑网站支付跳转）
   ALIPAY_APP_ID: z.string().optional(),
@@ -139,6 +142,9 @@ export function loadEnv(): Env {
     throw new Error(`环境配置校验失败 → ${issues}`);
   }
   const env = parsed.data;
+  if (Boolean(env.TAPTAP_MINI_APPID) !== Boolean(env.TAPTAP_MINI_SECRET)) {
+    throw new Error('环境配置校验失败 → TAPTAP_MINI_APPID / TAPTAP_MINI_SECRET 必须同时配置');
+  }
   // 邮件通道跨字段校验：所选通道的必需配置缺失就立即失败
   if (env.MAIL_TRANSPORT === 'resend' && !env.RESEND_API_KEY) {
     throw new Error('环境配置校验失败 → MAIL_TRANSPORT=resend 需要配置 RESEND_API_KEY');

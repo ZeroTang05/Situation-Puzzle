@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="apps/web/public/icon.svg" width="112" alt="AI 海龟汤" />
+  <img src="apps/web/public/icon.svg" width="112" alt="超好玩海龟汤" />
 
-# AI 海龟汤
+# 超好玩海龟汤
 
 「我是 Jev，这碗汤的主持人。大胆提问，我只回答『是、否、无关』。」
 

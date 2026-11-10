@@ -1,4 +1,4 @@
-# AI 海龟汤 — 项目导览
+# 超好玩海龟汤 — 项目导览
 
 移动优先的多人海龟汤（情境猜谜）网页：玩家提问，AI「Jev」回答 是/否/无关/无法确定。
 房间新规则见 `docs/rebuild/10-ROOM-LIFECYCLE-REVISION.md`（v3）：会客厅（lobby）与房间（room）生命周期彻底解耦。每个用户固定一个会客厅 id（`user_lobbies.host_user_id UNIQUE` 物理保证 1:1，永久不变），房主可以同时拥有任意多个 active 房间；同一用户也可以同时是别的 lobby 的成员；踢人 = DELETE 座位行不留 kicked 软标记；邀请 URL 路径区分 `/lobby/invite/<hex>` 与 `/room/invite/<hex>`，后端两条独立 endpoint 无 fallback；先选题后开局，start 单事务建房+迁成员+建局+撤销旧邀请；start 事务提交后通过实时网关向新房当前成员中会话有效的 lobby 订阅者推送 `lobby.started` 帧（携带 roomId+inviteToken），客户端收到后立即 navigate 到房间，避免客人因轮询延迟被误报"等待室已解散"；一房一题（局结束即归档）；单人无业务限流。
@@ -20,12 +20,15 @@
 
 ## 目录结构
 
+TapTap 小游戏当前开发范围与里程碑见 `docs/rebuild/22-TAPTAP.md`（小游戏路线，仅使用平台 Canvas/键盘/网络/存储能力）。
+
 ```
 apps/web        玩家端（React 19 + Vite）：首页、题库、单人、会客厅、房间、邀请、创作、我的、设置、登录、找回密码、好友、私聊、通知中心
 apps/admin      管理端（React-admin）：题库审核、用户、房间调查、举报、订单、赞助码（发码/对账/作废）、项目备份（备份/还原/下载）、站内信群发、总览；所有列表表头可点排序（后端列名白名单，见 admin-sort-columns.ts）
+apps/taptap     TapTap 原生小游戏（React Canvas）：题库、单人、账号、会客厅、多人、主持、好友、私聊、通知、设置与创作已接代码；原生登录使用 TAPTAP_MINI_APPID/SECRET 与 Better Auth Bearer，官网账号复用 deviceAuthorization 设备授权（需 0018 迁移与 web /device 确认页），密钥仅在服务器；单人请求状态独立于页面，失败 / 中断保留输入；好友邀请场景接登录后自动确认；创作本地暂存含编辑基线，新作品可直接保存并试题；真实业务 186 项、真实任务初审 / 发布 / 修订 16 项、AI / 单人状态 18 项、邮件认证 14 项及官网授权浏览器流程通过，仍待真机与完整功能验收，详见 docs/rebuild/22-TAPTAP.md
 apps/api        NestJS 服务：认证 auth、题库 catalog、单人 solo、房间与会客厅 rooms、实时网关 realtime、赞助订单 billing、创作 creations、治理 governance、后台 admin、备份 backup、社交 social（好友/私聊/通知/站内信）
 apps/jobs       pg-boss 任务进程：dispatch-room / process-turn / review-puzzle / maintenance
-apps/app        Android 壳工程（Capacitor 8，包名 cn.xiaobaozi.sp，App 名「AI 海龟汤」（2026-10-24 更名，原「Jev 海龟汤」））：apps/web 构建产物打进 WebView；插件 @capacitor/app browser clipboard keyboard（OAuth 回流系统浏览器、深链事件、剪贴板邀请过渡、键盘避让）；OAuth 回流端点 `/api/v1/app-session/handoff|exchange`（60 秒随机单次 code + 本机 verifier 校验后换 Bearer 令牌）；M3 交付：签名密钥 `keystores/sp-upload.jks`（gitignored，`keystore.properties` 存在时 gradle 才启用 release 签名，备份要求见 keystores/README.md）、品牌图标与启动屏（scripts/app-icons.mjs + core-splashscreen）、App Links（manifest autoVerify + `apps/web/public/.well-known/assetlinks.json` 域名认领 + 壳内 https 邀请直达）、官网 `/app` 下载页与 `/privacy` 隐私政策；计划与认证适配方案见 docs/rebuild/13-APP-VERSION.md
+apps/app        Android 壳工程（Capacitor 8，包名 cn.xiaobaozi.sp，App 名「超好玩海龟汤」）：apps/web 构建产物打进 WebView；插件 @capacitor/app browser clipboard keyboard（OAuth 回流系统浏览器、深链事件、剪贴板邀请过渡、键盘避让）；OAuth 回流端点 `/api/v1/app-session/handoff|exchange`（60 秒随机单次 code + 本机 verifier 校验后换 Bearer 令牌）；M3 交付：签名密钥 `keystores/sp-upload.jks`（gitignored，`keystore.properties` 存在时 gradle 才启用 release 签名，备份要求见 keystores/README.md）、品牌图标与启动屏（scripts/app-icons.mjs + core-splashscreen）、App Links（manifest autoVerify + `apps/web/public/.well-known/assetlinks.json` 域名认领 + 壳内 https 邀请直达）、官网 `/app` 下载页与 `/privacy` 隐私政策；计划与认证适配方案见 docs/rebuild/13-APP-VERSION.md
 apps/miniprogram 微信小程序端（Taro 4.3 + React 18，只编译 weapp，docs/rebuild/20-MINIPROGRAM.md）：功能一比一复刻、界面层按小程序运行时重写；**登录只走微信一键登录**（wx.login code → `POST /auth/wechat-mini/login` code2session 建号/建会话，令牌在响应体；邮箱登录/找回密码已移除，`WECHAT_MINI_APPID/SECRET` 配齐才注册端点，微信账号与 web 邮箱账号相互独立）；复用 @jev/contracts + @jev/i18n 与 App 版 Bearer 令牌链路（api/client.ts + Taro storage），设计变量与基础控件类从 @jev/ui theme.css 平移进 src/app.css；designWidth 375 使 px 值与 web 一致；主体=个体工商户+商户号，AI 类目按深度合成申报（以 MiniMax 名义）；提审内容风险与预案见 20 号文档 §1/§7
 packages/contracts   跨端 Zod 契约：HTTP 请求响应、WS 事件、稳定错误码（客户端只准引用这里）
 packages/domain      纯业务规则：房间状态机、排队容量、赞助自然月算法、授权来源判定、好友申请与私聊权限（配单测）
@@ -59,6 +62,7 @@ pnpm e2e:local <剧本>    # 跨平台编排（不依赖 bash/docker）：multip
 pnpm build:app          # 网页产物打进 Android 壳（--mode app：接口指向生产域名）；出 APK 在 apps/app/android 跑 gradlew assembleDebug 或用 Android Studio 打开
 pnpm dev:mp             # 小程序开发构建（watch）；微信开发者工具导入 apps/miniprogram 目录预览
 pnpm build:mp           # 小程序生产构建（weapp）
+pnpm build:taptap       # TapTap 原生小游戏构建（apps/taptap/dist）
 ```
 
 部署（服务器上）：`cp .env.example .env && docker compose up -d --build`；

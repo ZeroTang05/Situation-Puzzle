@@ -8,6 +8,7 @@
  */
 import { Resend } from 'resend';
 import nodemailer, { type Transporter } from 'nodemailer';
+import { BRAND_NAME } from '@jev/i18n';
 
 /** rejected 表示服务明确未接受邮件；unknown 表示可能已经接受，额度应保留。 */
 export class MailDeliveryError extends Error {
@@ -24,8 +25,8 @@ export function smtpDeliveryOutcome(error: unknown): 'rejected' | 'unknown' {
 }
 
 /** 品牌名：邮件里的发件方称呼（AI 主持人角色仍叫 Jev） */
-const BRAND_ZH = 'AI 海龟汤';
-const BRAND_EN = 'AI Situation Puzzles';
+const BRAND_ZH = BRAND_NAME;
+const BRAND_EN = BRAND_NAME;
 
 export interface Mailer {
   sendVerificationCode(to: string, code: string, language: 'zh' | 'en'): Promise<void>;

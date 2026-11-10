@@ -113,7 +113,7 @@ async function main() {
     SMTP_PORT: '2526',
     SMTP_USER: 'dev',
     SMTP_PASS: 'dev',
-    MAIL_FROM: 'Jev <dev@localhost>',
+    MAIL_FROM: '超好玩海龟汤 <dev@localhost>',
     SINK_OUT: path.join(root, 'mailsink.json'),
     OPENCODE_API_KEY: localEnv('OPENCODE_API_KEY'),
     MINIMAX_API_KEY: localEnv('MINIMAX_API_KEY'),

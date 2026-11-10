@@ -5,6 +5,7 @@
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { isBuiltin } from 'node:module';
 
 const roots = ['apps', 'packages'];
 
@@ -41,6 +42,7 @@ for (const root of roots) {
       const src = readFileSync(file, 'utf8');
       for (const m of src.matchAll(/from\s+['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)/g)) {
         const spec = m[1] ?? m[2];
+        if (spec && isBuiltin(spec)) continue;
         if (!spec || !spec.startsWith('.')) {
           const name = spec.startsWith('@') ? spec.split('/').slice(0, 2).join('/') : spec.split('/')[0];
           // bun/node 内置与 workspace 包不算

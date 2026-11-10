@@ -17,7 +17,7 @@ export SMTP_USER=dev
 export SMTP_PASS=dev
 # 本地联调用 SMTP 收信台；生产用 Resend（默认）
 export MAIL_TRANSPORT=smtp
-export MAIL_FROM="Jev <dev@localhost>"
+export MAIL_FROM="超好玩海龟汤 <dev@localhost>"
 export OPENCODE_API_KEY=$(grep '^OPENCODE_API_KEY=' .env.local | cut -d= -f2- | tr -d '"' | tr -d '\r')
 export MINIMAX_API_KEY=$(node --env-file=.env.local -p "process.env.MINIMAX_API_KEY || ''")
 export MINIMAX_BASE_URL=$(node --env-file=.env.local -p "process.env.MINIMAX_BASE_URL || 'https://api.minimax.cn/anthropic'")

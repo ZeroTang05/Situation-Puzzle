@@ -4,7 +4,7 @@
  * Cookie，见 docs/rebuild/13-APP-VERSION.md §4）；网页无令牌时这些步骤全是空操作。
  */
 import { createAuthClient } from 'better-auth/react';
-import { emailOTPClient } from 'better-auth/client/plugins';
+import { deviceAuthorizationClient, emailOTPClient } from 'better-auth/client/plugins';
 import { apiBase, authorizationHeader, captureBearerToken, clearBearerToken, languageHeader } from '../app-runtime.js';
 import type { Session } from '../session.js';
 
@@ -24,7 +24,7 @@ export const authClient = createAuthClient({
   // App 壳：请求发往生产接口；网页：不设 baseURL，走相对路径
   ...(apiBase ? { baseURL: apiBase } : {}),
   fetchOptions: { customFetchImpl: jevFetch },
-  plugins: [emailOTPClient()],
+  plugins: [emailOTPClient(), deviceAuthorizationClient()],
 });
 
 export const { signIn, useSession } = authClient;

@@ -127,6 +127,13 @@
       "when": 1808000000000,
       "tag": "0017_creation_bonus",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1809000000000,
+      "tag": "0018_device_authorization",
+      "breakpoints": true
     }
   ]
 }

@@ -1,3 +1,3 @@
 export default definePageConfig({
-  navigationBarTitleText: 'AI 海龟汤'
+  navigationBarTitleText: '超好玩海龟汤'
 })

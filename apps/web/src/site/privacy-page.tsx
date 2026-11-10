@@ -8,7 +8,7 @@ import { useLanguage } from '../state/language.js';
 
 const zh = {
   title: '隐私政策',
-  updated: '更新日期：2026 年 10 月 24 日',
+  updated: '更新日期：2026 年 11 月 9 日',
   sections: [
     {
       heading: '我们收集哪些信息',
@@ -22,14 +22,14 @@ const zh = {
     {
       heading: '单人模式',
       items: [
-        '单人模式无需登录，整局对话只保存在你的浏览器本地（LocalStorage），不会上传到服务器。清除浏览器数据即彻底删除。',
+        '单人模式无需登录，对话记录保存在你的设备本地。判题时，题目、你的问题或还原内容及必要的最近问答会发送给服务器和 AI 判题服务处理，单人对话不写入服务端业务数据库。清除对应的本地数据可删除记录。',
       ],
     },
     {
       heading: '第三方服务',
       items: [
         '支付通道：微信支付 / 支付宝 / 赞助码。付款流程由通道处理，我们只接收其返回的支付结果。',
-        'AI 判题服务：多人模式下，题目与问答内容会发送给 AI 服务生成判定。',
+        'AI 判题服务：单人和多人模式下，判题所需的题目、问题、还原内容与必要的最近问答会发送给 AI 服务生成判定。',
         '邮件服务：通过第三方邮件服务发送验证码与事务邮件。',
       ],
     },
@@ -54,7 +54,7 @@ const zh = {
 
 const en = {
   title: 'Privacy Policy',
-  updated: 'Last updated: October 24, 2026',
+  updated: 'Last updated: November 9, 2026',
   sections: [
     {
       heading: 'Information we collect',
@@ -68,14 +68,14 @@ const en = {
     {
       heading: 'Solo mode',
       items: [
-        'Solo mode needs no sign-in. The whole conversation stays in your browser\u2019s local storage and is never uploaded. Clearing browser data deletes it for good.',
+        'Solo mode needs no sign-in. Conversation records are stored on your device. Judging sends the puzzle, your question or solution, and relevant recent Q&A to our server and AI service for processing. Solo conversations are not written to server-side business tables. Clearing the corresponding local data deletes your records.',
       ],
     },
     {
       heading: 'Third-party services',
       items: [
         'Payments: WeChat Pay / Alipay / redeem codes. The payment flow runs on the channel; we only receive the payment result.',
-        'AI judging: in multiplayer, the puzzle and Q&A are sent to an AI service to produce verdicts.',
+        'AI judging: in solo and multiplayer modes, the puzzle, question or solution, and relevant recent Q&A are sent to an AI service to produce verdicts.',
         'Email: a third-party email service delivers verification codes and transactional mail.',
       ],
     },

@@ -6,6 +6,9 @@ import type { ErrorCode } from '@jev/contracts';
 
 export type Language = 'zh' | 'en';
 
+/** 游戏正式品牌名：中英文界面与事务邮件使用同一个名称。 */
+export const BRAND_NAME = '超好玩海龟汤';
+
 /** 判定枚举 → 文案 */
 const verdictCopy = {
   zh: {
@@ -105,6 +108,11 @@ const authErrorCopy: Record<string, Record<Language, string>> = {
   INVALID_EMAIL: { zh: '邮箱格式不正确。', en: 'That email address is not valid.' },
   EMAIL_CAN_NOT_BE_UPDATED: { zh: '邮箱不支持直接修改。', en: 'The email address cannot be changed.' },
   INVALID_PASSWORD: { zh: '密码不符合要求，至少 8 位。', en: 'Password does not meet the requirements (8 characters minimum).' },
+  INVALID_PASSWORD_LENGTH: { zh: '密码不符合要求，至少 8 位。', en: 'Password does not meet the requirements (8 characters minimum).' },
+  DISPOSABLE_EMAIL: { zh: '不支持一次性邮箱地址，请使用常用邮箱。', en: 'Disposable email addresses are not supported. Use your regular email.' },
+  SIGNUP_OTP_REQUIRED: { zh: '注册验证码无效或已过期，请重新验证邮箱。', en: 'The sign-up code is invalid or expired. Verify your email again.' },
+  OTP_SEND_FAILED: { zh: '验证码发送失败，请稍后重试。', en: 'The code could not be sent. Please try again later.' },
+  OTP_SEND_RATE_LIMITED: { zh: '验证码发送过于频繁，请按倒计时重试。', en: 'Too many code requests. Wait for the countdown before retrying.' },
   PASSWORD_TOO_SHORT: { zh: '密码不符合要求，至少 8 位。', en: 'Password does not meet the requirements (8 characters minimum).' },
   USER_ALREADY_EXISTS: { zh: '该邮箱已注册，请直接登录。', en: 'That email is already registered. Please sign in.' },
   USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: { zh: '该邮箱已注册，请换一个邮箱或直接登录。', en: 'That email is already registered. Use another email or sign in.' },
@@ -122,6 +130,9 @@ const authErrorCopy: Record<string, Record<Language, string>> = {
   UNAUTHORIZED: { zh: '请先登录。', en: 'Please sign in first.' },
   WECHAT_LOGIN_FAILED: { zh: '微信登录失败，请重试。', en: 'WeChat sign-in failed. Please try again.' },
   WECHAT_LOGIN_BUSY: { zh: '微信登录繁忙，请稍后再试。', en: 'WeChat sign-in is busy. Please try again later.' },
+  TAPTAP_LOGIN_FAILED: { zh: 'TapTap 登录失败，请重新登录。', en: 'TapTap sign-in failed. Please sign in again.' },
+  TAPTAP_LOGIN_BUSY: { zh: 'TapTap 登录暂时不可用，请稍后重试。', en: 'TapTap sign-in is unavailable. Please try again later.' },
+  TAPTAP_ACCOUNT_LINKED: { zh: '该 TapTap 账号已关联其他账号。', en: 'This TapTap account is already linked to another account.' },
 };
 
 /**
@@ -147,7 +158,7 @@ export function confidenceLabel(value: number, language: Language): string {
 /** 界面固定文案 */
 export const copy = {
   zh: {
-    brand: 'AI 海龟汤',
+    brand: BRAND_NAME,
     tagline: '和朋友一起，一问一答接近真相',
     howToPlay: '互动指南',
     gotIt: '知道了',
@@ -357,7 +368,7 @@ export const copy = {
     invitedCount: '已邀请 {n} 人',
     betaBadge: '内测畅玩中',
     betaHint: '内测期间开房不限次数，感谢尝鲜。',
-    inviteShareTitle: '来和我一起推理：海龟汤谜题，越猜越上头',
+    inviteShareTitle: '超好玩海龟汤，来和我一起推理',
     inviteShareButton: '邀请好友',
     adWatchButton: '看广告 +2 次',
     adUnavailable: '广告通道开通中',
@@ -653,7 +664,7 @@ export const copy = {
     requestFailed: '请求失败，请稍后再试',
   },
   en: {
-    brand: 'AI Situation Puzzles',
+    brand: BRAND_NAME,
     tagline: 'One question at a time, together',
     howToPlay: 'How it works',
     gotIt: 'Got it',
@@ -862,7 +873,7 @@ export const copy = {
     invitedCount: '{n} invited',
     betaBadge: 'Open beta',
     betaHint: 'Rooms are unlimited during the open beta. Thanks for trying it out.',
-    inviteShareTitle: 'Come solve lateral-thinking puzzles with me',
+    inviteShareTitle: '超好玩海龟汤 — Come solve puzzles with me',
     inviteShareButton: 'Invite friends',
     adWatchButton: 'Watch an ad for +2',
     adUnavailable: 'Ads coming soon',
@@ -1169,4 +1180,19 @@ export function t(language: Language): Copy {
 /** 简单模板替换：'第 {n} 局'.replace('{n}', '3') */
 export function format(template: string, params: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => String(params[key] ?? `{${key}}`));
+}
+
+/** 设备授权的协议状态转成玩家提示，不向界面透传服务端英文描述。 */
+export function displayDeviceAuthError(code: string, language: Language): string {
+  const messages: Record<string, [string, string]> = {
+    authorization_pending: ['等待你在网页确认登录。', 'Waiting for your approval on the website.'],
+    slow_down: ['请稍等，正在等待授权结果。', 'Please wait while we check your approval.'],
+    expired_token: ['确认码已过期，请重新发起登录。', 'This code has expired. Start sign-in again.'],
+    access_denied: ['已拒绝此次登录。', 'This sign-in was denied.'],
+    invalid_grant: ['此次登录已失效，请重新发起。', 'This sign-in is no longer valid. Start again.'],
+    invalid_request: ['确认码无效或已处理，请重新发起登录。', 'This code is invalid or already processed. Start again.'],
+    invalid_client: ['小游戏登录配置有误，请联系支持。', 'Game sign-in is misconfigured. Contact support.'],
+    unauthorized: ['请先登录官网账号。', 'Sign in to your website account first.'],
+  };
+  return messages[code]?.[language === 'zh' ? 0 : 1] ?? (language === 'zh' ? '授权失败，请重试。' : 'Authorization failed. Please try again.');
 }

@@ -7,7 +7,7 @@
 
 | 文件 | 用途 | 别名（alias） |
 | --- | --- | --- |
-| `sp-upload.jks` | 「Jev 海龟汤」签名密钥（官网 APK 分发 + 上传 Google Play 的 upload key） | `sp-upload` |
+| `sp-upload.jks` | 「超好玩海龟汤」签名密钥（官网 APK 分发 + 上传 Google Play 的 upload key） | `sp-upload` |
 
 配套的 `../keystore.properties`（与本目录同级）存放口令：
 

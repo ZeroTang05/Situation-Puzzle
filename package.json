@@ -15,6 +15,7 @@
     "build:app": "pnpm --dir apps/web build --mode app && pnpm --dir apps/app sync",
     "dev:mp": "pnpm --dir apps/miniprogram dev:weapp",
     "build:mp": "pnpm --dir apps/miniprogram build:weapp",
+    "build:taptap": "pnpm --dir apps/taptap build",
     "db:migrate": "pnpm --dir packages/database db:migrate",
     "db:seed": "pnpm --dir packages/database db:import-library",
     "smoke": "bash scripts/smoke-new-system.sh",

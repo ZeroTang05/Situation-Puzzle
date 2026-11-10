@@ -17,6 +17,7 @@ const DISPOSABLE_EMAIL_DOMAINS = new Set([
   'example.org',
   'example.net',
   'linuxdo.invalid',
+  'taptap.invalid',
   'mailinator.com',
   'tempmail.com',
   'temp-mail.org',

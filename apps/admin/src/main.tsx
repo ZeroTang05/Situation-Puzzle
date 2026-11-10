@@ -1,6 +1,6 @@
 import { DialogProvider } from '@jev/ui';
 import '@jev/ui/dialog.css';
-import { t } from '@jev/i18n';
+import { BRAND_NAME, t } from '@jev/i18n';
 import { StrictMode, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Admin, Resource, Layout, AppBar, TitlePortal } from 'react-admin';
@@ -34,6 +34,7 @@ function AdminShell() {
   const c = copy(language);
   return (
     <Admin
+      title={`${BRAND_NAME}管理后台`}
       authProvider={authProvider}
       dataProvider={dataProvider}
       // 用我们自己的 Redirect 替掉 React-Admin 自带的 Username/Password 表单，

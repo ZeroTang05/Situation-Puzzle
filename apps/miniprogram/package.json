@@ -2,7 +2,7 @@
   "name": "@jev/miniprogram",
   "version": "0.1.0",
   "private": true,
-  "description": "AI 海龟汤微信小程序端（Taro，docs/rebuild/20-MINIPROGRAM.md）",
+  "description": "超好玩海龟汤微信小程序端（Taro，docs/rebuild/20-MINIPROGRAM.md）",
   "scripts": {
     "dev:weapp": "taro build --type weapp --watch",
     "build:weapp": "taro build --type weapp"

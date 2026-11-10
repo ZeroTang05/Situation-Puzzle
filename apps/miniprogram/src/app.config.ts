@@ -31,7 +31,7 @@ export default defineAppConfig({
   ],
   window: {
     navigationBarBackgroundColor: '#0a1522',
-    navigationBarTitleText: 'AI 海龟汤',
+    navigationBarTitleText: '超好玩海龟汤',
     navigationBarTextStyle: 'white',
     backgroundColor: '#010b18',
     backgroundTextStyle: 'dark'

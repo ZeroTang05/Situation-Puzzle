@@ -1,7 +1,7 @@
 {
   "miniprogramRoot": "dist/",
   "projectname": "miniprogram",
-  "description": "AI 海龟汤",
+  "description": "超好玩海龟汤",
   "appid": "wxabbe2bc5612ecd77",
   "compileType": "miniprogram",
   "libVersion": "3.8.10",

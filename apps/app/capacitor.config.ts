@@ -11,7 +11,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
  */
 const config: CapacitorConfig = {
   appId: 'cn.xiaobaozi.sp',
-  appName: 'AI 海龟汤',
+  appName: '超好玩海龟汤',
   webDir: '../web/dist',
   plugins: {
     SystemBars: {

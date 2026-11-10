@@ -2,7 +2,7 @@
   "name": "@jev/app",
   "version": "0.1.0",
   "private": true,
-  "description": "Jev 海龟汤 Android 壳（Capacitor），承载 apps/web 构建产物",
+  "description": "超好玩海龟汤 Android 壳（Capacitor），承载 apps/web 构建产物",
   "scripts": {
     "sync": "cap sync android",
     "open": "cap open android"

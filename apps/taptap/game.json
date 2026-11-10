@@ -1,0 +1,8 @@
+{
+  "appId": "tapmcmnlmv6v8lx5mb",
+  "productName": "超好玩海龟汤",
+  "deviceOrientation": "portrait",
+  "networkTimeout": {
+    "request": 60000
+  }
+}

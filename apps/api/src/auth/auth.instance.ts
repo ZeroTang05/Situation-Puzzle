@@ -12,7 +12,7 @@
 import { betterAuth } from 'better-auth';
 import { APIError, createAuthMiddleware, isAPIError } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { bearer, emailOTP, genericOAuth } from 'better-auth/plugins';
+import { bearer, deviceAuthorization, emailOTP, genericOAuth } from 'better-auth/plugins';
 import { randomInt } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import {
@@ -20,6 +20,7 @@ import {
   session as sessionTable,
   account as accountTable,
   verification as verificationTable,
+  deviceCode as deviceCodeTable,
   profiles,
   freeRoomAccounts,
   sponsorAccounts,
@@ -35,7 +36,9 @@ import { OtpSendQuota, otpLimitMessage } from './otp-send-quota.js';
 import { otpRequestContext } from './otp-request-context.js';
 import { consumeSignupOtp, isDisposableEmail } from './signup-otp-gate.js';
 import { wechatMiniPlugin } from './wechat-mini.js';
+import { taptapMiniPlugin } from './taptap-mini.js';
 import { z } from 'zod';
+import { BRAND_NAME } from '@jev/i18n';
 
 export interface AuthDeps {
   env: Env;
@@ -71,7 +74,7 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
   const MIN_PASSWORD_LENGTH = 8;
 
   return betterAuth({
-    appName: 'Jev',
+    appName: BRAND_NAME,
     baseURL,
     // App 壳（https://localhost）等额外来源经 APP_EXTRA_ORIGINS 放行
     trustedOrigins: allowedOrigins(env),
@@ -83,6 +86,7 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
         session: sessionTable,
         account: accountTable,
         verification: verificationTable,
+        deviceCode: deviceCodeTable,
       },
     }),
     emailAndPassword: {
@@ -109,6 +113,12 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
     plugins: [
       // App 壳令牌登录：Authorization: Bearer 换算会话 Cookie；登录/刷新响应经 set-auth-token 头下发令牌
       bearer(),
+      // 网页确认后才让小游戏获得本站会话；Google / LINUX DO 继续使用已有网页登录。
+      ...(env.TAPTAP_MINI_APPID && env.TAPTAP_MINI_SECRET ? [deviceAuthorization({
+        verificationUri: new URL('/device', env.PUBLIC_BASE_URL).toString(),
+        expiresIn: '10m', interval: '5s',
+        validateClient: (clientId: string) => clientId === env.TAPTAP_MINI_APPID,
+      })] : []),
       emailOTP({
         // 验证码 5 分钟有效、6 位；发送额度在前置钩子里由 PostgreSQL 管理。
         otpLength: 6,
@@ -170,6 +180,9 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
       ...(env.WECHAT_MINI_APPID && env.WECHAT_MINI_SECRET
         ? [wechatMiniPlugin({ appid: env.WECHAT_MINI_APPID, secret: env.WECHAT_MINI_SECRET })]
         : []),
+      ...(env.TAPTAP_MINI_APPID && env.TAPTAP_MINI_SECRET
+        ? [taptapMiniPlugin({ appid: env.TAPTAP_MINI_APPID, secret: env.TAPTAP_MINI_SECRET })]
+        : []),
     ],
     session: {
       expiresIn: 60 * 60 * 24 * 30,
@@ -180,10 +193,18 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
       useSecureCookies: env.NODE_ENV === 'production',
       ipAddress: { ipAddressHeaders: ['x-jev-client-ip'] },
     },
-    rateLimit: { enabled: true, window: 60, max: 20, customRules: Object.fromEntries([...otpSendPaths].map((path) => [path, false])) },
+    rateLimit: { enabled: true, window: 60, max: 20, customRules: {
+      ...Object.fromEntries([...otpSendPaths].map((path) => [path, false])),
+      // 一间八人房可共用 Wi-Fi；每端每五秒一次的授权轮询单独计数。
+      '/device/token': { window: 60, max: 120 },
+    } },
     hooks: {
       /** 注册闸门 + 验证码发送预占：登录和注册按相同邮箱/IP 共用额度。 */
       before: createAuthMiddleware(async (ctx) => {
+        // 第一方小游戏只申请登录；账号归属由登录后的确认页认领。
+        if (ctx.path === '/device/code' && !z.object({ client_id: z.string() }).strict().safeParse(ctx.body).success) {
+          throw new APIError('BAD_REQUEST', { error: 'invalid_request', error_description: 'Only client_id is accepted' });
+        }
         // 注册闸门：密码注册必须当场消费一条有效验证码，堵住「绕开页面直接建号」的口子
         if (ctx.path === '/sign-up/email') {
           const parsed = z.email().safeParse(typeof ctx.body?.email === 'string' ? ctx.body.email.trim().toLowerCase() : undefined);

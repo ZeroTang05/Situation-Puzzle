@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="apps/web/public/icon.svg" width="112" alt="AI Turtle Soup" />
+  <img src="apps/web/public/icon.svg" width="112" alt="超好玩海龟汤" />
 
-# AI Turtle Soup
+# 超好玩海龟汤
 
 "I'm Jev, the host of this soup. Ask boldly — I only answer Yes, No, or Irrelevant."
 

@@ -3,9 +3,12 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { BrandHeading } from '../src/brand-heading.js';
+import { BRAND_NAME, t } from '@jev/i18n';
 
 describe('统一品牌标识', () => {
-  it.each(['Jev 海龟汤', 'Jev Turtle Soup'])('品牌标题保留 %s，图标不重复朗读', (title) => {
+  it.each(['zh', 'en'] as const)('%s 界面保留统一品牌，图标不重复朗读', (language) => {
+    const title = t(language).brand;
+    expect(title).toBe(BRAND_NAME);
     const html = renderToStaticMarkup(<BrandHeading>{title}</BrandHeading>);
     expect(html).toContain(`<span>${title}</span>`);
     expect(html).toContain('src="/icon.svg"');
