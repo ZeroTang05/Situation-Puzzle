@@ -8,30 +8,42 @@ import { api, authRequest, login, platformCode, signOut, storeToken, ApiError } 
 import { clearRoomLocal } from '../rooms/room-local.js';
 import { confirm, copyText, setLanguage, useLanguage } from '../runtime.js';
 import { useEndpoint, useNavigation, useSession, useTask, Status, TaskStatus, type Route } from '../state.js';
-import { Button, Card, Choice, Input, Text, View } from '../ui/components.js';
+import { Badge, Button, Card, Choice, Input, SectionTitle, Text, View } from '../ui/components.js';
 import { DeviceLogin } from '../device-login.js';
 import { otpSendResponseSchema } from '../auth-protocol.js';
 import { canShare, shareReferral } from '../share.js';
+import { watchRewardedAd, type RewardedAdResult } from '../ads.js';
 
 interface History { hasMore: boolean; rooms: Array<{ roomId: string; roomStatus: string; createdAt: string; rounds: Array<{ roundId: string; title: string | null; status: string }> }> }
 
 export function Me() {
-  const { t } = useLanguage(); const { go } = useNavigation(); const task = useTask();
+  const { t } = useLanguage(); const { go } = useNavigation(); const task = useTask(); const [adBusy, setAdBusy] = useState(false); const [adMessage, setAdMessage] = useState('');
   const me = useEndpoint<z.infer<typeof meResponseSchema>>('/me'); const [page, setPage] = useState(1);
   const history = useEndpoint<History>(`/me/history?page=${page}&limit=5`);
-  return <View><Status query={me} />{me.data && <Card><Text size={24}>{me.data.nickname}</Text><Text muted>{me.data.email}</Text>
-    <Text>{me.data.betaOpen ? t('内测畅玩', 'Unlimited beta play') : `${t('可用开房次数', 'Available rooms')}：${me.data.freeRooms.total - me.data.freeRooms.consumed - me.data.freeRooms.reserved}`}</Text>
-    <Text>{me.data.sponsorship.lifetime ? t('永久赞助', 'Lifetime supporter') : me.data.sponsorship.monthlyUntil ? `${t('赞助到期', 'Supporter until')}：${me.data.sponsorship.monthlyUntil.slice(0, 10)}` : t('免费账号', 'Free account')}</Text>
+  const canWatchAd = Boolean(me.data && !me.data.betaOpen && !me.data.sponsorship.lifetime && (!me.data.sponsorship.monthlyUntil || new Date(me.data.sponsorship.monthlyUntil) <= new Date()));
+  const watchAd = async () => {
+    if (adBusy) return;
+    setAdBusy(true); setAdMessage('');
+    try {
+      const result: RewardedAdResult = await watchRewardedAd();
+      setAdMessage(result === 'granted' ? t('已增加 2 次开房额度。', '2 room credits added.') : result === 'already_claimed' ? t('这条广告已经领取过奖励。', 'This ad has already been claimed.') : result === 'daily_limit' ? t('今日广告奖励已达上限。', 'Today’s ad reward limit has been reached.') : result === 'skipped' ? t('看完广告才能获得奖励。', 'Watch the full ad to receive the reward.') : t('激励广告暂时不可用。', 'Rewarded ads are currently unavailable.'));
+      if (result === 'granted' || result === 'already_claimed') await me.refetch();
+    } finally { setAdBusy(false); }
+  };
+  return <View><Text size={24} style={{ fontWeight: 'bold' }}>{t('我的', 'Me')}</Text><Status query={me} />{me.data && <Card style={{ padding: 16, backgroundColor: '#102b3b' }}><Text size={22} style={{ fontWeight: 'bold' }}>{me.data.nickname}</Text><Text muted size={13}>{me.data.email}</Text>
+    <View style={{ marginTop: 8, marginBottom: 8 }}><Badge tone={me.data.betaOpen || me.data.sponsorship.lifetime || Boolean(me.data.sponsorship.monthlyUntil) ? 'accent' : 'muted'}>{me.data.betaOpen ? t('内测畅玩', 'Unlimited beta play') : me.data.sponsorship.lifetime ? t('永久赞助', 'Lifetime supporter') : me.data.sponsorship.monthlyUntil ? `${t('赞助到期', 'Supporter until')}：${me.data.sponsorship.monthlyUntil.slice(0, 10)}` : t('免费账号', 'Free account')}</Badge></View>
+    <Text>{me.data.betaOpen ? t('内测期间可直接开房。', 'Rooms are unlimited during beta.') : `${t('可用开房次数', 'Available rooms')}：${me.data.freeRooms.total - me.data.freeRooms.consumed - me.data.freeRooms.reserved}`}</Text>
+    {canWatchAd && <View><Button disabled={adBusy || task.busy} onPress={() => { void watchAd(); }}>{adBusy ? t('广告加载中…', 'Loading ad…') : t('看广告 +2 次开房', 'Watch ad +2 rooms')}</Button>{adMessage && <Text muted size={13}>{adMessage}</Text>}</View>}
     <Button onPress={() => go({ page: 'settings' })}>{t('设置', 'Settings')}</Button>
-    <Text>{`${t('已邀请好友', 'Friends invited')}：${me.data.invite.invitedCount}`}</Text>
+    <Text muted size={13}>{`${t('已邀请好友', 'Friends invited')}：${me.data.invite.invitedCount}`}</Text>
     {canShare() && <Button disabled={task.busy} onPress={() => { void task.run(() => shareReferral(me.data!.invite.code)); }}>{t('邀请好友', 'Invite friends')}</Button>}
     <Button disabled={task.busy} onPress={() => { void task.run(() => copyText(`${__API_BASE__}/?ref=${me.data!.invite.code}`)); }}>{t('复制好友邀请链接', 'Copy referral link')}</Button>
     <Button disabled={task.busy} onPress={() => { void task.run(() => copyText(me.data!.email)); }}>{t('复制我的邮箱', 'Copy my email')}</Button>
   </Card>}
-    <TaskStatus task={task} /><Button onPress={() => go({ page: 'friends' })}>{t('好友', 'Friends')}</Button><Button onPress={() => go({ page: 'notifications' })}>{t('通知中心', 'Notifications')}</Button>
-    <Text size={21}>{t('多人历史', 'Multiplayer history')}</Text><Status query={history} />
-    {history.data?.rooms.map((room) => <Card key={room.roomId}><Text>{room.rounds.map((round) => round.title).filter(Boolean).join(' · ') || t('房间', 'Room')}</Text><Text muted>{new Date(room.createdAt).toLocaleString()}</Text>
-      <Button onPress={() => go({ page: 'room', id: room.roomId })}>{room.roomStatus === 'playing' ? t('返回房间', 'Return to room') : t('查看记录', 'View game')}</Button>
+    <TaskStatus task={task} /><SectionTitle>{t('常用入口', 'Shortcuts')}</SectionTitle><Button onPress={() => go({ page: 'creations' })}>{t('创作中心', 'Create')}</Button><Button onPress={() => go({ page: 'friends' })}>{t('好友', 'Friends')}</Button><Button onPress={() => go({ page: 'notifications' })}>{t('通知中心', 'Notifications')}</Button>
+    <SectionTitle>{t('多人历史', 'Multiplayer history')}</SectionTitle><Status query={history} />
+    {history.data?.rooms.map((room) => <Card key={room.roomId} style={{ padding: 14 }}><Text style={{ fontWeight: 'bold' }}>{room.rounds.map((round) => round.title).filter(Boolean).join(' · ') || t('房间', 'Room')}</Text><Text muted size={13}>{new Date(room.createdAt).toLocaleString()}</Text>
+      <Button style={{ minHeight: 38 }} onPress={() => go({ page: 'room', id: room.roomId })}>{room.roomStatus === 'playing' ? t('返回房间', 'Return to room') : t('查看记录', 'View game')}</Button>
     </Card>)}
     <Button disabled={page <= 1} onPress={() => setPage(page - 1)}>{t('上一页', 'Previous')}</Button><Button disabled={!history.data?.hasMore} onPress={() => setPage(page + 1)}>{t('下一页', 'Next')}</Button>
   </View>;
@@ -40,15 +52,20 @@ export function Me() {
 export function Settings() {
   const { language, t } = useLanguage(); const { go } = useNavigation(); const client = useQueryClient(); const session = useSession(); const task = useTask();
   const me = useEndpoint<z.infer<typeof meResponseSchema>>('/me'); const [nickname, setNickname] = useState(''); const [redeem, setRedeem] = useState(''); const [invitation, setInvitation] = useState('');
-  return <View><Status query={me} />
-    <Input label={t('昵称', 'Nickname')} value={nickname} placeholder={me.data?.nickname ?? ''} maxLength={30} onChange={setNickname} />
+  return <View><Text size={24} style={{ fontWeight: 'bold' }}>{t('设置', 'Settings')}</Text><Text muted size={14}>{t('账号、语言和隐私都在这里管理。', 'Manage your account, language and privacy here.')}</Text><Status query={me} />
+    <Card style={{ padding: 14 }}><SectionTitle>{t('账号信息', 'Account')}</SectionTitle><Input label={t('昵称', 'Nickname')} value={nickname} placeholder={me.data?.nickname ?? ''} maxLength={30} onChange={setNickname} />
     <Button disabled={task.busy || !nickname.trim()} onPress={() => { void task.run(async () => { await api('/me/nickname', { method: 'PATCH', body: { nickname: nickname.trim() } }); await session.refresh(); }); }}>{t('保存昵称', 'Save nickname')}</Button>
     <Choice value={language} options={[[ 'zh', '中文' ], [ 'en', 'English' ]]} onChange={setLanguage} />
+    </Card>
+    <Card style={{ padding: 14 }}><SectionTitle>{t('权益', 'Benefits')}</SectionTitle>
     <Input label={t('兑换码', 'Redeem code')} value={redeem} onChange={setRedeem} maxLength={64} />
     <Button disabled={task.busy || !redeem.trim()} onPress={() => { void task.run(async () => { await api('/orders/redeem', { body: { code: redeem.trim() } }); setRedeem(''); await me.refetch(); }); }}>{t('兑换', 'Redeem')}</Button>
     <Input label={t('好友邀请码', 'Referral code')} value={invitation} onChange={setInvitation} maxLength={8} />
     <Button disabled={task.busy || !invitation.trim()} onPress={() => { void task.run(async () => { await api('/invites/claim', { body: inviteClaimRequestSchema.parse({ code: invitation.trim().toUpperCase() }) }); setInvitation(''); }); }}>{t('确认邀请人', 'Confirm referral')}</Button>
+    </Card>
+    <Card style={{ padding: 14 }}><SectionTitle>{t('平台账号', 'Platform account')}</SectionTitle>
     <Button disabled={task.busy} onPress={() => { void task.run(async () => { await authRequest('/taptap-mini/link', { body: { code: await platformCode() } }, z.object({ success: z.boolean() })); }); }}>{t('关联当前 TapTap 账号', 'Link this TapTap account')}</Button>
+    </Card>
     <TaskStatus task={task} /><Button onPress={() => go({ page: 'privacy' })}>{t('隐私政策', 'Privacy policy')}</Button>
     <Button danger disabled={task.busy} onPress={() => { void task.run(async () => {
       if (!await confirm(t('退出登录', 'Sign out'), t('确定退出当前账号吗？', 'Sign out of this account?'))) return;

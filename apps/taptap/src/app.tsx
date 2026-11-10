@@ -62,19 +62,35 @@ function GameShell() {
   }, [referral.remember]);
   const publicPage = ['home', 'library', 'solo', 'login', 'privacy'].includes(route.page);
   const identity = 'id' in route ? route.id : route.page === 'invite' ? `${route.kind}:${route.token}` : JSON.stringify(route);
+  const active = (page: Route['page']) => route.page === page || (page === 'home' && route.page === 'home');
+  const navStyle = { flex: 1, minHeight: 42, marginBottom: 0, padding: 6, borderRadius: 8, fontSize: 13 } as const;
   return <View style={{ flex: 1 }}>
-    <View style={{ padding: 12 }}><Text size={20}>{BRAND_NAME}</Text><Row>
-      {route.page !== 'home' && <Button onPress={back}>{t('返回', 'Back')}</Button>}
-      {session && <Button onPress={() => go({ page: 'notifications' })}>{`${t('通知', 'Notifications')}${notifications.data?.unread ? ` (${notifications.data.unread})` : ''}`}</Button>}
-    </Row></View>
+    <View style={{ padding: 12, paddingTop: 8, borderBottomWidth: 1, borderColor: '#294254', backgroundColor: '#0e1e2d' }}>
+      <Row style={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'nowrap' }}>
+        <View style={{ width: 72 }}>
+          {route.page !== 'home' && <Button style={{ ...navStyle, flex: 0, width: 72 }} onPress={back}>{t('返回', 'Back')}</Button>}
+        </View>
+        <Text size={20} style={{ fontWeight: 'bold', textAlign: 'center', flex: 1 }}>{BRAND_NAME}</Text>
+        <View style={{ width: 92 }}>
+          {session && <Button style={{ ...navStyle, flex: 0, width: 92 }} onPress={() => go({ page: 'notifications' })}>{`${t('通知', 'Alerts')}${notifications.data?.unread ? ` ${notifications.data.unread}` : ''}`}</Button>}
+        </View>
+      </Row>
+    </View>
     <Scroll key={`${route.page}:${identity}`} scrollKey={scrollKey} autoBottom={route.page === 'solo' || route.page === 'preview' || route.page === 'room' || route.page === 'chat'}>
-      <View style={{ padding: 16 }}>
+      <View style={{ padding: 16, paddingTop: 12 }}>
         {referral.error && <Card><Text>{t('好友邀请确认失败', 'Referral could not be confirmed')}</Text><Text>{referral.error}</Text><Row><Button disabled={referral.busy} onPress={referral.retry}>{t('重试', 'Retry')}</Button><Button onPress={referral.dismiss}>{t('关闭', 'Dismiss')}</Button></Row></Card>}
         {!publicPage && loading ? <Text muted>{t('正在读取账号…', 'Loading account…')}</Text> : !publicPage && error ? <Card><Text>{error.message}</Text><Button onPress={() => { void refresh().catch((error) => console.error('[taptap:session]', error)); }}>{t('重试', 'Retry')}</Button></Card>
           : !publicPage && !session ? <Login next={route} /> : <Screen route={route} />}
       </View>
     </Scroll>
-    <View style={{ padding: 10 }}><Row><View style={{ flex: 1, marginRight: 8 }}><Button onPress={() => go({ page: 'home' }, true)}>{t('首页', 'Home')}</Button></View><View style={{ flex: 1 }}><Button onPress={() => go({ page: 'me' }, true)}>{t('我的', 'Me')}</Button></View></Row></View>
+    <View style={{ padding: 10, paddingBottom: 8, borderTopWidth: 1, borderColor: '#294254', backgroundColor: '#0e1e2d' }}>
+      <Row style={{ flexWrap: 'nowrap' }}>
+        <View style={{ flex: 1, marginRight: 5 }}><Button primary={active('home')} style={navStyle} onPress={() => go({ page: 'home' }, true)}>{t('首页', 'Home')}</Button></View>
+        <View style={{ flex: 1, marginRight: 5 }}><Button primary={active('library')} style={navStyle} onPress={() => go({ page: 'library' }, true)}>{t('题库', 'Library')}</Button></View>
+        <View style={{ flex: 1, marginRight: 5 }}><Button primary={active('hall') || active('open-lobby')} style={navStyle} onPress={() => go({ page: session ? 'hall' : 'login', ...(session ? {} : { next: { page: 'hall' } }) }, true)}>{t('大厅', 'Lobby')}</Button></View>
+        <View style={{ flex: 1 }}><Button primary={active('me')} style={navStyle} onPress={() => go({ page: 'me' }, true)}>{t('我的', 'Me')}</Button></View>
+      </Row>
+    </View>
   </View>;
 }
 

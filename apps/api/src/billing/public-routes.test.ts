@@ -41,6 +41,7 @@ describe('公开路由清单', () => {
 
   it('奖励入口默认需要登录会话', () => {
     expect(accessOf(BillingController.prototype.adIntent)).toBe('session');
+    expect(accessOf(BillingController.prototype.tapAdReward)).toBe('session');
     expect(accessOf(BillingController.prototype.inviteClaim)).toBe('session');
   });
 

@@ -77,6 +77,45 @@ export class RoomBonusService {
   }
 
   /**
+   * TapTap 原生激励视频回调：宿主只提供播放完成事件，没有微信式 SSV 参数，
+   * 因此使用一次性、五分钟有效的广告意图令牌做服务端幂等和日上限控制。
+   */
+  async claimTapAdReward(userId: string, token: string): Promise<{ result: 'granted' | 'already_claimed' | 'daily_limit'; rewardRooms: number }> {
+    const intentUserId = await this.verifyAdIntent(token);
+    if (intentUserId !== userId) throw new DomainError('FORBIDDEN', '广告意图不属于当前账号');
+    const idempotencyKey = `tapad:${createHash('sha256').update(token).digest('hex')}`;
+    const granted = await app().db.tx(async (tx) => {
+      await this.lockFreeAccount(tx, userId);
+      const todayCount = await this.todayBonusCount(tx, userId, 'ad_bonus');
+      if (todayCount >= DAILY_AD_BONUS_LIMIT) return 'daily_limit' as const;
+
+      const inserted = await tx
+        .insert(roomBonusLedger)
+        .values({
+          userId,
+          kind: 'ad_bonus',
+          amount: AD_REWARD_ROOMS,
+          detail: { provider: 'taptap', intentHash: idempotencyKey.slice('tapad:'.length) },
+          idempotencyKey,
+        })
+        .onConflictDoNothing({ target: roomBonusLedger.idempotencyKey })
+        .returning({ id: roomBonusLedger.id });
+      if (inserted.length === 0) return 'duplicate' as const;
+
+      await tx
+        .update(freeRoomAccounts)
+        .set({ total: sql`${freeRoomAccounts.total} + ${AD_REWARD_ROOMS}`, updatedAt: new Date() })
+        .where(eq(freeRoomAccounts.userId, userId));
+      return 'granted' as const;
+    });
+    return granted === 'granted'
+      ? { result: 'granted', rewardRooms: AD_REWARD_ROOMS }
+      : granted === 'duplicate'
+        ? { result: 'already_claimed', rewardRooms: 0 }
+        : { result: 'daily_limit', rewardRooms: 0 };
+  }
+
+  /**
    * 微信激励视频 SSV 回调（GET）。
    *
    * 应答约定：验签失败/缺参数/系统错误返回 errcode≠0（微信会重试，日志可追）；

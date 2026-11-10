@@ -6,7 +6,7 @@ import { friendListResponseSchema, friendRequestListResponseSchema, friendSearch
 import { api } from '../api.js';
 import { confirm, isForeground, useLanguage } from '../runtime.js';
 import { useEndpoint, useNavigation, useSession, useTask, Status, TaskStatus, type Route } from '../state.js';
-import { Button, Card, Input, Row, Text, View } from '../ui/components.js';
+import { Badge, Button, Card, Input, Row, SectionTitle, Text, View } from '../ui/components.js';
 
 /** 服务端通知路径只映射已支持的站内页面，邀请类型保持独立。 */
 export function routeFromPath(path: string): Route {
@@ -32,22 +32,22 @@ export function Friends() {
   const requests = useEndpoint<z.infer<typeof friendRequestListResponseSchema>>('/friends/requests', { interval: 10_000 });
   const [email, setEmail] = useState(''); const [message, setMessage] = useState(''); const [found, setFound] = useState<z.infer<typeof friendSearchResponseSchema> | null>(null);
   const refresh = async () => { await client.invalidateQueries({ queryKey: ['api'] }); };
-  return <View><Input label={t('好友邮箱', 'Friend’s email')} value={email} disabled={task.busy} maxLength={254} onChange={(value) => { setEmail(value); setFound(null); }} />
-    <Button disabled={task.busy || !email.trim()} onPress={() => { void task.run(async () => setFound(await api(`/friends/search?email=${encodeURIComponent(email.trim())}`, {}, friendSearchResponseSchema))); }}>{t('查找好友', 'Find friend')}</Button>
+  return <View><Text size={24} style={{ fontWeight: 'bold' }}>{t('好友', 'Friends')}</Text><Text muted size={14}>{t('按完整邮箱查找朋友，一起开一局。', 'Find friends by exact email and start a game together.')}</Text><Card style={{ padding: 14, backgroundColor: '#102b3b' }}><Input label={t('好友邮箱', 'Friend’s email')} value={email} disabled={task.busy} maxLength={254} onChange={(value) => { setEmail(value); setFound(null); }} />
+    <Button disabled={task.busy || !email.trim()} onPress={() => { void task.run(async () => setFound(await api(`/friends/search?email=${encodeURIComponent(email.trim())}`, {}, friendSearchResponseSchema))); }}>{t('查找好友', 'Find friend')}</Button></Card>
     {found && <Card><Text>{found.found ? found.nickname : t('没有找到该用户', 'User not found')}</Text>
       {found.relation === 'none' && found.found && <View><Input label={t('附言', 'Message')} value={message} disabled={task.busy} maxLength={200} onChange={setMessage} /><Button disabled={task.busy} onPress={() => { void task.run(async () => { await api('/friends/requests', { body: { email: email.trim(), message } }); setFound({ ...found, relation: 'pending_outgoing' }); await refresh(); }); }}>{t('发送好友申请', 'Send request')}</Button></View>}
       {found.relation === 'friends' && <Text muted>{t('你们已经是好友', 'You are already friends')}</Text>}
       {found.relation === 'pending_outgoing' && <Text muted>{t('等待对方同意', 'Awaiting approval')}</Text>}
       {found.relation === 'self' && <Text muted>{t('这是你的账号', 'This is your account')}</Text>}
     </Card>}
-    <TaskStatus task={task} /><Text size={21}>{t('好友申请', 'Friend requests')}</Text><Status query={requests} />
+    <TaskStatus task={task} /><SectionTitle>{t('好友申请', 'Friend requests')}</SectionTitle><Status query={requests} />
     {requests.data?.requests.filter((item) => item.status === 'pending').map((item) => <Card key={item.requestId}><Text>{item.nickname}</Text>{item.message && <Text muted>{item.message}</Text>}
       {item.direction === 'incoming' ? <Row>{[true, false].map((accept) => <Button key={String(accept)} disabled={task.busy} onPress={() => { void task.run(async () => { await api(`/friends/requests/${item.requestId}/review`, { body: { accept } }); await refresh(); }); }}>{accept ? t('同意', 'Accept') : t('拒绝', 'Decline')}</Button>)}</Row>
         : <Button disabled={task.busy} onPress={() => { void task.run(async () => { await api(`/friends/requests/${item.requestId}`, { method: 'DELETE' }); await refresh(); }); }}>{t('撤回申请', 'Cancel request')}</Button>}
     </Card>)}
-    <Text size={21}>{t('我的好友', 'My friends')}</Text><Status query={friends} />
+    <SectionTitle>{t('我的好友', 'My friends')}</SectionTitle><Status query={friends} />
     {friends.data?.friends.length === 0 && <Text muted>{t('添加好友，一起喝汤。', 'Add a friend to play together.')}</Text>}
-    {friends.data?.friends.map((friend) => <Card key={friend.userId}><Button disabled={!friend.conversationId} onPress={() => { if (friend.conversationId) go({ page: 'chat', id: friend.conversationId }); }}>{friend.nickname}</Button>
+    {friends.data?.friends.map((friend) => <Card key={friend.userId} style={{ padding: 13 }}><Row style={{ alignItems: 'center', justifyContent: 'space-between' }}><Text style={{ fontWeight: 'bold' }}>{friend.nickname}</Text><Badge tone={friend.conversationId ? 'accent' : 'muted'}>{friend.conversationId ? t('可聊天', 'Chat') : t('无会话', 'No chat')}</Badge></Row><Button disabled={!friend.conversationId} onPress={() => { if (friend.conversationId) go({ page: 'chat', id: friend.conversationId }); }}>{t('打开私聊', 'Open chat')}</Button>
       <Button danger disabled={task.busy} onPress={() => { void task.run(async () => { if (!await confirm(t('删除好友', 'Remove friend'), friend.nickname)) return; await api(`/friends/${friend.userId}`, { method: 'DELETE' }); await refresh(); }); }}>{t('删除好友', 'Remove friend')}</Button>
     </Card>)}
   </View>;
@@ -69,9 +69,8 @@ export function Chat({ id }: { id: string }) {
     return () => { alive = false; };
   }, [id, latest, query.dataUpdatedAt]);
   const send = (value: string) => task.run(async () => { const body = value.trim(); if (!body) return; await api(`/conversations/${id}/messages`, { body: { text: body } }); change(''); await query.refetch(); });
-  return <View><Status query={detail} /><Text size={22}>{detail.data?.conversation.peerNickname ?? t('私聊', 'Chat')}</Text>
-    <Button disabled={task.busy} onPress={() => { void task.run(async () => { await api(`/conversations/${id}/start-room`, { body: { language } }, quickRoomResponseSchema); await query.refetch(); }); }}>{t('来一局', 'Start a game')}</Button>
-    <Status query={query} />{query.data?.messages.map((item) => <Card key={item.id}><Text muted size={13}>{item.senderNickname}</Text><Text>{item.text}</Text>
+  return <View><Status query={detail} /><Row style={{ alignItems: 'center', justifyContent: 'space-between' }}><Text size={24} style={{ fontWeight: 'bold' }}>{detail.data?.conversation.peerNickname ?? t('私聊', 'Chat')}</Text><Button style={{ minHeight: 34, padding: 5, marginBottom: 0 }} disabled={task.busy} onPress={() => { void task.run(async () => { await api(`/conversations/${id}/start-room`, { body: { language } }, quickRoomResponseSchema); await query.refetch(); }); }}>{t('来一局', 'Start a game')}</Button></Row>
+    <Status query={query} />{query.data?.messages.map((item) => <Card key={item.id} style={{ padding: 13, backgroundColor: item.senderUserId === session!.user.id ? '#173446' : '#142b3a' }}><Text muted size={12}>{item.senderNickname}</Text><Text>{item.text}</Text>
       {item.kind === 'room_invite' && <Button disabled={item.roomStatus === null || item.roomStatus === 'closed' || !item.inviteToken} onPress={() => { if (item.inviteToken) go({ page: 'invite', kind: 'room', token: item.inviteToken }); }}>{item.roomStatus === null || item.roomStatus === 'closed' ? t('房间已结束', 'Game ended') : t('进入房间', 'Enter room')}</Button>}
     </Card>)}
     {readError && <Text muted>{readError}</Text>}<TaskStatus task={task} />
@@ -84,10 +83,10 @@ export function Notifications() {
   const { t } = useLanguage(); const { go } = useNavigation(); const task = useTask(); const client = useQueryClient();
   const query = useEndpoint<z.infer<typeof notificationListResponseSchema>>('/notifications', { interval: 10_000 });
   const mark = (ids?: string[]) => api('/notifications/read', { body: ids ? { ids } : { all: true } });
-  return <View><Button disabled={task.busy} onPress={() => { void task.run(async () => { await mark(); await client.invalidateQueries({ queryKey: ['api'] }); }); }}>{t('全部已读', 'Mark all read')}</Button>
+  return <View><Row style={{ alignItems: 'center', justifyContent: 'space-between' }}><Text size={24} style={{ fontWeight: 'bold' }}>{t('通知中心', 'Notifications')}</Text><Button style={{ minHeight: 34, padding: 5, marginBottom: 0 }} disabled={task.busy} onPress={() => { void task.run(async () => { await mark(); await client.invalidateQueries({ queryKey: ['api'] }); }); }}>{t('全部已读', 'Mark all read')}</Button></Row>
     <Status query={query} /><TaskStatus task={task} />
     {query.data?.notifications.length === 0 && <Text muted>{t('暂无通知', 'No notifications')}</Text>}
-    {query.data?.notifications.map((item) => <Card key={item.id}><Text size={18}>{`${item.readAt ? '' : '● '}${item.title}`}</Text>{item.body && <Text>{item.body}</Text>}
+    {query.data?.notifications.map((item) => <Card key={item.id} style={{ padding: 14, borderColor: item.readAt ? '#294254' : '#3f776e' }}><Text size={18} style={{ fontWeight: item.readAt ? 'normal' : 'bold', ...(item.readAt ? {} : { color: '#7dd8c6' }) }}>{item.title}</Text>{item.body && <Text>{item.body}</Text>}
       <Text muted size={12}>{new Date(item.createdAt).toLocaleString()}</Text><Button disabled={task.busy} onPress={() => { void task.run(async () => {
         await mark([item.id]); await client.invalidateQueries({ queryKey: ['api'] }); if (item.link) go(routeFromPath(item.link));
       }); }}>{item.link ? t('查看', 'Open') : t('标为已读', 'Mark as read')}</Button>

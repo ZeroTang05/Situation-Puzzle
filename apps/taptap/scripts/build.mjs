@@ -6,7 +6,7 @@ import path from 'node:path';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const config = JSON.parse(await readFile(path.join(root, 'config.json'), 'utf8'));
-for (const field of ['interstitialAdUnitId', 'shareTemplateId']) {
+for (const field of ['interstitialAdUnitId', 'rewardedAdUnitId', 'shareTemplateId']) {
   if (config[field] !== undefined && typeof config[field] !== 'string') throw new Error(`config.json 的 ${field} 必须为字符串`);
 }
 const apiOrigin = new URL(process.env.TAPTAP_API_BASE_URL ?? config.apiBaseUrl);
@@ -30,6 +30,7 @@ await build({
     __API_BASE__: JSON.stringify(apiOrigin.origin), 'process.env.NODE_ENV': '"production"',
     __MINI_APP_ID__: JSON.stringify(config.miniAppId),
     __INTERSTITIAL_AD_UNIT_ID__: JSON.stringify(config.interstitialAdUnitId ?? ''),
+    __REWARDED_AD_UNIT_ID__: JSON.stringify(config.rewardedAdUnitId ?? ''),
     __SHARE_TEMPLATE_ID__: JSON.stringify(config.shareTemplateId ?? ''),
   },
   logLevel: 'info',

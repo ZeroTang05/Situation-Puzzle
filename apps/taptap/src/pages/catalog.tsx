@@ -8,11 +8,11 @@ import {
   soloHintRequestSchema, soloRevealRequestSchema, myRatingSchema, canRateSoloPuzzle, selectUnplayedPuzzle,
   type Language, type CreationPreview,
 } from '@jev/contracts';
-import { BRAND_NAME, confidenceLabel, displayVerdict, t as playerCopy } from '@jev/i18n';
+import { confidenceLabel, displayVerdict, t as playerCopy } from '@jev/i18n';
 import { api, request } from '../api.js';
 import { confirm, isForeground, useLanguage } from '../runtime.js';
 import { useEndpoint, useNavigation, useSession, useTask, Status, TaskStatus, type PickTarget } from '../state.js';
-import { Button, Card, Choice, Input, Row, Text, View } from '../ui/components.js';
+import { Badge, Button, Card, Choice, Input, Row, SectionTitle, Text, View } from '../ui/components.js';
 import { showGameEndAd } from '../ads.js';
 import { readAllCatalogItems } from '../catalogue-pages.js';
 import { beginSoloTurn, completeSoloTurn, failSoloTurn, type SavedGame } from '../solo-state.js';
@@ -48,14 +48,22 @@ export function Home() {
   const [help, setHelp] = useState(false); const copy = playerCopy(language);
   const rooms = useEndpoint<{ rooms: Array<{ roomId: string; title: string | null; createdAt: string }> }>('/me/active-rooms', { enabled: Boolean(session), interval: 5000 });
   const entitlement = useEndpoint<{ sponsored: boolean; freeRemaining: number }>('/rooms/entitlement-preview', { enabled: Boolean(session) });
-  return <View><Text size={28}>{BRAND_NAME}</Text><Text muted>{t('问出线索，还原真相。', 'Ask for clues. Uncover the truth.')}</Text>
-    <Card><Text size={21}>{t('一个人喝汤', 'Play solo')}</Text><Button primary onPress={() => go({ page: 'library' })}>{t('挑一碗汤', 'Choose a puzzle')}</Button></Card>
-    <Card><Text size={21}>{t('和朋友一起推理', 'Solve with friends')}</Text><Button primary onPress={() => go({ page: 'open-lobby' })}>{t('开房间', 'Create a room')}</Button><Button onPress={() => go({ page: 'hall' })}>{t('进入大厅', 'Game lobby')}</Button><Button onPress={() => go({ page: 'friends' })}>{t('好友', 'Friends')}</Button></Card>
-    {session && <View><Status query={rooms} />{rooms.data && rooms.data.rooms.length > 0 && <Card><Text size={20}>{copy.activeRooms}</Text>{rooms.data.rooms.map((room) => <Button key={room.roomId} onPress={() => go({ page: 'room', id: room.roomId })}>{room.title ?? new Date(room.createdAt).toLocaleString()}</Button>)}</Card>}
-      <Status query={entitlement} />{entitlement.data && <Text muted>{copy.freeRooms}：{entitlement.data.sponsored ? copy.unlimited : entitlement.data.freeRemaining}</Text>}
+  return <View>
+    <Card style={{ padding: 18, backgroundColor: '#102b3b', borderColor: '#31586a' }}>
+      <Text size={16} style={{ color: '#7dd8c6', fontWeight: 'bold' }}>{t('问出线索，还原真相。', 'Ask for clues. Uncover the truth.')}</Text>
+      <Text muted size={14}>{t('一碗汤，一群人，一场推理。', 'One puzzle, one group, one mystery.')}</Text>
+      <Button primary style={{ minHeight: 52, fontSize: 17 }} onPress={() => go({ page: 'library' })}>{t('一个人喝汤 · 挑一碗汤', 'Play solo · Choose a puzzle')}</Button>
+      <Button style={{ minHeight: 52, fontSize: 17 }} onPress={() => go({ page: 'open-lobby' })}>{t('和朋友一起推理 · 开房间', 'Solve with friends · Create a room')}</Button>
+      <Row style={{ flexWrap: 'nowrap' }}>
+        <View style={{ flex: 1, marginRight: 6 }}><Button style={{ minHeight: 38, padding: 6 }} onPress={() => go({ page: 'hall' })}>{t('大厅', 'Lobby')}</Button></View>
+        <View style={{ flex: 1, marginRight: 6 }}><Button style={{ minHeight: 38, padding: 6 }} onPress={() => go({ page: 'friends' })}>{t('好友', 'Friends')}</Button></View>
+        <View style={{ flex: 1 }}><Button style={{ minHeight: 38, padding: 6 }} onPress={() => go({ page: 'creations' })}>{t('创作', 'Create')}</Button></View>
+      </Row>
+    </Card>
+    {session && <View><Status query={rooms} />{rooms.data && rooms.data.rooms.length > 0 && <View><SectionTitle>{copy.activeRooms}</SectionTitle><Card style={{ padding: 8 }}>{rooms.data.rooms.map((room) => <Button key={room.roomId} style={{ textAlign: 'left', marginBottom: 4 }} onPress={() => go({ page: 'room', id: room.roomId })}>{room.title ?? new Date(room.createdAt).toLocaleString()}</Button>)}</Card></View>}
+      <Status query={entitlement} />{entitlement.data && <Card style={{ padding: 12 }}><Row style={{ alignItems: 'center', justifyContent: 'space-between' }}><Text muted size={13}>{copy.freeRooms}</Text><Badge tone={entitlement.data.sponsored ? 'accent' : 'muted'}>{entitlement.data.sponsored ? copy.unlimited : `${entitlement.data.freeRemaining} / 10`}</Badge></Row></Card>}
     </View>}
-    <Button onPress={() => go({ page: 'creations' })}>{t('创作海龟汤', 'Create a puzzle')}</Button>
-    <Button onPress={() => setHelp(!help)}>{copy.howToPlay}</Button>
+    <SectionTitle action={<Button style={{ minHeight: 32, padding: 4, paddingLeft: 10, paddingRight: 10, marginBottom: 0 }} onPress={() => setHelp(!help)}>{copy.howToPlay}</Button>}>{t('继续探索', 'Explore')}</SectionTitle>
     {help && <Card><Text>{copy.introWhat}</Text><Text>{copy.introGoal}</Text><Text>{copy.introAdvice}</Text><Button onPress={() => setHelp(false)}>{copy.gotIt}</Button></Card>}
   </View>;
 }
@@ -99,18 +107,20 @@ export function Library({ pick }: { pick?: PickTarget }) {
     } else go({ page: 'solo', id, language }, true);
   });
   return <View>
+    <Text size={24} style={{ fontWeight: 'bold' }}>{t('题库', 'Puzzle library')}</Text>
+    <Text muted size={14}>{t('挑一碗适合今天的汤。', 'Pick a mystery for today.')}</Text>
     <Choice value={sort} options={[[ 'popular', t('热门', 'Popular') ], [ 'latest', t('最新', 'Latest') ]]} onChange={(value) => { setSort(value); setPage(1); }} />
     <Choice value={difficulty} options={[[ '', t('全部难度', 'All levels') ], [ 'easy', t('简单', 'Easy') ], [ 'medium', t('普通', 'Medium') ], [ 'hard', t('困难', 'Hard') ]]} onChange={(value) => { setDifficulty(value); setPage(1); }} />
     <Choice value={category} options={[[ '', t('全部类别', 'All types') ], [ 'honkaku', t('本格', 'Realistic') ], [ 'henkaku', t('变格', 'Supernatural') ]]} onChange={(value) => { setCategory(value); setPage(1); }} />
     <Choice<'all' | 'unplayed' | 'played'> value={played} options={[[ 'all', t('全部', 'All') ], [ 'unplayed', t('未玩', 'Unplayed') ], [ 'played', t('已玩', 'Played') ]]} onChange={(value) => { setPlayed(value); setPage(1); }} />
     <TaskStatus task={task} /><Status query={listQuery} />
     {listing?.items.length === 0 && <Text muted>{t('没有符合条件的题目。', 'No puzzles match these filters.')}</Text>}
-    {listing?.items.map((item) => <Card key={item.id}>
-      <Text size={20}>{item.title}</Text><Text muted>{item.surface.slice(0, 100) + (item.surface.length > 100 ? '…' : '')}</Text>
-      <Text muted size={13}>{[item.category ? item.category === 'honkaku' ? t('本格', 'Realistic') : t('变格', 'Supernatural') : '', item.difficulty ? item.difficulty === 'easy' ? t('简单', 'Easy') : item.difficulty === 'hard' ? t('困难', 'Hard') : t('普通', 'Medium') : '', playedIds.has(item.id) ? t('已玩', 'Played') : '', item.durationMinutes ? `${item.durationMinutes} ${t('分钟', 'min')}` : ''].filter(Boolean).join(' · ')}</Text>
-      <Text muted size={13}>{`${item.authorDisplay.mode === 'anonymous' ? t('匿名', 'Anonymous') : item.authorDisplay.name === '初始题库' ? t('初始题库', 'Starter library') : item.authorDisplay.name} · ${t('赞', 'Likes')} ${item.upCount} · ${t('踩', 'Dislikes')} ${item.downCount}`}</Text>
-      {item.contentWarnings.length > 0 && <Text muted size={13}>{item.contentWarnings.join(' · ')}</Text>}
-      <Button disabled={task.busy} onPress={() => { void select(item.id); }}>{pick ? t('选这碗汤', 'Select puzzle') : t('开始推理', 'Play')}</Button>
+    {listing?.items.map((item) => <Card key={item.id} style={{ padding: 14 }}>
+      <Text size={19} style={{ fontWeight: 'bold' }}>{item.title}</Text><Text muted size={14}>{item.surface.slice(0, 100) + (item.surface.length > 100 ? '…' : '')}</Text>
+      <Text muted size={12}>{[item.category ? item.category === 'honkaku' ? t('本格', 'Realistic') : t('变格', 'Supernatural') : '', item.difficulty ? item.difficulty === 'easy' ? t('简单', 'Easy') : item.difficulty === 'hard' ? t('困难', 'Hard') : t('普通', 'Medium') : '', playedIds.has(item.id) ? t('已玩', 'Played') : '', item.durationMinutes ? `${item.durationMinutes} ${t('分钟', 'min')}` : ''].filter(Boolean).join(' · ')}</Text>
+      <Text muted size={12}>{`${item.authorDisplay.mode === 'anonymous' ? t('匿名', 'Anonymous') : item.authorDisplay.name === '初始题库' ? t('初始题库', 'Starter library') : item.authorDisplay.name} · ${t('赞', 'Likes')} ${item.upCount} · ${t('踩', 'Dislikes')} ${item.downCount}`}</Text>
+      {item.contentWarnings.length > 0 && <Badge tone="danger">{item.contentWarnings.join(' · ')}</Badge>}
+      <Button primary disabled={task.busy} onPress={() => { void select(item.id); }}>{pick ? t('选这碗汤', 'Select puzzle') : t('开始推理', 'Play')}</Button>
       {!pick && <Button disabled={task.busy} onPress={() => go({ page: 'open-lobby', puzzleId: item.id, language })}>{t('用这碗汤开房间', 'Create a room with this puzzle')}</Button>}
     </Card>)}
     {listing && <View><Text muted>{`${page} / ${listing.totalPages} · ${listing.total}`}</Text>
@@ -165,9 +175,9 @@ export function Solo({ id, puzzleLanguage, preview }: { id: string; puzzleLangua
       throw error;
     }
   });
-  if (!game) return <View><Status query={puzzle} />{snapshot.error && <Text>{snapshot.error}</Text>}{snapshot.busy && <Text muted>{t('正在开局…', 'Starting…')}</Text>}{puzzle.data && <Card><Text size={24}>{puzzle.data.title}</Text><Text>{puzzle.data.surface}</Text><Button primary disabled={busy} onPress={() => { void store.run(start); }}>{t('开始推理', 'Start solving')}</Button></Card>}</View>;
-  return <View><Text size={24}>{game.session.title}</Text><Card><Text>{game.session.surface}</Text></Card>
-    {game.turns.map((turn) => <Card key={turn.id}><Text muted size={13}>{turn.kind === 'hint' ? t('提示', 'Hint') : turn.kind === 'solve' ? t('还原真相', 'Solution') : t('问 Jev', 'Ask Jev')}</Text><Text>{turn.text}</Text>
+  if (!game) return <View><Status query={puzzle} />{snapshot.error && <Text>{snapshot.error}</Text>}{snapshot.busy && <Text muted>{t('正在开局…', 'Starting…')}</Text>}{puzzle.data && <Card style={{ padding: 18, backgroundColor: '#102b3b' }}><Badge tone="accent">{t('单人推理', 'Solo puzzle')}</Badge><Text size={24} style={{ fontWeight: 'bold' }}>{puzzle.data.title}</Text><Text>{puzzle.data.surface}</Text><Button primary disabled={busy} onPress={() => { void store.run(start); }}>{t('开始推理', 'Start solving')}</Button></Card>}</View>;
+  return <View><Badge tone="accent">{t('单人推理', 'Solo puzzle')}</Badge><Text size={24} style={{ fontWeight: 'bold' }}>{game.session.title}</Text><Card style={{ padding: 14, backgroundColor: '#102b3b' }}><Text>{game.session.surface}</Text></Card>
+    {game.turns.map((turn) => <Card key={turn.id} style={{ padding: 13, backgroundColor: turn.kind === 'ask' || turn.kind === 'solve' ? '#173446' : '#142b3a' }}><Text muted size={12}>{turn.kind === 'hint' ? t('提示', 'Hint') : turn.kind === 'solve' ? t('还原真相', 'Solution') : t('问 Jev', 'Ask Jev')}</Text><Text>{turn.text}</Text>
       {turn.status === 'sending' && <Text muted>{t('正在判定…', 'Judging…')}</Text>}
       {turn.status === 'interrupted' && <Text>{t('上次请求未收到结果，请核对后重新发送。', 'The previous request was interrupted. Review and send again.')}</Text>}
       {turn.error && <Text>{turn.error}</Text>}{turn.result && <Text style={{ color: '#7dd8c6' }}>{displayVerdict(turn.result, language)}</Text>}{turn.confidence !== undefined && <Text muted size={12}>{confidenceLabel(turn.confidence, language)}</Text>}

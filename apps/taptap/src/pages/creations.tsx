@@ -6,7 +6,7 @@ import { creationCompleteSchema, creationDetailSchema, creationDraftSchema, crea
 import { api } from '../api.js';
 import { confirm, useLanguage } from '../runtime.js';
 import { useEndpoint, useNavigation, useSession, useTask, Status, TaskStatus } from '../state.js';
-import { Button, Card, Choice, Input, Text, View } from '../ui/components.js';
+import { Badge, Button, Card, Choice, Input, Row, SectionTitle, Text, View } from '../ui/components.js';
 import { Solo } from './catalog.js';
 import { localCreationSchema, persistCreation, transitionCreation, updateCreationAuthor, type CreationBase } from '../creation-save.js';
 
@@ -19,10 +19,10 @@ export function Creations() {
   const query = useEndpoint<{ items: z.infer<typeof creationSummarySchema>[] }>('/creations');
   const [filter, setFilter] = useState<'all' | 'draft' | 'review' | 'published'>('all');
   const bucket = (status: string) => status === 'draft' ? 'draft' : ['published', 'taken_down'].includes(status) ? 'published' : 'review';
-  return <View><Button primary onPress={() => go({ page: 'editor', id: 'new' })}>{t('创作新汤', 'New puzzle')}</Button><Text muted>{t('作品经人工审核通过后，可获得 10 次开房奖励。', 'Earn 10 room credits when a community submission passes manual review.')}</Text>
+  return <View><Text size={24} style={{ fontWeight: 'bold' }}>{t('创作中心', 'Create')}</Text><Text muted size={14}>{t('写下你的故事，保存草稿，再提交审核。', 'Write a story, save a draft, then submit it for review.')}</Text><Button primary onPress={() => go({ page: 'editor', id: 'new' })}>{t('创作新汤', 'New puzzle')}</Button><Card style={{ padding: 12, backgroundColor: '#102b3b' }}><Text muted size={13}>{t('作品经人工审核通过后，可获得 10 次开房奖励。', 'Earn 10 room credits when a community submission passes manual review.')}</Text></Card>
     <Choice<'all' | 'draft' | 'review' | 'published'> value={filter} options={[[ 'all', t('全部', 'All') ], [ 'draft', t('草稿', 'Drafts') ], [ 'review', t('审核中', 'In review') ], [ 'published', t('已发布', 'Published') ]]} onChange={setFilter} />
     <Status query={query} />{query.data?.items.length === 0 && <Text muted>{t('还没有作品，来写第一碗汤。', 'Write your first puzzle.')}</Text>}
-    {query.data?.items.filter((item) => filter === 'all' || bucket(item.status) === filter).map((work) => <Card key={work.puzzleId}><Text size={20}>{work.title}</Text><Text muted>{`${statusLabel(work.status, language)} · v${work.versionNo} · ${work.upCount} / ${work.downCount}`}</Text>{work.pendingName && <Text muted>{`${t('署名待审', 'Name pending review')}：${work.pendingName}`}</Text>}
+    {query.data?.items.filter((item) => filter === 'all' || bucket(item.status) === filter).map((work) => <Card key={work.puzzleId} style={{ padding: 14 }}><Row style={{ alignItems: 'center', justifyContent: 'space-between' }}><Text size={20} style={{ fontWeight: 'bold' }}>{work.title}</Text><Badge tone={work.status === 'published' ? 'accent' : 'muted'}>{statusLabel(work.status, language)}</Badge></Row><Text muted size={12}>{`v${work.versionNo} · ${work.upCount} / ${work.downCount}`}</Text>{work.pendingName && <Text muted size={12}>{`${t('署名待审', 'Name pending review')}：${work.pendingName}`}</Text>}
       <Button onPress={() => go({ page: 'editor', id: work.puzzleId })}>{t('打开作品', 'Open work')}</Button>
       {work.published && <Button onPress={() => go({ page: 'solo', id: work.puzzleId, language: work.publishedLanguage ?? work.language })}>{t('游玩公开版本', 'Play published version')}</Button>}
     </Card>)}
@@ -70,23 +70,25 @@ function Editor({ id, initial }: { id: string; initial: CreationDetail | undefin
     if (!version.current) throw new Error(t('作品版本尚未加载', 'Work version has not loaded'));
     adopt(await transitionCreation(api, version.current, action));
   });
-  return <View>{saved && <Text muted>{`${statusLabel(saved.status, language)} · v${saved.versionNo}`}</Text>}
+  return <View><Text size={24} style={{ fontWeight: 'bold' }}>{id === 'new' ? t('创作新汤', 'New puzzle') : t('编辑作品', 'Edit puzzle')}</Text>{saved && <Badge tone={saved.status === 'published' ? 'accent' : 'muted'}>{`${statusLabel(saved.status, language)} · v${saved.versionNo}`}</Badge>}
     {dirty && initial && version.current && (initial.updatedAt !== version.current.updatedAt || initial.versionId !== version.current.versionId) && <Text>{t('服务器上的作品已更新。当前输入仍保留，保存时会检查版本。', 'The server version has changed. Your text is kept, and saving will check the version.')}</Text>}
-    <Input label={t('标题', 'Title')} value={draft.title} onChange={(value) => change('title', value)} maxLength={60} disabled={!editable || task.busy} />
+    <Card style={{ padding: 14 }}><SectionTitle>{t('故事', 'Story')}</SectionTitle><Input label={t('标题', 'Title')} value={draft.title} onChange={(value) => change('title', value)} maxLength={60} disabled={!editable || task.busy} />
     {editable && <View><Choice disabled={task.busy} value={draft.language} options={[[ 'zh', '中文' ], [ 'en', 'English' ]]} onChange={(value) => change('language', value)} />
       <Choice disabled={task.busy} value={draft.difficulty} options={[[ 'easy', t('简单', 'Easy') ], [ 'medium', t('普通', 'Medium') ], [ 'hard', t('困难', 'Hard') ]]} onChange={(value) => change('difficulty', value)} />
       <Choice disabled={task.busy} value={draft.category} options={[[ 'honkaku', t('本格', 'Realistic') ], [ 'henkaku', t('变格', 'Supernatural') ]]} onChange={(value) => change('category', value)} /></View>}
-    <Input label={t('汤面', 'Story')} value={draft.surface} multiline maxLength={2000} disabled={!editable || task.busy} onChange={(value) => change('surface', value)} />
+    <Input label={t('汤面', 'Story')} value={draft.surface} multiline maxLength={2000} disabled={!editable || task.busy} onChange={(value) => change('surface', value)} /></Card>
+    <Card style={{ padding: 14 }}><SectionTitle>{t('真相', 'Truth')}</SectionTitle>
     <Input label={t('汤底', 'Truth')} value={draft.answer} multiline maxLength={4000} disabled={!editable || task.busy} onChange={(value) => change('answer', value)} />
     {[0, 1, 2].map((index) => <Input key={index} label={`${t('提示', 'Hint')} ${index + 1}`} value={draft.hints[index] ?? ''} multiline maxLength={500} disabled={!editable || task.busy} onChange={(value) => change('hints', [0, 1, 2].map((i) => i === index ? value : draft.hints[i] ?? ''))} />)}
-    {editable && <View><Choice disabled={task.busy} value={draft.origin} options={[[ 'original', t('自制', 'Original') ], [ 'repost', t('转载', 'Repost') ]]} onChange={(value) => change('origin', value)} />
+    </Card>
+    <Card style={{ padding: 14 }}><SectionTitle>{t('来源与署名', 'Source and attribution')}</SectionTitle>{editable && <View><Choice disabled={task.busy} value={draft.origin} options={[[ 'original', t('自制', 'Original') ], [ 'repost', t('转载', 'Repost') ]]} onChange={(value) => change('origin', value)} />
       {draft.origin === 'repost' && <Input disabled={task.busy} label={t('原作者链接', 'Original author link')} value={draft.sourceUrl} onChange={(value) => change('sourceUrl', value)} maxLength={2000} />}
     </View>}
     <Choice disabled={task.busy} value={draft.authorDisplay.mode} options={[[ 'anonymous', t('匿名', 'Anonymous') ], [ 'signature', t('署名', 'Signature') ]]} onChange={(mode) => change('authorDisplay', mode === 'anonymous' ? { mode } : { mode, name: session!.user.name })} />
     {draft.authorDisplay.mode === 'signature' && <Input disabled={task.busy} label={t('公开署名', 'Public author name')} value={draft.authorDisplay.name} maxLength={30} onChange={(name) => change('authorDisplay', { mode: 'signature', name })} />}
     {saved?.authorDisplay.name && <Text muted>{`${t('当前公开署名', 'Public author name')}：${saved.authorDisplay.name}`}</Text>}
     {saved?.authorDisplay.pendingName && <Text muted>{`${t('署名待审核', 'Name awaiting review')}：${saved.authorDisplay.pendingName}`}</Text>}
-    {!editable && saved && <Button disabled={task.busy} onPress={() => { void task.run(async () => { adopt(await updateCreationAuthor(api, saved.puzzleId, draft.authorDisplay)); setNotice(t('署名已保存', 'Author name saved')); }); }}>{t('保存署名', 'Save author name')}</Button>}
+    {!editable && saved && <Button disabled={task.busy} onPress={() => { void task.run(async () => { adopt(await updateCreationAuthor(api, saved.puzzleId, draft.authorDisplay)); setNotice(t('署名已保存', 'Author name saved')); }); }}>{t('保存署名', 'Save author name')}</Button>}</Card>
     {notice && <Text>{notice}</Text>}<TaskStatus task={task} />
     {editable && <View><Button disabled={task.busy || !draft.title.trim()} onPress={() => { void task.run(async () => { const result = await save(); if (id === 'new') go({ page: 'editor', id: result.puzzleId }, true); }); }}>{t('保存草稿', 'Save draft')}</Button>
       <Button primary disabled={task.busy} onPress={() => { void task.run(async () => {

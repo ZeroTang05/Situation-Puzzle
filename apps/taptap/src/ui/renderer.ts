@@ -9,14 +9,16 @@ import computeLayout, { type LayoutNode } from 'css-layout';
 import { keyboardViewportHeight, revealScrollOffset } from './viewport.js';
 
 export interface Style {
-  width?: number; height?: number; minHeight?: number; maxHeight?: number; flex?: number;
+  width?: number; minWidth?: number; height?: number; minHeight?: number; maxHeight?: number; flex?: number;
+  flexShrink?: number; flexGrow?: number;
   flexDirection?: 'row' | 'column'; flexWrap?: 'wrap' | 'nowrap';
   alignItems?: 'stretch' | 'flex-start' | 'center' | 'flex-end';
   justifyContent?: 'flex-start' | 'center' | 'space-between' | 'space-around' | 'flex-end';
   padding?: number; paddingTop?: number; paddingBottom?: number; paddingLeft?: number; paddingRight?: number;
   margin?: number; marginTop?: number; marginBottom?: number; marginLeft?: number; marginRight?: number;
   backgroundColor?: string; color?: string; fontSize?: number; fontWeight?: 'bold' | 'normal';
-  lineHeight?: number; borderRadius?: number; borderWidth?: number; borderColor?: string; textAlign?: 'left' | 'center';
+  lineHeight?: number; borderRadius?: number; borderWidth?: number; borderTopWidth?: number; borderBottomWidth?: number; borderColor?: string; textAlign?: 'left' | 'center';
+  opacity?: number;
 }
 export interface Props {
   children?: ReactNode; style?: Style; text?: string; value?: string; placeholder?: string;
@@ -40,7 +42,7 @@ let focus: SceneNode | null = null;
 let keyboardHeight = 0; let revealFocus = false;
 let touch: { x: number; y: number; scroll: number; target: Hit | undefined; scrolling: SceneNode | undefined; moved: boolean } | null = null;
 let updatePriority: number = NoEventPriority;
-export const palette = { bg: '#0a1522', panel: '#122638', line: '#294254', text: '#e5edf4', muted: '#a1b4c4', accent: '#7dd8c6', danger: '#ffabb3' };
+export const palette = { bg: '#0a1522', panel: '#122638', button: '#183448', line: '#294254', text: '#e5edf4', muted: '#a1b4c4', accent: '#7dd8c6', danger: '#ffabb3' };
 
 function makeNode(kind: Kind, props: Props): SceneNode { return { kind, props, children: [], parent: null, hidden: false, scroll: 0, scrollHeight: 0, previousHeight: 0, layout: null }; }
 function remove(parent: SceneNode, child: SceneNode): void {
@@ -108,11 +110,21 @@ function paint(node: SceneNode, left: number, top: number, clip: { x: number; y:
   const x1 = Math.max(x, clip.x); const y1 = Math.max(y, clip.y); const x2 = Math.min(x + w, clip.x + clip.w); const y2 = Math.min(y + h, clip.y + clip.h);
   if (x2 <= x1 || y2 <= y1) return;
   ctx.save(); ctx.beginPath(); ctx.rect(x1, y1, x2 - x1, y2 - y1); ctx.clip();
-  ctx.globalAlpha = node.props.disabled ? 0.45 : 1;
+  ctx.globalAlpha = node.props.disabled ? 0.45 : (style.opacity ?? 1);
   if (style.backgroundColor || style.borderColor) {
     rounded(x, y, w, h, style.borderRadius ?? 0);
     if (style.backgroundColor) { ctx.fillStyle = style.backgroundColor; ctx.fill(); }
-    if (style.borderColor) { ctx.strokeStyle = style.borderColor; ctx.lineWidth = style.borderWidth ?? 1; ctx.stroke(); }
+    if (style.borderColor) {
+      ctx.strokeStyle = style.borderColor;
+      if (style.borderWidth !== undefined) {
+        ctx.lineWidth = style.borderWidth; ctx.stroke();
+      } else if (style.borderTopWidth !== undefined || style.borderBottomWidth !== undefined) {
+        if (style.borderTopWidth) { ctx.lineWidth = style.borderTopWidth; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.stroke(); }
+        if (style.borderBottomWidth) { ctx.lineWidth = style.borderBottomWidth; ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.stroke(); }
+      } else {
+        ctx.lineWidth = 1; ctx.stroke();
+      }
+    }
   }
   if (node.kind === 'text' || node.kind === 'button' || node.kind === 'input') {
     const px = style.paddingLeft ?? style.padding ?? 0; const py = style.paddingTop ?? style.padding ?? 0;

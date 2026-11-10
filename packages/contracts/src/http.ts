@@ -595,6 +595,16 @@ export const adIntentResponseSchema = z.object({
   expiresIn: z.number().int(),
 });
 
+/** TapTap 原生激励视频播放完成后，由客户端提交本次短期广告意图领取奖励。 */
+export const tapAdRewardRequestSchema = z.object({
+  token: z.string().min(1).max(4096),
+});
+
+export const tapAdRewardResponseSchema = z.object({
+  result: z.enum(['granted', 'already_claimed', 'daily_limit']),
+  rewardRooms: z.number().int(),
+});
+
 export const sponsorProductSchema = z.object({
   productVersionId: z.string(),
   type: z.enum(['monthly', 'lifetime']),

@@ -13,7 +13,7 @@ import { SessionGuard } from '../auth/session.guard.js';
 import { OrdersService } from './orders.service.js';
 import { RedeemCodesService } from './redeem-codes.service.js';
 import { RoomBonusService } from './room-bonus.service.js';
-import { adIntentResponseSchema, inviteClaimRequestSchema, orderCreateRequestSchema, redeemCodeRequestSchema } from '@jev/contracts';
+import { adIntentResponseSchema, inviteClaimRequestSchema, orderCreateRequestSchema, redeemCodeRequestSchema, tapAdRewardRequestSchema, tapAdRewardResponseSchema } from '@jev/contracts';
 import { z } from 'zod';
 
 @Controller()
@@ -124,6 +124,17 @@ export class BillingController {
   @HttpCode(200)
   async adIntent(@CurrentUser() user: SessionUser): Promise<z.infer<typeof adIntentResponseSchema>> {
     return this.roomBonusService.issueAdIntent(user.userId);
+  }
+
+  /** TapTap 原生激励视频播放完成后领取一次 +2 开房次数。 */
+  @RateLimit({ scope: 'ads.taptap.reward', limit: 20, windowSeconds: 3600, keyBy: 'user' })
+  @Post('ads/taptap/reward')
+  @HttpCode(200)
+  async tapAdReward(
+    @CurrentUser() user: SessionUser,
+    @Body(new ZodValidationPipe(tapAdRewardRequestSchema)) body: z.infer<typeof tapAdRewardRequestSchema>,
+  ): Promise<z.infer<typeof tapAdRewardResponseSchema>> {
+    return this.roomBonusService.claimTapAdReward(user.userId, body.token);
   }
 
   /**

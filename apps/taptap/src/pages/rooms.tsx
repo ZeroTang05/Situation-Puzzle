@@ -7,7 +7,7 @@ import { confidenceLabel, displayVerdict } from '@jev/i18n';
 import { api } from '../api.js';
 import { confirm, copyText, onHide, onShow, useLanguage } from '../runtime.js';
 import { useEndpoint, useNavigation, useSession, useTask, Status, TaskStatus } from '../state.js';
-import { Button, Card, Choice, Input, Row, Text, View } from '../ui/components.js';
+import { Badge, Button, Card, Choice, Input, Row, SectionTitle, Text, View } from '../ui/components.js';
 import { useRoomSync } from '../rooms/use-room-sync.js';
 import { useRoomOutbox } from '../rooms/use-room-outbox.js';
 import { useLobbySync } from '../rooms/use-lobby-sync.js';
@@ -36,17 +36,19 @@ export function LobbyLauncher({ puzzleId, language }: { puzzleId?: string; langu
 export function Hall() {
   const { t } = useLanguage(); const { go } = useNavigation(); const task = useTask(); const query = useEndpoint<z.infer<typeof hallResponseSchema>>('/hall', { interval: 5000 });
   const [link, setLink] = useState('');
-  return <View><Button primary disabled={task.busy} onPress={() => { void task.run(async () => { const result = await api('/lobbies', { body: {} }, lobbyCreateResponseSchema); go({ page: 'lobby', id: result.lobbyId }); }); }}>{t('我的会客厅', 'My lobby')}</Button>
+  return <View><Text size={24} style={{ fontWeight: 'bold' }}>{t('大厅', 'Game lobby')}</Text><Text muted size={14}>{t('加入公开房间，或者打开朋友发来的邀请。', 'Join a public room or open a friend’s invitation.')}</Text>
+    <Card style={{ padding: 14, backgroundColor: '#102b3b' }}><Button primary disabled={task.busy} onPress={() => { void task.run(async () => { const result = await api('/lobbies', { body: {} }, lobbyCreateResponseSchema); go({ page: 'lobby', id: result.lobbyId }); }); }}>{t('我的会客厅', 'My lobby')}</Button>
     <Input label={t('房间或会客厅邀请链接', 'Room or lobby invitation link')} value={link} onChange={setLink} maxLength={2000} />
     <Button disabled={task.busy || !link.trim()} onPress={() => { void task.run(async () => {
       const result = /\/(room|lobby)\/invite\/([a-f0-9]+)/i.exec(link.trim());
       if (!result) throw new Error(t('请输入完整的房间或会客厅邀请链接', 'Enter a room or lobby invitation link'));
       go({ page: 'invite', kind: result[1]!.toLowerCase() as 'room' | 'lobby', token: result[2]! });
-    }); }}>{t('打开邀请', 'Open invitation')}</Button>
-    <TaskStatus task={task} /><Text size={21}>{t('公开房间', 'Public rooms')}</Text><Status query={query} />
+    }); }}>{t('打开邀请', 'Open invitation')}</Button></Card>
+    <TaskStatus task={task} /><SectionTitle>{t('公开房间', 'Public rooms')}</SectionTitle><Status query={query} />
     {query.data?.rooms.length === 0 && <Text muted>{t('暂时没有公开房间，开一局邀请朋友吧。', 'No public rooms. Start one with friends.')}</Text>}
-    {query.data?.rooms.map((room) => <Card key={room.roomId}><Text size={19}>{room.title ?? t('海龟汤', 'Puzzle')}</Text><Text muted>{`${room.hostNickname} · ${room.memberCount}/${room.capacity}`}</Text>
-      <Button disabled={task.busy || room.full} onPress={() => { void task.run(async () => { const result = await api(`/rooms/${room.roomId}/join-public`, { method: 'POST' }, publicRoomJoinResponseSchema); go({ page: 'room', id: result.roomId }); }); }}>{room.full ? t('已满员', 'Full') : t('加入', 'Join')}</Button>
+    {query.data?.rooms.map((room) => <Card key={room.roomId} style={{ padding: 14 }}><Text size={19} style={{ fontWeight: 'bold' }}>{room.title ?? t('海龟汤', 'Puzzle')}</Text><Text muted size={13}>{`${room.hostNickname} · ${room.memberCount}/${room.capacity}`}</Text>
+      <Badge tone={room.full ? 'danger' : 'accent'}>{room.full ? t('已满员', 'Full') : room.status === 'waiting' ? t('等待开局', 'Waiting') : t('进行中', 'Playing')}</Badge>
+      <Button primary={!room.full} disabled={task.busy || room.full} onPress={() => { void task.run(async () => { const result = await api(`/rooms/${room.roomId}/join-public`, { method: 'POST' }, publicRoomJoinResponseSchema); go({ page: 'room', id: result.roomId }); }); }}>{room.full ? t('已满员', 'Full') : t('加入', 'Join')}</Button>
     </Card>)}
   </View>;
 }
@@ -55,7 +57,7 @@ export function Invite({ kind, token }: { kind: 'room' | 'lobby'; token: string 
   const { t } = useLanguage(); const { go } = useNavigation(); const task = useTask();
   const query = useEndpoint<z.infer<typeof lobbyPreviewSchema> | z.infer<typeof invitePreviewSchema>>(`/invites/${kind}/${encodeURIComponent(token)}`);
   const data = query.data;
-  return <View><Status query={query} /><TaskStatus task={task} />{data && <Card><Text size={22}>{`${data.hostNickname}${t('邀请你一起喝汤', ' invited you to play')}`}</Text><Text>{`${data.memberCount}/${data.capacity}`}</Text>
+  return <View><Status query={query} /><TaskStatus task={task} />{data && <Card style={{ padding: 18, backgroundColor: '#102b3b' }}><Badge tone="accent">{kind === 'lobby' ? t('会客厅邀请', 'Lobby invitation') : t('房间邀请', 'Room invitation')}</Badge><Text size={22} style={{ fontWeight: 'bold' }}>{`${data.hostNickname}${t('邀请你一起喝汤', ' invited you to play')}`}</Text><Text muted>{`${data.memberCount}/${data.capacity}`}</Text>
     {'currentPuzzleTitle' in data && data.currentPuzzleTitle && <Text>{data.currentPuzzleTitle}</Text>}
     <Button primary disabled={task.busy || ('status' in data && data.status === 'closed')} onPress={() => { void task.run(async () => {
       if (kind === 'lobby') { const joined = await api<{ lobbyId: string }>('/lobbies/join', { body: { token } }); go({ page: 'lobby', id: joined.lobbyId }, true); }
@@ -72,14 +74,16 @@ export function Lobby({ id }: { id: string }) {
   const lobby = query.data; const host = lobby?.hostUserId === session?.user.id; const userHost = lobby?.userHostId === session?.user.id;
   const change = (path: string, body?: unknown) => task.run(async () => { await api(`/lobbies/${id}${path}`, { method: 'POST', ...(body !== undefined && { body }) }); await query.refetch(); });
   return <View><Status query={query} /><TaskStatus task={task} />{lobby && <View>
-    <Text size={22}>{t('会客厅', 'Lobby')}</Text><Text muted>{`${lobby.members.length}/${lobby.capacity}`}</Text>
-    <Card><Text>{lobby.selectedPuzzle?.title ?? t('尚未选题', 'Choose a puzzle')}</Text>{host && <Button onPress={() => go({ page: 'library', pick: { lobbyId: id } })}>{t('选一碗汤', 'Choose puzzle')}</Button>}</Card>
+    <Text size={24} style={{ fontWeight: 'bold' }}>{t('会客厅', 'Lobby')}</Text><Badge tone={lobby.isPublic ? 'accent' : 'muted'}>{`${lobby.members.length}/${lobby.capacity} · ${lobby.isPublic ? t('下一局公开', 'Next public') : t('下一局私人', 'Next private')}`}</Badge>
+    <Card style={{ padding: 14, backgroundColor: '#102b3b' }}><Text muted size={12}>{t('当前题目', 'Current puzzle')}</Text><Text size={19} style={{ fontWeight: 'bold' }}>{lobby.selectedPuzzle?.title ?? t('尚未选题', 'Choose a puzzle')}</Text>{host && <Button primary onPress={() => go({ page: 'library', pick: { lobbyId: id } })}>{t('选一碗汤', 'Choose puzzle')}</Button>}</Card>
     {host && <View><Button disabled={task.busy} onPress={() => { void change('/visibility', { isPublic: !lobby.isPublic }); }}>{lobby.isPublic ? t('下一局：公开', 'Next game: public') : t('下一局：私人', 'Next game: private')}</Button>
       <Button primary disabled={task.busy || !lobby.selectedPuzzle} onPress={() => { void task.run(async () => { const result = await api(`/lobbies/${id}/start`, { method: 'POST' }, lobbyStartResponseSchema); tap.setStorageSync(`jev.invite.${result.roomId}`, result.inviteToken); go({ page: 'room', id: result.roomId }, true); }); }}>{t('开始本局', 'Start game')}</Button>
       <Button disabled={task.busy} onPress={() => { void task.run(async () => { const result = await api<{ token: string }>(`/lobbies/${id}/invite`, { method: 'POST' }); await copyText(`${__API_BASE__}/lobby/invite/${result.token}`); }); }}>{t('复制邀请链接', 'Copy invitation')}</Button>
       {canShare() && <Button disabled={task.busy} onPress={() => { void task.run(async () => { const result = await api<{ token: string }>(`/lobbies/${id}/invite`, { method: 'POST' }); await shareInvite('lobby', result.token); }); }}>{t('邀请 TapTap 好友', 'Invite TapTap friends')}</Button>}
     </View>}
-    <Text size={19}>{t('玩家', 'Players')}</Text>
+    {!host && <Text muted>{lobby.selectedPuzzle ? t('等待房主开始本局。', 'Waiting for the owner to start.') : t('等待房主选题并开始。', 'Waiting for the owner to choose a puzzle and start.')}</Text>}
+    {lobby.hostMode === 'user' && <Card style={{ padding: 12, backgroundColor: '#173446' }}><Text muted size={13}>{t('本局由玩家主持，提问和还原会等待主持人判定。', 'A player is hosting this game. Questions and solutions wait for the host.')}</Text></Card>}
+    <SectionTitle>{t('玩家', 'Players')}</SectionTitle>
     {lobby.members.map((member) => <Card key={member.userId}><Text>{`${member.nickname}${member.isHost ? t(' · 房主', ' · Owner') : ''}${member.isUserHost ? t(' · 主持人', ' · Host') : ''}`}</Text>
       {host && !member.isHost && <Button danger disabled={task.busy} onPress={() => { void task.run(async () => { if (await confirm(t('移出玩家', 'Remove player'), member.nickname)) { await api(`/lobbies/${id}/kick`, { body: { userId: member.userId } }); await query.refetch(); } }); }}>{t('移出', 'Remove')}</Button>}
       {host && member.isUserHost && <Button disabled={task.busy} onPress={() => { void change('/host/revoke', { userId: member.userId }); }}>{t('撤销主持身份', 'Revoke host')}</Button>}
@@ -116,12 +120,12 @@ export function Room({ id }: { id: string }) {
   const send = (value: string) => task.run(async () => { if (!local || !round || pendingCurrent || !value.trim()) return; await outbox.submit({ type: local.mode, roundId: round.roundId, payload: { text: value.trim(), ...(local.mode === 'solve' && { useLargeModel: largeModel }) } }); });
   if (sync.status === 'forbidden') return <Text>{t('你已离开或被移出该房间。', 'You do not have access to this room.')}</Text>;
   if (sync.status === 'auth_required') return <Button onPress={() => go({ page: 'login', next: { page: 'room', id } })}>{t('重新登录', 'Sign in again')}</Button>;
-  return <View><Text muted>{({ connecting: t('正在连接…', 'Connecting…'), syncing: t('正在同步…', 'Syncing…'), ready: t('已连接', 'Connected'), reconnecting: t('正在重连…', 'Reconnecting…'), offline: t('网络已断开', 'Offline'), forbidden: '', auth_required: '' })[sync.status]}</Text>
+  return <View><Row style={{ alignItems: 'center', justifyContent: 'space-between' }}><Text size={24} style={{ fontWeight: 'bold' }}>{t('房间', 'Room')}</Text><Badge tone={sync.status === 'ready' ? 'accent' : 'danger'}>{({ connecting: t('连接中', 'Connecting'), syncing: t('同步中', 'Syncing'), ready: t('已连接', 'Connected'), reconnecting: t('重连中', 'Reconnecting'), offline: t('离线', 'Offline'), forbidden: '', auth_required: '' })[sync.status]}</Badge></Row>
     {sync.status !== 'ready' && <Button onPress={sync.wake}>{t('重新连接', 'Reconnect')}</Button>}
     <TaskStatus task={task} />{outbox.storageError && <Text>{outbox.storageError}</Text>}
-    {state && round && <View>{round.language !== language && <Status query={translated} />}<Text size={24}>{round.language === language ? round.title : translated.data?.title ?? ''}</Text><Card><Text>{round.language === language ? round.surface : translated.data?.surface ?? ''}</Text></Card>
+    {state && round && <View>{round.language !== language && <Status query={translated} />}<Text size={24} style={{ fontWeight: 'bold' }}>{round.language === language ? round.title : translated.data?.title ?? ''}</Text><Card style={{ padding: 14, backgroundColor: '#102b3b' }}><Text>{round.language === language ? round.surface : translated.data?.surface ?? ''}</Text></Card>
       <Choice value={local?.tab ?? 'qa'} options={[[ 'qa', t('问答', 'Questions') ], [ 'discuss', t('讨论', 'Discussion') ]]} onChange={(tab) => { void task.run(() => outbox.update((value) => ({ ...value, tab, mode: tab === 'discuss' ? 'discussion' : 'ask' }))); }} />
-      {local?.tab === 'discuss' ? state.discussions.map((item) => <Card key={item.eventId}><Text muted size={13}>{item.nickname}</Text><Text>{item.text}</Text></Card>) : state.turns.map((turn) => <Card key={turn.turnId}>
+      {local?.tab === 'discuss' ? state.discussions.map((item) => <Card key={item.eventId} style={{ padding: 13 }}><Text muted size={12}>{item.nickname}</Text><Text>{item.text}</Text></Card>) : state.turns.map((turn) => <Card key={turn.turnId} style={{ padding: 13, backgroundColor: turn.kind === 'ask' ? '#173446' : '#142b3a' }}>
         <Text muted size={13}>{`${turn.nickname} · ${turn.kind === 'ask' ? t('提问', 'Question') : t('还原', 'Solution')}`}</Text><Text>{turn.text}</Text>
         <Text style={{ color: '#7dd8c6' }}>{turn.result ? displayVerdict(turn.result, language) : turn.status === 'queued' ? (state.hostMode === 'user' ? t('等待主持人判定', 'Waiting for host') : t('排队中', 'Queued')) : turn.status === 'processing' ? t('判定中…', 'Judging…') : turn.status === 'failed' ? t('判定失败', 'Judging failed') : t('已取消', 'Cancelled')}</Text>
         {turn.source !== 'host' && typeof turn.confidence === 'number' && <Text muted size={12}>{confidenceLabel(turn.confidence, language)}</Text>}
@@ -157,7 +161,7 @@ export function Room({ id }: { id: string }) {
         {canShare() && typeof tap.getStorageSync(`jev.invite.${id}`) === 'string' && <Button onPress={() => { void task.run(() => shareInvite('room', String(tap.getStorageSync(`jev.invite.${id}`)))); }}>{t('邀请 TapTap 好友', 'Invite TapTap friends')}</Button>}
       </View>}
       {local?.pending.filter((item) => !['ask', 'solve', 'discussion'].includes(item.input.type) && item.status !== 'sent').map((item) => <Card key={item.input.clientRequestId}><Text>{t('房间操作', 'Room action')}</Text><Text muted>{item.error ?? t('正在发送…', 'Sending…')}</Text>{item.status === 'confirming' && <Button disabled={!ready} onPress={() => { void task.run(() => outbox.retry(item)); }}>{t('确认发送结果', 'Check result')}</Button>}</Card>)}
-      <Text size={20}>{t('玩家', 'Players')}</Text>{state.members.map((member) => <Card key={member.userId}><Text>{`${member.nickname}${member.isHost ? t(' · 房主', ' · Owner') : ''}${member.isUserHost ? t(' · 主持人', ' · Host') : ''}`}</Text>
+      <SectionTitle>{t('玩家', 'Players')}</SectionTitle>{state.members.map((member) => <Card key={member.userId} style={{ padding: 13 }}><Text>{`${member.nickname}${member.isHost ? t(' · 房主', ' · Owner') : ''}${member.isUserHost ? t(' · 主持人', ' · Host') : ''}`}</Text>
         {host && !member.isHost && state.roomStatus === 'playing' && <Button disabled={!ready} danger onPress={() => { void command('kick', { userId: member.userId }); }}>{t('移出玩家', 'Remove player')}</Button>}
         {host && member.isUserHost && <Button disabled={!ready} onPress={() => { void command('revoke_host', { userId: member.userId }); }}>{t('撤销主持', 'Revoke host')}</Button>}
       </Card>)}
