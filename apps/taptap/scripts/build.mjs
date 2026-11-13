@@ -9,6 +9,8 @@ const config = JSON.parse(await readFile(path.join(root, 'config.json'), 'utf8')
 for (const field of ['interstitialAdUnitId', 'rewardedAdUnitId', 'shareTemplateId']) {
   if (config[field] !== undefined && typeof config[field] !== 'string') throw new Error(`config.json 的 ${field} 必须为字符串`);
 }
+// 激励奖励须先接入平台服务端核验，再开放广告入口。
+if (config.rewardedAdUnitId) throw new Error('激励广告奖励尚未接入平台服务端核验，rewardedAdUnitId 请保持为空');
 const apiOrigin = new URL(process.env.TAPTAP_API_BASE_URL ?? config.apiBaseUrl);
 if (apiOrigin.protocol !== 'https:' || apiOrigin.pathname !== '/' || apiOrigin.username || apiOrigin.password || apiOrigin.search || apiOrigin.hash) {
   throw new Error('TAPTAP_API_BASE_URL 必须是 HTTPS 来源地址，不能包含路径、账号或查询参数');
@@ -30,7 +32,6 @@ await build({
     __API_BASE__: JSON.stringify(apiOrigin.origin), 'process.env.NODE_ENV': '"production"',
     __MINI_APP_ID__: JSON.stringify(config.miniAppId),
     __INTERSTITIAL_AD_UNIT_ID__: JSON.stringify(config.interstitialAdUnitId ?? ''),
-    __REWARDED_AD_UNIT_ID__: JSON.stringify(config.rewardedAdUnitId ?? ''),
     __SHARE_TEMPLATE_ID__: JSON.stringify(config.shareTemplateId ?? ''),
   },
   logLevel: 'info',

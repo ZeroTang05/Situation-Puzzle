@@ -12,28 +12,16 @@ import { Badge, Button, Card, Choice, Input, SectionTitle, Text, View } from '..
 import { DeviceLogin } from '../device-login.js';
 import { otpSendResponseSchema } from '../auth-protocol.js';
 import { canShare, shareReferral } from '../share.js';
-import { watchRewardedAd, type RewardedAdResult } from '../ads.js';
 
 interface History { hasMore: boolean; rooms: Array<{ roomId: string; roomStatus: string; createdAt: string; rounds: Array<{ roundId: string; title: string | null; status: string }> }> }
 
 export function Me() {
-  const { t } = useLanguage(); const { go } = useNavigation(); const task = useTask(); const [adBusy, setAdBusy] = useState(false); const [adMessage, setAdMessage] = useState('');
+  const { t } = useLanguage(); const { go } = useNavigation(); const task = useTask();
   const me = useEndpoint<z.infer<typeof meResponseSchema>>('/me'); const [page, setPage] = useState(1);
   const history = useEndpoint<History>(`/me/history?page=${page}&limit=5`);
-  const canWatchAd = Boolean(me.data && !me.data.betaOpen && !me.data.sponsorship.lifetime && (!me.data.sponsorship.monthlyUntil || new Date(me.data.sponsorship.monthlyUntil) <= new Date()));
-  const watchAd = async () => {
-    if (adBusy) return;
-    setAdBusy(true); setAdMessage('');
-    try {
-      const result: RewardedAdResult = await watchRewardedAd();
-      setAdMessage(result === 'granted' ? t('已增加 2 次开房额度。', '2 room credits added.') : result === 'already_claimed' ? t('这条广告已经领取过奖励。', 'This ad has already been claimed.') : result === 'daily_limit' ? t('今日广告奖励已达上限。', 'Today’s ad reward limit has been reached.') : result === 'skipped' ? t('看完广告才能获得奖励。', 'Watch the full ad to receive the reward.') : t('激励广告暂时不可用。', 'Rewarded ads are currently unavailable.'));
-      if (result === 'granted' || result === 'already_claimed') await me.refetch();
-    } finally { setAdBusy(false); }
-  };
   return <View><Text size={24} style={{ fontWeight: 'bold' }}>{t('我的', 'Me')}</Text><Status query={me} />{me.data && <Card style={{ padding: 16, backgroundColor: '#102b3b' }}><Text size={22} style={{ fontWeight: 'bold' }}>{me.data.nickname}</Text><Text muted size={13}>{me.data.email}</Text>
     <View style={{ marginTop: 8, marginBottom: 8 }}><Badge tone={me.data.betaOpen || me.data.sponsorship.lifetime || Boolean(me.data.sponsorship.monthlyUntil) ? 'accent' : 'muted'}>{me.data.betaOpen ? t('内测畅玩', 'Unlimited beta play') : me.data.sponsorship.lifetime ? t('永久赞助', 'Lifetime supporter') : me.data.sponsorship.monthlyUntil ? `${t('赞助到期', 'Supporter until')}：${me.data.sponsorship.monthlyUntil.slice(0, 10)}` : t('免费账号', 'Free account')}</Badge></View>
     <Text>{me.data.betaOpen ? t('内测期间可直接开房。', 'Rooms are unlimited during beta.') : `${t('可用开房次数', 'Available rooms')}：${me.data.freeRooms.total - me.data.freeRooms.consumed - me.data.freeRooms.reserved}`}</Text>
-    {canWatchAd && <View><Button disabled={adBusy || task.busy} onPress={() => { void watchAd(); }}>{adBusy ? t('广告加载中…', 'Loading ad…') : t('看广告 +2 次开房', 'Watch ad +2 rooms')}</Button>{adMessage && <Text muted size={13}>{adMessage}</Text>}</View>}
     <Button onPress={() => go({ page: 'settings' })}>{t('设置', 'Settings')}</Button>
     <Text muted size={13}>{`${t('已邀请好友', 'Friends invited')}：${me.data.invite.invitedCount}`}</Text>
     {canShare() && <Button disabled={task.busy} onPress={() => { void task.run(() => shareReferral(me.data!.invite.code)); }}>{t('邀请好友', 'Invite friends')}</Button>}

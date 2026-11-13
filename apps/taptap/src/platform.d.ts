@@ -3,7 +3,6 @@ declare const __API_BASE__: string;
 declare const __MINI_APP_ID__: string;
 declare const __SHARE_TEMPLATE_ID__: string;
 declare const __INTERSTITIAL_AD_UNIT_ID__: string;
-declare const __REWARDED_AD_UNIT_ID__: string;
 
 interface TapError {
   errMsg: string;
@@ -30,13 +29,6 @@ interface TapInterstitialAd {
   destroy(): void;
   onError(listener: (error: { errCode: number; errMsg: string }) => void): void;
   onClose(listener: () => void): void;
-}
-interface TapRewardedVideoAd {
-  load(): Promise<void>;
-  show(): Promise<void>;
-  destroy(): void;
-  onError(listener: (error: { errCode: number; errMsg: string }) => void): void;
-  onClose(listener: (result: { isEnded?: boolean }) => void): void;
 }
 declare const tap: {
   createCanvas(): HTMLCanvasElement;
@@ -66,7 +58,6 @@ declare const tap: {
   setClipboardData(options: { data: string; success(): void; fail(error: TapError): void }): void;
   showShareboard(options: { templateId: string; sceneParam: string; success?(): void; fail?(error: TapError): void }): void;
   createInterstitialAd(options: { adUnitId: string }): TapInterstitialAd;
-  createRewardedVideoAd(options: { adUnitId: string }): TapRewardedVideoAd;
   onKeyboardInput(listener: (event: { value: string }) => void): void;
   onKeyboardConfirm(listener: (event: { value: string }) => void): void;
   onKeyboardComplete(listener: (event: { value: string }) => void): void;

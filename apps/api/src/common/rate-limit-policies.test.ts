@@ -53,11 +53,6 @@ describe('限流策略清单', () => {
     expect(rule).toEqual({ scope: 'ads.intent', limit: 30, windowSeconds: 3_600, keyBy: 'user' });
   });
 
-  it('TapTap 激励奖励领取：每人每小时 20 次（令牌幂等与日上限仍由服务端管）', () => {
-    const rule = ruleOf(BillingController.prototype.tapAdReward, BillingController);
-    expect(rule).toEqual({ scope: 'ads.taptap.reward', limit: 20, windowSeconds: 3_600, keyBy: 'user' });
-  });
-
   it('激励视频回调：按客户端 IP 每分钟 120 次（微信服务器 GET，与支付通知同形态）', () => {
     const rule = ruleOf(BillingController.prototype.wechatAdNotify, BillingController);
     expect(rule).toEqual({ scope: 'ads.notify', limit: 120, windowSeconds: 60, keyBy: 'ip' });
