@@ -19,6 +19,7 @@ import { queryClient } from '../../../state/query-client'
 import { format } from '@jev/i18n'
 import { DialogHost, Modal, useDialog } from '../../../ui/dialog'
 import { Toast } from '../../../ui/toast'
+import { Loading } from '../../../ui/loading'
 import { goBack } from '../../../ui/back'
 import { useLobbySync } from '../../room/use-lobby-sync'
 import { inviteWebLink } from '../../invite-link'
@@ -248,10 +249,18 @@ export default function Lobby(): ReactNode {
   if (!session) {
     return (
       <View className="page">
-        <Text className="muted">{copy.needLoginForRoom}</Text>
-        <Button className="btn btn-primary" onClick={() => void Taro.navigateTo({ url: '/pages/login/login' })}>
-          {copy.login}
-        </Button>
+        <View className="topbar topbar-title">
+          <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => goBack()}>
+            {copy.back}
+          </Button>
+          <Text className="brand brand-sm">{copy.lobbyTitle}</Text>
+        </View>
+        <View className="panel stack login-prompt">
+          <Text className="muted">{copy.needLoginForRoom}</Text>
+          <Button className="btn btn-primary" onClick={() => void Taro.navigateTo({ url: '/pages/login/login' })}>
+            {copy.login}
+          </Button>
+        </View>
       </View>
     )
   }
@@ -260,7 +269,7 @@ export default function Lobby(): ReactNode {
   if (poll.isPending && lobbyId !== '') {
     return (
       <View className="page page-loading">
-        <Text className="muted">{copy.loadingRound}</Text>
+        <Loading text={copy.loadingRound} />
       </View>
     )
   }

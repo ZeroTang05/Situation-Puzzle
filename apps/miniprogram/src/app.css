@@ -63,7 +63,7 @@ page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding: 8px 14px max(8px, env(safe-area-inset-bottom));
+  padding: 6px 14px max(8px, env(safe-area-inset-bottom));
   overflow: hidden;
 }
 
@@ -75,6 +75,36 @@ page {
   color: var(--muted);
 }
 
+/* ---------- 加载动画：三点脉冲（页面级加载态用动画降焦躁，bug 11） ---------- */
+
+.loading-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 0;
+}
+
+.loading-dots { display: flex; gap: 6px; }
+
+.loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.3;
+  animation: loading-pulse 1s ease-in-out infinite;
+}
+
+.loading-dot-b { animation-delay: 0.15s; }
+.loading-dot-c { animation-delay: 0.3s; }
+
+@keyframes loading-pulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
 /* ---------- 基础控件（theme.css 同名同类） ---------- */
 
 .btn {
@@ -84,7 +114,9 @@ page {
   justify-content: center;
   width: auto;
   min-height: var(--tap);
-  padding: 8px 16px;
+  /* 纵向内边距按 min-height 配平（内容行高 + padding ≈ min-height）：
+     即使部分渲染器把 button 退回块级布局，文字也能靠 padding 垂直居中 */
+  padding: 11px 16px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: transparent;
@@ -119,29 +151,33 @@ page {
 
 .btn-sm {
   min-height: 36px;
-  padding: 4px 10px;
+  padding: 8px 10px;
   font-size: 14px;
 }
 
 .btn-lg {
   min-height: 52px;
+  padding: 14px 16px;
   font-size: 17px;
 }
 
-/* 首页玩法介绍：topbar 里的圆形问号按钮，与 btn-sm 同高 */
+/* 首页玩法介绍：topbar 里的圆形问号按钮，36px 正圆 */
 .help-btn {
   flex: none;
   width: 36px;
-  padding: 4px 0;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
   border-radius: 50%;
   font-weight: 700;
 }
 
 /* 登录/注册 topbar 里的语言切换：紧凑 ghost 按钮，不挤压 brand */
+/* 顶栏语言切换：与同排的 btn-sm 返回键同高同字号（顶栏内并排按钮尺寸统一） */
 .lang-switch {
-  min-height: 28px;
-  padding: 2px 10px;
-  font-size: 12px;
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.04em;
 }
@@ -373,7 +409,7 @@ page {
   justify-content: center;
   width: auto;
   min-height: 30px;
-  padding: 3px 12px;
+  padding: 6px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: transparent;
@@ -399,6 +435,12 @@ page {
   gap: 12px;
   flex: 1 1 0;
   min-height: 0;
+}
+
+/* 选题模式未登录提示：与上方筛选区、下方首卡的间距均衡（默认 Text 无下边距会贴住首卡） */
+.library-hint {
+  display: block;
+  margin-bottom: 8px;
 }
 
 .puzzle-grid.is-page-loading { opacity: 0.5; }
@@ -525,7 +567,7 @@ page {
 .puzzle-card-actions .btn {
   min-width: 0;
   min-height: 28px;
-  padding: 2px 8px;
+  padding: 6px 8px;
   font-size: 12px;
 }
 
@@ -660,7 +702,7 @@ page {
   max-height: 30vh;
   /* 与 web 一致：min(30dvh, 220px)；不支持 min() 的老客户端回落 30vh */
   max-height: min(30vh, 220px);
-  margin-top: 8px;
+  margin-top: 6px;
   display: flex;
 }
 
@@ -839,7 +881,7 @@ page {
   flex: 1 1 auto;
   min-height: 0;
   gap: 0;
-  padding: 10px 0;
+  padding: 8px 0 4px;
 }
 
 .solo-chat .panel { border-radius: 4px; padding: 10px; }
@@ -862,7 +904,7 @@ page {
   flex: 1 1 0;
   min-width: 0;
   min-height: 38px;
-  padding: 4px 2px;
+  padding: 11px 2px;
   border-radius: 3px;
   font-size: 13px;
   line-height: 1.2;
@@ -890,7 +932,9 @@ page {
   align-items: stretch;
 }
 
-/* 两种模式共用尺寸，textarea 的长内容在内部滚动 */
+/* 两种模式共用尺寸，textarea 的长内容在内部滚动。
+   行高 26px = 44 - 上下 padding 16 - 边框 2：内容区正好一行，
+   小程序 Textarea 的 placeholder 顶对齐，行高填满内容区才能垂直居中 */
 .composer-input {
   box-sizing: border-box;
   flex: 1;
@@ -900,14 +944,15 @@ page {
   width: auto;
   padding: 8px 10px;
   border-radius: 3px;
-  line-height: 1.35;
+  line-height: 26px;
   font-size: var(--font-body);
 }
 
 .composer-row .btn {
   min-height: 44px;
-  padding: 4px 12px;
+  padding: 11px 12px;
   border-radius: 3px;
+  white-space: nowrap;
 }
 
 /* ---------- 大模型开关：自绘拨杆，尺寸与配色跟站内控件一致 ---------- */
@@ -1071,6 +1116,9 @@ page {
   left: 0;
   right: 0;
   bottom: 0;
+  /* 显式压过自定义顶栏与原生组件合成层：WXSS 里无 z-index 的 fixed 层
+     会被带背景的 Button 等原生组件盖住，遮罩就「罩不住」顶栏了 */
+  z-index: 3000;
   background: rgba(0, 8, 18, 0.72);
   animation: jev-dialog-fade 0.16s ease-out;
 }
@@ -1078,6 +1126,7 @@ page {
 .jev-dialog {
   box-sizing: border-box;
   position: fixed;
+  z-index: 3001;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
@@ -1130,7 +1179,7 @@ page {
 
 .jev-dialog-actions .btn {
   min-height: 40px;
-  padding: 6px 16px;
+  padding: 9px 16px;
 }
 
 .jev-dialog-cancel {
@@ -1270,7 +1319,8 @@ page {
   background: transparent;
 }
 
-.login-prompt { margin-top: 16px; align-items: stretch; }
+/* 登录引导卡：不加上边距——所有用法都紧跟顶栏，与 hall/invite 的卡片节奏一致 */
+.login-prompt { margin-top: 0; align-items: stretch; }
 
 /* 会客厅摘要行 / 区块标题 */
 .me-section { display: flex; flex-direction: column; }
@@ -1295,7 +1345,7 @@ page {
 
 .me-pager .btn {
   min-height: 30px;
-  padding: 2px 12px;
+  padding: 5px 12px;
   font-size: 13px;
 }
 
@@ -1467,7 +1517,7 @@ page {
   justify-content: center;
   width: 100%;
   min-height: 36px;
-  padding: 4px 10px;
+  padding: 8px 10px;
   background: transparent;
   color: #8fc6ff;
   font-size: 14px;
@@ -1480,7 +1530,8 @@ page {
 .wechat-login-hint {
   display: block;
   font-size: 13px;
-  text-align: left;
+  /* 与下方「隐私政策」链接同为居中行：卡片内次要信息对齐方式统一 */
+  text-align: center;
 }
 
 .settings-row {
@@ -1548,9 +1599,10 @@ page {
   margin: 16px 0 8px;
 }
 
+/* 条目两列 flex（::before 圆点为独立列）：长条目折行后续行与首行文字对齐，
+   圆点独占标记列（负 text-indent 在部分渲染器上不生效，flex 最稳） */
 .privacy-item {
-  display: block;
-  padding-left: 20px;
+  display: flex;
   font-size: 14px;
   line-height: 1.7;
   color: var(--ink);
@@ -1558,6 +1610,6 @@ page {
 
 .privacy-item::before {
   content: '·';
-  margin-left: -12px;
+  flex: none;
   margin-right: 6px;
 }

@@ -12,6 +12,7 @@ import { Button, Image, Text, View } from '@tarojs/components'
 import { AuthError, loginWithWechat } from '../../api/auth-client'
 import { useLanguage } from '../../state/language'
 import { notifySessionChanged } from '../../state/session'
+import { goBack } from '../../ui/back'
 import { displayAuthError } from '@jev/i18n'
 import iconPng from '../../assets/icon.png'
 
@@ -56,7 +57,7 @@ export default function Login(): ReactNode {
   return (
     <View className="page">
       <View className="topbar topbar-title">
-        <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => void Taro.navigateBack()}>
+        <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => goBack()}>
           {copy.back}
         </Button>
         <View className="brand brand-identity">

@@ -1,17 +1,18 @@
 /**
- * App 壳（Capacitor）运行时适配：接口/WS 基址与 Bearer 令牌。
+ * 网页、App 壳（Capacitor）和 TapTap H5 的接口、路由及会话适配。
  *
  * - 基址来自构建期 VITE_API_BASE_URL（App 壳构建写入生产域名，见 apps/web/.env.app）；
  *   网页构建不设置 → 相对路径 + Cookie，行为与无壳时完全一致
- * - 令牌只在 App 壳存取（WebView 拒收第三方 Cookie，登录改走 Authorization: Bearer，
- *   见 docs/rebuild/13-APP-VERSION.md §4）；存 localStorage（https://localhost 私有空间），
- *   不给 web 工作区引入 Capacitor 依赖
+ * - App 壳和 H5 跨来源请求使用 Bearer，令牌保存在各自来源的 localStorage；
+ *   普通网页使用同源 Cookie，账号数据仍由同一服务端提供。
  * - Capacitor 原生桥会在 WebView 里注入 window.Capacitor，据此区分壳与浏览器
  */
 export const apiBase = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
+export const isTapH5 = import.meta.env.VITE_TAPTAP_H5 === 'true';
 
 /** 壳内为原生平台（window.Capacitor 由 Capacitor 运行时注入） */
 export const isAppShell = typeof window !== 'undefined' && Boolean((window as { Capacitor?: unknown }).Capacitor);
+const usesBearer = isAppShell || isTapH5;
 
 /** 接口地址：App 壳指向生产域名，网页保持相对路径（当前站点同源代理） */
 export function apiUrl(path: string): string {
@@ -24,11 +25,11 @@ export function wsUrl(): string {
   return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
 }
 
-const TOKEN_KEY = 'jev.app-session-token';
+const TOKEN_KEY = isTapH5 ? 'jev.taptap-h5-session-token' : 'jev.app-session-token';
 
-/** 业务与认证请求统一附带的令牌头；网页端恒为空对象（行为不变） */
+/** App 壳与 H5 的业务和认证请求携带本站会话令牌。 */
 export function authorizationHeader(): Record<string, string> {
-  if (!isAppShell) return {};
+  if (!usesBearer) return {};
   const token = localStorage.getItem(TOKEN_KEY);
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -42,20 +43,33 @@ export function languageHeader(): Record<string, string> {
   return { 'X-Jev-Language': stored === 'en' ? 'en' : 'zh' };
 }
 
-/** 登录/会话刷新响应经 set-auth-token 头下发令牌；只在 App 壳存储，网页继续用 Cookie */
+/** 登录与会话刷新经 set-auth-token 头下发令牌，App 壳与 H5 存到本来源。 */
 export function captureBearerToken(response: Response): void {
-  if (!isAppShell) return;
+  if (!usesBearer) return;
   const token = response.headers.get('set-auth-token');
   if (token) localStorage.setItem(TOKEN_KEY, token);
 }
 
 export function clearBearerToken(): void {
-  if (isAppShell) localStorage.removeItem(TOKEN_KEY);
+  if (usesBearer) localStorage.removeItem(TOKEN_KEY);
 }
 
 /** OAuth 回流交接直接写入令牌（不走响应头），同样只对壳生效 */
 export function storeBearerToken(token: string): void {
-  if (isAppShell) localStorage.setItem(TOKEN_KEY, token);
+  if (usesBearer) localStorage.setItem(TOKEN_KEY, token);
+}
+
+/** H5 部署在平台子目录，站内整页跳转要保留实际入口和 HashRouter 路径。 */
+export function appHref(path: string): string {
+  if (!isTapH5) return path;
+  const destination = new URL(path, location.origin);
+  if (destination.origin !== location.origin) throw new Error('站内链接必须属于当前来源');
+  return `${location.pathname}${location.search}#${destination.pathname}${destination.search}${destination.hash}`;
+}
+
+/** 静态资源跟随构建入口，适用于站点根目录和平台游戏子目录。 */
+export function assetUrl(name: string): string {
+  return `${import.meta.env.BASE_URL}${name}`;
 }
 
 // ---------- 原生桥（经 window.Capacitor.Plugins 动态调用，不引入 Capacitor 依赖） ----------

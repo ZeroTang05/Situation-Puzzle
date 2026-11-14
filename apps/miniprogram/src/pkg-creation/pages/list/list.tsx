@@ -15,8 +15,10 @@ import { api, translateApiError } from '../../../api/client'
 import { useLanguage } from '../../../state/language'
 import { useJevSession } from '../../../state/session'
 import { goBack } from '../../../ui/back'
+import { LoginPrompt } from '../../../ui/login-prompt'
 import { compactVoteCount } from '../../../game/game-display'
 import { VoteIcon } from '../../../game/components'
+import { formatDefaultDate } from '../../../ui/dates'
 import { creationCopy, creationStatusLabel } from '../../copy'
 import iconPng from '../../../assets/icon.png'
 import '../../creation.css'
@@ -53,12 +55,7 @@ export default function CreationList(): ReactNode {
           <Text className="brand brand-sm creation-title">{text.center}</Text>
           <View className="topbar-tail" />
         </View>
-        <View className="panel stack login-prompt">
-          <Text className="muted">{text.login}</Text>
-          <Button className="btn btn-primary" onClick={() => void Taro.navigateTo({ url: '/pages/login/login' })}>
-            {copy.login}
-          </Button>
-        </View>
+        <LoginPrompt text={text.login} />
       </View>
     )
   }
@@ -154,7 +151,7 @@ export default function CreationList(): ReactNode {
                   <VoteIcon direction="down" />
                   <Text>{compactVoteCount(work.downCount)}</Text>
                 </View>
-                <Text className="muted">{new Date(work.updatedAt).toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US')}</Text>
+                <Text className="muted">{formatDefaultDate(work.updatedAt, language)}</Text>
               </View>
               {work.pendingName && (
                 <Text className="creation-item-pending">
@@ -169,7 +166,8 @@ export default function CreationList(): ReactNode {
                 className="btn btn-sm creation-item-btn creation-item-btn-play"
                 onClick={(event) => {
                   event.stopPropagation()
-                  void Taro.navigateTo({ url: `/pages/solo/solo?puzzleId=${work.puzzleId}` })
+                  // 带作品语言开局：英文作品在中文界面下也按英文出题（对齐 web 的 ?lang=）
+                  void Taro.navigateTo({ url: `/pages/solo/solo?puzzleId=${work.puzzleId}&lang=${work.language}` })
                 }}
               >
                 {text.playShort}

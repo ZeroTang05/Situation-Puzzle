@@ -19,8 +19,9 @@ const Connection = connectionCtor.default ?? connectionCtor
 const MiniProgram = miniProgramCtor.default ?? miniProgramCtor
 
 const INSTALL_DIR = 'D:/Program Files (x86)/微信web开发者工具'
-// scripts/ 的上一级 = 项目根（注意：new URL('..') 已带尾分隔符，不能直接再 dirname）
-const PROJECT_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+// scripts/ 的上一级 = 项目根（注意：new URL('..') 已带尾分隔符，不能直接再 dirname）；
+// IDE 项目级缓存劣化时可用 MP_PROJECT_PATH 指到隔离壳（.ideshell，内含 dist 实体拷贝）
+const PROJECT_PATH = process.env.MP_PROJECT_PATH ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const AUTO_PORT = 9420
 
 /** 拉起开发者工具自动化端口：复刻 cli.bat（Electron exe 以 node 模式跑 CLI 脚本，

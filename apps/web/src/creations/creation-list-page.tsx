@@ -10,6 +10,7 @@ import { compactVoteCount } from '../catalog/vote-count.js';
 import { VoteIcon } from '../catalog/vote-icon.js';
 import type { Session } from '../session.js';
 import { creationCopy, creationStatusLabel } from './copy.js';
+import { assetUrl } from '../app-runtime.js';
 
 /** 筛选分桶：草稿单独一类；已发布含被下架（卡片上仍有状态标签）；其余都算审核流程中。 */
 type WorkFilter = 'all' | 'draft' | 'review' | 'published';
@@ -68,7 +69,7 @@ export function CreationListPage({ session }: { session: Session | null }) {
     )}
     {query.isSuccess && items.length === 0 && (
       <section className="creation-empty">
-        <img className="creation-empty-icon" src="/icon.svg" width={48} height={48} alt="" aria-hidden="true" />
+        <img className="creation-empty-icon" src={assetUrl('icon.svg')} width={48} height={48} alt="" aria-hidden="true" />
         <p>{text.empty}</p>
         <Link className="btn btn-primary" to="/creations/new">{text.create}</Link>
       </section>

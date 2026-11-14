@@ -123,7 +123,7 @@
   border-top: 1px solid var(--line);
 }
 .chat-input { flex: 1 1 auto; min-width: 0; }
-.chat-input-row .btn { flex: none; }
+.chat-input-row .btn { flex: none; white-space: nowrap; }
 
 /* ---------- 通知列表：未读项用底色与描边区分（web .notification-list 系） ---------- */
 

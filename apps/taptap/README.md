@@ -1,11 +1,25 @@
-# 超好玩海龟汤 · Tap 原生小游戏
+# 超好玩海龟汤 · TapTap H5 小游戏
+
+当前版本直接构建 `apps/web` 的现有 React 页面、样式和全部路由。H5 草稿为稷策游戏下的 `1059905`，小游戏标识为 `tapmcowiubozfhhvw5`，身份见 `h5.config.json`。
+
+```powershell
+pnpm dev:taptap
+pnpm build:taptap:debug
+pnpm package:taptap:debug
+```
+
+开发预览通过 Vite 代理连接真实生产 API。上传的 H5 构建直接访问 `https://sp.xiaobaozi.cn`，需要服务器允许平台实际分配的精确来源。调试构建包含源码映射和 vConsole 的脱敏诊断面板，可导出请求状态、耗时、服务端 requestId 和错误位置。正式构建命令为 `pnpm build:taptap`、`pnpm package:taptap`，产物排除调试工具。
+
+归档为 `artifacts/h5-debug.zip` 和 `artifacts/h5.zip`，均只有一个顶层 `game/` 目录。平台自测二维码、实际包体状态和手机验收记录见 [开发记录](../../docs/rebuild/22-TAPTAP.md) 与 [验收步骤](../../docs/rebuild/22-TAPTAP-ACCEPTANCE.md)。
+
+## 原生版本历史记录
 
 使用 React 组件与原生 Canvas，复用项目已有 API、契约和中英文案。
 
 已接入题库、单人、账号、会客厅、多人、用户主持、好友、私聊、通知、我的、设置和创作流程。官网账号使用设备授权，支持沿用 Google / LINUX DO / 邮箱登录后的账号。当前仍待真实 TapTap 验收；激励广告奖励尚未接通。
 
 ```powershell
-pnpm build:taptap
+pnpm build:taptap:native
 pnpm --filter @jev/taptap package
 ```
 

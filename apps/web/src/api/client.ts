@@ -36,14 +36,20 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
 
   const response = await fetch(apiUrl(path), {
     method: options.method ?? 'GET',
-    headers: { ...headers, ...authorizationHeader(), ...languageHeader() },
+    headers: { ...headers, ...(options.credentials === 'omit' ? {} : authorizationHeader()), ...languageHeader() },
     signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(options.timeoutMs ?? 60_000)]) : AbortSignal.timeout(options.timeoutMs ?? 60_000),
     credentials: options.credentials ?? 'include',
     ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+  }).catch((cause: unknown) => {
+    if (cause instanceof Error && cause.name === 'AbortError') throw cause;
+    const message = languageHeader()['X-Jev-Language'] === 'en' ? 'Connection failed. Please retry.' : '连接服务器失败，请重试';
+    const error = new ApiError('NETWORK_ERROR', message);
+    error.cause = cause;
+    throw error;
   });
 
   // App 壳：登录/会话刷新响应会带 set-auth-token 头，顺手更新本地令牌
-  captureBearerToken(response);
+  if (options.credentials !== 'omit') captureBearerToken(response);
   const payload = (await response.json().catch(() => null)) as
     | { data?: T; error?: { code: string; message: string; params?: Record<string, unknown> } }
     | null;

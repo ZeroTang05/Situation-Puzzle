@@ -21,7 +21,7 @@ const Connection = connectionCtor.default ?? connectionCtor
 const MiniProgram = miniProgramCtor.default ?? miniProgramCtor
 
 const INSTALL_DIR = 'D:/Program Files (x86)/微信web开发者工具'
-const PROJECT_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const PROJECT_PATH = process.env.MP_PROJECT_PATH ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const AUTO_PORT = 9420
 
 /** 拉起开发者工具自动化端口（与 mp-screenshot 同款：cwd 必须是安装目录） */
@@ -822,6 +822,7 @@ async function moduleHall() {
     check('建房进入会客厅', false, `path=${page?.path}`)
     return
   }
+  check('建房进入会客厅', true, `path=${page.path}`)
   // 公开开关（VisibilityToggle 组件）：开公开让本房进大厅
   const hallVis = await page.$('.visibility-toggle')
   if (hallVis) {
@@ -834,13 +835,24 @@ async function moduleHall() {
     await tapButton(page, '选题', { waitMs: 500 })
     page = await waitPath(LOBBY_PATH, 10_000)
   }
+  // 开始本局：选题回跳后快照可能还没刷出 selectedPuzzle（按钮短暂 disabled，点了没反应），
+  // 点完仍在 lobby 就等快照刷新后重试
   page = await mini.currentPage()
-  await tapButton(page, '开始本局', { waitMs: 500 })
-  page = await waitPath(ROOM_PATH, 15_000)
-  if (!page || !page.path.includes(ROOM_PATH)) {
+  let started = false
+  for (let attempt = 0; attempt < 5 && !started; attempt++) {
+    await tapButton(page, '开始本局', { optional: true, waitMs: 500 })
+    page = await waitPath(ROOM_PATH, 4_000)
+    started = !!page && page.path.includes(ROOM_PATH)
+    if (!started) {
+      page = await mini.currentPage()
+      await sleep(1_500)
+    }
+  }
+  if (!started) {
     check('开局进入房间', false, `path=${page?.path}`)
     return
   }
+  check('开局进入房间', true, `path=${page.path}`)
   // 回首页进大厅
   await goHome()
   page = await mini.currentPage()

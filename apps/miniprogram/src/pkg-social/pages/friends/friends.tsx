@@ -18,6 +18,7 @@ import { useLanguage } from '../../../state/language'
 import { useJevSession } from '../../../state/session'
 import { DialogHost, useDialog } from '../../../ui/dialog'
 import { goBack } from '../../../ui/back'
+import { LoginPrompt } from '../../../ui/login-prompt'
 import '../../social.css'
 
 interface FriendSearchResult {
@@ -192,12 +193,7 @@ export default function Friends(): ReactNode {
     return (
       <View className="page">
         {topbar}
-        <View className="panel stack login-prompt">
-          <Text className="muted">{copy.meRequiresLogin}</Text>
-          <Button className="btn btn-primary" onClick={() => void Taro.navigateTo({ url: '/pages/login/login' })}>
-            {copy.login}
-          </Button>
-        </View>
+        <LoginPrompt text={copy.meRequiresLogin} />
       </View>
     )
   }

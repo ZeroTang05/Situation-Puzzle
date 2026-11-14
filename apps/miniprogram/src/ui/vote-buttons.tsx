@@ -1,5 +1,6 @@
 /**
  * 赞/踩投票按钮（对齐 apps/web/src/catalog/vote-buttons.tsx，docs/rebuild/11-VOTES-AND-AUTHORSHIP.md §2/§6）。
+ * 放主包 ui/：单人页（主包）与房间结算（pkg-room 分包）都要用，跨包共享代码必须在主包。
  *
  * 未登录显示计数、点击跳登录；登录后拉取本人选择。
  * 点击切换 = 明确的 PUT 或 DELETE（取消）；失败恢复原状态可重试，
@@ -8,10 +9,10 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import Taro from '@tarojs/taro'
 import { Button, Text, View } from '@tarojs/components'
-import { api } from '../../api/client'
-import { useLanguage } from '../../state/language'
-import type { Session } from '../../state/session'
-import { VoteIcon } from '../../game/components'
+import { api } from '../api/client'
+import { useLanguage } from '../state/language'
+import type { Session } from '../state/session'
+import { VoteIcon } from '../game/components'
 
 interface RatingState {
   choice: 'up' | 'down' | null

@@ -186,7 +186,7 @@ export const copy = {
     solvePlaceholder: '写下你还原的完整故事…',
     soloEmptyTitle: '先问一个问题',
     soloEmptyHint: 'Jev 只回答「是 / 否 / 无关 / 无法确定」。问具体的人和物，少用「他 / 她 / 它」这类代词。',
-    soloEmptyExamples: ['故事里有人死吗', '故事里都是人吗', '有超自然元素吗'],
+    soloEmptyExamples: ['故事里有人死吗', '故事里都是人吗', '有超自然因素吗'],
     hint: '提示',
     hintPrev: '上一条提示',
     hintNext: '下一条提示',
@@ -204,6 +204,8 @@ export const copy = {
     hostStartedNewRoom: '房主已开启下一题',
     enterNewRoom: '进入新房',
     waitingRoom: '等待室',
+    /** 对局房的通用页名：房间页未登录引导等拿不到房间名时的顶栏兜底标题 */
+    roomTitle: '房间',
     invite: '邀请朋友',
     inviteCopied: '邀请链接已复制，发给朋友即可加入。',
     clipboardInvitePrompt: '检测到邀请链接，现在加入吗？',
@@ -486,7 +488,7 @@ export const copy = {
     libraryLoadFail: '题库加载失败，请刷新重试。',
     played: '已体验',
     catalogOpenRoom: '开房间',
-    libraryNeedLogin: '开房间需要先登录。',
+    libraryNeedLogin: '登录后才能选题并开房间。',
 
     // ----- solo -----
     jevIntro: '我是 Jev，这碗汤的主持人。大胆提问，我只回答「是、否、无关」。',
@@ -710,6 +712,7 @@ export const copy = {
     hostStartedNewRoom: 'The host started the next puzzle',
     enterNewRoom: 'Enter new room',
     waitingRoom: 'Waiting room',
+    roomTitle: 'Room',
     invite: 'Invite friends',
     clipboardInvitePrompt: 'Invite link detected. Join now?',
     inviteCopied: 'Invite link copied. Send it to your friends!',
@@ -991,7 +994,7 @@ export const copy = {
     libraryLoadFail: 'Library failed to load. Please refresh.',
     played: 'Tried',
     catalogOpenRoom: 'Open a room',
-    libraryNeedLogin: 'Sign in required to open a room.',
+    libraryNeedLogin: 'Sign in to pick a puzzle and open a room.',
 
     // ----- solo -----
     jevIntro: 'I am Jev, your host. Ask anything — I will answer Yes, No or Irrelevant.',

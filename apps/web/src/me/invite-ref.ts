@@ -8,21 +8,24 @@
 import { useEffect } from 'react';
 import { api } from '../api/client.js';
 import type { Session } from '../session.js';
+import { useLocation, useNavigate } from 'react-router';
 
 const REF_KEY = 'jev.inviteRef';
 /** 与 @jev/domain INVITE_CODE_PATTERN 同步：8 位、去易混字符的大写表 */
 const REF_PATTERN = /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$/;
 
 export function useInviteRefClaim(session: Session | null): void {
+  const location = useLocation();
+  const navigate = useNavigate();
   // 任何页面带 ?ref= 进站：存下邀请码并从 URL 清掉（不污染刷新与分享）
   useEffect(() => {
-    const url = new URL(window.location.href);
+    const url = new URL(location.pathname + location.search + location.hash, window.location.origin);
     const ref = url.searchParams.get('ref');
     if (!ref || !REF_PATTERN.test(ref)) return;
     localStorage.setItem(REF_KEY, ref);
     url.searchParams.delete('ref');
-    window.history.replaceState(null, '', url.toString());
-  }, []);
+    navigate(url.pathname + url.search + url.hash, { replace: true });
+  }, [location.pathname, location.search, location.hash, navigate]);
 
   // 登录后领取一次；登出再登进另一个号时，另一个号没有存值不会误领
   useEffect(() => {

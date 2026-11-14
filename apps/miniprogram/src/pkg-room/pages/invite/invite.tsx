@@ -18,6 +18,7 @@ import { useLanguage } from '../../../state/language'
 import { useJevSession } from '../../../state/session'
 import { format } from '@jev/i18n'
 import { captureInviteRef } from '../../../invite/invite-ref'
+import { Loading } from '../../../ui/loading'
 import { goBack } from '../../../ui/back'
 import '../../room.css'
 
@@ -98,8 +99,24 @@ export default function Invite(): ReactNode {
     }
   }
 
-  // 未登录时正在跳登录页：显示加载态，不闪「链接无效」
-  if (isPending || !session) return <View className="page page-loading"><Text className="muted">{copy.loadingRound}</Text></View>
+  // 未登录时正在跳登录页：显示加载态，不闪「链接无效」；保留返回键，
+  // 登录取消/失败时用户可以退出去（否则卡在没有出口的加载页）。
+  // 顶栏保留品牌标识（与 web 一致）；原生导航栏标题已改为「房间邀请」，同屏不再重复品牌名
+  if (isPending || !session) {
+    return (
+      <View className="page">
+        <View className="topbar topbar-title">
+          <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => goBack()}>
+            {copy.back}
+          </Button>
+          <Text className="brand brand-sm">{copy.brand}</Text>
+        </View>
+        <View className="page-loading">
+          <Loading text={copy.loadingRound} />
+        </View>
+      </View>
+    )
+  }
   // kind/token 缺失（坏链接）：直接判无效，不进加载态（此时查询被禁用，isPending 恒真）
   if (!kind || !token) {
     return (
@@ -111,7 +128,13 @@ export default function Invite(): ReactNode {
       </View>
     )
   }
-  if (preview.isPending) return <View className="page page-loading"><Text className="muted">{copy.loadingRound}</Text></View>
+  if (preview.isPending) {
+    return (
+      <View className="page page-loading">
+        <Loading text={copy.loadingRound} />
+      </View>
+    )
+  }
   if (preview.isError || !preview.data) {
     return (
       <View className="page">

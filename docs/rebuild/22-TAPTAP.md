@@ -1,4 +1,26 @@
-# 22 — 超好玩海龟汤：TapTap 原生小游戏
+# 22 — 超好玩海龟汤：TapTap H5 小游戏
+
+## 2026-11-14 H5 路线
+
+用户确认改为 H5，复用 `apps/web` 的全部页面和 CSS，保留网页全部入口。第一阶段验收首页、题库与匿名单人，随后验证现有账号、多人和社交流程，再接平台专属能力。原生 Canvas 代码作为历史实现保留，默认 `build:taptap` 已切到 H5。
+
+厂商稷策游戏 `529328` 下已创建 H5 草稿 `1059905`，名称「超好玩海龟汤」、分类解谜、开发者身份、非关卡游戏。创建后实际读回 `declared_package_types=["h5"]` 与 `is_level=false`。新小游戏标识为 `tapmcowiubozfhhvw5`。
+
+首个调试包已上传并绑定主包：H5 版本 `480282`、上传产物 `211664`、文件产物 `182656`，大小 `1368180` 字节。包体列表与 main 槽位读回一致。官方自测入口为 `https://www.taptap.cn/qrcode/miniapp?id=tapmcowiubozfhhvw5&type=develop&version_id=480282`。仅为开发包。
+
+当前主包已更新为验证后的 `480319`：上传产物 `211694`、文件产物 `182679`、大小 `1368702` 字节，main 槽位写后读回一致。归档 SHA-256 为 `D48B3AB2FC0186E3CFE1A7F63665BAD2C519081EAFA02A80D83559450B4FD479`。二维码为 `apps/taptap/artifacts/h5-test-qr-480319.png`，调试开关已移到侧边，避免遮挡底部操作。正式归档 `h5.zip` 大小 `330763` 字节。
+
+浏览器验证已通过：115 项网页单测；网页、H5 正式与 H5 调试构建；两个真实端到端场景（24.5 秒）。首页在 375 / 390 / 430 宽度与网页入口、位置、尺寸和样式一致；题库与同题单人页显示内容一致，输入区位置一致；平台子目录下的资源、刷新与找回密码链接通过。实际 API 代理下完成提问、还原、提示、揭晓、换题、断网恢复、IndexedDB 草稿刷新和诊断脱敏检查。当前静态 H5 包跨来源访问仍被生产 CORS 拦截，代理环境通过不代表平台来源已经放行。
+
+证据存于 `apps/taptap/artifacts/`：`h5-e2e-results.json`（执行报告）、`h5-http-results.json`（真实请求状态）、`h5-diagnostics.json`（请求编号与脱敏日志）、`h5-cors-failure.json`（Chrome 跨域错误）以及网页 / H5 首页、题库、同题对局的对照截图。截图来自电脑 Chrome 的网页与 H5 预览；手机录屏和宿主键盘验收仍待设备。
+
+H5 使用 HashRouter、相对静态资源和现有 API。调试包附源码映射，vConsole 只显示脱敏请求元数据和错误位置。正式包排除调试代码。默认 API 为 `https://sp.xiaobaozi.cn`；本地 `dev:taptap` 通过 Vite 代理访问同一真实服务。
+
+已经复现构建包跨来源访问生产服务被浏览器拒绝，Chrome 原因是 `PreflightMissingAllowOriginHeader`。需从实际平台运行取得精确来源，再加入生产 `APP_EXTRA_ORIGINS` 并更新 API 容器。SSH 读取生产 PUBLIC_BASE_URL / APP_EXTRA_ORIGINS 的命令被工具拒绝，返回未获用户批准，服务器配置尚待完成。该结果不能用于断言旧原生包的故障原因。
+
+手机 USB 连接当前未被 adb 检测到，原生旧包错误采集、实际 TapTap H5 运行、键盘和前后台验收仍待设备接入。浏览器结果与真机结果分别记录。
+
+## 原生版本历史记录
 
 更新日期：2026-11-13。
 

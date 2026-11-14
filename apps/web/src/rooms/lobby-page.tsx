@@ -18,6 +18,7 @@ import { Toast } from '../toast.js';
 import { useLobbySync } from './use-lobby-sync.js';
 import { MemberList } from './room-page.js';
 import { VisibilityToggle } from './visibility-toggle.js';
+import { siteOrigin } from '../app-runtime.js';
 
 interface LobbySnapshot {
   lobbyId: string;
@@ -194,7 +195,7 @@ export function LobbyPage({ session }: { session: Session | null }) {
     setError(null);
     try {
       const { token } = await api<{ token: string; kind: 'lobby' }>(`/lobbies/${lobbyId}/invite`, { method: 'POST' });
-      await navigator.clipboard.writeText(inviteUrl(location.origin, token, 'lobby'));
+      await navigator.clipboard.writeText(inviteUrl(siteOrigin(), token, 'lobby'));
       setInviteCopied(true);
     } catch (err) {
       setError(translateApiError(err, language, copy.startFail));

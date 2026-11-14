@@ -5,7 +5,7 @@
  * 轮询而非 WebSocket：大厅是全局视图，没有房间级事件流；5 秒一次足够，
  * 且与服务端「每用户每分钟 60 次」的限额对齐（见 16-CONCURRENCY-LIMITS.md）。
  */
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import Taro, { useDidHide, useDidShow } from '@tarojs/taro'
 import { Button, Text, View } from '@tarojs/components'
 import { useQuery } from '@tanstack/react-query'
@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api, translateApiError } from '../../../api/client'
 import { useLanguage } from '../../../state/language'
 import { format } from '@jev/i18n'
+import { Loading } from '../../../ui/loading'
 import { goBack } from '../../../ui/back'
 import '../../room.css'
 
@@ -33,6 +34,9 @@ const POLL_MS = 5000
 export default function Hall(): ReactNode {
   const { copy, language } = useLanguage()
   const [joining, setJoining] = useState<string | null>(null)
+  // 双保险防重复进房：整行与行内按钮都会触发 join，事件冒泡时两次调用读到的
+  // 还是同一个渲染闭包（joining state 尚未更新），ref 立即可见
+  const joiningRef = useRef<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   // 页面隐藏（进了房间等）时停轮询，回来恢复；浏览器端 react-query 自己认 document 可见性，小程序要手动管
   const [visible, setVisible] = useState(true)
@@ -50,7 +54,8 @@ export default function Hall(): ReactNode {
   const rooms = hall.data?.rooms ?? []
 
   const join = async (roomId: string) => {
-    if (joining) return
+    if (joiningRef.current !== null) return
+    joiningRef.current = roomId
     setJoining(roomId)
     setError(null)
     try {
@@ -61,6 +66,7 @@ export default function Hall(): ReactNode {
       // 房态可能刚变（已满 / 已关闭 / 房主切回私人）：立刻刷新一次列表
       void hall.refetch()
     } finally {
+      joiningRef.current = null
       setJoining(null)
     }
   }
@@ -76,9 +82,15 @@ export default function Hall(): ReactNode {
 
       <View className="panel stack">
         {hall.isPending ? (
-          <Text className="muted">{copy.loadingRound}</Text>
+          <Loading text={copy.loadingRound} />
         ) : hall.isError ? (
-          <Text className="error-text">{copy.hallLoadFail}</Text>
+          // 出错即停轮询（见 useQuery 配置），给一个手动重试入口，别让用户干等
+          <View className="hint-row">
+            <Text className="error-text">{copy.hallLoadFail}</Text>
+            <Button className="btn" onClick={() => void hall.refetch()}>
+              {copy.retry}
+            </Button>
+          </View>
         ) : rooms.length === 0 ? (
           <Text className="muted">{copy.hallEmpty}</Text>
         ) : (
@@ -88,7 +100,7 @@ export default function Hall(): ReactNode {
                 key={room.roomId}
                 className="hall-row"
                 onClick={() => {
-                  if (!room.full && joining === null) void join(room.roomId)
+                  if (!room.full && joiningRef.current === null) void join(room.roomId)
                 }}
               >
                 <View className="hall-row-main">
@@ -106,7 +118,15 @@ export default function Hall(): ReactNode {
                 {room.full ? (
                   <Text className="verdict-badge verdict-uncertain">{copy.hallFull}</Text>
                 ) : (
-                  <Button className="btn btn-sm btn-primary" disabled={joining !== null} onClick={() => void join(room.roomId)}>
+                  <Button
+                    className="btn btn-sm btn-primary"
+                    disabled={joining !== null}
+                    onClick={(event) => {
+                      // 阻止冒泡到整行 onClick：否则同一此点击会触发两次 join（重复进房）
+                      event.stopPropagation()
+                      void join(room.roomId)
+                    }}
+                  >
                     {joining === room.roomId ? copy.hallJoining : copy.hallJoin}
                   </Button>
                 )}

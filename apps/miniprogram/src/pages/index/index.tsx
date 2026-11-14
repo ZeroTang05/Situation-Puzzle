@@ -16,6 +16,7 @@ import { captureInviteRef, claimInviteRefOnce } from '../../invite/invite-ref'
 import { useInviteShare } from '../../invite/share'
 import { openOrGetLobby, lobbyPath } from '../../lobby/create-lobby'
 import { NotificationBell } from '../../notification/notification-bell'
+import { formatDateTime } from '../../ui/dates'
 import { Modal } from '../../ui/dialog'
 import iconPng from '../../assets/icon.png'
 
@@ -130,7 +131,7 @@ export default function Index(): ReactNode {
           <Text className="home-section-title">{copy.activeRooms}</Text>
           {joinedRooms.map((room) => (
             <View key={room.roomId} className="home-room-row" onClick={() => go(`/pkg-room/pages/room/room?id=${room.roomId}`)}>
-              <Text className="home-room-title">{room.title ?? new Date(room.createdAt).toLocaleString()}</Text>
+              <Text className="home-room-title">{room.title ?? formatDateTime(room.createdAt, language)}</Text>
               <Text className="home-room-chevron">›</Text>
             </View>
           ))}

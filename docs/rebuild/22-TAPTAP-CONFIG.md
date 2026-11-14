@@ -1,5 +1,17 @@
 # TapTap 开发包配置清单
 
+## 当前 H5 配置（2026-11-14）
+
+当前 H5 草稿为 `1059905`，小游戏标识 `tapmcowiubozfhhvw5`，身份记录在 `apps/taptap/h5.config.json`。构建复用 `apps/web`，`pnpm build:taptap` 生成正式包，`pnpm build:taptap:debug` 生成带日志工具和源码映射的开发包。
+
+H5 构建中的 API 默认指向 `https://sp.xiaobaozi.cn`，可用公开构建变量 `VITE_API_BASE_URL` 指定其它实际 HTTPS 来源。取得平台真实运行来源后，服务器 `APP_EXTRA_ORIGINS` 追加该精确来源，多个来源用逗号分隔。已有来源应保留，配置更新后需重建 API 容器。
+
+匿名单人使用现有题库与 `/solo/*` 接口。H5 账号会话复用网页与 App 现有的 Bearer 机制，在平台来源独立保存本站令牌。账号与多人流程在单人验收后继续验证。
+
+`pnpm dev:taptap` 使用开发代理连接真实 API，便于电脑调试。正式包直接跨来源访问服务器，必须在实际 TapTap 内验证来源、证书与预检响应。
+
+## 原生版本历史配置
+
 更新时间：2026-11-13。
 
 ## 服务器必填

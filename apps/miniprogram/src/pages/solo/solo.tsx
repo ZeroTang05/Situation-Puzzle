@@ -5,15 +5,20 @@
  * 小程序差异：题目评价（赞踩投票）随社交里程碑接入；换题请求用取消标志代替
  * AbortController；错误提示走顶部悬浮 Toast；公布汤底确认走深海弹窗。
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import Taro from '@tarojs/taro'
 import { Button, Image, ScrollView, Text, Textarea, View } from '@tarojs/components'
 import { api, ApiError, translateApiError } from '../../api/client'
 import { useLanguage } from '../../state/language'
+import { useJevSession } from '../../state/session'
+import { canRateSoloPuzzle } from '@jev/contracts'
 import { displayVerdict, verdictDetail } from '@jev/i18n'
 import { soloStore, type SoloSessionRow } from '../../solo/local-store'
 import { selectUnplayedPuzzle } from '../../solo/unplayed-puzzle'
 import { HintCapsule, LargeModelToggle, TurnCard, useHintPlayer } from '../../game/components'
+import { VoteButtons } from '../../ui/vote-buttons'
+import { goBack } from '../../ui/back'
+import { Loading } from '../../ui/loading'
 import { Toast } from '../../ui/toast'
 import { DialogHost, useDialog } from '../../ui/dialog'
 import storySea from '../../assets/story-sea.jpg'
@@ -40,8 +45,12 @@ function isJudgedAsk(turn: TurnRow): turn is TurnRow & { result: AskVerdict } {
 }
 
 export default function Solo(): ReactNode {
-  const puzzleId = Taro.getCurrentInstance().router?.params?.puzzleId ?? ''
+  const routerParams = Taro.getCurrentInstance().router?.params ?? {}
+  const puzzleId = routerParams.puzzleId ?? ''
   const { copy, language } = useLanguage()
+  // 作品语言（创作「游玩」带 ?lang=）：英文作品在中文界面下也按英文出题（对齐 web 的 ?lang=）
+  const puzzleLang: 'zh' | 'en' = routerParams.lang === 'en' || routerParams.lang === 'zh' ? routerParams.lang : language
+  const { session: authSession } = useJevSession()
   const dialog = useDialog()
 
   const [session, setSession] = useState<SoloSessionRow | null>(null)
@@ -54,6 +63,8 @@ export default function Solo(): ReactNode {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // 软键盘高度（px）：Textarea 关闭微信默认整页上推，用它压缩对话区高度
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
   // 换题的随机请求用取消标志收口（小程序没有 AbortController）
   const changingRef = useRef(false)
   // 输入框预提示：随机抽一条常见问题，给不会玩的用户一个起点（进入页面时定一次）
@@ -77,7 +88,7 @@ export default function Solo(): ReactNode {
     setError(null)
     void (async () => {
       try {
-        const existing = await soloStore.latestSessionForPuzzle(puzzleId, language)
+        const existing = await soloStore.latestSessionForPuzzle(puzzleId, puzzleLang)
         if (existing && existing.status === 'active') {
           const savedTurns = (await soloStore.listTurns(existing.localSessionId)) as TurnRow[]
           const draft = await soloStore.loadDraft(existing.localSessionId)
@@ -101,7 +112,7 @@ export default function Solo(): ReactNode {
           category: 'honkaku' | 'henkaku' | null
           hintsTotal: number
           configVersion: string
-        }>('/solo/sessions', { method: 'POST', body: { puzzleId, language } })
+        }>('/solo/sessions', { method: 'POST', body: { puzzleId, language: puzzleLang } })
         if (cancelled) return
         const row = await soloStore.createSession({
           puzzleId,
@@ -125,7 +136,23 @@ export default function Solo(): ReactNode {
       cancelled = true
       changingRef.current = true
     }
-  }, [puzzleId, language, copy.soloLoadFail])
+  }, [puzzleId, puzzleLang, copy.soloLoadFail])
+
+  // 公共票数（结算评分区用）：进入页面拉一次；提交过还原或公布汤底后才展示
+  const [publicStats, setPublicStats] = useState<{ upCount: number; downCount: number } | null>(null)
+  useEffect(() => {
+    if (!puzzleId) return
+    let cancelled = false
+    setPublicStats(null)
+    void api<{ upCount: number; downCount: number }>(`/puzzles/${puzzleId}`)
+      .then((detail) => {
+        if (!cancelled) setPublicStats({ upCount: detail.upCount, downCount: detail.downCount })
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [puzzleId])
 
   // 新回合或对局状态翻转（解出弹结算、揭晓弹汤底）把聊天滚到底
   const [scrollAnchor, setScrollAnchor] = useState('')
@@ -254,7 +281,7 @@ export default function Solo(): ReactNode {
       let cursor: string | null = null
       // 按公开题库游标读取全部候选，避免只在第一页抽题；已玩记录不出本机
       do {
-        const query = [`language=${language}`, 'limit=100', 'sort=latest']
+        const query = [`language=${puzzleLang}`, 'limit=100', 'sort=latest']
         if (cursor) query.push(`cursor=${encodeURIComponent(cursor)}`)
         const page = await api<{ items: Array<{ id: string }>; nextCursor: string | null }>(`/puzzles?${query.join('&')}`)
         if (changingRef.current) return
@@ -284,16 +311,20 @@ export default function Solo(): ReactNode {
       return (
         <View className="page page-full">
           <View className="topbar">
-            <Button className="btn btn-ghost btn-sm" onClick={() => void Taro.navigateBack()}>{copy.back}</Button>
+            <Button className="btn btn-ghost btn-sm" onClick={() => goBack('/pages/library/library')}>{copy.back}</Button>
           </View>
           <Text className="error-text">{error}</Text>
         </View>
       )
     }
-    return <View className="page page-loading">{copy.loadingRound}</View>
+    return <View className="page page-loading"><Loading text={copy.loadingRound} /></View>
   }
 
   const solved = session.status === 'solved'
+  // 提交过一次有效还原或已看到汤底才开放评价（跨端规则 canRateSoloPuzzle）
+  const canRate = canRateSoloPuzzle(session.revealedAnswer, turns)
+  // 键盘弹出时压缩可用高度：flex 列里对话区收缩，输入行保持在键盘上方
+  const pageStyle: CSSProperties | undefined = keyboardHeight > 0 ? { height: `calc(100vh - ${keyboardHeight}px)` } : undefined
 
   // 底部操作行（提示 / 还原真相 / 看汤底）：布局对齐多人模式的「输入行在上、操作行在下」；
   // 进行中时挂在输入行下方（composer 容器内），终局后输入区收起、操作行保留（禁用态）
@@ -338,11 +369,11 @@ export default function Solo(): ReactNode {
   )
 
   return (
-    <View className="page page-full solo-shell">
+    <View className="page page-full solo-shell" {...(pageStyle ? { style: pageStyle } : {})}>
       {/* 游玩页顶栏：等宽两侧保持题目居中（web .game-topbar） */}
       <View className="topbar game-topbar">
         <View className="game-topbar-back">
-          <Button className="btn btn-ghost btn-sm" onClick={() => void Taro.navigateBack()}>{copy.back}</Button>
+          <Button className="btn btn-ghost btn-sm" onClick={() => goBack('/pages/library/library')}>{copy.back}</Button>
         </View>
         <Text className="brand brand-sm">{session.title}</Text>
         <View className="game-topbar-action">
@@ -417,6 +448,13 @@ export default function Solo(): ReactNode {
               <Text className="p">{session.revealedAnswer}</Text>
             </View>
           )}
+          {/* 结算评分区：对齐 web 的「为这题打分」（首次还原或公布汤底后开放） */}
+          {canRate && publicStats && (
+            <View className="panel rate-panel slot-in">
+              <Text className="muted">{copy.rateYourPuzzle}</Text>
+              <VoteButtons puzzleId={puzzleId} session={authSession} initialUp={publicStats.upCount} initialDown={publicStats.downCount} />
+            </View>
+          )}
           <View id={scrollAnchor} />
         </View>
         </ScrollView>
@@ -439,6 +477,10 @@ export default function Solo(): ReactNode {
                   setText(e.detail.value)
                   persistDraft(inputMode, e.detail.value)
                 }}
+                // 关闭微信默认的整页上推：键盘高度走 onKeyboardHeightChange 压缩对话区
+                adjustPosition={false}
+                showConfirmBar={false}
+                onKeyboardHeightChange={(e) => setKeyboardHeight(e.detail.height)}
               />
               <Button
                 className="btn btn-primary"

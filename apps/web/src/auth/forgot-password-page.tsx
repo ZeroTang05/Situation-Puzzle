@@ -7,6 +7,7 @@ import { useBack } from '../back.js';
 import { BrandHeading } from '../brand-heading.js';
 import { authStepHref } from './login-navigation.js';
 import { displayAuthError } from '@jev/i18n';
+import { appHref } from '../app-runtime.js';
 
 export function ForgotPasswordPage() {
   const { copy, language } = useLanguage();
@@ -25,7 +26,7 @@ export function ForgotPasswordPage() {
     const { error: resetError } = await authClient.requestPasswordReset({
       email,
       // 重置邮件里的链接落回本站的重置页
-      redirectTo: `${location.origin}${authStepHref('/reset-password', next)}`,
+      redirectTo: new URL(appHref(authStepHref('/reset-password', next)), location.origin).href,
     });
     setBusy(false);
     if (resetError) {
@@ -72,7 +73,7 @@ export function ForgotPasswordPage() {
               {copy.sendResetEmail}
             </button>
             <p className="muted" style={{ textAlign: 'center' }}>
-              {copy.rememberPassword} <a href="/login">{copy.goLogin}</a>
+              {copy.rememberPassword} <a href={appHref(authStepHref('/login', next))}>{copy.goLogin}</a>
             </p>
           </>
         )}

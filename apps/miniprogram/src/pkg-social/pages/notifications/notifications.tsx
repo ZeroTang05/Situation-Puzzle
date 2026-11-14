@@ -8,7 +8,7 @@
  * navigateTo 会把当前页再压一层栈，改为只标已读不跳。
  */
 import { useState, type ReactNode } from 'react'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { Button, Text, View } from '@tarojs/components'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { NotificationType } from '@jev/contracts'
@@ -16,6 +16,8 @@ import { api, translateApiError } from '../../../api/client'
 import { useLanguage } from '../../../state/language'
 import { useJevSession } from '../../../state/session'
 import { goBack } from '../../../ui/back'
+import { LoginPrompt } from '../../../ui/login-prompt'
+import { formatDateTime } from '../../../ui/dates'
 import { miniProgramPathOf } from '../../notification-route'
 import '../../social.css'
 
@@ -49,6 +51,11 @@ export default function Notifications(): ReactNode {
     retry: false,
   })
 
+  // 返回本页时立刻重拉：从房间/私聊回来后红点与列表可能已经变了
+  useDidShow(() => {
+    if (loggedIn) void queryClient.invalidateQueries({ queryKey: ['notifications'] })
+  })
+
   const list = notifications.data?.notifications ?? []
 
   const markAllRead = async () => {
@@ -75,6 +82,11 @@ export default function Notifications(): ReactNode {
     if (target === null) return
     // 站内信的 link 就是 /notifications：已经在通知页里，再 navigateTo 会叠一层空页
     if (target === '/pkg-social/pages/notifications/notifications') return
+    // 首页目标：栈底本来就是首页，navigateBack 回去即可，再压一个首页实例会叠栈
+    if (target === '/pages/index/index' && Taro.getCurrentPages().length > 1) {
+      void Taro.navigateBack()
+      return
+    }
     void Taro.navigateTo({ url: target })
   }
 
@@ -98,12 +110,7 @@ export default function Notifications(): ReactNode {
     return (
       <View className="page">
         {topbar}
-        <View className="panel stack login-prompt">
-          <Text className="muted">{copy.meRequiresLogin}</Text>
-          <Button className="btn btn-primary" onClick={() => void Taro.navigateTo({ url: '/pages/login/login' })}>
-            {copy.login}
-          </Button>
-        </View>
+        <LoginPrompt text={copy.meRequiresLogin} />
       </View>
     )
   }
@@ -127,9 +134,7 @@ export default function Notifications(): ReactNode {
               <View key={item.id} className={`notification-item${item.readAt === null ? ' is-unread' : ''}`} onClick={() => void openNotification(item)}>
                 <Text className="notification-title">{item.title}</Text>
                 {item.body && <Text className="notification-body">{item.body}</Text>}
-                <Text className="notification-time">
-                  {new Date(item.createdAt).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US')}
-                </Text>
+                <Text className="notification-time">{formatDateTime(item.createdAt, language)}</Text>
               </View>
             ))}
           </View>

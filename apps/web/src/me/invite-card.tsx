@@ -8,11 +8,12 @@
 import { useState } from 'react';
 import { useLanguage } from '../state/language.js';
 import { format } from '@jev/i18n';
+import { siteOrigin } from '../app-runtime.js';
 
 export function InviteCard({ invite }: { invite: { code: string; invitedCount: number } }) {
   const { copy } = useLanguage();
   const [copied, setCopied] = useState(false);
-  const link = `${window.location.origin}/?ref=${invite.code}`;
+  const link = `${siteOrigin()}/?ref=${invite.code}`;
 
   const copyLink = async () => {
     try {

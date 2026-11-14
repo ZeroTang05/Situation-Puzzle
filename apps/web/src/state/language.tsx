@@ -4,6 +4,7 @@
  */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { t, type Copy, type Language } from '@jev/i18n';
+import { isTapH5 } from '../app-runtime.js';
 
 interface LanguageContextValue {
   language: Language;
@@ -14,7 +15,8 @@ interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue>({ language: 'zh', setLanguage: () => {}, copy: t('zh') });
 
 function initialLanguage(): Language {
-  const param = new URLSearchParams(window.location.search).get('lang');
+  const route = isTapH5 ? new URL(window.location.hash.slice(1) || '/', window.location.origin) : window.location;
+  const param = new URLSearchParams(route.search).get('lang');
   if (param === 'en' || param === 'zh') return param;
   const stored = localStorage.getItem('jev.language');
   return stored === 'en' ? 'en' : 'zh';

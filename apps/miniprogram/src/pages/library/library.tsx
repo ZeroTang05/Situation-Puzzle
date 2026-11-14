@@ -255,6 +255,9 @@ export default function Library(): ReactNode {
         </View>
       )}
       {actionError && <Text className="error-text">{actionError}</Text>}
+      {/* 选题模式未登录提示（对齐 web library-page 的 libraryNeedLogin 行）；
+          加底边距，别让提示贴着首卡（上方到筛选区有 16px，下方只有 4px 会显得拥挤） */}
+      {!session && mode === 'select' && <Text className="muted library-hint">{copy.libraryNeedLogin}</Text>}
 
       <ScrollView
         className={`puzzle-grid${isPlaceholderData ? ' is-page-loading' : ''}`}

@@ -27,6 +27,7 @@ import { RoomShell } from './room-shell.js';
 import { VisibilityToggle } from './visibility-toggle.js';
 import { Toast } from '../toast.js';
 import { loginHref } from '../auth/login-navigation.js';
+import { appHref, siteOrigin } from '../app-runtime.js';
 
 export function RoomPage({ session }: { session: Session | null }) {
   const { roomId } = useParams();
@@ -117,7 +118,7 @@ export function RoomPage({ session }: { session: Session | null }) {
         const result = await outbox.submit({ type, ...(payload !== undefined ? { payload } : {}), ...(roundId !== undefined ? { roundId } : {}), expectedControlVersion: state?.controlVersion ?? 0 });
         if (result?.inviteToken) {
           localStorage.setItem(`jev.invite.${roomId}`, result.inviteToken);
-          await navigator.clipboard.writeText(inviteUrl(location.origin, result.inviteToken, 'room'));
+          await navigator.clipboard.writeText(inviteUrl(siteOrigin(), result.inviteToken, 'room'));
           setInviteCopied(true);
         }
         return result;
@@ -213,7 +214,7 @@ export function RoomPage({ session }: { session: Session | null }) {
     try {
       const token = localStorage.getItem(`jev.invite.${roomId}`);
       if (!token) { await run('rotate_invite'); return; }
-      await navigator.clipboard.writeText(inviteUrl(location.origin, token, 'room'));
+      await navigator.clipboard.writeText(inviteUrl(siteOrigin(), token, 'room'));
       setInviteCopied(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -241,7 +242,7 @@ export function RoomPage({ session }: { session: Session | null }) {
     return (
       <main className="shell page-loading">
         <p className="muted">{status === 'auth_required' ? copy.authExpired : status === 'offline' ? copy.offline : copy.loadingRound}</p>
-        {status === 'auth_required' && <a className="btn" href={login}>{copy.reconnect}</a>}
+        {status === 'auth_required' && <a className="btn" href={appHref(login)}>{copy.reconnect}</a>}
       </main>
     );
   }
@@ -265,7 +266,7 @@ export function RoomPage({ session }: { session: Session | null }) {
 
       <div className={`appear-slot${hasStatus ? ' open' : ''}`}>
         <div className="status-lines">
-          {showConnection && status !== 'ready' && <p className="offline-banner" role="status">{status === 'auth_required' ? copy.authExpired : status === 'offline' ? copy.networkKeptDraft : copy.reconnecting}{status === 'auth_required' && <a href={`/login?next=/rooms/${roomId}`}>{copy.reconnect}</a>}</p>}
+          {showConnection && status !== 'ready' && <p className="offline-banner" role="status">{status === 'auth_required' ? copy.authExpired : status === 'offline' ? copy.networkKeptDraft : copy.reconnecting}{status === 'auth_required' && <a href={appHref(`/login?next=/rooms/${roomId}`)}>{copy.reconnect}</a>}</p>}
           {outbox.storageError && <p className="error-text" role="alert">{outbox.storageError}</p>}
           {translatedPuzzle.isError && <p className="error-text" role="alert">{language === 'zh' ? copy.translatedFail : copy.translatedFailEn}</p>}
           {inlineNotices.map((p) => <div key={p.input.clientRequestId} role="status">

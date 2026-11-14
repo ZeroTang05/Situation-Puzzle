@@ -15,6 +15,10 @@ import { useLanguage } from '../../state/language'
 import { useJevSession } from '../../state/session'
 import { useInviteShare } from '../../invite/share'
 import { watchRewardedAd } from '../../ads/rewarded-ad'
+import { formatShortDate } from '../../ui/dates'
+import { LoginPrompt } from '../../ui/login-prompt'
+import { goBack } from '../../ui/back'
+import { NotificationBell } from '../../notification/notification-bell'
 import { format, type Language } from '@jev/i18n'
 
 /** 把服务端 round.status 翻译成用户文案；未识别值回退原值便于排查 */
@@ -51,14 +55,9 @@ function roundStatusClass(status: string): string {
   }
 }
 
-/** 短日期：同年只显示月日，跨年补年份 */
+/** 短日期：同年只显示月日，跨年补年份（手动拼接，运行时 Intl 数据不全见 ui/dates.ts） */
 function shortDate(iso: string, language: Language): string {
-  const date = new Date(iso)
-  const sameYear = date.getFullYear() === new Date().getFullYear()
-  const options: Intl.DateTimeFormatOptions = sameYear
-    ? { month: 'short', day: 'numeric' }
-    : { year: 'numeric', month: 'short', day: 'numeric' }
-  return date.toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US', options)
+  return formatShortDate(iso, language)
 }
 
 interface MeResponse {
@@ -128,20 +127,12 @@ export default function Me(): ReactNode {
     return (
       <View className="page">
         <View className="topbar topbar-title">
-          <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => void Taro.navigateBack()}>
+          <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => goBack()}>
             {copy.back}
           </Button>
           <Text className="brand brand-sm">{copy.me}</Text>
         </View>
-        <View className="panel stack login-prompt">
-          <Text className="muted">{copy.meRequiresLogin}</Text>
-          <Button
-            className="btn btn-primary"
-            onClick={() => void Taro.navigateTo({ url: '/pages/login/login' })}
-          >
-            {copy.login}
-          </Button>
-        </View>
+        <LoginPrompt text={copy.meRequiresLogin} />
       </View>
     )
   }
@@ -168,10 +159,14 @@ export default function Me(): ReactNode {
   return (
     <View className="page">
       <View className="topbar topbar-title">
-        <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => void Taro.navigateBack()}>
+        <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => goBack()}>
           {copy.back}
         </Button>
         <Text className="brand brand-sm">{copy.me}</Text>
+        {/* 通知铃铛与首页同款（web 的「我的」页也有） */}
+        <View className="topbar-actions topbar-tail">
+          <NotificationBell />
+        </View>
       </View>
 
       {/* 账号卡片：昵称 + 邮箱 + 额度/会员两个关键数字 */}

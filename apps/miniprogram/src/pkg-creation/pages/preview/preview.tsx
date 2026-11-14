@@ -14,6 +14,7 @@ import { api } from '../../../api/client'
 import { useLanguage } from '../../../state/language'
 import { useJevSession } from '../../../state/session'
 import { goBack } from '../../../ui/back'
+import { LoginPrompt } from '../../../ui/login-prompt'
 import { HintCapsule, LargeModelToggle, TurnCard, useHintPlayer, type PreviewTurn } from '../../../game/components'
 import { previewStore, type PreviewSessionRow } from '../../preview-store'
 import { creationCopy } from '../../copy'
@@ -180,12 +181,7 @@ export default function CreationPreview(): ReactNode {
           <Text className="brand brand-sm creation-title">{text.previewTitle}</Text>
           <View className="topbar-tail" />
         </View>
-        <View className="panel stack login-prompt">
-          <Text className="muted">{text.login}</Text>
-          <Button className="btn btn-primary" onClick={() => void Taro.navigateTo({ url: '/pages/login/login' })}>
-            {copy.login}
-          </Button>
-        </View>
+        <LoginPrompt text={text.login} />
       </View>
     )
   }

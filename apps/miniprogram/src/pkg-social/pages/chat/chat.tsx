@@ -8,7 +8,7 @@
  * scrollIntoView 到最后一条（web 直接改 scrollTop）；页面被压在栈下 / 切后台时
  * 停止轮询，回到前台立刻重拉（useDidShow / useDidHide）；错误与提示走顶部悬浮 Toast。
  */
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import Taro, { useDidHide, useDidShow, useRouter } from '@tarojs/taro'
 import { Button, Input, ScrollView, Text, View } from '@tarojs/components'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -19,6 +19,9 @@ import { api, translateApiError } from '../../../api/client'
 import { useLanguage } from '../../../state/language'
 import { useJevSession } from '../../../state/session'
 import { goBack } from '../../../ui/back'
+import { LoginPrompt } from '../../../ui/login-prompt'
+import { formatTime } from '../../../ui/dates'
+import { Loading } from '../../../ui/loading'
 import { Toast } from '../../../ui/toast'
 import '../../social.css'
 
@@ -40,9 +43,9 @@ interface DmMessage {
 
 const POLL_MS = 3000
 
-/** 气泡时间：只到分钟。 */
+/** 气泡时间：只到分钟（手动拼接，运行时 Intl 数据不全见 ui/dates.ts）。 */
 function messageTime(iso: string, language: Language): string {
-  return new Date(iso).toLocaleTimeString(language === 'zh' ? 'zh-CN' : 'en-US', { hour: '2-digit', minute: '2-digit' })
+  return formatTime(iso, language)
 }
 
 /** scroll-into-view 锚点：微信要求 id 以字母开头，uuid 可能以数字开头，统一加前缀 */
@@ -62,6 +65,8 @@ export default function Chat(): ReactNode {
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  // 软键盘高度（px）：Input 关闭微信默认整页上推，用它压缩消息区高度，输入行保持在键盘上方
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
   // 页面在前台才轮询：被压在栈下（进了房间 / 邀请页）或切后台时停掉
   const [visible, setVisible] = useState(true)
   const [scrollAnchor, setScrollAnchor] = useState('')
@@ -185,24 +190,22 @@ export default function Chat(): ReactNode {
     return (
       <View className="page">
         {topbar}
-        <View className="panel stack login-prompt">
-          <Text className="muted">{copy.meRequiresLogin}</Text>
-          <Button className="btn btn-primary" onClick={() => void Taro.navigateTo({ url: '/pages/login/login' })}>
-            {copy.login}
-          </Button>
-        </View>
+        <LoginPrompt text={copy.meRequiresLogin} />
       </View>
     )
   }
 
+  // 键盘弹出时压缩可用高度：flex 列里消息区收缩，输入行贴在键盘上方
+  const pageStyle: CSSProperties | undefined = keyboardHeight > 0 ? { height: `calc(100vh - ${keyboardHeight}px)` } : undefined
+
   return (
-    <View className="page page-full">
+    <View className="page page-full" {...(pageStyle ? { style: pageStyle } : {})}>
       {topbar}
 
       <ScrollView className="chat-thread" scrollY scrollIntoView={scrollAnchor} scrollWithAnimation enhanced showScrollbar={false}>
         <View className="chat-thread-inner">
           {messages.isPending ? (
-            <Text className="muted">{copy.loadingRound}</Text>
+            <Loading text={copy.loadingRound} />
           ) : messages.isError ? (
             <Text className="error-text">{translateApiError(messages.error, language, copy.chatMessagesLoadFail)}</Text>
           ) : list.length === 0 ? (
@@ -246,6 +249,9 @@ export default function Chat(): ReactNode {
           placeholder={copy.chatInputPlaceholder}
           onInput={(e) => setText(e.detail.value)}
           onConfirm={() => void send()}
+          // 关闭微信默认的整页上推：键盘高度走 onKeyboardHeightChange 压缩消息区
+          adjustPosition={false}
+          onKeyboardHeightChange={(e) => setKeyboardHeight(e.detail.height)}
         />
         <Button className="btn btn-primary" disabled={sending || text.trim().length === 0} onClick={() => void send()}>
           {copy.chatSend}

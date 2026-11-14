@@ -7,7 +7,7 @@
  * 本目录在主包：单人页（主包）与房间/预览页（pkg-room/pkg-creation 分包）都用它，
  * 按微信分包规则「分包不能引分包」，跨包共享代码必须放主包。
  */
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button, Text, View } from '@tarojs/components'
 import { useLanguage } from '../state/language'
 import { displayVerdict, verdictDetail, type Language } from '@jev/i18n'
@@ -58,10 +58,13 @@ export function VoteIcon({ direction }: { direction: 'up' | 'down' }): ReactNode
   return <View className={`vote-icon vote-icon-${direction}`} />
 }
 
-/** 悬浮提示播放器（口径对齐 web hint-capsule.tsx）：open/index 受控 + 10 秒自动收起计时 */
+/** 悬浮提示播放器（口径对齐 web hint-capsule.tsx）：open/index 受控 + 10 秒自动收起计时。
+ *  与 web 的差异（用户要求）：胶囊收起后再次打开继续上次的位置 +1，每次都从头播放太打断 */
 export function useHintPlayer(hints: string[]) {
   const [open, setOpen] = useState(false)
   const [index, setIndex] = useState(0)
+  // 是否看过提示：首次点开定位第 1 条，之后从上次位置继续
+  const viewedRef = useRef(false)
   useEffect(() => {
     if (!open) return
     const timer = setTimeout(() => setOpen(false), 10_000)
@@ -70,13 +73,19 @@ export function useHintPlayer(hints: string[]) {
   // show 不判 hints 空：解锁回调里的 hints 是旧渲染闭包（首次为空，判空会把首次弹出吞掉），
   // 解锁引发的列表更新与 open 更新同批渲染；空列表时渲染层兜底不显示
   const show = (at: number) => {
+    viewedRef.current = true
     setOpen(true)
     setIndex(Math.max(0, at))
   }
   const cycle = () => {
     if (!hints.length) return
     setOpen(true)
-    setIndex((i) => (open ? (i + 1) % hints.length : 0))
+    if (!viewedRef.current) {
+      viewedRef.current = true
+      setIndex(0)
+      return
+    }
+    setIndex((i) => (i + 1) % hints.length)
   }
   return { open, index, show, cycle }
 }

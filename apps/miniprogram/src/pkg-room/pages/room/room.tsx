@@ -31,8 +31,9 @@ import { MessageDelivery } from '../../ui/message-delivery'
 import { RoomShell } from '../../ui/room-shell'
 import { VisibilityToggle } from '../../ui/visibility-toggle'
 import { InviteSheet, useInviteSharePath } from '../../ui/invite-sheet'
-import { VoteButtons } from '../../ui/vote-buttons'
+import { VoteButtons } from '../../../ui/vote-buttons'
 import { Toast } from '../../../ui/toast'
+import { Loading } from '../../../ui/loading'
 import { DialogHost, Modal, useDialog } from '../../../ui/dialog'
 import { goBack } from '../../../ui/back'
 import { inviteWebLink } from '../../invite-link'
@@ -51,6 +52,8 @@ export default function Room(): ReactNode {
 
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // 软键盘高度（px）：Textarea 关闭微信默认整体上推，用它压缩对话区（见 RoomShell kbHeight）
+  const [keyboardHeight, setKeyboardHeight] = useState(0)
   const [useLargeModel, setUseLargeModel] = useState(false)
   const tab = outbox.local?.tab ?? 'qa'
   const inputMode = outbox.local?.mode ?? 'ask'
@@ -307,10 +310,19 @@ export default function Room(): ReactNode {
   if (!session) {
     return (
       <View className="page">
-        <Text className="muted">{copy.needLoginForRoom}</Text>
-        <Button className="btn btn-primary" onClick={() => void Taro.navigateTo({ url: '/pages/login/login' })}>
-          {copy.login}
-        </Button>
+        {/* 未进房拿不到房间名，顶栏用通用页名「房间」兜底（与 lobby 的「等待室」同构） */}
+        <View className="topbar topbar-title">
+          <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => goBack()}>
+            {copy.back}
+          </Button>
+          <Text className="brand brand-sm">{copy.roomTitle}</Text>
+        </View>
+        <View className="panel stack login-prompt">
+          <Text className="muted">{copy.needLoginForRoom}</Text>
+          <Button className="btn btn-primary" onClick={() => void Taro.navigateTo({ url: '/pages/login/login' })}>
+            {copy.login}
+          </Button>
+        </View>
       </View>
     )
   }
@@ -328,7 +340,11 @@ export default function Room(): ReactNode {
   if (!state) {
     return (
       <View className="page page-loading">
-        <Text className="muted">{status === 'auth_required' ? copy.authExpired : status === 'offline' ? copy.offline : copy.loadingRound}</Text>
+        <Loading
+          text={
+            status === 'auth_required' ? copy.authExpired : status === 'offline' ? copy.offline : copy.loadingRound
+          }
+        />
         {status === 'auth_required' && (
           <Button className="btn" onClick={() => void Taro.navigateTo({ url: '/pages/login/login' })}>
             {copy.reconnect}
@@ -338,10 +354,10 @@ export default function Room(): ReactNode {
     )
   }
 
-  // 头部状态行（掉线/存储错误/进行中的非聊天操作）：任一存在即展开状态槽，收起时不顶动游戏区
+  // 头部状态行（掉线/存储错误/卡在确认中的操作）：任一存在即展开状态槽，收起时不顶动游戏区
+  // 「操作提交中…」这类一闪而过的过渡文案不再展示：挤动布局，用户也不需要看见
   const pendingNotices = pendingList.filter((p) => !['ask', 'solve', 'discussion'].includes(p.input.type) && p.status !== 'sent')
-  // 被拒绝的不进状态槽：改由悬浮条提示
-  const inlineNotices = pendingNotices.filter((p) => p.status !== 'rejected')
+  const inlineNotices = pendingNotices.filter((p) => p.status === 'confirming')
   const hasStatus = (showConnection && status !== 'ready') || Boolean(outbox.storageError || translatedPuzzle.isError) || inlineNotices.length > 0
 
   /** 聊天流内容：playing 时装进 ScrollView，非 playing 时随页面自然滚动 */
@@ -425,7 +441,7 @@ export default function Room(): ReactNode {
   )
 
   return (
-    <RoomShell playing={playing}>
+    <RoomShell playing={playing} kbHeight={keyboardHeight}>
       {/* 游玩页顶栏：等宽两侧保持题目居中，右侧是成员数入口 */}
       <View className="topbar game-topbar">
         <View className="game-topbar-back">
@@ -460,12 +476,10 @@ export default function Room(): ReactNode {
           )}
           {inlineNotices.map((p) => (
             <View key={p.input.clientRequestId}>
-              <Text className="muted">{p.status === 'sending' ? copy.operationSubmitting : copy.confirming}</Text>
-              {p.status === 'confirming' && (
-                <Button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>
-                  {copy.keepConfirming}
-                </Button>
-              )}
+              <Text className="muted">{copy.confirming}</Text>
+              <Button className="btn btn-sm" disabled={status !== 'ready'} onClick={() => void outbox.retry(p).catch(() => undefined)}>
+                {copy.keepConfirming}
+              </Button>
             </View>
           ))}
         </View>
@@ -646,6 +660,10 @@ export default function Room(): ReactNode {
                       disabled={!outbox.local}
                       placeholder={inputMode === 'ask' ? askPlaceholder : inputMode === 'discussion' ? copy.discussPlaceholder : copy.solvePlaceholder}
                       onInput={(e) => setText(e.detail.value)}
+                      // 关闭微信默认的整页上推：键盘高度走 onKeyboardHeightChange 压缩对话区
+                      adjustPosition={false}
+                      showConfirmBar={false}
+                      onKeyboardHeightChange={(e) => setKeyboardHeight(e.detail.height)}
                     />
                     <Button
                       className="btn btn-primary"

@@ -123,9 +123,10 @@
 .creation-item-btn {
   flex: none;
   min-height: 30px;
-  padding: 2px 12px;
+  padding: 6px 12px;
   font-size: 13px;
   border-radius: 6px;
+  white-space: nowrap;
 }
 
 .creation-item-btn-play {

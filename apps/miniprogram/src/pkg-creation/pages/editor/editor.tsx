@@ -24,6 +24,8 @@ import { api } from '../../../api/client'
 import { useLanguage } from '../../../state/language'
 import { useJevSession, type Session } from '../../../state/session'
 import { goBack } from '../../../ui/back'
+import { LoginPrompt } from '../../../ui/login-prompt'
+import { formatDateTime } from '../../../ui/dates'
 import { DialogHost, useDialog } from '../../../ui/dialog'
 import { creationCopy, creationStatusLabel } from '../../copy'
 import '../../creation.css'
@@ -96,12 +98,7 @@ export default function CreationEditor(): ReactNode {
           <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => goBack('/pkg-creation/pages/list/list')}>{copy.back}</Button>
           <Text className="brand brand-sm creation-title">{text.create}</Text>
         </View>
-        <View className="panel stack login-prompt">
-          <Text className="muted">{text.login}</Text>
-          <Button className="btn btn-primary" onClick={() => void Taro.navigateTo({ url: '/pages/login/login' })}>
-            {copy.login}
-          </Button>
-        </View>
+        <LoginPrompt text={text.login} />
       </View>
     );
   }
@@ -466,7 +463,7 @@ function Editor({ session, detail }: { session: Session; detail: CreationDetail 
             <View className="creation-review" key={`${review.versionId}:${index}`}>
               <View className="creation-review-head">
                 <Text className={`creation-review-conclusion ${reviewConclusionClass(review.conclusion)}`}>{creationStatusLabel(review.conclusion, language)}</Text>
-                <Text className="muted creation-review-time">{new Date(review.createdAt).toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US')}</Text>
+                <Text className="muted creation-review-time">{formatDateTime(review.createdAt, language)}</Text>
               </View>
               {review.reason && <Text className="creation-review-reason">{review.reason}</Text>}
             </View>

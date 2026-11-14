@@ -15,7 +15,7 @@ import { authStepHref, loginDestination } from './login-navigation.js';
 import { useBack } from '../back.js';
 import { displayAuthError, format } from '@jev/i18n';
 import { otpCooldownKey, readOtpDeadline, remainingOtpSeconds, sendOtpCode, OtpSendError } from './otp-cooldown.js';
-import { isAppShell, openSystemBrowser, siteOrigin } from '../app-runtime.js';
+import { appHref, isAppShell, openSystemBrowser, siteOrigin } from '../app-runtime.js';
 import { beginAppOAuth } from './app-oauth.js';
 
 type Mode = 'signin' | 'signup';
@@ -94,7 +94,7 @@ export function LoginPage() {
       setError(displayAuthError(verifyError.code, language, copy.otpInvalid));
       return;
     }
-    window.location.replace(next);
+    window.location.replace(appHref(next));
   };
 
   // 注册只检查 OTP，验证通过后不存在的账号返回稳定 USER_NOT_FOUND 错误码。
@@ -127,7 +127,7 @@ export function LoginPage() {
       setError(displayAuthError(pwError.code, language, copy.signinFail));
       return;
     }
-    window.location.replace(next);
+    window.location.replace(appHref(next));
   };
 
   // ---------- 注册：必须在 OTP 通过后才能提交 ----------
@@ -159,7 +159,7 @@ export function LoginPage() {
       setNotice(copy.signupSuccessSignin);
       return;
     }
-    window.location.replace(next);
+    window.location.replace(appHref(next));
   };
 
   // ---------- 第三方 OAuth（Google / LINUX DO） ----------
@@ -173,7 +173,7 @@ export function LoginPage() {
     const challenge = isAppShell ? await beginAppOAuth(appNext) : null;
     const callbackURL = isAppShell
       ? `${siteOrigin()}/api/v1/app-session/handoff?next=${encodeURIComponent(appNext)}&challenge=${encodeURIComponent(challenge!)}`
-      : next;
+      : new URL(appHref(next), location.origin).href;
     const { data, error: oauthError } = await authClient.signIn.social({
       provider,
       callbackURL,
@@ -272,7 +272,7 @@ export function LoginPage() {
                   {copy.login}
                 </button>
                 <p className="muted" style={{ textAlign: 'center' }}>
-                  {copy.forgotPasswordQuestion} <a href={authStepHref('/forgot-password', params.get('next'))}>{copy.forgotPasswordLink}</a>
+                  {copy.forgotPasswordQuestion} <a href={appHref(authStepHref('/forgot-password', params.get('next')))}>{copy.forgotPasswordLink}</a>
                 </p>
               </div>
             )}

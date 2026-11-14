@@ -14,6 +14,8 @@ import { signOut } from '../../api/auth-client'
 import { useLanguage } from '../../state/language'
 import { notifySessionChanged, useJevSession } from '../../state/session'
 import { clearRoomLocal } from '../../pkg-room/room/room-local'
+import { goBack } from '../../ui/back'
+import { LoginPrompt } from '../../ui/login-prompt'
 import { DialogHost, useDialog } from '../../ui/dialog'
 import type { Language } from '@jev/i18n'
 
@@ -137,10 +139,26 @@ export default function Settings(): ReactNode {
     setLanguage(next)
   }
 
+  // 未登录不渲染任何面板：web 端 /settings 由 RequireSession 把门，昵称修改/兑换/退出
+  // 都需要会话，未登录时点了也只会失败（对齐 web 的路由守卫语义）
+  if (!session) {
+    return (
+      <View className="page">
+        <View className="topbar topbar-title">
+          <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => goBack('/pages/me/me')}>
+            {copy.back}
+          </Button>
+          <Text className="brand brand-sm">{copy.settingsTitle}</Text>
+        </View>
+        <LoginPrompt text={copy.meRequiresLogin} />
+      </View>
+    )
+  }
+
   return (
     <View className="page">
       <View className="topbar topbar-title">
-        <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => void Taro.navigateBack()}>
+        <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => goBack('/pages/me/me')}>
           {copy.back}
         </Button>
         <Text className="brand brand-sm">{copy.settingsTitle}</Text>

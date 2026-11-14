@@ -7,6 +7,7 @@ import type { ReactNode } from 'react'
 import Taro from '@tarojs/taro'
 import { Button, Image, Text, View } from '@tarojs/components'
 import { useLanguage } from '../../state/language'
+import { goBack } from '../../ui/back'
 import iconPng from '../../assets/icon.png'
 
 const zh = {
@@ -108,7 +109,7 @@ export default function Privacy(): ReactNode {
   return (
     <View className="page">
       <View className="topbar topbar-title">
-        <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => void Taro.navigateBack()}>
+        <Button className="btn btn-ghost btn-sm topbar-lead" onClick={() => goBack()}>
           {copy.back}
         </Button>
         <View className="brand brand-identity">
