@@ -1,61 +1,21 @@
 # 超好玩海龟汤 · TapTap H5 小游戏
 
-当前版本直接构建 `apps/web` 的现有 React 页面、样式和全部路由。H5 草稿为稷策游戏下的 `1059905`，小游戏标识为 `tapmcowiubozfhhvw5`，身份见 `h5.config.json`。
+直接构建 `apps/web` 的现有 React 页面、样式和全部路由。H5 草稿为稷策游戏下的 `1059905`，小游戏标识为 `tapmcowiubozfhhvw5`，身份见 `h5.config.json`。
 
 ```powershell
 pnpm dev:taptap
-pnpm build:taptap:debug
-pnpm package:taptap:debug
+pnpm build:taptap
+pnpm package:taptap
 ```
 
-开发预览通过 Vite 代理连接真实生产 API。上传的 H5 构建直接访问 `https://sp.xiaobaozi.cn`，需要服务器允许平台实际分配的精确来源。调试构建包含源码映射和 vConsole 的脱敏诊断面板，可导出请求状态、耗时、服务端 requestId 和错误位置。正式构建命令为 `pnpm build:taptap`、`pnpm package:taptap`，产物排除调试工具。
+开发预览通过 Vite 代理连接真实生产 API。上传的 H5 构建直接访问 `https://sp.xiaobaozi.cn`，服务器 `APP_EXTRA_ORIGINS` 已放行平台来源 `https://ma-h5-al.tapimg.com`。调试构建（`pnpm build:taptap:debug` / `pnpm package:taptap:debug`）包含源码映射和 vConsole 的脱敏诊断面板；正式产物排除调试工具。
 
-归档为 `artifacts/h5-debug.zip` 和 `artifacts/h5.zip`，均只有一个顶层 `game/` 目录。平台自测二维码、实际包体状态和手机验收记录见 [开发记录](../../docs/rebuild/22-TAPTAP.md) 与 [验收步骤](../../docs/rebuild/22-TAPTAP-ACCEPTANCE.md)。
+归档为 `artifacts/h5.zip` 与 `artifacts/h5-debug.zip`，均只有一个顶层 `game/` 目录。
 
-## 原生版本历史记录
+## TapTap 适配
 
-使用 React 组件与原生 Canvas，复用项目已有 API、契约和中英文案。
+- **登录**：H5 构建的登录页只渲染「TapTap 一键登录」。TapTap 容器注入 `window.tap`，`tap.login` 拿临时 code，服务端 `POST /auth/taptap-mini/login` 走官方 code2Session 换 openid 建号建会话，令牌按 H5 的 Bearer 链路保存；普通浏览器无 tap 桥时提示「请在 TapTap 中打开」。服务器需配置 `TAPTAP_MINI_APPID` / `TAPTAP_MINI_SECRET`，配置见 [配置清单](../../docs/rebuild/22-TAPTAP-CONFIG.md)。
+- **防沉迷**：由 TapTap 平台统一实名认证系统在登录链路执行（未实名禁止登录、未成年人时段时长限制），小游戏体系无开发者侧防沉迷 API，登录失败按稳定错误码翻译提示。
+- **充值**：TapTap H5 隐藏打赏购买面板（与 App 壳同策略），兑换码保留在设置页。
 
-已接入题库、单人、账号、会客厅、多人、用户主持、好友、私聊、通知、我的、设置和创作流程。官网账号使用设备授权，支持沿用 Google / LINUX DO / 邮箱登录后的账号。当前仍待真实 TapTap 验收；激励广告奖励尚未接通。
-
-```powershell
-pnpm build:taptap:native
-pnpm --filter @jev/taptap package
-```
-
-构建目录为 `dist`，调试归档为 `artifacts/game.zip`。在手机与电脑同一局域网时，指定电脑实际 IPv4 启动真机调试下载服务：
-
-```powershell
-pnpm --filter @jev/taptap dev --host 192.168.1.10
-```
-
-TapTap App 扫描 `artifacts/debug-qr.png`，按 Ctrl+C 停止下载服务。平台登录需要后端已部署本轮认证接口并配置真实密钥。
-
-已有官网账号可在小游戏点击「Google / LINUX DO / 官网账号登录」，复制授权链接到浏览器，登录并核对确认码后允许，再回到小游戏。确认码十分钟有效。官网需部署 `/device` 页面，后端需应用 `0018_device_authorization` 数据库迁移。
-
-官网授权成功后继续等待本站账号确认，期间锁定取消和其它登录；账号读取失败会保留明确提示，避免等待界面提前收起后漏掉错误。这部分仍需真机确认。
-
-`config.json` 仅包含公开标识、HTTPS API 来源、Dirichlet 插屏广告位和分享模板。插屏广告位为空时不创建广告对象。`rewardedAdUnitId` 为预留字段，当前必须为空，激励奖励待接入平台服务端核验后再开放；密钥放服务器环境变量，不能写进配置或包体。
-
-单人请求在页面外保留状态：失败与中断记录可恢复到输入框，判题中离开后返回会继续观察原请求。验证码倒计时采用服务器实际等待时间；找回密码包含新密码确认。
-
-真实分享模板已创建并显示已审核，编号已配置，「我的」提供好友邀请分享。接收方未登录时保存邀请码，登录后自动向服务器确认；重复回前台不重复确认，失败可手动重试。邀请人加 5 次、重复不发和自邀拒绝已通过真实 API 检查；分享面板与本地存储仍待真机验收。用户已于 2026-11-10 确认更新后的开发者协议，后台已恢复访问。
-
-2026-11-13 已创建未发布开发版本 `0.1.3` / 包体 ID `479869`，产物 ID `42105`，大小 268698 字节；`main` 主包槽位已绑定 `mini_app 479869`，写后读回一致。Android 发布状态读回为「开放试玩」，官方自测二维码为 `artifacts/test-qr-479869.png`。本轮移除未经过平台核验的激励奖励领取通道，广告继续暂缓。服务器和小游戏需要填写的参数见 [配置清单](../../docs/rebuild/22-TAPTAP-CONFIG.md)。
-
-Tap 原生广告通过 Dirichlet 媒体平台接入，媒体类型选「小游戏」。2026-11-10 最后核对时，稷策游戏账户 `529328` 资质审核中，关联游戏列表无匹配，尚未创建广告位。开放试玩的真实实机录屏和至少 3 张截图待手机运行后采集。激励奖励需接通平台服务端核验后再开放。
-
-插屏只在自然结局后展示：首分钟和首局不展示，前三局最多一次，相邻至少三分钟；加载时切后台则释放，回前台后等待下一次自然结局。`pnpm --filter @jev/taptap check:ads` 的 9 项纯时机检查通过，实际广告仍待真机。
-
-新作品可直接点击真实试题，自动保存后进入，返回时继续编辑同一作品。本地暂存同时保存编辑所依据的版本条件，重进后仍由服务器拒绝旧稿覆盖。提交、撤回和署名更新均立即读取实际详情；审核记录支持刷新，并显示本地化结果和时间。真实业务联调当前为 196 项，新增十项多人发送与消息接替检查。
-
-多人同类请求未确认时暂停发送；本地消息在接口确认后保留到权威消息接替，问答与讨论独立显示。切换输入模式时关闭旧键盘，保留各自草稿；接口与状态规则已验证，原生键盘与按钮仍待真机。
-
-画布已接键盘高度变化：缩小可见正文，按需露出输入末尾和下方按钮空间，手动滚动时保留位置。`pnpm --filter @jev/taptap check:viewport` 的 14 项纯几何检查已通过；宿主真实坐标、键盘显示及触摸仍待手机验收。
-
-真实联调脚本为 `e2e`（业务与 WebSocket）、`e2e:auth`（真实收信、验证码登录与密码重置）和 `smoke`（真实 AI 与单人状态）。所需环境变量与证据范围见下方开发文档。邮件测试按真实发送规则等待。
-
-`e2e:review` 单独运行真实审核任务，已通过 16 项初审、发布及修订检查；修改修订稿时，已发布原版仍可读取。此脚本仅运行于独立本地服务，需要启动实际 jobs；与保持审核任务停止的 `e2e` 分开执行。
-
-完整进展、配置、功能矩阵与真机清单见 [开发与验收文档](../../docs/rebuild/22-TAPTAP.md)。
-逐步操作和预期结果见 [真机验收步骤](../../docs/rebuild/22-TAPTAP-ACCEPTANCE.md)。
+2026-11-16 移除了原生 Canvas 版本与设备授权流程（`/device` 页、`device_code` 表由迁移 `0019` 删除）；TapTap 一键登录保留并服务 H5。历史代码见 git 记录，验收记录见 [开发记录](../../docs/rebuild/22-TAPTAP.md)。

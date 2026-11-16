@@ -133,6 +133,7 @@ const authErrorCopy: Record<string, Record<Language, string>> = {
   TAPTAP_LOGIN_FAILED: { zh: 'TapTap 登录失败，请重新登录。', en: 'TapTap sign-in failed. Please sign in again.' },
   TAPTAP_LOGIN_BUSY: { zh: 'TapTap 登录暂时不可用，请稍后重试。', en: 'TapTap sign-in is unavailable. Please try again later.' },
   TAPTAP_ACCOUNT_LINKED: { zh: '该 TapTap 账号已关联其他账号。', en: 'This TapTap account is already linked to another account.' },
+  TAPTAP_LOGIN_UNAVAILABLE: { zh: '请在 TapTap 中打开本游戏后登录。', en: 'Open this game in TapTap to sign in.' },
 };
 
 /**
@@ -379,6 +380,7 @@ export const copy = {
     emailLogin: '邮箱验证码登录',
     googleLogin: '使用 Google 登录',
     linuxdoLogin: '使用 LINUX DO 登录',
+    taptapLogin: 'TapTap 一键登录',
     sendCode: '发送验证码',
     resendCode: '重新发送验证码',
     codeSent: '验证码已发送，请查收邮箱',
@@ -885,6 +887,7 @@ export const copy = {
     emailLogin: 'Email code sign-in',
     googleLogin: 'Continue with Google',
     linuxdoLogin: 'Continue with LINUX DO',
+    taptapLogin: 'Sign in with TapTap',
     sendCode: 'Send code',
     resendCode: 'Resend code',
     codeSent: 'Code sent. Check your inbox.',
@@ -1183,19 +1186,4 @@ export function t(language: Language): Copy {
 /** 简单模板替换：'第 {n} 局'.replace('{n}', '3') */
 export function format(template: string, params: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => String(params[key] ?? `{${key}}`));
-}
-
-/** 设备授权的协议状态转成玩家提示，不向界面透传服务端英文描述。 */
-export function displayDeviceAuthError(code: string, language: Language): string {
-  const messages: Record<string, [string, string]> = {
-    authorization_pending: ['等待你在网页确认登录。', 'Waiting for your approval on the website.'],
-    slow_down: ['请稍等，正在等待授权结果。', 'Please wait while we check your approval.'],
-    expired_token: ['确认码已过期，请重新发起登录。', 'This code has expired. Start sign-in again.'],
-    access_denied: ['已拒绝此次登录。', 'This sign-in was denied.'],
-    invalid_grant: ['此次登录已失效，请重新发起。', 'This sign-in is no longer valid. Start again.'],
-    invalid_request: ['确认码无效或已处理，请重新发起登录。', 'This code is invalid or already processed. Start again.'],
-    invalid_client: ['小游戏登录配置有误，请联系支持。', 'Game sign-in is misconfigured. Contact support.'],
-    unauthorized: ['请先登录官网账号。', 'Sign in to your website account first.'],
-  };
-  return messages[code]?.[language === 'zh' ? 0 : 1] ?? (language === 'zh' ? '授权失败，请重试。' : 'Authorization failed. Please try again.');
 }

@@ -4,6 +4,8 @@
  *  - 注册：固定流程——昵称（可选）→ 邮箱 → 发验证码（注册用途，仅未注册邮箱）→ 验证 → 密码 → 提交。
  *    任一环节失败都不会建立账号；邮箱先验证能确保 mailer 出错时立即可见。
  *  - Admin 通过 next=/admin 反代由 web 端 login 走完登录回到后台，保持单一口令 + cookie。
+ *  - TapTap H5 构建：只渲染 TapTap 一键登录（tap.login → 服务端 code2Session），
+ *    邮箱注册与第三方 OAuth 收起；防沉迷由平台统一实名系统在登录链路执行。
  */
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -13,10 +15,11 @@ import { useLanguage } from '../state/language.js';
 import { BrandHeading } from '../brand-heading.js';
 import { authStepHref, loginDestination } from './login-navigation.js';
 import { useBack } from '../back.js';
-import { displayAuthError, format } from '@jev/i18n';
+import { displayAuthError, displayError, format } from '@jev/i18n';
 import { otpCooldownKey, readOtpDeadline, remainingOtpSeconds, sendOtpCode, OtpSendError } from './otp-cooldown.js';
-import { appHref, isAppShell, openSystemBrowser, siteOrigin } from '../app-runtime.js';
+import { appHref, isAppShell, isTapH5, openSystemBrowser, siteOrigin } from '../app-runtime.js';
 import { beginAppOAuth } from './app-oauth.js';
+import { loginWithTapTap, TapLoginError } from './taptap-login.js';
 
 type Mode = 'signin' | 'signup';
 type Method = 'password' | 'otp';
@@ -200,6 +203,48 @@ export function LoginPage() {
     setSignupOtpVerified(false);
     setMethod('password');
   };
+
+  // ---------- TapTap H5：登录只走平台一键登录（邮箱注册 / 第三方 OAuth 均收起） ----------
+  const tapSignIn = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await loginWithTapTap();
+      window.location.replace(appHref(next));
+    } catch (cause) {
+      setError(cause instanceof TapLoginError
+        ? displayError(cause.code, language, copy.signinFail)
+        : translateApiError(cause, language, copy.signinFail));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (isTapH5) {
+    return (
+      <main className="shell narrow">
+        <header className="topbar topbar-title">
+          <button type="button" className="btn btn-ghost btn-sm" onClick={back}>{copy.back}</button>
+          <BrandHeading>{copy.brand}</BrandHeading>
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost lang-switch"
+            aria-label={copy.langSwitchAria}
+            onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
+          >
+            {language === 'zh' ? copy.languageSwitchToEn : copy.languageSwitchToZh}
+          </button>
+        </header>
+        <section className="panel stack">
+          <h2>{copy.signin}</h2>
+          <button className="btn btn-primary" disabled={busy} onClick={() => void tapSignIn()}>
+            {copy.taptapLogin}
+          </button>
+          {error && <p className="error-text" role="alert">{error}</p>}
+        </section>
+      </main>
+    );
+  }
 
   const headingTitle = mode === 'signin' ? copy.signin : copy.signup;
 

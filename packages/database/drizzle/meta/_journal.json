@@ -134,6 +134,13 @@
       "when": 1809000000000,
       "tag": "0018_device_authorization",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1810000000000,
+      "tag": "0019_drop_device_authorization",
+      "breakpoints": true
     }
   ]
 }

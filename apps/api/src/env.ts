@@ -72,7 +72,7 @@ const envSchema = z.object({
   /** 小程序登录凭据（mp.weixin.qq.com 开发管理 → 开发设置）；两项配齐才注册微信登录插件 */
   WECHAT_MINI_APPID: z.string().optional(),
   WECHAT_MINI_SECRET: z.string().optional(),
-  /** TapTap 小游戏登录：MiniApp ID 与服务端密钥必须同时配置。 */
+  /** TapTap 小游戏登录（H5 复用同一条 code2Session 链路）；MiniApp ID 与服务端密钥必须同时配置 */
   TAPTAP_MINI_APPID: z.string().regex(/^tap[a-z0-9]+$/).optional(),
   TAPTAP_MINI_SECRET: z.string().min(1).optional(),
 

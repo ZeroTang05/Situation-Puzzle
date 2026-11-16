@@ -20,7 +20,6 @@
     "build:taptap:debug": "pnpm --dir apps/web build --mode taptap-debug",
     "package:taptap": "node apps/web/scripts/package-taptap.mjs",
     "package:taptap:debug": "node apps/web/scripts/package-taptap.mjs --debug",
-    "build:taptap:native": "pnpm --dir apps/taptap build",
     "db:migrate": "pnpm --dir packages/database db:migrate",
     "db:seed": "pnpm --dir packages/database db:import-library",
     "smoke": "bash scripts/smoke-new-system.sh",

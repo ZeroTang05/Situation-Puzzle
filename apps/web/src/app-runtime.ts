@@ -12,6 +12,9 @@ export const isTapH5 = import.meta.env.VITE_TAPTAP_H5 === 'true';
 
 /** 壳内为原生平台（window.Capacitor 由 Capacitor 运行时注入） */
 export const isAppShell = typeof window !== 'undefined' && Boolean((window as { Capacitor?: unknown }).Capacitor);
+
+/** 打赏购买只在网页端展示：App 壳与 TapTap H5 隐藏（兑换码不受影响，收在设置页） */
+export const purchaseEntryVisible = !isAppShell && !isTapH5;
 const usesBearer = isAppShell || isTapH5;
 
 /** 接口地址：App 壳指向生产域名，网页保持相对路径（当前站点同源代理） */

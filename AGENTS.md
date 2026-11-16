@@ -20,12 +20,12 @@
 
 ## 目录结构
 
-TapTap 当前采用 H5 小游戏，直接复用 `apps/web` 页面和 CSS，范围与验收见 `docs/rebuild/22-TAPTAP.md`。`apps/taptap/src` 的 Canvas 版本为历史实现。
+TapTap 当前采用 H5 小游戏，直接复用 `apps/web` 页面和 CSS，范围与验收见 `docs/rebuild/22-TAPTAP.md`。H5 专属适配：登录页只渲染「TapTap 一键登录」（容器注入 `window.tap`，`tap.login` code → 服务端 `POST /auth/taptap-mini/login` code2Session 建号建会话，`TAPTAP_MINI_APPID/SECRET` 配齐才注册端点；防沉迷由平台统一实名系统在该链路执行）；打赏购买面板隐藏（兑换码保留在设置页）。
 
 ```
 apps/web        玩家端（React 19 + Vite）：首页、题库、单人、会客厅、房间、邀请、创作、我的、设置、登录、找回密码、好友、私聊、通知中心
 apps/admin      管理端（React-admin）：题库审核、用户、房间调查、举报、订单、赞助码（发码/对账/作废）、项目备份（备份/还原/下载）、站内信群发、总览；所有列表表头可点排序（后端列名白名单，见 admin-sort-columns.ts）
-apps/taptap     TapTap H5 平台身份与归档（h5.config.json / artifacts），页面直接使用 apps/web；厂商 529328、H5 草稿 1059905、小游戏标识 tapmcowiubozfhhvw5。src 中保留历史原生 Canvas 版本，原生草稿 1046017。当前先验收 H5 单人，实际跨域、USB 手机调试与完整功能验收见 docs/rebuild/22-TAPTAP.md
+apps/taptap     TapTap H5 平台身份与归档（h5.config.json / artifacts），页面直接使用 apps/web；厂商 529328、H5 草稿 1059905、小游戏标识 tapmcowiubozfhhvw5。登录走 TapTap 一键登录（服务端 taptap-mini code2Session）、充值入口隐藏、防沉迷由平台统一实名系统执行。实际跨域、USB 手机调试与完整功能验收见 docs/rebuild/22-TAPTAP.md
 apps/api        NestJS 服务：认证 auth、题库 catalog、单人 solo、房间与会客厅 rooms、实时网关 realtime、赞助订单 billing、创作 creations、治理 governance、后台 admin、备份 backup、社交 social（好友/私聊/通知/站内信）
 apps/jobs       pg-boss 任务进程：dispatch-room / process-turn / review-puzzle / maintenance
 apps/app        Android 壳工程（Capacitor 8，包名 cn.xiaobaozi.sp，App 名「超好玩海龟汤」）：apps/web 构建产物打进 WebView；插件 @capacitor/app browser clipboard keyboard（OAuth 回流系统浏览器、深链事件、剪贴板邀请过渡、键盘避让）；OAuth 回流端点 `/api/v1/app-session/handoff|exchange`（60 秒随机单次 code + 本机 verifier 校验后换 Bearer 令牌）；M3 交付：签名密钥 `keystores/sp-upload.jks`（gitignored，`keystore.properties` 存在时 gradle 才启用 release 签名，备份要求见 keystores/README.md）、品牌图标与启动屏（scripts/app-icons.mjs + core-splashscreen）、App Links（manifest autoVerify + `apps/web/public/.well-known/assetlinks.json` 域名认领 + 壳内 https 邀请直达）、官网 `/app` 下载页与 `/privacy` 隐私政策；计划与认证适配方案见 docs/rebuild/13-APP-VERSION.md

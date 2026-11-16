@@ -70,10 +70,10 @@ test.describe('TapTap H5 共享网页', () => {
     await reference.screenshot({ path: info.outputPath('web-solo.png') });
     await page.goto(h5Url());
     await page.getByRole('button', { name: '登录', exact: true }).click();
-    await page.getByRole('link', { name: '找回密码', exact: true }).click();
-    expect(new URL(page.url()).hash).toContain('/forgot-password');
-    await page.reload();
-    await expect(page.getByRole('heading', { name: '找回密码', exact: true })).toBeVisible();
+    // H5 登录页只有 TapTap 一键登录：邮箱表单与找回密码入口均不存在
+    await expect(page.getByRole('heading', { name: '登录', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'TapTap 一键登录', exact: true })).toBeVisible();
+    await expect(page.getByRole('textbox')).toHaveCount(0);
     await reference.close();
   });
 

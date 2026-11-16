@@ -8,7 +8,7 @@ import { useBack } from '../back.js';
 import { format } from '@jev/i18n';
 import type { Language } from '@jev/i18n';
 import type { Session } from '../session.js';
-import { isAppShell } from '../app-runtime.js';
+import { purchaseEntryVisible } from '../app-runtime.js';
 import { creationCopy } from '../creations/copy.js';
 import { SponsorPanel } from './sponsor-panel.js';
 import { InviteCard } from './invite-card.js';
@@ -164,8 +164,8 @@ export function MePage({ session }: { session: Session | null }) {
       {/* 邀请好友：链接 + 复制 + 已邀人数（奖励发给邀请人，见 InviteCard） */}
       {me.data?.invite && <InviteCard invite={me.data.invite} />}
 
-      {/* 赞助面板：商品 + 兑换码（权益只来自服务端）；App 壳关闭购买入口，只留设置页的兑换码 */}
-      {!isAppShell && <SponsorPanel />}
+      {/* 赞助面板：商品 + 兑换码（权益只来自服务端）；App 壳与 TapTap H5 关闭购买入口，只留设置页的兑换码 */}
+      {purchaseEntryVisible && <SponsorPanel />}
 
       {/* 房间历史：整行可点进房间，局状态用颜色区分 */}
       <section className="me-section">
