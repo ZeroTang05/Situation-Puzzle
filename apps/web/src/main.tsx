@@ -9,6 +9,7 @@ import { App } from './app.js';
 import '@jev/ui/styles.css';
 import './styles.css';
 import { isTapH5 } from './app-runtime.js';
+import { initializeH5Viewport } from './h5-viewport.js';
 
 const Router = isTapH5 ? HashRouter : BrowserRouter;
 
@@ -24,6 +25,11 @@ const queryClient = new QueryClient({
 
 /** 调试工具先于页面启用，首个请求与首次渲染错误均可记录。 */
 async function start() {
+  // H5 页头避让 TapTap 自带控件，所有页面共用同一套安全区样式。
+  if (isTapH5) {
+    document.documentElement.classList.add('taptap-h5');
+    initializeH5Viewport();
+  }
   if (import.meta.env.VITE_TAPTAP_DEBUG === 'true') {
     const { initializeH5Debug } = await import('./h5-debug.js');
     await initializeH5Debug();

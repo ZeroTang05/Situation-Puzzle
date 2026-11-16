@@ -24,6 +24,7 @@ import { ChatPage } from './social/chat-page.js';
 import { NotificationsPage } from './social/notifications-page.js';
 import { AppDownloadPage } from './site/app-download-page.js';
 import { PrivacyPage } from './site/privacy-page.js';
+import { isTapH5 } from './app-runtime.js';
 
 export function App() {
   const { session, isPending } = useJevSession();
@@ -56,7 +57,7 @@ export function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/app" element={<AppDownloadPage />} />
+      <Route path="/app" element={isTapH5 ? <Navigate to="/" replace /> : <AppDownloadPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

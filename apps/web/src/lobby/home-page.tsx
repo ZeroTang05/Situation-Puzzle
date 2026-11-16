@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Modal } from '@jev/ui';
 import { api, translateApiError } from '../api/client.js';
 import { openOrGetLobby } from '../rooms/create-lobby.js';
-import { isAppShell } from '../app-runtime.js';
+import { isAppShell, isTapH5 } from '../app-runtime.js';
 import { useLanguage } from '../state/language.js';
 import type { Session } from '../session.js';
 import { creationCopy } from '../creations/copy.js';
@@ -123,8 +123,8 @@ export function HomePage({ session }: { session: Session | null }) {
         </section>
       )}
 
-      {/* 站点入口：App 下载（壳内已经在 App 里，不显示）；隐私政策收在设置页 */}
-      {!isAppShell && (
+      {/* App 下载入口仅在网页显示。 */}
+      {!isAppShell && !isTapH5 && (
         <footer className="site-footer">
           <button type="button" onClick={() => navigate('/app')}>
             {language === 'zh' ? 'App 下载' : 'Get the App'}

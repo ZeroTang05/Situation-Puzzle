@@ -15,7 +15,7 @@ import { useLanguage } from '../state/language.js';
 import { BrandHeading } from '../brand-heading.js';
 import { authStepHref, loginDestination } from './login-navigation.js';
 import { useBack } from '../back.js';
-import { displayAuthError, displayError, format } from '@jev/i18n';
+import { displayAuthError, format } from '@jev/i18n';
 import { otpCooldownKey, readOtpDeadline, remainingOtpSeconds, sendOtpCode, OtpSendError } from './otp-cooldown.js';
 import { appHref, isAppShell, isTapH5, openSystemBrowser, siteOrigin } from '../app-runtime.js';
 import { beginAppOAuth } from './app-oauth.js';
@@ -212,8 +212,10 @@ export function LoginPage() {
       await loginWithTapTap();
       window.location.replace(appHref(next));
     } catch (cause) {
+      // TAPTAP_LOGIN_* 登记在认证词典（authErrorCopy）里，与 WECHAT_LOGIN_* 同源；
+      // displayError 读业务信封词典（errorCopy，按 contracts ErrorCode 锁类型），查不到会落到登录失败兜底
       setError(cause instanceof TapLoginError
-        ? displayError(cause.code, language, copy.signinFail)
+        ? displayAuthError(cause.code, language, copy.signinFail)
         : translateApiError(cause, language, copy.signinFail));
     } finally {
       setBusy(false);

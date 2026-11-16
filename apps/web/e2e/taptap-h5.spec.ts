@@ -41,16 +41,27 @@ test.describe('TapTap H5 共享网页', () => {
       await Promise.all([page.goto(h5Url()), reference.goto(referenceEntry)]);
       await expect(page.getByRole('button', { name: '单人推理', exact: true })).toBeVisible();
       await expect(reference.getByRole('button', { name: '单人推理', exact: true })).toBeVisible();
-      expect(await page.getByRole('button').allTextContents()).toEqual(await reference.getByRole('button').allTextContents());
-      const layout = (target: Page) => target.locator('.topbar, .hero-card, .hero-actions, .hero-secondary, .site-footer').evaluateAll((nodes) => nodes.map((node) => {
+      expect(await page.getByRole('button').allTextContents()).toEqual((await reference.getByRole('button').allTextContents()).filter((text) => text !== 'App 下载' && text !== 'Get the App'));
+      await expect(page.locator('.site-footer')).toHaveCount(0);
+      const header = (await page.locator('.topbar').boundingBox())!;
+      const title = (await page.locator('.topbar > .brand').boundingBox())!;
+      const actions = (await page.locator('.topbar-actions').boundingBox())!;
+      expect(title.x + title.width).toBeLessThanOrEqual(width - 118);
+      expect(actions.y).toBeGreaterThanOrEqual(header.y + 44);
+      // H5 调整页头操作位置，正文继续核对与网页一致的布局。
+      const layout = (target: Page) => target.locator('.hero-card, .hero-actions, .hero-secondary').evaluateAll((nodes) => nodes.map((node) => {
         const rect = node.getBoundingClientRect();
+        const contentTop = nodes[0]!.getBoundingClientRect().top;
         const style = getComputedStyle(node);
-        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height, font: style.font, color: style.color };
+        return { x: rect.x, y: rect.y - contentTop, width: rect.width, height: rect.height, font: style.font, color: style.color };
       }));
       expect(await layout(page)).toEqual(await layout(reference));
       await page.screenshot({ path: info.outputPath(`h5-home-${width}.png`) });
       await reference.screenshot({ path: info.outputPath(`web-home-${width}.png`) });
     }
+    await page.goto(h5Url('/app'));
+    await expect.poll(() => new URL(page.url()).hash).toBe('#/');
+    await expect(page.getByRole('button', { name: '单人推理', exact: true })).toBeVisible();
     await Promise.all([page.setViewportSize({ width: 390, height: 844 }), reference.setViewportSize({ width: 390, height: 844 })]);
     await Promise.all([page.goto(h5Url('/library?mode=solo')), reference.goto(new URL('/library?mode=solo', referenceEntry).href)]);
     await expect(page.getByRole('button', { name: '单人推理', exact: true }).first()).toBeVisible();
@@ -68,6 +79,23 @@ test.describe('TapTap H5 共享网页', () => {
     expect(await composer(page)).toEqual(await composer(reference));
     await page.screenshot({ path: info.outputPath('h5-solo.png') });
     await reference.screenshot({ path: info.outputPath('web-solo.png') });
+    // 实际缩放浏览器可见高度，验证聊天页页头固定、消息区收缩及输入草稿保留。
+    const headerBeforeResize = (await page.locator('.topbar').boundingBox())!;
+    const messagesBeforeResize = (await page.locator('.solo-chat').boundingBox())!;
+    const draft = page.getByRole('textbox').first();
+    await draft.fill('视口变化时保留草稿');
+    for (const height of [480, 360, 844]) {
+      await page.setViewportSize({ width: 390, height });
+      await expect.poll(() => page.evaluate(() => parseFloat(document.documentElement.style.getPropertyValue('--taptap-viewport-height')))).toBe(height);
+      const header = (await page.locator('.topbar').boundingBox())!;
+      const input = (await draft.boundingBox())!;
+      expect(header.y).toBe(headerBeforeResize.y);
+      expect(header.height).toBe(headerBeforeResize.height);
+      expect(input.y + input.height).toBeLessThanOrEqual(height);
+      await expect(draft).toHaveValue('视口变化时保留草稿');
+      if (height < 844) expect((await page.locator('.solo-chat').boundingBox())!.height).toBeLessThan(messagesBeforeResize.height);
+      await page.screenshot({ path: info.outputPath(`h5-solo-height-${height}.png`) });
+    }
     await page.goto(h5Url());
     await page.getByRole('button', { name: '登录', exact: true }).click();
     // H5 登录页只有 TapTap 一键登录：邮箱表单与找回密码入口均不存在

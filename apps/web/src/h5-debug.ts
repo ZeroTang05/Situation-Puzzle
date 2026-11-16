@@ -84,5 +84,15 @@ export async function initializeH5Debug(): Promise<void> {
   window.addEventListener('unhandledrejection', (event) => runtimeError(event.reason));
   window.addEventListener('online', () => record('online'));
   window.addEventListener('offline', () => record('offline'));
+  // 输入法问题只记录几何信息，便于真机核对页头与输入区，不记录输入内容。
+  const recordViewport = () => record('viewport', {
+    layoutHeight: innerHeight,
+    visibleHeight: window.visualViewport?.height,
+    offsetTop: window.visualViewport?.offsetTop,
+    scrollY,
+    focusedTag: document.activeElement?.tagName,
+  });
+  window.visualViewport?.addEventListener('resize', recordViewport);
+  window.visualViewport?.addEventListener('scroll', recordViewport);
   record('environment', { origin: location.origin, entry: location.pathname, apiBase, online: navigator.onLine, width: innerWidth, height: innerHeight, userAgent: navigator.userAgent });
 }

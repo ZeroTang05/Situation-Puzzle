@@ -8,6 +8,77 @@
 /* 页面统一使用纯色背景，加载期间沿用相同样式。 */
 html, body { background: var(--bg); }
 
+/* H5 聊天页固定在键盘上方的可见区域，页头与输入区保持尺寸，中间内容自行滚动。 */
+html.taptap-h5 :is(.solo-shell, .room-playing, .chat-shell) {
+  position: fixed;
+  top: var(--taptap-viewport-top);
+  left: 0;
+  right: 0;
+  height: var(--taptap-viewport-height);
+  min-height: 0;
+  overflow: hidden;
+}
+html.taptap-h5:has(.solo-shell, .room-playing, .chat-shell),
+html.taptap-h5:has(.solo-shell, .room-playing, .chat-shell) body {
+  height: 100%;
+  overflow: hidden;
+}
+html.taptap-h5 .chat-shell > .topbar,
+html.taptap-h5 .chat-shell > .chat-input-row { flex: none; }
+html.taptap-h5 .solo-shell > .story-wrap { max-height: min(30%, 220px); }
+html.taptap-h5 .room-playing > .story-wrap { max-height: 22%; }
+
+/* TapTap H5 的标题右侧留给宿主控件，原右侧操作单独放到下一行。 */
+html.taptap-h5 .topbar {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) 104px;
+  grid-auto-rows: minmax(44px, auto);
+  column-gap: 8px;
+  row-gap: 4px;
+  padding-bottom: 8px;
+}
+html.taptap-h5 .topbar > :first-child {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+}
+html.taptap-h5 .topbar > .brand {
+  grid-column: 1 / 3;
+  grid-row: 1;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+html.taptap-h5 .topbar-title > .brand,
+html.taptap-h5 .game-topbar > .brand { grid-column: 2; }
+html.taptap-h5 .topbar > :last-child:not(:first-child):not(.brand) {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: end;
+}
+html.taptap-h5 .game-topbar-action:empty { display: none; }
+
+/* 滚动后仍保持右上角空白，浮层也避开同一高度。 */
+html.taptap-h5 body::before {
+  content: '';
+  position: fixed;
+  top: var(--taptap-viewport-top);
+  right: 0;
+  width: 118px;
+  height: calc(env(safe-area-inset-top, 0px) + 44px);
+  background: var(--bg);
+  z-index: 1999;
+}
+html.taptap-h5 .jev-dialog {
+  top: calc(var(--taptap-viewport-top) + (var(--taptap-viewport-height) + env(safe-area-inset-top, 0px) + 44px) / 2);
+  max-height: calc(var(--taptap-viewport-height) - env(safe-area-inset-top, 0px) - 76px);
+}
+html.taptap-h5 .toast { top: calc(var(--taptap-viewport-top) + env(safe-area-inset-top, 0px) + 56px); }
+
 /* 品牌标识与标题在首页和认证页面保持相同尺寸。 */
 .brand-identity { display: inline-flex; align-items: center; min-width: 0; gap: 8px; }
 .brand-mark { display: block; flex: 0 0 28px; border-radius: 7px; }
