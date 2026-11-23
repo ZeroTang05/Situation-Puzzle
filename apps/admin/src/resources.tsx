@@ -1,6 +1,6 @@
 /** 用户、房间、举报、订单列表与处置动作；总览页。 */
 import { useDialog } from '@jev/ui';
-import { List, Datagrid, TextField, DateField, BooleanField, useRecordContext, useNotify, useRefresh, Button } from 'react-admin';
+import { List, Datagrid, TextField, FunctionField, DateField, BooleanField, useRecordContext, useNotify, useRefresh, Button } from 'react-admin';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, Typography } from '@mui/material';
 import { adminAction } from './data-provider.js';
@@ -15,7 +15,9 @@ export function UserList() {
     <List perPage={50} sort={{ field: 'createdAt', order: 'DESC' }}>
       <Datagrid bulkActionButtons={false}>
         <TextField source="nickname" label={c.nicknameCol} />
-        <TextField source="email" label={c.emailCol} />
+        <FunctionField source="email" label={c.emailCol} render={(record: { email: string }) => (
+          <span title={record.email}>{record.email.length > 36 ? `${record.email.slice(0, 36)}…` : record.email}</span>
+        )} />
         <BooleanField source="emailVerified" label={c.emailVerifiedCol} />
         <TextField source="status" label={c.statusCol} />
         <SponsorUntilField label={c.sponsorUntilCol} sortBy="sponsorUntil" />

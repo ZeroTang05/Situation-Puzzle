@@ -445,7 +445,7 @@ export default function Solo(): ReactNode {
           {session.revealedAnswer && (
             <View className="panel answer-panel slot-in">
               <Text className="h3">{copy.answer}</Text>
-              <Text className="p">{session.revealedAnswer}</Text>
+              <Text className="p puzzle-answer">{session.revealedAnswer}</Text>
             </View>
           )}
           {/* 结算评分区：对齐 web 的「为这题打分」（首次还原或公布汤底后开放） */}

@@ -12,6 +12,27 @@ function h5Url(route = '/') {
   return url.href;
 }
 
+function debugRecords(page: Page) {
+  return page.evaluate(() => (window as unknown as { __JEV_DEBUG__: { records(): unknown[] } }).__JEV_DEBUG__.records());
+}
+
+/** 核对顶栏只有一行，左侧操作和 TapTap 控件都与标题留有距离。 */
+async function expectSingleRowTopbar(page: Page, width: number) {
+  const topbar = page.locator('.topbar');
+  await expect(topbar).toBeVisible();
+  const header = (await topbar.boundingBox())!;
+  const title = (await topbar.getByRole('heading').boundingBox())!;
+  expect(header.height).toBeGreaterThanOrEqual(52);
+  expect(header.height).toBeLessThanOrEqual(56);
+  expect(title.width).toBeGreaterThan(0);
+  expect(title.x + title.width).toBeLessThanOrEqual(width - 118);
+  for (const control of await topbar.getByRole('button').or(topbar.getByRole('link')).all()) {
+    const button = (await control.boundingBox())!;
+    expect(title.x - (button.x + button.width)).toBeGreaterThanOrEqual(6);
+    expect(Math.abs(button.y + button.height / 2 - (header.y + header.height / 2))).toBeLessThanOrEqual(1);
+  }
+}
+
 /** 等待实际 IndexedDB 事务完成，再刷新页面检查草稿恢复。 */
 async function savedDraft(page: Page, text: string) {
   await expect.poll(() => page.evaluate(async (expected) => {
@@ -30,12 +51,43 @@ async function savedDraft(page: Page, text: string) {
   }, text)).toBe(true);
 }
 
+/** 用本地过期场景触发真实服务端拒绝，校验同一局可接着玩。 */
+async function invalidateSavedSoloToken(page: Page): Promise<string> {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('jev-solo');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      return await new Promise<string>((resolve, reject) => {
+        const transaction = db.transaction('solo_sessions', 'readwrite');
+        const cursor = transaction.objectStore('solo_sessions').openCursor();
+        let localSessionId: string;
+        cursor.onsuccess = () => {
+          if (!cursor.result) {
+            transaction.abort();
+            return;
+          }
+          const row = cursor.result.value;
+          localSessionId = row.localSessionId;
+          cursor.result.update({ ...row, token: 'invalid-test-token' });
+        };
+        transaction.oncomplete = () => resolve(localSessionId);
+        transaction.onabort = () => reject(transaction.error ?? new Error('找不到本地单人记录'));
+      });
+    } finally { db.close(); }
+  });
+}
+
 test.describe('TapTap H5 共享网页', () => {
   test.skip(!h5Entry, '需要 TAPTAP_H5_URL 指向实际 H5 构建入口');
 
   test('首页入口、移动布局与网页一致，子目录刷新和登录链接正确', async ({ page, context }, info) => {
     const reference = await context.newPage();
-    for (const width of [375, 390, 430]) {
+    const failures: string[] = [];
+    page.on('pageerror', (error) => failures.push(error.message));
+    for (const width of [320, 375, 390, 430, 1024]) {
       await page.setViewportSize({ width, height: 844 });
       await reference.setViewportSize({ width, height: 844 });
       await Promise.all([page.goto(h5Url()), reference.goto(referenceEntry)]);
@@ -43,11 +95,29 @@ test.describe('TapTap H5 共享网页', () => {
       await expect(reference.getByRole('button', { name: '单人推理', exact: true })).toBeVisible();
       expect(await page.getByRole('button').allTextContents()).toEqual((await reference.getByRole('button').allTextContents()).filter((text) => text !== 'App 下载' && text !== 'Get the App'));
       await expect(page.locator('.site-footer')).toHaveCount(0);
-      const header = (await page.locator('.topbar').boundingBox())!;
-      const title = (await page.locator('.topbar > .brand').boundingBox())!;
-      const actions = (await page.locator('.topbar-actions').boundingBox())!;
-      expect(title.x + title.width).toBeLessThanOrEqual(width - 118);
-      expect(actions.y).toBeGreaterThanOrEqual(header.y + 44);
+      await expectSingleRowTopbar(page, width);
+      if (width >= 375) {
+        const title = (await page.locator('.topbar').getByRole('heading').boundingBox())!;
+        expect(Math.abs(title.x + title.width / 2 - width / 2)).toBeLessThan(1);
+      }
+      await expect(page.getByRole('button', { name: '登录', exact: true })).toHaveCount(0);
+      const guideButton = page.getByRole('button', { name: '互动指南' });
+      await expect(page.locator('.hero-card').getByRole('button', { name: '互动指南' })).toBeVisible();
+      const guide = (await guideButton.boundingBox())!;
+      const tagline = (await page.locator('.tagline').boundingBox())!;
+      expect(guide.x).toBeGreaterThanOrEqual(tagline.x + tagline.width);
+      if (width === 320) {
+        const icon = (await guideButton.locator('.help-icon').boundingBox())!;
+        expect(guide.width).toBeGreaterThanOrEqual(44);
+        expect(guide.height).toBeGreaterThanOrEqual(44);
+        expect(icon.width).toBeLessThan(guide.width);
+        expect(icon.height).toBeLessThan(guide.height);
+        // 点在可见圆圈外面，确认透明区域仍能打开指南。
+        await guideButton.click({ position: { x: 4, y: 4 } });
+        await expect(page.getByRole('dialog', { name: '互动指南' })).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+      }
       // H5 调整页头操作位置，正文继续核对与网页一致的布局。
       const layout = (target: Page) => target.locator('.hero-card, .hero-actions, .hero-secondary').evaluateAll((nodes) => nodes.map((node) => {
         const rect = node.getBoundingClientRect();
@@ -74,6 +144,7 @@ test.describe('TapTap H5 共享网页', () => {
     const solo = new URL(reference.url());
     await page.goto(h5Url(solo.pathname + solo.search));
     await expect(page.getByRole('textbox').first()).toBeVisible();
+    await expectSingleRowTopbar(page, 390);
     expect(await page.locator('main').innerText()).toEqual(await reference.locator('main').innerText());
     const composer = (target: Page) => target.locator('.solo-bottom').boundingBox();
     expect(await composer(page)).toEqual(await composer(reference));
@@ -96,12 +167,30 @@ test.describe('TapTap H5 共享网页', () => {
       if (height < 844) expect((await page.locator('.solo-chat').boundingBox())!.height).toBeLessThan(messagesBeforeResize.height);
       await page.screenshot({ path: info.outputPath(`h5-solo-height-${height}.png`) });
     }
-    await page.goto(h5Url());
-    await page.getByRole('button', { name: '登录', exact: true }).click();
+    for (const [name, next] of [
+      ['开房间（登录）', '/library?mode=select'],
+      ['大厅', '/hall'],
+      ['我的作品', '/creations'],
+      ['好友', '/friends'],
+      ['通知', '/notifications'],
+    ]) {
+      await page.goto(h5Url());
+      await page.getByRole('button', { name, exact: true }).click();
+      await expect.poll(() => {
+        const [route, search] = new URL(page.url()).hash.slice(1).split('?');
+        return { route, next: new URLSearchParams(search).get('next') };
+      }).toEqual({ route: '/login', next });
+    }
     // H5 登录页只有 TapTap 一键登录：邮箱表单与找回密码入口均不存在
     await expect(page.getByRole('heading', { name: '登录', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'TapTap 一键登录', exact: true })).toBeVisible();
     await expect(page.getByRole('textbox')).toHaveCount(0);
+    await page.setViewportSize({ width: 320, height: 844 });
+    await expectSingleRowTopbar(page, 320);
+    await page.locator('.lang-switch').click();
+    await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible();
+    await expectSingleRowTopbar(page, 320);
+    expect(failures).toEqual([]);
     await reference.close();
   });
 
@@ -141,8 +230,37 @@ test.describe('TapTap H5 共享网页', () => {
     await context.setOffline(true);
     await page.getByRole('button', { name: '发送', exact: true }).click();
     await expect(input).toHaveValue('这条草稿需要保留');
+    await expect.poll(async () => JSON.stringify(await debugRecords(page))).toContain('network-error');
+    const offlineRecords = await debugRecords(page);
     await context.setOffline(false);
-    await ask('故事里都是人吗');
+    const sessionId = await invalidateSavedSoloToken(page);
+    await page.reload();
+    await expect(input).toHaveValue('这条草稿需要保留');
+    const renewalStart = responses.length;
+    const renewed = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === '/api/v1/solo/judge' && response.status() === 200);
+    await page.getByRole('button', { name: '发送', exact: true }).click();
+    await renewed;
+    await expect(page.getByRole('button', { name: '发送', exact: true })).toBeDisabled();
+    expect(responses.slice(renewalStart)).toEqual([
+      { path: '/api/v1/solo/judge', status: 400 },
+      { path: '/api/v1/solo/sessions', status: 200 },
+      { path: '/api/v1/solo/judge', status: 200 },
+    ]);
+    expect(await page.evaluate(async () => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('jev-solo');
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      try {
+        return await new Promise<string[]>((resolve, reject) => {
+          const request = db.transaction('solo_sessions').objectStore('solo_sessions').getAllKeys();
+          request.onsuccess = () => resolve(request.result as string[]);
+          request.onerror = () => reject(request.error);
+        });
+      } finally { db.close(); }
+    })).toEqual([sessionId]);
 
     await page.getByRole('button', { name: '还原真相', exact: true }).click();
     await input.fill('主人公发现了隐藏的真相');
@@ -161,7 +279,7 @@ test.describe('TapTap H5 共享网页', () => {
     await expect.poll(() => page.url()).not.toBe(initialUrl);
     await expect(input).toBeVisible();
 
-    const records = await page.evaluate(() => (window as unknown as { __JEV_DEBUG__: { records(): unknown[] } }).__JEV_DEBUG__.records());
+    const records = [...offlineRecords, ...await debugRecords(page)];
     const diagnosticText = JSON.stringify(records);
     expect(diagnosticText).toContain('network-error');
     expect(diagnosticText).toContain('requestId');

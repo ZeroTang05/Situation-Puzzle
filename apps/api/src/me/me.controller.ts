@@ -2,6 +2,7 @@
 import { Body, Controller, Get, Inject, Patch, Query } from '@nestjs/common';
 import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import {
+  account,
   freeRoomAccounts,
   orders,
   profiles,
@@ -16,7 +17,7 @@ import {
 import { freeRoomsRemaining, hasActiveSponsorship, hasLifetimeGrant } from '@jev/domain';
 import { app } from '../context.js';
 import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http.js';
-import { meResponseSchema, nicknameUpdateRequestSchema, roomHistoryQuerySchema } from '@jev/contracts';
+import { type MeResponse, nicknameUpdateRequestSchema, roomHistoryQuerySchema } from '@jev/contracts';
 import { RoomBonusService } from '../billing/room-bonus.service.js';
 import { z } from 'zod';
 
@@ -26,15 +27,19 @@ export class MeController {
   constructor(@Inject(RoomBonusService) private readonly roomBonusService: RoomBonusService) {}
 
   @Get()
-  async me(@CurrentUser() user: SessionUser): Promise<z.infer<typeof meResponseSchema>> {
+  async me(@CurrentUser() user: SessionUser): Promise<MeResponse> {
     const context = app();
     const now = new Date();
-    const [grants, freeRows, invitedCount, inviteCode] = await Promise.all([
+    const [grants, freeRows, invitedCount, inviteCode, platformRows] = await Promise.all([
       context.db.db.select().from(sponsorGrants).where(eq(sponsorGrants.userId, user.userId)),
       context.db.db.select().from(freeRoomAccounts).where(eq(freeRoomAccounts.userId, user.userId)).limit(1),
       this.roomBonusService.invitedCount(user.userId),
       // 邀请码首次读取时懒生成，之后一直用同一个
       this.roomBonusService.ensureInviteCode(user.userId),
+      context.db.db.select({ provider: account.providerId, accountId: account.accountId })
+        .from(account)
+        .where(and(eq(account.userId, user.userId), inArray(account.providerId, ['taptap-mini', 'wechat-mini'])))
+        .orderBy(account.providerId, account.accountId),
     ]);
     // 有期限授权（月度/注册礼）中最晚的到期日：过期也返回，前端显示「已到期」
     const termUntil = grants
@@ -42,12 +47,22 @@ export class MeController {
       .map((g) => g.effectiveUntil!)
       .sort((a, b) => (a.getTime() > b.getTime() ? -1 : 1))[0];
     const free = freeRows[0] ?? { total: 10, consumed: 0, reserved: 0 };
+    const platformAccounts: MeResponse['identity']['platformAccounts'] = [];
+    for (const { provider, accountId } of platformRows) {
+      // TapTap 的内部账号键包含应用编号，资料页只展示平台返回的 OpenID。
+      if (provider === 'taptap-mini') platformAccounts.push({ provider, openId: accountId.slice(accountId.indexOf(':') + 1) });
+      if (provider === 'wechat-mini') platformAccounts.push({ provider, openId: accountId });
+    }
 
     return {
       userId: user.userId,
       nickname: user.nickname,
       email: user.email,
       emailVerified: user.emailVerified,
+      identity: {
+        email: user.email.endsWith('.invalid') ? null : user.email,
+        platformAccounts,
+      },
       roles: user.roles,
       sponsorship: {
         monthlyUntil: termUntil?.toISOString() ?? null,

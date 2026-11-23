@@ -544,11 +544,21 @@ export const realtimeTicketResponseSchema = z.object({
 
 // ---------- 账号与赞助 ----------
 
+const profileIdentitySchema = z.object({
+  email: z.string().nullable(),
+  platformAccounts: z.array(z.object({
+    provider: z.enum(['taptap-mini', 'wechat-mini']),
+    openId: z.string(),
+  })),
+});
+
 export const meResponseSchema = z.object({
   userId: z.string(),
   nickname: z.string(),
+  /** 旧版客户端仍读取 email；玩家资料使用 identity。 */
   email: z.string(),
   emailVerified: z.boolean(),
+  identity: profileIdentitySchema,
   roles: z.array(z.string()),
   sponsorship: z.object({
     monthlyUntil: z.string().nullable(),
@@ -568,6 +578,7 @@ export const meResponseSchema = z.object({
   /** 内测期开关回显：true 时开房不占次数，前端展示「内测畅玩」 */
   betaOpen: z.boolean(),
 });
+export type MeResponse = z.infer<typeof meResponseSchema>;
 
 /** 修改昵称：允许与其他玩家重名，仅约束 1～30 字符（服务端去首尾空格） */
 export const nicknameUpdateRequestSchema = z.object({

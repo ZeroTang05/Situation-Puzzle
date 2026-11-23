@@ -1,4 +1,20 @@
 /** 跨端玩家交互约定：选题与评价时机，保持网页和原生小游戏一致。 */
+import type { MeResponse } from './http.js';
+
+/** 资料优先展示平台 OpenID。旧接口没有平台字段时，已有的站内用户 ID 可直接展示。 */
+export function profileIdentityRows(profile: MeResponse) {
+  const rows: Array<{ label: 'emailField' | 'taptapIdLabel' | 'wechatIdLabel' | 'userIdLabel'; value: string }> = [];
+  const email = profile.identity?.email ?? (profile.email.endsWith('.invalid') ? null : profile.email);
+  if (email) rows.push({ label: 'emailField', value: email });
+  for (const { provider, openId } of profile.identity?.platformAccounts ?? []) {
+    rows.push({ label: provider === 'taptap-mini' ? 'taptapIdLabel' : 'wechatIdLabel', value: openId });
+  }
+  if (!rows.length) {
+    if (profile.userId) rows.push({ label: 'userIdLabel', value: profile.userId });
+    else if (profile.email) rows.push({ label: 'emailField', value: profile.email });
+  }
+  return rows;
+}
 
 /** 按作品编号排除全部已玩题目，切换语言也不重复抽取同一作品。 */
 export function selectUnplayedPuzzle(puzzleIds: readonly string[], playedIds: readonly string[], currentId: string, sample = Math.random()): string | null {

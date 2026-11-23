@@ -8,6 +8,7 @@ export type Language = 'zh' | 'en';
 
 /** 游戏正式品牌名：中英文界面与事务邮件使用同一个名称。 */
 export const BRAND_NAME = '超好玩海龟汤';
+export const BRAND_NAME_EN = 'Turtle Soup Mysteries';
 
 /** 判定枚举 → 文案 */
 const verdictCopy = {
@@ -371,7 +372,7 @@ export const copy = {
     invitedCount: '已邀请 {n} 人',
     betaBadge: '内测畅玩中',
     betaHint: '内测期间开房不限次数，感谢尝鲜。',
-    inviteShareTitle: '超好玩海龟汤，来和我一起推理',
+    inviteShareTitle: `${BRAND_NAME}，来和我一起推理`,
     inviteShareButton: '邀请好友',
     adWatchButton: '看广告 +2 次',
     adUnavailable: '广告通道开通中',
@@ -475,6 +476,10 @@ export const copy = {
     wechatLoginHint: '首次登录自动创建账号',
     wechatLoginFail: '微信登录失败，请重试',
     wechatAccountLabel: '微信账号',
+    taptapAccountLabel: 'TapTap 账号',
+    wechatIdLabel: '微信 ID',
+    taptapIdLabel: 'TapTap ID',
+    userIdLabel: '用户 ID',
 
     // ----- lobby / home -----
     creating: '正在创建…',
@@ -668,7 +673,7 @@ export const copy = {
     requestFailed: '请求失败，请稍后再试',
   },
   en: {
-    brand: BRAND_NAME,
+    brand: BRAND_NAME_EN,
     tagline: 'One question at a time, together',
     howToPlay: 'How it works',
     gotIt: 'Got it',
@@ -878,7 +883,7 @@ export const copy = {
     invitedCount: '{n} invited',
     betaBadge: 'Open beta',
     betaHint: 'Rooms are unlimited during the open beta. Thanks for trying it out.',
-    inviteShareTitle: '超好玩海龟汤 — Come solve puzzles with me',
+    inviteShareTitle: `${BRAND_NAME_EN} · Come solve puzzles with me`,
     inviteShareButton: 'Invite friends',
     adWatchButton: 'Watch an ad for +2',
     adUnavailable: 'Ads coming soon',
@@ -982,6 +987,10 @@ export const copy = {
     wechatLoginHint: 'An account is created automatically on first sign-in',
     wechatLoginFail: 'WeChat sign-in failed. Please try again.',
     wechatAccountLabel: 'WeChat account',
+    taptapAccountLabel: 'TapTap account',
+    wechatIdLabel: 'WeChat ID',
+    taptapIdLabel: 'TapTap ID',
+    userIdLabel: 'User ID',
 
     // ----- lobby / home -----
     creating: 'Creating…',

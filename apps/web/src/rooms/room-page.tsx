@@ -45,7 +45,8 @@ export function RoomPage({ session }: { session: Session | null }) {
   const outbox = useRoomOutbox(me, roomId ?? '', state, status, sendCommand, confirmResult);
 
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busyCommand, setBusyCommand] = useState<string | null>(null);
+  const busy = busyCommand !== null;
   const [useLargeModel, setUseLargeModel] = useState(false);
   const tab = outbox.local?.tab ?? 'qa';
   const inputMode = outbox.local?.mode ?? 'ask';
@@ -112,7 +113,7 @@ export function RoomPage({ session }: { session: Session | null }) {
   const run = useCallback(
     async (type: string, payload?: Record<string, unknown>, roundId?: string) => {
       if (busy || status !== 'ready') return;
-      setBusy(true);
+      setBusyCommand(type);
       setError(null);
       try {
         const result = await outbox.submit({ type, ...(payload !== undefined ? { payload } : {}), ...(roundId !== undefined ? { roundId } : {}), expectedControlVersion: state?.controlVersion ?? 0 });
@@ -125,7 +126,7 @@ export function RoomPage({ session }: { session: Session | null }) {
       } catch (err) {
         setError(translateApiError(err, language, copy.confirm /* 操作失败 fallback */));
       } finally {
-        setBusy(false);
+        setBusyCommand(null);
       }
     },
     [busy, status, outbox.submit, state?.controlVersion, roomId, copy.confirm],
@@ -447,7 +448,7 @@ export function RoomPage({ session }: { session: Session | null }) {
                       }}
                     />
                     <button className="btn btn-primary" disabled={busy || pendingCurrent || status !== 'ready' || !outbox.local || !text.trim()} onClick={() => void send()}>
-                      {busy ? copy.submitting : copy.send}
+                      {busyCommand === 'ask' || busyCommand === 'solve' ? copy.submitting : copy.send}
                     </button>
                   </>
                 )}
@@ -710,7 +711,7 @@ function HostSecret({ roundId }: { roundId: string }) {
     <div className="stack host-secret">
       <h3>{copy.hostSecretTitle}</h3>
       <p className="muted">{copy.hostSecretHint}</p>
-      <p>{answer}</p>
+      <p className="puzzle-answer">{answer}</p>
       {hints.length > 0 && (
         <details>
           <summary className="muted">{copy.hint}（{hints.length}）</summary>
@@ -745,7 +746,7 @@ function AnswerBlock({ roundId }: { roundId: string }) {
   return (
     <div className="stack">
       <h3>{copy.answer}</h3>
-      <p>{answer}</p>
+      <p className="puzzle-answer">{answer}</p>
       {hints.length > 0 && (
         <details>
           <summary className="muted">{copy.hint}（{hints.length}）</summary>

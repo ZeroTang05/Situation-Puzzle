@@ -7,6 +7,7 @@ import { useLanguage } from '../state/language.js';
 import { useBack } from '../back.js';
 import { format } from '@jev/i18n';
 import type { Language } from '@jev/i18n';
+import type { MeResponse } from '@jev/contracts';
 import type { Session } from '../session.js';
 import { purchaseEntryVisible } from '../app-runtime.js';
 import { creationCopy } from '../creations/copy.js';
@@ -43,16 +44,6 @@ function shortDate(iso: string, language: Language) {
   const date = new Date(iso);
   const sameYear = date.getFullYear() === new Date().getFullYear();
   return date.toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US', sameYear ? { month: 'short', day: 'numeric' } : { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-interface MeResponse {
-  userId: string;
-  nickname: string;
-  email: string;
-  sponsorship: { monthlyUntil: string | null; lifetime: boolean };
-  freeRooms: { total: number; consumed: number; reserved: number };
-  invite: { code: string; invitedCount: number };
-  betaOpen: boolean;
 }
 
 interface HistoryResponse {
@@ -92,9 +83,12 @@ export function MePage({ session }: { session: Session | null }) {
   const hasUnlimited = lifetime || (monthlyUntil !== null && !monthlyExpired);
   const betaOpen = me.data?.betaOpen ?? false;
   const remaining = freeRooms ? freeRooms.total - freeRooms.consumed - freeRooms.reserved : null;
-  // 名字与邮箱都来自 /me：没回来就整卡占骨架，回来一起出；不读会话字段，避免分两步加载
+  // 账号卡显示邮箱或平台名称，具体的平台标识放在设置页。
   const displayName = me.data?.nickname ?? null;
-  const displayEmail = me.data?.email ?? null;
+  const identity = me.data?.identity;
+  const provider = identity?.platformAccounts[0]?.provider;
+  const accountLabel = identity?.email
+    ?? (provider === 'taptap-mini' ? copy.taptapAccountLabel : provider === 'wechat-mini' ? copy.wechatAccountLabel : null);
   const accountLoadFail = copy.accountLoadFail;
 
   return (
@@ -112,7 +106,8 @@ export function MePage({ session }: { session: Session | null }) {
         <div className="me-head">
           <div className="me-id">
             <h2 className="me-name">{displayName ?? <span className="me-skeleton-bar me-name-skeleton" aria-hidden />}</h2>
-            <p className="me-email muted">{displayEmail ?? <span className="me-skeleton-bar me-email-skeleton" aria-hidden />}</p>
+            {accountLabel && <p className="me-email muted" title={accountLabel}>{accountLabel}</p>}
+            {me.isPending && <p className="me-email muted"><span className="me-skeleton-bar me-email-skeleton" aria-hidden /></p>}
           </div>
         </div>
 

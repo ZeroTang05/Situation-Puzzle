@@ -46,7 +46,7 @@ export function NotificationBell({ onNavigate }: { onNavigate?: () => void }): R
       ariaLabel={copy.notifications}
       onClick={() => {
         onNavigate?.()
-        void Taro.navigateTo({ url: '/pkg-social/pages/notifications/notifications' })
+        void Taro.navigateTo({ url: session ? '/pkg-social/pages/notifications/notifications' : '/pages/login/login' })
       }}
     >
       <Text ariaHidden>🔔</Text>

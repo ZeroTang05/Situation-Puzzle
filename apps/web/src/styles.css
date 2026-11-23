@@ -28,37 +28,52 @@ html.taptap-h5 .chat-shell > .chat-input-row { flex: none; }
 html.taptap-h5 .solo-shell > .story-wrap { max-height: min(30%, 220px); }
 html.taptap-h5 .room-playing > .story-wrap { max-height: 22%; }
 
-/* TapTap H5 的标题右侧留给宿主控件，原右侧操作单独放到下一行。 */
+html.taptap-h5 { --taptap-controls-width: 118px; }
+
+/* 宽屏扣除页面两侧已有的留白，右上角留给 TapTap 控件。 */
 html.taptap-h5 .topbar {
+  --taptap-controls-padding: max(0px, calc(var(--taptap-controls-width) - (100vw - 100%) / 2));
+  display: flex;
+  justify-content: flex-start;
+  gap: 6px;
+  padding-right: var(--taptap-controls-padding);
+}
+html.taptap-h5 .topbar > * { flex: none; }
+html.taptap-h5 .topbar .btn { white-space: nowrap; }
+/* 多个按钮靠左，标题和状态作为一组，用两侧等宽的空白居中。 */
+html.taptap-h5 .topbar:has(> .brand)::before,
+html.taptap-h5 .topbar:has(> .brand)::after { content: ''; flex: 1 1 0; }
+html.taptap-h5 .topbar::before { order: 1; }
+html.taptap-h5 .topbar > .brand { order: 2; font-size: 16px; text-align: center; }
+html.taptap-h5 .topbar > .creation-topbar-meta { order: 3; }
+html.taptap-h5 .topbar::after { order: 4; }
+/* 只有一组按钮时，两侧列尽量同宽，让标题对齐页面正中。 */
+html.taptap-h5 .topbar:has(> .brand):not(:has(> :nth-child(3))) {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) 104px;
-  grid-auto-rows: minmax(44px, auto);
-  column-gap: 8px;
-  row-gap: 4px;
-  padding-bottom: 8px;
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, max-content) minmax(var(--taptap-controls-padding), 1fr);
+  padding-right: 0;
 }
-html.taptap-h5 .topbar > :first-child {
-  grid-column: 1;
-  grid-row: 1;
+html.taptap-h5 .topbar:has(> .brand):not(:has(> :nth-child(3)))::before,
+html.taptap-h5 .topbar:has(> .brand):not(:has(> :nth-child(3)))::after { content: none; }
+html.taptap-h5 .topbar:has(> .brand):not(:has(> :nth-child(3))) > :not(.brand) {
+  grid-area: 1 / 1;
   justify-self: start;
 }
-html.taptap-h5 .topbar > .brand {
-  grid-column: 1 / 3;
-  grid-row: 1;
-  justify-self: start;
-  min-width: 0;
-  max-width: 100%;
+html.taptap-h5 .topbar:has(> .brand):not(:has(> :nth-child(3))) > .brand {
+  grid-area: 1 / 2;
+  justify-self: stretch;
+}
+/* 窄屏优先保留按钮，标题和状态只占剩余宽度。 */
+html.taptap-h5 .topbar > :is(.brand, .creation-topbar-meta) { flex: 0 1 auto; min-width: 0; }
+html.taptap-h5 .topbar :is(.brand, .brand-identity > span, .creation-topbar-meta > .creation-status) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-align: left;
 }
-html.taptap-h5 .topbar-title > .brand,
-html.taptap-h5 .game-topbar > .brand { grid-column: 2; }
-html.taptap-h5 .topbar > :last-child:not(:first-child):not(.brand) {
-  grid-column: 1 / -1;
-  grid-row: 2;
-  justify-self: end;
+html.taptap-h5 .topbar .creation-topbar-meta > .creation-status { display: block; }
+@media (max-width: 430px) {
+  html.taptap-h5 .topbar .brand-mark { display: none; }
+  html.taptap-h5 .topbar > .brand { font-size: 14px; }
 }
 html.taptap-h5 .game-topbar-action:empty { display: none; }
 
@@ -68,7 +83,7 @@ html.taptap-h5 body::before {
   position: fixed;
   top: var(--taptap-viewport-top);
   right: 0;
-  width: 118px;
+  width: var(--taptap-controls-width);
   height: calc(env(safe-area-inset-top, 0px) + 44px);
   background: var(--bg);
   z-index: 1999;
@@ -143,6 +158,10 @@ a { text-decoration: none; }
 /* 设置页：左标签右值的行；语言切换两个按钮并排 */
 .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .settings-value { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 15px; color: var(--ink); overflow-wrap: anywhere; }
+.settings-label { flex: none; white-space: nowrap; }
+/* 邮箱与标识保持单行，点击后在弹窗中展示完整内容。 */
+.settings-identity { display: block; padding: 4px 0; border: 0; background: transparent; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-identity-full { overflow-wrap: anywhere; user-select: text; }
 .settings-lang { display: flex; gap: 10px; }
 .settings-lang .btn { flex: 1 1 auto; }
 /* 会客厅摘要行 */
@@ -368,15 +387,6 @@ a { text-decoration: none; }
   font-size: 14px;
 }
 
-/* 首页玩法介绍：topbar 里的圆形问号按钮，与 btn-sm 同高 */
-.help-btn {
-  flex: none;
-  width: 36px;
-  padding: 4px 0;
-  border-radius: 50%;
-  font-weight: 700;
-}
-
 .btn-lg {
   min-height: 52px;
   font-size: 17px;
@@ -418,6 +428,32 @@ a { text-decoration: none; }
     radial-gradient(ellipse at 85% 18%, #497fa8 0, transparent 30%),
     linear-gradient(150deg, #0d426d, #052747);
   overflow: hidden;
+}
+
+.hero-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -8px 0 8px; }
+/* 透明按钮保留触控范围，右侧的小圆圈才是可见图标。 */
+.hero-heading .help-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: none;
+  width: 44px;
+  min-height: 44px;
+  padding: 0 2px 0 0;
+  border: 0;
+}
+html.taptap-h5 .hero-heading .help-btn { -webkit-tap-highlight-color: transparent; }
+.help-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: var(--ink);
+  background: rgba(13, 24, 38, .35);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 /* hero 底部的碗形装饰会和按钮重叠，去掉后由日晕渐变承担装饰 */
@@ -465,7 +501,7 @@ a { text-decoration: none; }
 .hall-row .btn { flex: none; }
 
 .tagline {
-  margin: 0 0 14px;
+  margin: 0;
   font-weight: 600;
   letter-spacing: 0.4px;
 }
@@ -600,6 +636,7 @@ a { text-decoration: none; }
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.puzzle-surface, .story-card .story, .puzzle-answer { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .puzzle-card-footer {
   display: grid;
@@ -844,7 +881,6 @@ a { text-decoration: none; }
   border-radius: var(--radius-sm);
   background: rgba(22, 43, 57, .97);
   color: var(--gold);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
   animation: hint-capsule-in .18s ease-out;
 }
 @keyframes hint-capsule-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
@@ -1003,6 +1039,12 @@ textarea.composer-input, .composer .composer-input {
   box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
   background: rgba(9, 39, 62, .97);
   border-radius: var(--radius);
+}
+/* H5 的玩家按钮移到左侧，管理面板随按钮靠左，落在顶栏下方。 */
+html.taptap-h5 .room-management {
+  top: calc(56px + env(safe-area-inset-top, 0px));
+  left: 14px;
+  right: auto;
 }
 .room-management > h2 { margin: 0; font-size: 12px; color: var(--muted); }
 /* 面板操作：邀请占满一行，重置/解散并排，离开单独一行 */
@@ -1484,7 +1526,7 @@ textarea.composer-input, .composer .composer-input {
 .notification-time { font-size: 12px; color: var(--muted); }
 
 /* 通知铃铛与未读角标 */
-.notification-bell { position: relative; min-width: var(--tap); min-height: var(--tap); padding: 4px 10px; }
+.notification-bell { position: relative; min-width: var(--tap); }
 .notification-badge { position: absolute; top: -3px; right: -3px; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--coral); color: #10202f; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
 
 /* 通知页顶栏：右侧「全部已读」比返回按钮宽，第三列按内容宽度排，避免中文英文都被挤断 */

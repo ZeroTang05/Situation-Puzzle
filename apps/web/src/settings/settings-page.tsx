@@ -7,7 +7,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useDialog } from '@jev/ui';
+import { Modal, useDialog } from '@jev/ui';
 import { api, translateApiError } from '../api/client.js';
 import { signOut } from '../api/auth-client.js';
 import { useLanguage } from '../state/language.js';
@@ -15,12 +15,7 @@ import { clearRoomLocal } from '../rooms/room-local.js';
 import { useBack } from '../back.js';
 import { RedeemSection } from './redeem-section.js';
 import type { Language } from '@jev/i18n';
-
-interface MeResponse {
-  userId: string;
-  nickname: string;
-  email: string;
-}
+import { profileIdentityRows, type MeResponse } from '@jev/contracts';
 
 export function SettingsPage() {
   const { copy, language, setLanguage } = useLanguage();
@@ -34,8 +29,10 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [selectedIdentity, setSelectedIdentity] = useState<{ label: string; value: string } | null>(null);
 
   const me = useQuery({ queryKey: ['me'], queryFn: () => api<MeResponse>('/me'), retry: false });
+  const identities = me.data ? profileIdentityRows(me.data) : [];
 
   const startEdit = () => {
     setDraft(me.data?.nickname ?? '');
@@ -83,7 +80,7 @@ export function SettingsPage() {
         <h1 className="brand brand-sm">{copy.settingsTitle}</h1>
       </header>
 
-      {/* 个人资料：昵称可改，邮箱只读 */}
+      {/* 个人资料：昵称可改，实际邮箱和平台标识只读。 */}
       <section className="panel stack">
         <h3>{copy.settingsProfile}</h3>
         <div className="settings-row">
@@ -112,10 +109,14 @@ export function SettingsPage() {
           </form>
         )}
 
-        <div className="settings-row">
-          <span className="muted">{copy.emailField}</span>
-          <span className="settings-value">{me.data?.email ?? '—'}</span>
-        </div>
+        {identities.map(({ label, value }) => (
+          <div className="settings-row" key={`${label}:${value}`}>
+            <span className="muted settings-label">{copy[label]}</span>
+            <button type="button" className="settings-value settings-identity" aria-label={copy[label]} onClick={() => setSelectedIdentity({ label: copy[label], value })}>
+              {value.length > 36 ? `${value.slice(0, 36)}…` : value}
+            </button>
+          </div>
+        ))}
 
         {error && <p className="error-text" role="alert">{error}</p>}
         {notice && <p className="ok-text" role="status">{notice}</p>}
@@ -123,6 +124,12 @@ export function SettingsPage() {
           <p className="error-text" role="alert">{translateApiError(me.error, language, copy.accountLoadFail)}</p>
         )}
       </section>
+
+      {selectedIdentity && (
+        <Modal open onOpenChange={(open) => { if (!open) setSelectedIdentity(null); }} title={selectedIdentity.label} closeLabel={copy.gotIt}>
+          <p className="settings-identity-full">{selectedIdentity.value}</p>
+        </Modal>
+      )}
 
       {/* 界面语言：与登录页并列的两个入口 */}
       <section className="panel stack">

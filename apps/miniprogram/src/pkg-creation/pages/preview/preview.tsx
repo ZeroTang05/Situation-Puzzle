@@ -247,7 +247,7 @@ export default function CreationPreview(): ReactNode {
           {local.revealedAnswer && (
             <View className="panel answer-panel slot-in">
               <Text className="h3">{text.answer}</Text>
-              <Text className="p">{local.revealedAnswer}</Text>
+              <Text className="p puzzle-answer">{local.revealedAnswer}</Text>
             </View>
           )}
           <View id={scrollAnchor} />

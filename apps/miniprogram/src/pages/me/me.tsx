@@ -20,6 +20,7 @@ import { LoginPrompt } from '../../ui/login-prompt'
 import { goBack } from '../../ui/back'
 import { NotificationBell } from '../../notification/notification-bell'
 import { format, type Language } from '@jev/i18n'
+import type { MeResponse } from '@jev/contracts'
 
 /** 把服务端 round.status 翻译成用户文案；未识别值回退原值便于排查 */
 function roundStatusLabel(
@@ -58,16 +59,6 @@ function roundStatusClass(status: string): string {
 /** 短日期：同年只显示月日，跨年补年份（手动拼接，运行时 Intl 数据不全见 ui/dates.ts） */
 function shortDate(iso: string, language: Language): string {
   return formatShortDate(iso, language)
-}
-
-interface MeResponse {
-  userId: string
-  nickname: string
-  email: string
-  sponsorship: { monthlyUntil: string | null; lifetime: boolean }
-  freeRooms: { total: number; consumed: number; reserved: number }
-  invite: { code: string; invitedCount: number }
-  betaOpen: boolean
 }
 
 interface HistoryResponse {
@@ -145,14 +136,12 @@ export default function Me(): ReactNode {
   const hasUnlimited = lifetime || (monthlyUntil !== null && !monthlyExpired)
   const betaOpen = me.data?.betaOpen ?? false
   const remaining = freeRooms ? freeRooms.total - freeRooms.consumed - freeRooms.reserved : null
-  // 名字与邮箱都来自 /me：没回来就整卡占骨架，回来一起出；不读会话字段，避免分两步加载
   const invite = me.data?.invite ?? null
-  // 微信一键登录的账号是占位邮箱（wx-<openid>@wechat.invalid）：对外展示成「微信账号」
-  const displayEmail = !me.data
-    ? null
-    : me.data.email.endsWith('@wechat.invalid')
-      ? copy.wechatAccountLabel
-      : me.data.email
+  // 账号卡显示邮箱或平台名称，具体的平台标识放在设置页。
+  const identity = me.data?.identity
+  const provider = identity?.platformAccounts[0]?.provider
+  const accountLabel = identity?.email
+    ?? (provider === 'taptap-mini' ? copy.taptapAccountLabel : provider === 'wechat-mini' ? copy.wechatAccountLabel : null)
   // 看广告入口：会员不限次数与内测畅玩期间都不需要
   const showAdEntry = !hasUnlimited && !betaOpen
 
@@ -174,9 +163,8 @@ export default function Me(): ReactNode {
         <View className="me-head">
           <View className="me-id">
             {me.data ? <Text className="me-name">{me.data.nickname}</Text> : <Text className="me-skeleton-bar me-name-skeleton"> </Text>}
-            <Text className="me-email muted">
-              {displayEmail ?? <Text className="me-skeleton-bar me-email-skeleton"> </Text>}
-            </Text>
+            {accountLabel && <Text className="me-email muted">{accountLabel}</Text>}
+            {me.isPending && <Text className="me-email muted"><Text className="me-skeleton-bar me-email-skeleton"> </Text></Text>}
           </View>
         </View>
 

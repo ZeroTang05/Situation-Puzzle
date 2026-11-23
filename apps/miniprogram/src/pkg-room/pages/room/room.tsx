@@ -51,7 +51,8 @@ export default function Room(): ReactNode {
   const outbox = useRoomOutbox(me, roomId, state, status, sendCommand, confirmResult)
 
   const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [busyCommand, setBusyCommand] = useState<string | null>(null)
+  const busy = busyCommand !== null
   // 软键盘高度（px）：Textarea 关闭微信默认整体上推，用它压缩对话区（见 RoomShell kbHeight）
   const [keyboardHeight, setKeyboardHeight] = useState(0)
   const [useLargeModel, setUseLargeModel] = useState(false)
@@ -141,7 +142,7 @@ export default function Room(): ReactNode {
   const run = useCallback(
     async (type: string, payload?: Record<string, unknown>, roundId?: string) => {
       if (busy || status !== 'ready') return
-      setBusy(true)
+      setBusyCommand(type)
       setError(null)
       try {
         const result = await outbox.submit({
@@ -160,7 +161,7 @@ export default function Room(): ReactNode {
       } catch (err) {
         setError(translateApiError(err, language, copy.confirm /* 操作失败 fallback */))
       } finally {
-        setBusy(false)
+        setBusyCommand(null)
       }
     },
     [busy, status, outbox.submit, state?.controlVersion, roomId, language, copy.confirm],
@@ -670,7 +671,7 @@ export default function Room(): ReactNode {
                       disabled={busy || pendingCurrent || status !== 'ready' || !outbox.local || !text.trim()}
                       onClick={() => void send()}
                     >
-                      {busy ? copy.submitting : copy.send}
+                      {busyCommand === 'ask' || busyCommand === 'solve' ? copy.submitting : copy.send}
                     </Button>
                   </>
                 )}
@@ -880,7 +881,7 @@ function HostSecret({ roundId }: { roundId: string }): ReactNode {
     <View className="stack host-secret">
       <Text className="block-title">{copy.hostSecretTitle}</Text>
       <Text className="muted">{copy.hostSecretHint}</Text>
-      <Text>{answer}</Text>
+      <Text className="puzzle-answer">{answer}</Text>
       <HintList hints={hints} />
     </View>
   )
@@ -914,7 +915,7 @@ function AnswerBlock({ roundId }: { roundId: string }): ReactNode {
   return (
     <View className="stack">
       <Text className="block-title">{copy.answer}</Text>
-      <Text>{answer}</Text>
+      <Text className="puzzle-answer">{answer}</Text>
       <HintList hints={hints} />
     </View>
   )

@@ -134,7 +134,7 @@ export function CreationPreviewPage({ session: account }: { session: Session | n
           {local.revealedAnswer && (
             <section className="panel answer-panel">
               <h3>{text.answer}</h3>
-              <p>{local.revealedAnswer}</p>
+              <p className="puzzle-answer">{local.revealedAnswer}</p>
             </section>
           )}
         </div>

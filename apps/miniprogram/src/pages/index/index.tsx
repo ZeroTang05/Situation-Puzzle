@@ -1,6 +1,6 @@
 /**
  * 首页（代码级对齐 apps/web/src/lobby/home-page.tsx）：
- * topbar 品牌区（图标 + 问号玩法入口 + 登录态入口）、hero 卡（主入口单人 / 多人，
+ * topbar 品牌区（图标 + 通知 + 我的）、hero 卡（互动指南、主入口单人 / 多人，
  * 次要入口题库 / 大厅 / 我的作品 / 好友）、进行中的房间、开房额度行、玩法介绍走深海弹窗。
  * 未登录点多人 / 大厅 / 作品 / 好友先去登录页，登录返回后由用户再点一次。
  * 邀请链路：分享链接 ?ref= 进站捕获邀请码（页面参数 + 启动参数双来源），登录后自动领取。
@@ -83,22 +83,22 @@ export default function Index(): ReactNode {
           <Text>{copy.brand}</Text>
         </View>
         <View className="topbar-actions">
-          <Button className="btn btn-ghost btn-sm help-btn" onClick={() => setIntroOpen(true)}>?</Button>
           <NotificationBell />
-          {session ? (
+          {session && (
             <Button className="btn btn-ghost btn-sm" onClick={() => go('/pages/me/me')}>
               {copy.me}
-            </Button>
-          ) : (
-            <Button className="btn btn-sm" onClick={() => go('/pages/login/login')}>
-              {copy.login}
             </Button>
           )}
         </View>
       </View>
 
       <View className="hero-card">
-        <Text className="accent tagline">{copy.tagline}</Text>
+        <View className="hero-heading">
+          <Text className="accent tagline">{copy.tagline}</Text>
+          <Button className="btn btn-ghost btn-sm help-btn" ariaLabel={copy.howToPlay} onClick={() => setIntroOpen(true)}>
+            <Text className="help-icon" ariaHidden>?</Text>
+          </Button>
+        </View>
         <View className="hero-actions">
           <Button className="btn btn-primary btn-lg" onClick={() => go('/pages/library/library')}>
             {copy.solo}

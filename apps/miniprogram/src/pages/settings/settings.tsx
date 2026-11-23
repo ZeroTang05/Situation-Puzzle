@@ -16,14 +16,9 @@ import { notifySessionChanged, useJevSession } from '../../state/session'
 import { clearRoomLocal } from '../../pkg-room/room/room-local'
 import { goBack } from '../../ui/back'
 import { LoginPrompt } from '../../ui/login-prompt'
-import { DialogHost, useDialog } from '../../ui/dialog'
+import { DialogHost, Modal, useDialog } from '../../ui/dialog'
 import type { Language } from '@jev/i18n'
-
-interface MeResponse {
-  userId: string
-  nickname: string
-  email: string
-}
+import { profileIdentityRows, type MeResponse } from '@jev/contracts'
 
 interface RedeemResponse {
   orderId: string
@@ -95,8 +90,10 @@ export default function Settings(): ReactNode {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [selectedIdentity, setSelectedIdentity] = useState<{ label: string; value: string } | null>(null)
 
   const me = useQuery({ queryKey: ['me'], queryFn: () => api<MeResponse>('/me'), retry: false })
+  const identities = me.data ? profileIdentityRows(me.data) : []
 
   const startEdit = () => {
     setDraft(me.data?.nickname ?? '')
@@ -164,7 +161,7 @@ export default function Settings(): ReactNode {
         <Text className="brand brand-sm">{copy.settingsTitle}</Text>
       </View>
 
-      {/* 个人资料：昵称可改，邮箱只读 */}
+      {/* 个人资料：昵称可改，实际邮箱和平台标识只读。 */}
       <View className="panel stack">
         <Text className="h3">{copy.settingsProfile}</Text>
         <View className="settings-row">
@@ -207,10 +204,14 @@ export default function Settings(): ReactNode {
           </View>
         )}
 
-        <View className="settings-row">
-          <Text className="muted">{copy.emailField}</Text>
-          <Text className="settings-value">{me.data?.email ?? '—'}</Text>
-        </View>
+        {identities.map(({ label, value }) => (
+          <View className="settings-row" key={`${label}:${value}`}>
+            <Text className="muted settings-label">{copy[label]}</Text>
+            <Button className="settings-value settings-identity" ariaLabel={copy[label]} onClick={() => setSelectedIdentity({ label: copy[label], value })}>
+              {value.length > 36 ? `${value.slice(0, 36)}…` : value}
+            </Button>
+          </View>
+        ))}
 
         {error && <Text className="error-text">{error}</Text>}
         {notice && <Text>{notice}</Text>}
@@ -262,6 +263,11 @@ export default function Settings(): ReactNode {
           {copy.logout}
         </Button>
       </View>
+      {selectedIdentity && (
+        <Modal open onClose={() => setSelectedIdentity(null)} title={selectedIdentity.label} closeLabel={copy.gotIt}>
+          <Text className="settings-identity-full" userSelect>{selectedIdentity.value}</Text>
+        </Modal>
+      )}
       <DialogHost />
     </View>
   )

@@ -162,15 +162,6 @@ page {
 }
 
 /* 首页玩法介绍：topbar 里的圆形问号按钮，36px 正圆 */
-.help-btn {
-  flex: none;
-  width: 36px;
-  height: 36px;
-  min-height: 36px;
-  padding: 0;
-  border-radius: 50%;
-  font-weight: 700;
-}
 
 /* 登录/注册 topbar 里的语言切换：紧凑 ghost 按钮，不挤压 brand */
 /* 顶栏语言切换：与同排的 btn-sm 返回键同高同字号（顶栏内并排按钮尺寸统一） */
@@ -318,9 +309,35 @@ page {
   overflow: hidden;
 }
 
+.hero-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -8px 0 8px; }
+/* 透明按钮保留触控范围，右侧的小圆圈才是可见图标。 */
+.hero-heading .help-btn {
+  flex: none;
+  justify-content: flex-end;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 2px 0 0;
+  border: 0;
+}
+.help-icon {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: var(--ink);
+  background: rgba(13, 24, 38, .35);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .tagline {
   display: block;
-  margin: 0 0 14px;
+  margin: 0;
   font-weight: 600;
   letter-spacing: 0.4px;
 }
@@ -517,6 +534,7 @@ page {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.puzzle-surface, .story-card .story, .puzzle-answer { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .puzzle-card-footer {
   display: flex;
@@ -1025,7 +1043,6 @@ page {
   border-radius: var(--radius-sm);
   background: rgba(22, 43, 57, 0.97);
   color: var(--gold);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
   animation: hint-capsule-in 0.18s ease-out;
 }
 
@@ -1550,6 +1567,11 @@ page {
   color: var(--ink);
   overflow-wrap: anywhere;
 }
+.settings-label { flex: none; white-space: nowrap; }
+/* 邮箱与标识保持单行，点击后在弹窗中展示完整内容。 */
+.settings-identity { display: block; margin: 0; padding: 4px 0; border: 0; background: transparent; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-identity::after { border: 0; }
+.settings-identity-full { display: block; word-break: break-all; }
 
 .settings-lang { display: flex; gap: 10px; }
 .settings-lang .btn { flex: 1 1 auto; }

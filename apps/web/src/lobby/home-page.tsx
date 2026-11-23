@@ -39,24 +39,22 @@ export function HomePage({ session }: { session: Session | null }) {
       <header className="topbar">
         <BrandHeading>{copy.brand}</BrandHeading>
         <div className="topbar-actions">
-          <button className="btn btn-ghost btn-sm help-btn" type="button" aria-label={copy.howToPlay} title={copy.howToPlay} onClick={() => setIntroOpen(true)}>
-            ?
-          </button>
           <NotificationBell />
-          {session ? (
+          {session && (
             <button className="btn btn-ghost btn-sm" onClick={() => navigate('/me')}>
               {copy.me}
-            </button>
-          ) : (
-            <button className="btn btn-sm" onClick={() => navigate('/login')}>
-              {copy.login}
             </button>
           )}
         </div>
       </header>
 
       <section className="hero-card">
-        <p className="accent tagline">{copy.tagline}</p>
+        <div className="hero-heading">
+          <p className="accent tagline">{copy.tagline}</p>
+          <button className="btn btn-ghost btn-sm help-btn" type="button" aria-label={copy.howToPlay} title={copy.howToPlay} onClick={() => setIntroOpen(true)}>
+            <span className="help-icon" aria-hidden="true">?</span>
+          </button>
+        </div>
         <div className="hero-actions">
           <button className="btn btn-primary btn-lg" onClick={() => navigate('/library?mode=solo')}>
             {copy.solo}

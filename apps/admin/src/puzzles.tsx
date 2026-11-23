@@ -131,8 +131,8 @@ export function VersionDetail() {
         <NumberField source="versionNo" label={c.versionCol} />
         <TextField source="language" label={c.languageCol} />
         <TextField source="category" label={c.categoryCol} />
-        <TextField source="surface" label={c.surfaceLabel} />
-        <TextField source="answer" label={c.answerLabel} />
+        <TextField source="surface" label={c.surfaceLabel} sx={{ whiteSpace: 'pre-wrap' }} />
+        <TextField source="answer" label={c.answerLabel} sx={{ whiteSpace: 'pre-wrap' }} />
         <TextField source="status" label={c.statusCol} />
         <SameRevisionReview />
         <SourceInfo />

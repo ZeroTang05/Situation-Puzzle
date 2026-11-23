@@ -3,16 +3,13 @@
  * 按钮壳本身用 app.css 现成的 .btn / .btn-ghost / .btn-sm。
  */
 
-/* 铃铛按钮：角标的定位参照物。规格与首页「?」按钮同款（36px 正圆），
-   否则顶栏并排的圆框图标键与圆角矩形铃铛形状不统一 */
+/* 铃铛按钮的圆框也是角标的定位参照物。 */
 .notification-bell {
   position: relative;
   flex: none;
   width: 36px;
-  height: 36px;
   min-width: 36px;
-  min-height: 36px;
-  padding: 0;
+  padding-inline: 0;
   border-radius: 50%;
 }
 
