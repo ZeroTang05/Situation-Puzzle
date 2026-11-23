@@ -5,7 +5,8 @@
  * - better-auth 端点不走业务接口的 {data,error} 信封：成功裸 JSON {token}，失败 {code,message}
  * - 防沉迷由 TapTap 平台统一实名系统在登录链路执行，未实名用户会被平台拒绝，这里只做错误翻译
  */
-import { apiUrl, languageHeader, storeBearerToken } from '../app-runtime.js';
+import { apiUrl, clearBearerToken, languageHeader, storeBearerToken } from '../app-runtime.js';
+import { authClient } from '../api/auth-client.js';
 
 /** TapTap 容器注入的登录桥；只声明用到的接口（回调风格，不支持 Promise） */
 interface TapLoginBridge {
@@ -49,7 +50,18 @@ function tapLoginCode(): Promise<string> {
   });
 }
 
-/** TapTap 一键登录：code 换 openid 建号建会话，令牌存本来源后由整页跳转带上 */
+/** 平台授权后用新令牌读取本站会话，更新 React 登录状态再允许跳转。 */
+export async function confirmTapTapSession(token: string): Promise<void> {
+  storeBearerToken(token);
+  // 等待所有页面订阅的同一个会话更新，退出后再次登录也走这条路径。
+  const sessionAtom = authClient.$store.atoms.session!;
+  await sessionAtom.get().refetch({ query: { disableCookieCache: true } });
+  if (sessionAtom.get().error || !sessionAtom.get().data) {
+    clearBearerToken();
+    throw new TapLoginError('TAPTAP_LOGIN_FAILED', 'TapTap session was not established');
+  }
+}
+
 export async function loginWithTapTap(): Promise<void> {
   const code = await tapLoginCode();
   const response = await fetch(apiUrl('/auth/taptap-mini/login'), {
@@ -61,5 +73,5 @@ export async function loginWithTapTap(): Promise<void> {
   if (!response.ok || !payload?.token) {
     throw new TapLoginError(payload?.code ?? 'TAPTAP_LOGIN_BUSY', payload?.message ?? 'TapTap sign-in failed');
   }
-  storeBearerToken(payload.token);
+  await confirmTapTapSession(payload.token);
 }

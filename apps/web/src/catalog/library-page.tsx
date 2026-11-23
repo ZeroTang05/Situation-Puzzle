@@ -101,6 +101,9 @@ export function LibraryPage({ session }: { session: Session | null }) {
       if (lobbyId) {
         // 题库是 lobby 的"选菜过渡态":选完回 lobby 时把题库从 history 移除。
         navigate(`/lobbies/${lobbyId}?selectPuzzle=${puzzle.id}&lang=${language}`, { replace: true });
+      } else {
+        // 从首页开房登录后先选题，此时还没有会客厅。
+        void openRoomWithPuzzle(puzzle);
       }
       return;
     }
@@ -255,7 +258,7 @@ export function LibraryPage({ session }: { session: Session | null }) {
                   </span>
                 </span>
                 <div className="puzzle-card-actions">
-                  <button className="btn btn-sm btn-primary" disabled={isPlaceholderData} onClick={() => onPick(puzzle)}>{mode === 'select' ? copy.selectPuzzle : copy.solo}</button>
+                  <button className="btn btn-sm btn-primary" disabled={isPlaceholderData || openingPuzzleId !== null} onClick={() => onPick(puzzle)}>{openingPuzzleId === puzzle.id && mode === 'select' ? copy.creating : mode === 'select' ? copy.selectPuzzle : copy.solo}</button>
                   {mode !== 'select' && <button className="btn btn-sm btn-compact" disabled={isPlaceholderData || openingPuzzleId !== null} onClick={() => void openRoomWithPuzzle(puzzle)}>{openingPuzzleId === puzzle.id ? copy.creating : copy.catalogOpenRoom}</button>}
                 </div>
               </div>

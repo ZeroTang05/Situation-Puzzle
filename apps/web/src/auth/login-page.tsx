@@ -8,7 +8,7 @@
  *    邮箱注册与第三方 OAuth 收起；防沉迷由平台统一实名系统在登录链路执行。
  */
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { authClient } from '../api/auth-client.js';
 import { translateApiError } from '../api/client.js';
 import { useLanguage } from '../state/language.js';
@@ -27,6 +27,7 @@ type Stage = 'email' | 'code';
 
 export function LoginPage() {
   const { copy, language, setLanguage } = useLanguage();
+  const navigate = useNavigate();
   const back = useBack('/');
   const [params] = useSearchParams();
   const next = loginDestination(params.get('next'), location.origin);
@@ -210,7 +211,8 @@ export function LoginPage() {
     setError(null);
     try {
       await loginWithTapTap();
-      window.location.replace(appHref(next));
+      const destination = new URL(next);
+      void navigate(destination.pathname + destination.search + destination.hash, { replace: true });
     } catch (cause) {
       // TAPTAP_LOGIN_* 登记在认证词典（authErrorCopy）里，与 WECHAT_LOGIN_* 同源；
       // displayError 读业务信封词典（errorCopy，按 contracts ErrorCode 锁类型），查不到会落到登录失败兜底

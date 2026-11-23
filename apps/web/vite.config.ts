@@ -9,7 +9,7 @@ export default defineConfig(({ mode, command }) => {
   const debug = mode === 'taptap-debug';
   const env = loadEnv(mode, process.cwd());
   const apiBase = env.VITE_API_BASE_URL ?? 'https://sp.xiaobaozi.cn';
-  const proxyTarget = h5 ? apiBase : apiTarget;
+  const proxyTarget = h5 ? (process.env.API_PROXY_TARGET ?? apiBase) : apiTarget;
   const proxyChangesHost = new URL(proxyTarget).protocol === 'https:';
   if (h5) {
     const url = new URL(apiBase);

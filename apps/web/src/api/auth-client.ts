@@ -5,7 +5,7 @@
  */
 import { createAuthClient } from 'better-auth/react';
 import { emailOTPClient } from 'better-auth/client/plugins';
-import { apiBase, authorizationHeader, captureBearerToken, clearBearerToken, languageHeader } from '../app-runtime.js';
+import { apiBase, authorizationHeader, captureBearerToken, clearBearerToken, isTapH5, languageHeader } from '../app-runtime.js';
 import type { Session } from '../session.js';
 
 /** 统一出口：附带 Bearer 令牌头 + 捕获 set-auth-token（网页端两者均为空操作） */
@@ -14,7 +14,7 @@ const jevFetch: typeof fetch = async (input, init) => {
   for (const [key, value] of Object.entries(authorizationHeader())) headers.set(key, value);
   // 带上当前界面语言：验证码 / 重置密码邮件按它发中文或英文
   for (const [key, value] of Object.entries(languageHeader())) headers.set(key, value);
-  const response = await fetch(input, { ...init, headers });
+  const response = await fetch(input, { ...init, headers, ...(isTapH5 ? { credentials: 'omit' } : {}) });
   captureBearerToken(response);
   return response;
 };

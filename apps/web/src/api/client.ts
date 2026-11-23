@@ -5,7 +5,7 @@
 import type { ErrorCode } from '@jev/contracts';
 import { displayError, type Language } from '@jev/i18n';
 import { OtpSendError } from '../auth/otp-cooldown.js';
-import { apiUrl, authorizationHeader, captureBearerToken, languageHeader } from '../app-runtime.js';
+import { apiUrl, authorizationHeader, captureBearerToken, isTapH5, languageHeader } from '../app-runtime.js';
 
 export class ApiError extends Error {
   constructor(
@@ -38,7 +38,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     method: options.method ?? 'GET',
     headers: { ...headers, ...(options.credentials === 'omit' ? {} : authorizationHeader()), ...languageHeader() },
     signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(options.timeoutMs ?? 60_000)]) : AbortSignal.timeout(options.timeoutMs ?? 60_000),
-    credentials: options.credentials ?? 'include',
+    credentials: options.credentials ?? (isTapH5 ? 'omit' : 'include'),
     ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
   }).catch((cause: unknown) => {
     if (cause instanceof Error && cause.name === 'AbortError') throw cause;
