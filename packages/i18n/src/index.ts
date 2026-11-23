@@ -66,6 +66,10 @@ const errorCopy: Record<ErrorCode, Record<Language, string>> = {
   ROUND_ENDED: { zh: '这一局已经结束了。', en: 'This round has ended.' },
   MEMBER_RESTRICTED: { zh: '你已被移出该房间，需要房主解除限制。', en: 'You were removed. The host must lift the restriction.' },
   SPONSORSHIP_REQUIRED: { zh: '免费开房次数已用完，打赏支持后不限次数开房。', en: 'Free room credits exhausted. Send a tip for unlimited rooms.' },
+  AD_ROOMS_EXHAUSTED: { zh: '开房次数已用完，可在「我的」查看广告奖励。', en: 'No room credits left. Check My Profile for ad rewards.' },
+  EMAIL_BIND_SEND_FAILED: { zh: '验证码发送失败，请稍后重试。', en: 'Could not send the verification code. Try again later.' },
+  EMAIL_BIND_CODE_INVALID: { zh: '验证码错误或已过期。', en: 'The verification code is incorrect or expired.' },
+  EMAIL_BIND_CONFLICT: { zh: '此邮箱或账号已有其他绑定。', en: 'This email or account is already linked elsewhere.' },
   FREE_ROOMS_EXHAUSTED: { zh: '免费开房次数已用完（每账号累计 10 个）。', en: 'All 10 free rooms have been used.' },
   ACCOUNT_NOT_INITIALIZED: { zh: '账号数据异常，请重新登录或联系客服。', en: 'Account data is incomplete. Please sign in again or contact support.' },
   TURN_PENDING: { zh: '你已有一条正在处理的提交，等它完成再发。', en: 'You already have a pending submission.' },
@@ -1196,3 +1200,8 @@ export function t(language: Language): Copy {
 export function format(template: string, params: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => String(params[key] ?? `{${key}}`));
 }
+/** 微信小程序与 TapTap H5 共用的邮箱绑定文案。 */
+export const emailBindingCopy = {
+  zh: { bind: '绑定邮箱', verifyAgain: '重新验证邮箱', email: '邮箱地址', send: '发送验证码', sent: '请输入邮箱收到的 6 位验证码', confirm: '验证并绑定' },
+  en: { bind: 'Link email', verifyAgain: 'Verify email again', email: 'Email address', send: 'Send code', sent: 'Enter the six-digit code sent to your email', confirm: 'Verify and link' },
+} as const;

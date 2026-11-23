@@ -80,6 +80,7 @@ export class ZodValidationPipe<D extends ZodType> implements PipeTransform {
 
 export interface SessionUser {
   userId: string;
+  miniPlatform?: 'wechat-mini' | 'taptap-mini';
   email: string;
   emailVerified: boolean;
   name: string;

@@ -13,6 +13,8 @@ import { signOut } from '../api/auth-client.js';
 import { useLanguage } from '../state/language.js';
 import { clearRoomLocal } from '../rooms/room-local.js';
 import { useBack } from '../back.js';
+import { isTapH5 } from '../app-runtime.js';
+import { BindEmailSection } from './bind-email-section.js';
 import { RedeemSection } from './redeem-section.js';
 import type { Language } from '@jev/i18n';
 import { profileIdentityRows, type MeResponse } from '@jev/contracts';
@@ -154,11 +156,13 @@ export function SettingsPage() {
         </div>
       </section>
 
-      {/* 兑换码：运营发码后在此兑换会员（原在「我的」页赞助面板） */}
-      <section className="panel stack">
-        <h3>{copy.redeemCodeTitle}</h3>
-        <RedeemSection />
-      </section>
+      {/* TapTap 绑定已验证邮箱，网页和 App 保留兑换码。 */}
+      {isTapH5 ? me.data && <BindEmailSection boundEmail={me.data.boundEmail} /> : (
+        <section className="panel stack">
+          <h3>{copy.redeemCodeTitle}</h3>
+          <RedeemSection />
+        </section>
+      )}
 
       {/* 关于：隐私政策 */}
       <section className="panel stack">

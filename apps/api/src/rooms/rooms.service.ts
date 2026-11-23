@@ -157,6 +157,7 @@ export class RoomsService {
       const inviteToken = randomBytes(16).toString('hex');
       const targetRoomId = await createRoomWithEntitlementTx(tx, {
         creatorUserId: user.userId,
+        miniPlatform: user.miniPlatform,
         capacity: source.capacity,
         inviteTokenHash: hashToken(inviteToken),
         now,

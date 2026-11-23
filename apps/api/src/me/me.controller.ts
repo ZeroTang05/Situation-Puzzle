@@ -1,5 +1,5 @@
 /** 当前账号：身份、赞助有效期、免费开房余量、邀请信息、多人历史。 */
-import { Body, Controller, Get, Inject, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Patch, Post, Query } from '@nestjs/common';
 import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import {
   account,
@@ -9,7 +9,7 @@ import {
   roomMembers,
   rooms,
   rounds,
-  sponsorGrants,
+  platformEmailBindings,
   productVersions,
   puzzleVersions,
   puzzles,
@@ -20,6 +20,11 @@ import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http
 import { type MeResponse, nicknameUpdateRequestSchema, roomHistoryQuerySchema } from '@jev/contracts';
 import { RoomBonusService } from '../billing/room-bonus.service.js';
 import { z } from 'zod';
+import { bindEmailRequestSchema, verifyBoundEmailRequestSchema } from '@jev/contracts';
+import { roomSponsorGrants, sendBindingCode, verifyBindingCode } from '../auth/platform-email.js';
+import { otpRequestContext } from '../auth/otp-request-context.js';
+import { RateLimit } from '../common/rate-limit.js';
+import { adRoomMode, roomCredits } from '../rooms/room-credit-mode.js';
 
 @Controller('me')
 export class MeController {
@@ -30,8 +35,8 @@ export class MeController {
   async me(@CurrentUser() user: SessionUser): Promise<MeResponse> {
     const context = app();
     const now = new Date();
-    const [grants, freeRows, invitedCount, inviteCode, platformRows] = await Promise.all([
-      context.db.db.select().from(sponsorGrants).where(eq(sponsorGrants.userId, user.userId)),
+    const [grants, freeRows, invitedCount, inviteCode, platformRows, [binding]] = await Promise.all([
+      roomSponsorGrants(context.db.db, user),
       context.db.db.select().from(freeRoomAccounts).where(eq(freeRoomAccounts.userId, user.userId)).limit(1),
       this.roomBonusService.invitedCount(user.userId),
       // 邀请码首次读取时懒生成，之后一直用同一个
@@ -40,13 +45,15 @@ export class MeController {
         .from(account)
         .where(and(eq(account.userId, user.userId), inArray(account.providerId, ['taptap-mini', 'wechat-mini'])))
         .orderBy(account.providerId, account.accountId),
+      context.db.db.select({ email: platformEmailBindings.email }).from(platformEmailBindings).where(eq(platformEmailBindings.userId, user.userId)),
     ]);
     // 有期限授权（月度/注册礼）中最晚的到期日：过期也返回，前端显示「已到期」
     const termUntil = grants
       .filter((g) => g.type !== 'lifetime' && g.status === 'active' && g.effectiveUntil)
       .map((g) => g.effectiveUntil!)
       .sort((a, b) => (a.getTime() > b.getTime() ? -1 : 1))[0];
-    const free = freeRows[0] ?? { total: 10, consumed: 0, reserved: 0 };
+    const mode = adRoomMode(user);
+    const free = roomCredits(freeRows[0], mode);
     const platformAccounts: MeResponse['identity']['platformAccounts'] = [];
     for (const { provider, accountId } of platformRows) {
       // TapTap 的内部账号键包含应用编号，资料页只展示平台返回的 OpenID。
@@ -60,7 +67,7 @@ export class MeController {
       email: user.email,
       emailVerified: user.emailVerified,
       identity: {
-        email: user.email.endsWith('.invalid') ? null : user.email,
+        email: binding?.email ?? (user.email.endsWith('.invalid') ? null : user.email),
         platformAccounts,
       },
       roles: user.roles,
@@ -68,6 +75,9 @@ export class MeController {
         monthlyUntil: termUntil?.toISOString() ?? null,
         lifetime: hasLifetimeGrant(grants) && hasActiveSponsorship(grants, now),
       },
+      boundEmail: binding?.email ?? null,
+      adRooms: mode,
+      wechatRewardedAdUnitId: mode ? context.env.WECHAT_AD_UNIT_ID ?? null : null,
       freeRooms: {
         total: free.total,
         consumed: free.consumed,
@@ -78,6 +88,19 @@ export class MeController {
     };
   }
 
+  @Post('email-binding/send')
+  async sendEmailBinding(@CurrentUser() user: SessionUser, @Body(new ZodValidationPipe(bindEmailRequestSchema)) body: z.infer<typeof bindEmailRequestSchema>) {
+    const request = otpRequestContext.getStore();
+    if (!request) throw new Error('绑定邮箱请求缺少验证码上下文');
+    return sendBindingCode(user, body.email, request.ip, request.language ?? 'zh');
+  }
+
+  @RateLimit({ scope: 'email-binding.verify', limit: 10, windowSeconds: 3600, keyBy: 'user' })
+  @Post('email-binding/verify')
+  async verifyEmailBinding(@CurrentUser() user: SessionUser, @Body(new ZodValidationPipe(verifyBoundEmailRequestSchema)) body: z.infer<typeof verifyBoundEmailRequestSchema>) {
+    return verifyBindingCode(user, body.email, body.code);
+  }
+
   /** 免费余量（便于前端直接展示） */
   @Get('free-rooms')
   async freeRooms(@CurrentUser() user: SessionUser) {
@@ -86,8 +109,8 @@ export class MeController {
       .from(freeRoomAccounts)
       .where(eq(freeRoomAccounts.userId, user.userId))
       .limit(1);
-    const free = rows[0];
-    return { remaining: free ? freeRoomsRemaining(free) : 0, total: free?.total ?? 10 };
+    const free = roomCredits(rows[0], adRoomMode(user));
+    return { remaining: freeRoomsRemaining(free), total: free.total };
   }
 
   /** 修改昵称：允许与其他玩家重名，仅约束 1～30 字符（去首尾空格） */

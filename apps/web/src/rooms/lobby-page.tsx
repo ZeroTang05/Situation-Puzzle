@@ -18,7 +18,8 @@ import { Toast } from '../toast.js';
 import { useLobbySync } from './use-lobby-sync.js';
 import { MemberList } from './room-page.js';
 import { VisibilityToggle } from './visibility-toggle.js';
-import { siteOrigin } from '../app-runtime.js';
+import { canShareTapInvite, shareTapInvite } from './taptap-invite.js';
+import { isTapH5, siteOrigin } from '../app-runtime.js';
 
 interface LobbySnapshot {
   lobbyId: string;
@@ -189,14 +190,18 @@ export function LobbyPage({ session }: { session: Session | null }) {
     setHostPrompt(next);
   }, [data, isHost]);
 
-  const copyInvite = async () => {
+  const copyInvite = async (nativeShare = false) => {
     if (!lobbyId || busy) return;
     setBusy(true);
     setError(null);
     try {
       const { token } = await api<{ token: string; kind: 'lobby' }>(`/lobbies/${lobbyId}/invite`, { method: 'POST' });
-      await navigator.clipboard.writeText(inviteUrl(siteOrigin(), token, 'lobby'));
-      setInviteCopied(true);
+      if (nativeShare) {
+        shareTapInvite('lobby', token, () => setError(copy.invitePreviewFail));
+      } else {
+        await navigator.clipboard.writeText(inviteUrl(siteOrigin(), token, 'lobby'));
+        setInviteCopied(true);
+      }
     } catch (err) {
       setError(translateApiError(err, language, copy.startFail));
     } finally {
@@ -271,7 +276,8 @@ export function LobbyPage({ session }: { session: Session | null }) {
               <VisibilityToggle checked={data.isPublic} disabled={busy} onChange={toggleVisibility} />
             </div>
             <div className="hint-row">
-              <button className="btn" disabled={busy} onClick={() => void copyInvite()}>{copy.invite}</button>
+              <button className="btn" disabled={busy} onClick={() => void copyInvite()}>{isTapH5 ? (language === 'zh' ? '复制网页链接' : 'Copy web link') : copy.invite}</button>
+              {canShareTapInvite() && <button className="btn" disabled={busy} onClick={() => void copyInvite(true)}>{language === 'zh' ? '分享 TapTap 邀请卡' : 'Share on TapTap'}</button>}
               <button
                 className="btn btn-danger"
                 disabled={busy}

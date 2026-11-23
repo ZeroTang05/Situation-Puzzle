@@ -9,7 +9,7 @@ import { format } from '@jev/i18n';
 import type { Language } from '@jev/i18n';
 import type { MeResponse } from '@jev/contracts';
 import type { Session } from '../session.js';
-import { purchaseEntryVisible } from '../app-runtime.js';
+import { isTapH5, purchaseEntryVisible } from '../app-runtime.js';
 import { creationCopy } from '../creations/copy.js';
 import { SponsorPanel } from './sponsor-panel.js';
 import { InviteCard } from './invite-card.js';
@@ -124,7 +124,7 @@ export function MePage({ session }: { session: Session | null }) {
                     : <>{remaining}<span className="me-stat-sub"> / {freeRooms!.total}</span></>}
             </span>
           </div>
-          {(lifetime || monthlyUntil !== null) && (
+          {(hasUnlimited || (!isTapH5 && monthlyUntil !== null)) && (
             <div className="me-stat">
               <span className="me-stat-label">{copy.sponsorship}</span>
               <span className={`me-stat-value${lifetime || !monthlyExpired ? ' is-ok' : ' is-expired'}`}>
@@ -159,7 +159,9 @@ export function MePage({ session }: { session: Session | null }) {
       {/* 邀请好友：链接 + 复制 + 已邀人数（奖励发给邀请人，见 InviteCard） */}
       {me.data?.invite && <InviteCard invite={me.data.invite} />}
 
-      {/* 赞助面板：商品 + 兑换码（权益只来自服务端）；App 壳与 TapTap H5 关闭购买入口，只留设置页的兑换码 */}
+      {isTapH5 && me.data && !hasUnlimited && !betaOpen && <p className="muted">{copy.adUnavailable}</p>}
+
+      {/* 会员购买仅在网页与 App 中开放。 */}
       {purchaseEntryVisible && <SponsorPanel />}
 
       {/* 房间历史：整行可点进房间，局状态用颜色区分 */}

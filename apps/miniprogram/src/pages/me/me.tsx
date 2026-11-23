@@ -93,10 +93,11 @@ export default function Me(): ReactNode {
 
   /** 看激励视频：结果只做提示，奖励由服务端验证回调入账（看完后延迟刷新） */
   const watchAd = async () => {
-    if (adBusy) return
+    const adUnitId = me.data?.wechatRewardedAdUnitId
+    if (adBusy || !adUnitId) return
     setAdBusy(true)
     try {
-      const result = await watchRewardedAd()
+      const result = await watchRewardedAd(adUnitId)
       if (result === 'rewarded') {
         void Taro.showToast({ title: copy.adRewarded, icon: 'none', duration: 2000 })
         // 服务端验证回调有几秒延迟，稍等再拉最新额度
@@ -143,7 +144,7 @@ export default function Me(): ReactNode {
   const accountLabel = identity?.email
     ?? (provider === 'taptap-mini' ? copy.taptapAccountLabel : provider === 'wechat-mini' ? copy.wechatAccountLabel : null)
   // 看广告入口：会员不限次数与内测畅玩期间都不需要
-  const showAdEntry = !hasUnlimited && !betaOpen
+  const showAdEntry = Boolean(me.data && !hasUnlimited && !betaOpen)
 
   return (
     <View className="page">
@@ -184,7 +185,7 @@ export default function Me(): ReactNode {
                       </>}
             </Text>
           </View>
-          {(lifetime || monthlyUntil !== null) && (
+          {hasUnlimited && (
             <View className="me-stat">
               <Text className="me-stat-label">{copy.sponsorship}</Text>
               <Text className={'me-stat-value' + (lifetime || !monthlyExpired ? ' is-ok' : ' is-expired')}>
@@ -211,8 +212,8 @@ export default function Me(): ReactNode {
 
         {showAdEntry && (
           <View className="me-card-actions">
-            <Button className="btn" disabled={adBusy} onClick={() => void watchAd()}>
-              {copy.adWatchButton}
+            <Button className="btn" disabled={adBusy || !me.data?.wechatRewardedAdUnitId} onClick={() => void watchAd()}>
+              {me.data?.wechatRewardedAdUnitId ? copy.adWatchButton : copy.adUnavailable}
             </Button>
           </View>
         )}
@@ -241,7 +242,7 @@ export default function Me(): ReactNode {
             <Text className="me-section-title">{copy.inviteTitle}</Text>
             <Text className="muted invite-count">{format(copy.invitedCount, { n: invite.invitedCount })}</Text>
           </View>
-          <Text className="muted invite-hint">{copy.inviteHint}</Text>
+          {!me.data?.adRooms && <Text className="muted invite-hint">{copy.inviteHint}</Text>}
           <View className="invite-link-row">
             <Text className="invite-link" userSelect>{`https://sp.xiaobaozi.cn/?ref=${invite.code}`}</Text>
             <Button

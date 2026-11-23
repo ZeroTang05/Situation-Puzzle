@@ -2,9 +2,11 @@
 import { Body, Controller, Get, HttpCode, Inject, Param, Post, Query, HttpStatus } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import { freeRoomAccounts, sponsorGrants } from '@jev/database';
+import { freeRoomAccounts } from '@jev/database';
 import { hasActiveSponsorship } from '@jev/domain';
 import { app } from '../context.js';
+import { roomSponsorGrants } from '../auth/platform-email.js';
+import { adRoomMode, roomCredits } from './room-credit-mode.js';
 import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http.js';
 import { SessionGuard } from '../auth/session.guard.js';
 import { RoomsService } from './rooms.service.js';
@@ -144,13 +146,16 @@ export class RoomsController {
   async entitlementPreview(@CurrentUser() user: SessionUser) {
     const context = app();
     const [grants, freeRows] = await Promise.all([
-      context.db.db.select().from(sponsorGrants).where(eq(sponsorGrants.userId, user.userId)),
+      roomSponsorGrants(context.db.db, user),
       context.db.db.select().from(freeRoomAccounts).where(eq(freeRoomAccounts.userId, user.userId)).limit(1),
     ]);
-    const free = freeRows[0];
+    const adRooms = adRoomMode(user);
+    const free = roomCredits(freeRows[0], adRooms);
     return {
       sponsored: hasActiveSponsorship(grants, new Date()),
-      freeRemaining: free ? free.total - free.consumed - free.reserved : 0,
+      freeRemaining: free.total - free.consumed - free.reserved,
+      freeTotal: free.total,
+      adRooms,
     };
   }
 }

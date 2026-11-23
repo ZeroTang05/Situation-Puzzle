@@ -29,7 +29,7 @@ const BRAND_ZH = BRAND_NAME;
 const BRAND_EN = BRAND_NAME;
 
 export interface Mailer {
-  sendVerificationCode(to: string, code: string, language: 'zh' | 'en'): Promise<void>;
+  sendVerificationCode(to: string, code: string, language: 'zh' | 'en', purpose?: 'binding'): Promise<void>;
   /** 忘记密码：发送一次性重置链接（url 已含 token，1 小时有效） */
   sendPasswordReset(to: string, url: string, language: 'zh' | 'en'): Promise<void>;
 }
@@ -41,7 +41,12 @@ interface CodeMailContent {
 }
 
 /** 中英双语验证码邮件内容；HTML 与纯文本同义，按客户端能力降级 */
-function codeMailContent(code: string, language: 'zh' | 'en'): CodeMailContent {
+function codeMailContent(code: string, language: 'zh' | 'en', purpose?: 'binding'): CodeMailContent {
+  if (purpose === 'binding') {
+    const subject = language === 'zh' ? `${BRAND_ZH} 绑定邮箱验证码` : `${BRAND_EN} email linking code`;
+    const text = language === 'zh' ? `你的绑定邮箱验证码是 ${code}，5 分钟内有效。` : `Your email linking code is ${code}. It expires in 5 minutes.`;
+    return { subject, text, html: `<p>${text}</p>` };
+  }
   if (language === 'en') {
     return {
       subject: `${BRAND_EN} sign-in code`,
@@ -76,8 +81,8 @@ function resetMailContent(url: string, language: 'zh' | 'en'): CodeMailContent {
 export function createResendMailer(options: { apiKey: string; from: string }): Mailer {
   const resend = new Resend(options.apiKey);
   return {
-    async sendVerificationCode(to, code, language) {
-      const content = codeMailContent(code, language);
+    async sendVerificationCode(to, code, language, purpose) {
+      const content = codeMailContent(code, language, purpose);
       const response = await resend.emails.send({
         from: options.from,
         to,
@@ -124,8 +129,8 @@ export function createSmtpMailer(options: {
   });
 
   return {
-    async sendVerificationCode(to, code, language) {
-      const content = codeMailContent(code, language);
+    async sendVerificationCode(to, code, language, purpose) {
+      const content = codeMailContent(code, language, purpose);
       try {
         await transport.sendMail({ from: options.from, to, subject: content.subject, text: content.text, html: content.html });
       } catch (error) {

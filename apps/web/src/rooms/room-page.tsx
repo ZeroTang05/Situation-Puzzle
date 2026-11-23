@@ -18,6 +18,8 @@ import { HintCapsule, useHintPlayer } from '../game/hint-capsule.js';
 import { GameHeader } from '../game/game-header.js';
 import { ChatInput } from '../game/chat-input.js';
 import { LargeModelToggle } from '../game/large-model-toggle.js';
+import { canShareTapInvite, shareTapInvite } from './taptap-invite.js';
+import { isTapH5 } from '../app-runtime.js';
 import { inviteUrl, confidenceLabel } from '../game/game-display.js';
 import { StoryCard } from '../game/story-card.js';
 import { VoteButtons } from '../catalog/vote-buttons.js';
@@ -111,7 +113,7 @@ export function RoomPage({ session }: { session: Session | null }) {
   }, [managementOpen]);
 
   const run = useCallback(
-    async (type: string, payload?: Record<string, unknown>, roundId?: string) => {
+    async (type: string, payload?: Record<string, unknown>, roundId?: string, copyRotatedInvite = true) => {
       if (busy || status !== 'ready') return;
       setBusyCommand(type);
       setError(null);
@@ -119,8 +121,10 @@ export function RoomPage({ session }: { session: Session | null }) {
         const result = await outbox.submit({ type, ...(payload !== undefined ? { payload } : {}), ...(roundId !== undefined ? { roundId } : {}), expectedControlVersion: state?.controlVersion ?? 0 });
         if (result?.inviteToken) {
           localStorage.setItem(`jev.invite.${roomId}`, result.inviteToken);
-          await navigator.clipboard.writeText(inviteUrl(siteOrigin(), result.inviteToken, 'room'));
-          setInviteCopied(true);
+          if (copyRotatedInvite) {
+            await navigator.clipboard.writeText(inviteUrl(siteOrigin(), result.inviteToken, 'room'));
+            setInviteCopied(true);
+          }
         }
         return result;
       } catch (err) {
@@ -211,6 +215,11 @@ export function RoomPage({ session }: { session: Session | null }) {
   };
 
   // 每次读取最新令牌，重置邀请后立即使用新链接。
+  const shareRoom = async () => {
+    const token = localStorage.getItem(`jev.invite.${roomId}`)
+      ?? (await run('rotate_invite', undefined, undefined, false))?.inviteToken;
+    if (token) shareTapInvite('room', token, () => setError(copy.invitePreviewFail));
+  };
   const copyInvite = async () => {
     try {
       const token = localStorage.getItem(`jev.invite.${roomId}`);
@@ -297,7 +306,8 @@ export function RoomPage({ session }: { session: Session | null }) {
             <VisibilityToggle checked={state.isPublic} disabled={busy} onChange={(next) => void run('set_visibility', { isPublic: next })} />
           </div>
           <div className="room-management-actions">
-            <button className="btn room-management-wide" disabled={busy} onClick={() => void copyInvite()}>{copy.invite}</button>
+            <button className="btn room-management-wide" disabled={busy} onClick={() => void copyInvite()}>{isTapH5 ? (language === 'zh' ? '复制网页链接' : 'Copy web link') : copy.invite}</button>
+            {canShareTapInvite() && <button className="btn room-management-wide" disabled={busy} onClick={() => void shareRoom()}>{language === 'zh' ? '分享 TapTap 邀请卡' : 'Share on TapTap'}</button>}
             <button className="btn" disabled={busy} onClick={() => void run('rotate_invite')}>{language === 'zh' ? copy.resettingInvite : copy.resetInviteEn}</button>
             <button
               className="btn btn-danger"

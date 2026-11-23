@@ -47,7 +47,7 @@ export function InviteSheet({
     <>
       <View className="invite-sheet-overlay" onClick={onClose} />
       <View className="invite-sheet">
-        <Button className="btn invite-sheet-item" openType="share" onClick={onClose}>
+        <Button className="btn invite-sheet-item" openType="share" disabled={!token} onClick={onClose}>
           {text.inviteShareWechat}
         </Button>
         <Button

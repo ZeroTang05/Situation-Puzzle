@@ -82,7 +82,7 @@ export function taptapMiniPlugin(config: { appid: string; secret: string }): Bet
             userId = existing.userId;
           }
         }
-        const session = await adapter.createSession(userId);
+        const session = await adapter.createSession(userId, false, { miniPlatform: 'taptap-mini' });
         return ctx.json({ token: session.token });
       }),
       taptapLink: createAuthEndpoint('/taptap-mini/link', {

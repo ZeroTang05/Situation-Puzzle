@@ -117,6 +117,7 @@ export async function createAppContext(input: BootstrapInput): Promise<AppContex
     res.end();
   });
   // better-auth 处理 /api/v1/auth/*：必须拿到未经 JSON 解析的原始流
+  server.use('/api/v1/me/email-binding/send', otpHttpContext(server.get('trust proxy fn')));
   server.use('/api/v1/auth', otpHttpContext(server.get('trust proxy fn')), toNodeHandler(input.auth.handler));
   mountBodyParsers(server);
 

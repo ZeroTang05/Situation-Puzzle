@@ -61,6 +61,8 @@ export class SessionGuard implements CanActivate {
       roles: roleRows.map((r) => r.role),
       status: profile.status,
     };
+    const platform = authResult.session.miniPlatform;
+    if (platform === 'wechat-mini' || platform === 'taptap-mini') sessionUser.miniPlatform = platform;
     request.sessionUser = sessionUser;
     request.authSessionId = authResult.session.id;
     return true;

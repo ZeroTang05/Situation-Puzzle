@@ -4,7 +4,7 @@ import { UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { eq } from 'drizzle-orm';
 import { freeRoomAccounts, sponsorGrants } from '@jev/database';
-import { freeRoomsRemaining, hasActiveSponsorship } from '@jev/domain';
+import { DomainError, freeRoomsRemaining, hasActiveSponsorship } from '@jev/domain';
 import { app } from '../context.js';
 import { CurrentUser, type SessionUser, ZodValidationPipe } from '../common/http.js';
 import { RateLimit } from '../common/rate-limit.js';
@@ -76,6 +76,7 @@ export class BillingController {
     @CurrentUser() user: SessionUser,
     @Body(new ZodValidationPipe(redeemCodeRequestSchema)) body: z.infer<typeof redeemCodeRequestSchema>,
   ) {
+    if (user.miniPlatform) throw new DomainError('FORBIDDEN', '小游戏内无法兑换');
     return this.redeemCodesService.redeem(user.userId, body.code);
   }
 
@@ -84,6 +85,7 @@ export class BillingController {
     @CurrentUser() user: SessionUser,
     @Body(new ZodValidationPipe(orderCreateRequestSchema)) body: z.infer<typeof orderCreateRequestSchema>,
   ) {
+    if (user.miniPlatform) throw new DomainError('FORBIDDEN', '小游戏内无法购买');
     return this.ordersService.createOrder(user.userId, body.productVersionId, body.channel);
   }
 
@@ -123,6 +125,10 @@ export class BillingController {
   @Post('ads/intent')
   @HttpCode(200)
   async adIntent(@CurrentUser() user: SessionUser): Promise<z.infer<typeof adIntentResponseSchema>> {
+    const { WECHAT_AD_UNIT_ID, WECHAT_AD_CALLBACK_SECRET, WECHAT_AD_ROOMS } = app().env;
+    if (user.miniPlatform !== 'wechat-mini' || !WECHAT_AD_UNIT_ID || !WECHAT_AD_CALLBACK_SECRET || !WECHAT_AD_ROOMS) {
+      throw new DomainError('FORBIDDEN', '广告奖励暂未开放');
+    }
     return this.roomBonusService.issueAdIntent(user.userId);
   }
 

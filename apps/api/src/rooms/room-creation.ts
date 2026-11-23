@@ -4,10 +4,13 @@
  * 调用方负责前置状态检查；锁序遵守：房间 → 局 → 赞助账户 → 免费账户 → 任务。
  */
 import { and, eq, sql } from 'drizzle-orm';
-import { freeRoomAccounts, roomCreditLedger, roomEntitlements, roomMembers, rooms, sponsorGrants } from '@jev/database';
-import { DomainError, resolveEntitlementSource } from '@jev/domain';
+import { freeRoomAccounts, roomCreditColumns, roomCreditLedger, roomEntitlements, roomMembers, rooms } from '@jev/database';
+import { DomainError, hasActiveSponsorship, resolveEntitlementSource } from '@jev/domain';
 import { app } from '../context.js';
 import { jevConfigVersion } from '@jev/jev';
+import type { SessionUser } from '../common/http.js';
+import { roomSponsorGrants } from '../auth/platform-email.js';
+import { adRoomMode, roomCredits } from './room-credit-mode.js';
 
 type Tx = Parameters<Parameters<import('@jev/database').Database['transaction']>[0]>[0];
 
@@ -19,16 +22,24 @@ export function jevConfigVersionOf(language: 'zh' | 'en'): string {
 
 export async function createRoomWithEntitlementTx(
   tx: Tx,
-  input: { creatorUserId: string; capacity: number; inviteTokenHash: string; now: Date; isPublic?: boolean },
+  input: { creatorUserId: string; miniPlatform?: SessionUser['miniPlatform']; capacity: number; inviteTokenHash: string; now: Date; isPublic?: boolean },
 ): Promise<string> {
   const { creatorUserId, capacity, inviteTokenHash, now } = input;
-  const grants = await tx.select().from(sponsorGrants).where(eq(sponsorGrants.userId, creatorUserId));
+  const person = { userId: creatorUserId, ...(input.miniPlatform ? { miniPlatform: input.miniPlatform } : {}) };
+  const grants = await roomSponsorGrants(tx, person);
+  const ads = adRoomMode(person);
   const freeRows = await tx.select().from(freeRoomAccounts).where(eq(freeRoomAccounts.userId, creatorUserId)).for('update');
   const free = freeRows[0];
   if (!free) throw new DomainError('ACCOUNT_NOT_INITIALIZED', '账号未初始化免费次数账户');
 
   // 内测期（BETA_OPEN_ROOM=true）直接以 beta 来源放行，不占免费次数也不看赞助
-  const { source, grantId } = resolveEntitlementSource(grants, free, now, { betaOpen: app().env.BETA_OPEN_ROOM });
+  const betaOpen = app().env.BETA_OPEN_ROOM;
+  const credits = roomCredits(free, ads);
+  if (ads && !betaOpen && credits.consumed + credits.reserved >= credits.total && !hasActiveSponsorship(grants, now)) {
+    throw new DomainError('AD_ROOMS_EXHAUSTED', '广告开房次数已用完');
+  }
+  const { source: originalSource, grantId } = resolveEntitlementSource(grants, credits, now, { betaOpen });
+  const source = ads && originalSource === 'free' ? 'ad' : originalSource;
 
   const inserted = await tx
     .insert(rooms)
@@ -51,14 +62,15 @@ export async function createRoomWithEntitlementTx(
     .returning({ id: roomEntitlements.id });
   await tx.update(rooms).set({ entitlementId: entitlement[0]!.id }).where(eq(rooms.id, roomId));
 
-  if (source === 'free') {
+  if (source === 'free' || source === 'ad') {
+    const { total, consumed, reserved, key } = roomCreditColumns(source);
     const reservedRows = await tx
       .update(freeRoomAccounts)
-      .set({ reserved: sql`${freeRoomAccounts.reserved} + 1`, updatedAt: now })
+      .set({ [key.reserved]: sql`${reserved} + 1`, updatedAt: now })
       .where(
         and(
           eq(freeRoomAccounts.userId, creatorUserId),
-          sql`${freeRoomAccounts.consumed} + ${freeRoomAccounts.reserved} < ${freeRoomAccounts.total}`,
+          sql`${consumed} + ${reserved} < ${total}`,
         ),
       )
       .returning({ userId: freeRoomAccounts.userId });

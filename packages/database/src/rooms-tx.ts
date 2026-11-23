@@ -97,14 +97,22 @@ export async function terminateRoundTx(tx: Tx, roundId: string): Promise<string[
   return cancelled.map((c) => c.turnId);
 }
 
+/** 广告与普通额度共用流水和状态机，按建房时的来源选同一组字段。 */
+export function roomCreditColumns(source: 'free' | 'ad') {
+  return source === 'ad'
+    ? { total: freeRoomAccounts.adTotal, consumed: freeRoomAccounts.adConsumed, reserved: freeRoomAccounts.adReserved, key: { consumed: 'adConsumed', reserved: 'adReserved' } as const }
+    : { total: freeRoomAccounts.total, consumed: freeRoomAccounts.consumed, reserved: freeRoomAccounts.reserved, key: { consumed: 'consumed', reserved: 'reserved' } as const };
+}
+
 /**
  * 房间首次有效判定的消费事务：free 来源且 reserved 状态时 reserved−1、consumed+1 并写唯一流水。
  * (room_id, action) 唯一约束保证重复结果事务不会重复扣减。
  */
 export async function consumeEntitlementIfFreeTx(tx: Tx, roomId: string): Promise<void> {
   const [entitlement] = await tx.select().from(roomEntitlements).where(eq(roomEntitlements.roomId, roomId)).limit(1);
-  if (!entitlement || entitlement.source !== 'free' || entitlement.status !== 'reserved') return;
+  if (!entitlement || (entitlement.source !== 'free' && entitlement.source !== 'ad') || entitlement.status !== 'reserved') return;
 
+  const { consumed, reserved, key } = roomCreditColumns(entitlement.source);
   const ledger = await tx
     .insert(roomCreditLedger)
     .values({ roomId, userId: entitlement.creatorUserId, action: 'consume', amount: 1 })
@@ -114,8 +122,8 @@ export async function consumeEntitlementIfFreeTx(tx: Tx, roomId: string): Promis
 
   const updated = await tx
     .update(freeRoomAccounts)
-    .set({ reserved: sql`${freeRoomAccounts.reserved} - 1`, consumed: sql`${freeRoomAccounts.consumed} + 1`, updatedAt: new Date() })
-    .where(and(eq(freeRoomAccounts.userId, entitlement.creatorUserId), sql`${freeRoomAccounts.reserved} > 0`))
+    .set({ [key.reserved]: sql`${reserved} - 1`, [key.consumed]: sql`${consumed} + 1`, updatedAt: new Date() })
+    .where(and(eq(freeRoomAccounts.userId, entitlement.creatorUserId), sql`${reserved} > 0`))
     .returning({ userId: freeRoomAccounts.userId });
   if (updated.length === 0) throw new Error(`免费次数预留不一致：room=${roomId}`);
 
@@ -125,8 +133,9 @@ export async function consumeEntitlementIfFreeTx(tx: Tx, roomId: string): Promis
 /** 释放未消费的预留（空房取消、故障关闭）：CHECK 约束防负数。 */
 export async function releaseEntitlementIfReservedTx(tx: Tx, roomId: string): Promise<boolean> {
   const [entitlement] = await tx.select().from(roomEntitlements).where(eq(roomEntitlements.roomId, roomId)).limit(1);
-  if (!entitlement || entitlement.source !== 'free' || entitlement.status !== 'reserved') return false;
+  if (!entitlement || (entitlement.source !== 'free' && entitlement.source !== 'ad') || entitlement.status !== 'reserved') return false;
 
+  const { consumed, reserved, key } = roomCreditColumns(entitlement.source);
   const ledger = await tx
     .insert(roomCreditLedger)
     .values({ roomId, userId: entitlement.creatorUserId, action: 'release', amount: 1 })
@@ -136,8 +145,8 @@ export async function releaseEntitlementIfReservedTx(tx: Tx, roomId: string): Pr
 
   await tx
     .update(freeRoomAccounts)
-    .set({ reserved: sql`${freeRoomAccounts.reserved} - 1`, updatedAt: new Date() })
-    .where(and(eq(freeRoomAccounts.userId, entitlement.creatorUserId), sql`${freeRoomAccounts.reserved} > 0`));
+    .set({ [key.reserved]: sql`${reserved} - 1`, updatedAt: new Date() })
+    .where(and(eq(freeRoomAccounts.userId, entitlement.creatorUserId), sql`${reserved} > 0`));
   await tx.update(roomEntitlements).set({ status: 'released' }).where(eq(roomEntitlements.id, entitlement.id));
   return true;
 }
@@ -148,8 +157,9 @@ export async function releaseEntitlementIfReservedTx(tx: Tx, roomId: string): Pr
  */
 export async function refundConsumedEntitlementTx(tx: Tx, roomId: string): Promise<boolean> {
   const [entitlement] = await tx.select().from(roomEntitlements).where(eq(roomEntitlements.roomId, roomId)).limit(1);
-  if (!entitlement || entitlement.source !== 'free' || entitlement.status !== 'consumed') return false;
+  if (!entitlement || (entitlement.source !== 'free' && entitlement.source !== 'ad') || entitlement.status !== 'consumed') return false;
 
+  const { consumed, reserved, key } = roomCreditColumns(entitlement.source);
   const ledger = await tx
     .insert(roomCreditLedger)
     .values({ roomId, userId: entitlement.creatorUserId, action: 'refund', amount: 1 })
@@ -159,8 +169,8 @@ export async function refundConsumedEntitlementTx(tx: Tx, roomId: string): Promi
 
   await tx
     .update(freeRoomAccounts)
-    .set({ consumed: sql`${freeRoomAccounts.consumed} - 1`, updatedAt: new Date() })
-    .where(and(eq(freeRoomAccounts.userId, entitlement.creatorUserId), sql`${freeRoomAccounts.consumed} > 0`));
+    .set({ [key.consumed]: sql`${consumed} - 1`, updatedAt: new Date() })
+    .where(and(eq(freeRoomAccounts.userId, entitlement.creatorUserId), sql`${consumed} > 0`));
   await tx.update(roomEntitlements).set({ status: 'refunded' }).where(eq(roomEntitlements.id, entitlement.id));
   return true;
 }

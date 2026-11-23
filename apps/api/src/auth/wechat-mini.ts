@@ -99,7 +99,7 @@ export function wechatMiniPlugin(config: { appid: string; secret: string }): Bet
               userId = existing.userId;
             }
           }
-          const session = await adapter.createSession(userId);
+          const session = await adapter.createSession(userId, false, { miniPlatform: 'wechat-mini' });
           return ctx.json({ token: session.token });
         },
       ),

@@ -59,7 +59,7 @@ export const roomBonusKindEnum = pgEnum('room_bonus_kind', ['ad_bonus', 'invite_
 export const grantStatusEnum = pgEnum('grant_status', ['active', 'frozen', 'revoked']);
 
 /** beta：内测期（BETA_OPEN_ROOM）畅玩的开房授权来源 */
-export const entitlementSourceEnum = pgEnum('entitlement_source', ['free', 'sponsorship', 'test', 'beta']);
+export const entitlementSourceEnum = pgEnum('entitlement_source', ['free', 'sponsorship', 'test', 'beta', 'ad']);
 
 export const entitlementStatusEnum = pgEnum('entitlement_status', [
   'reserved',
@@ -282,12 +282,16 @@ export const freeRoomAccounts = pgTable(
     total: integer('total').notNull().default(10),
     consumed: integer('consumed').notNull().default(0),
     reserved: integer('reserved').notNull().default(0),
+    adTotal: integer('ad_total').notNull().default(0),
+    adConsumed: integer('ad_consumed').notNull().default(0),
+    adReserved: integer('ad_reserved').notNull().default(0),
     updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex('free_room_accounts_user_uq').on(t.userId),
     // 负余额在数据库层不可能出现
     check('free_room_accounts_non_negative', sql`consumed >= 0 and reserved >= 0 and consumed + reserved <= total`),
+    check('free_room_accounts_ad_non_negative', sql`ad_consumed >= 0 and ad_reserved >= 0 and ad_consumed + ad_reserved <= ad_total`),
   ],
 );
 

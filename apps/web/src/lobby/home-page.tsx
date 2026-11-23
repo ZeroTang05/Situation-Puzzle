@@ -22,7 +22,7 @@ export function HomePage({ session }: { session: Session | null }) {
   // 开房额度与当前加入的房间分别读取，开房按钮始终创建新房。
   const entitlement = useQuery({
     queryKey: ['entitlement-preview'],
-    queryFn: () => api<{ sponsored: boolean; freeRemaining: number }>('/rooms/entitlement-preview'),
+    queryFn: () => api<{ sponsored: boolean; freeRemaining: number; freeTotal?: number; adRooms?: boolean }>('/rooms/entitlement-preview'),
     enabled: session !== null,
     retry: false,
   });
@@ -115,7 +115,7 @@ export function HomePage({ session }: { session: Session | null }) {
         <section className="panel entitlement-row">
           <span className="muted">{copy.freeRooms}</span>
           <span className="entitlement-value">
-            {entitlement.data.sponsored ? copy.unlimited : `${entitlement.data.freeRemaining} / 10`}
+            {entitlement.data.sponsored ? copy.unlimited : `${entitlement.data.freeRemaining} / ${entitlement.data.freeTotal ?? 10}`}
           </span>
           {entitlement.data.sponsored && <span className="verdict-badge verdict-solved">{copy.sponsored}</span>}
         </section>

@@ -34,11 +34,21 @@ export const session = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),
     ipAddress: text('ip_address'),
     userAgent: text('user_agent'),
+    miniPlatform: text('mini_platform'),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex('session_token_uq').on(t.token), index('session_user_idx').on(t.userId)],
 );
+
+/** 平台号绑定的已验证邮箱。网页账号继续持有订单与会员资格。 */
+export const platformEmailBindings = pgTable('platform_email_bindings', {
+  userId: text('user_id').primaryKey().references(() => user.id, { onDelete: 'cascade' }),
+  platform: text('platform').notNull(),
+  email: text('email').notNull(),
+  sourceUserId: text('source_user_id').references(() => user.id, { onDelete: 'set null' }),
+  verifiedAt: timestamp('verified_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+}, (t) => [uniqueIndex('platform_email_bindings_platform_email_uq').on(t.platform, t.email)]);
 
 /** 第三方身份与凭据：Google 身份按 (providerId, accountId) 唯一识别，不凭邮箱猜人。 */
 export const account = pgTable(

@@ -134,7 +134,9 @@ export class RoomBonusService {
 
       await tx
         .update(freeRoomAccounts)
-        .set({ total: sql`${freeRoomAccounts.total} + ${AD_REWARD_ROOMS}`, updatedAt: new Date() })
+        .set(app().env.WECHAT_AD_ROOMS
+          ? { adTotal: sql`${freeRoomAccounts.adTotal} + ${AD_REWARD_ROOMS}`, updatedAt: new Date() }
+          : { total: sql`${freeRoomAccounts.total} + ${AD_REWARD_ROOMS}`, updatedAt: new Date() })
         .where(eq(freeRoomAccounts.userId, userId));
       return 'granted';
     });

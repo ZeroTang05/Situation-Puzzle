@@ -13,8 +13,8 @@ export const isTapH5 = import.meta.env.VITE_TAPTAP_H5 === 'true';
 /** 壳内为原生平台（window.Capacitor 由 Capacitor 运行时注入） */
 export const isAppShell = typeof window !== 'undefined' && Boolean((window as { Capacitor?: unknown }).Capacitor);
 
-/** 打赏购买只在网页端展示：App 壳与 TapTap H5 隐藏（兑换码不受影响，收在设置页） */
-export const purchaseEntryVisible = !isAppShell && !isTapH5;
+/** 网页与 Android App 开放站内购买，TapTap 端只展示现有权益。 */
+export const purchaseEntryVisible = !isTapH5;
 const usesBearer = isAppShell || isTapH5;
 
 /** 接口地址：App 壳指向生产域名，网页保持相对路径（当前站点同源代理） */
@@ -108,7 +108,7 @@ function nativePlugins(): PluginRegistry | undefined {
 
 /** 站点绝对来源：App 壳=接口基址（生产域名），网页=当前页面来源（开发期同源代理也成立） */
 export function siteOrigin(): string {
-  return apiBase || window.location.origin;
+  return apiBase || (isTapH5 ? 'https://sp.xiaobaozi.cn' : window.location.origin);
 }
 
 /** 在系统浏览器（Android Custom Tab）打开 OAuth 授权页：WebView 内会被 Google 拦截 */

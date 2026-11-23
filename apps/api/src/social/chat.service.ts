@@ -349,6 +349,7 @@ export class ChatService {
       const inviteTokenHash = createHash('sha256').update(inviteToken).digest('hex');
       const roomId = await createRoomWithEntitlementTx(tx, {
         creatorUserId: user.userId,
+        miniPlatform: user.miniPlatform,
         capacity: QUICK_ROOM_CAPACITY,
         inviteTokenHash,
         now,

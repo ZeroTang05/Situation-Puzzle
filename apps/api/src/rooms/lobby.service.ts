@@ -666,6 +666,7 @@ export class LobbyService {
       const now = new Date();
       const newRoomId = await createRoomWithEntitlementTx(tx, {
         creatorUserId: lobby.hostUserId,
+        miniPlatform: user.miniPlatform,
         capacity: lobby.capacity,
         inviteTokenHash,
         now,

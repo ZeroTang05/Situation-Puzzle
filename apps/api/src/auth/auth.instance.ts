@@ -178,6 +178,7 @@ export function createAuth({ env, db, mailer }: AuthDeps) {
         : []),
     ],
     session: {
+      additionalFields: { miniPlatform: { type: 'string', required: false, input: false } },
       expiresIn: 60 * 60 * 24 * 30,
       updateAge: 60 * 60 * 24,
       cookieCache: { enabled: true, maxAge: 5 * 60 },

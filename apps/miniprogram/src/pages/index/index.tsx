@@ -31,7 +31,7 @@ export default function Index(): ReactNode {
   // 开房额度与当前加入的房间分别读取（与 web 首页同源接口，未登录不拉）
   const entitlement = useQuery({
     queryKey: ['entitlement-preview'],
-    queryFn: () => api<{ sponsored: boolean; freeRemaining: number }>('/rooms/entitlement-preview'),
+    queryFn: () => api<{ sponsored: boolean; freeRemaining: number; freeTotal?: number; adRooms?: boolean }>('/rooms/entitlement-preview'),
     enabled: session !== null,
     retry: false,
   })
@@ -142,7 +142,7 @@ export default function Index(): ReactNode {
         <View className="panel entitlement-row">
           <Text className="muted">{copy.freeRooms}</Text>
           <Text className="entitlement-value">
-            {entitlement.data.sponsored ? copy.unlimited : `${entitlement.data.freeRemaining} / 10`}
+            {entitlement.data.sponsored ? copy.unlimited : `${entitlement.data.freeRemaining} / ${entitlement.data.freeTotal ?? 10}`}
           </Text>
           {entitlement.data.sponsored && <Text className="verdict-badge verdict-solved">{copy.sponsored}</Text>}
         </View>

@@ -69,6 +69,8 @@ const envSchema = z.object({
   WECHAT_PAY_PLATFORM_PUBLIC_KEY_PATH: z.string().optional(),
   /** 微信激励视频广告服务端验证密钥（流量主后台配置）；未配置时小程序看广告入口不发放奖励 */
   WECHAT_AD_CALLBACK_SECRET: z.string().optional(),
+  WECHAT_AD_UNIT_ID: z.string().regex(/^adunit-[a-z0-9]+$/).optional(),
+  WECHAT_AD_ROOMS: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   /** 小程序登录凭据（mp.weixin.qq.com 开发管理 → 开发设置）；两项配齐才注册微信登录插件 */
   WECHAT_MINI_APPID: z.string().optional(),
   WECHAT_MINI_SECRET: z.string().optional(),
@@ -144,6 +146,9 @@ export function loadEnv(): Env {
   const env = parsed.data;
   if (Boolean(env.TAPTAP_MINI_APPID) !== Boolean(env.TAPTAP_MINI_SECRET)) {
     throw new Error('环境配置校验失败 → TAPTAP_MINI_APPID / TAPTAP_MINI_SECRET 必须同时配置');
+  }
+  if (env.WECHAT_AD_ROOMS && (!env.WECHAT_AD_UNIT_ID || !env.WECHAT_AD_CALLBACK_SECRET)) {
+    throw new Error('环境配置校验失败 → WECHAT_AD_ROOMS 需要广告位与回调密钥');
   }
   // 邮件通道跨字段校验：所选通道的必需配置缺失就立即失败
   if (env.MAIL_TRANSPORT === 'resend' && !env.RESEND_API_KEY) {

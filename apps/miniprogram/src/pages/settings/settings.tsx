@@ -20,64 +20,7 @@ import { DialogHost, Modal, useDialog } from '../../ui/dialog'
 import type { Language } from '@jev/i18n'
 import { profileIdentityRows, type MeResponse } from '@jev/contracts'
 
-interface RedeemResponse {
-  orderId: string
-  status: string
-}
-
-/** 兑换码表单：输入运营方发的码，服务端核销并发放会员权益（web redeem-section.tsx 同款） */
-function RedeemSection(): ReactNode {
-  const { copy, language } = useLanguage()
-  const queryClient = useQueryClient()
-  const [code, setCode] = useState('')
-  const [codeError, setCodeError] = useState<string | null>(null)
-  const [codeDone, setCodeDone] = useState(false)
-  const [redeeming, setRedeeming] = useState(false)
-
-  const submitCode = async () => {
-    const value = code.trim()
-    if (value.length < 6) {
-      setCodeDone(false)
-      setCodeError(copy.redeemCodeFailed)
-      return
-    }
-    setRedeeming(true)
-    setCodeError(null)
-    try {
-      await api<RedeemResponse>('/orders/redeem', { method: 'POST', body: { code: value } })
-      setCodeDone(true)
-      setCode('')
-      await queryClient.invalidateQueries({ queryKey: ['me'] })
-    } catch (err) {
-      setCodeDone(false)
-      setCodeError(translateApiError(err, language, copy.sponsorRedeemUnavailable))
-    } finally {
-      setRedeeming(false)
-    }
-  }
-
-  return (
-    <View className="sponsor-redeem">
-      <View className="sponsor-redeem-row">
-        <Input
-          className="sponsor-redeem-input"
-          type="text"
-          value={code}
-          onInput={(e) => {
-            setCode(e.detail.value)
-            setCodeDone(false)
-          }}
-          placeholder={copy.redeemCodePlaceholder}
-        />
-        <Button className="btn btn-primary btn-sm" disabled={redeeming} onClick={() => void submitCode()}>
-          {copy.redeemCodeSubmit}
-        </Button>
-      </View>
-      {codeError && <Text className="error-text">{codeError}</Text>}
-      {codeDone && <Text className="sponsor-redeem-ok">{copy.redeemCodeSuccess}</Text>}
-    </View>
-  )
-}
+import { BindEmailSection } from './bind-email-section'
 
 export default function Settings(): ReactNode {
   const { copy, language, setLanguage } = useLanguage()
@@ -239,11 +182,7 @@ export default function Settings(): ReactNode {
         </View>
       </View>
 
-      {/* 兑换码：运营发码后在此兑换会员 */}
-      <View className="panel stack">
-        <Text className="h3">{copy.redeemCodeTitle}</Text>
-        <RedeemSection />
-      </View>
+      {me.data && <BindEmailSection boundEmail={me.data.boundEmail} />}
 
       {/* 关于：隐私政策 */}
       <View className="panel stack">

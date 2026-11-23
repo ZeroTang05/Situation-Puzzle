@@ -560,6 +560,9 @@ export const meResponseSchema = z.object({
   emailVerified: z.boolean(),
   identity: profileIdentitySchema,
   roles: z.array(z.string()),
+  boundEmail: z.email().nullable(),
+  adRooms: z.boolean(),
+  wechatRewardedAdUnitId: z.string().nullable(),
   sponsorship: z.object({
     monthlyUntil: z.string().nullable(),
     lifetime: z.boolean(),

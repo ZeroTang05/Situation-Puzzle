@@ -8,7 +8,9 @@
 
 - **登录**：H5 构建的登录页只渲染「TapTap 一键登录」。TapTap 容器注入 `window.tap`（普通浏览器没有），`tap.login` 回调取得五分钟有效的临时 code，`POST /api/v1/auth/taptap-mini/login` 由服务端走官方 code2Session 换 openid 建号建会话，返回的站内令牌按 H5 的 Bearer 链路存本来源；邮箱注册、密码/验证码与第三方 OAuth 在 H5 收起。无 tap 桥时提示「请在 TapTap 中打开」。服务器配 `TAPTAP_MINI_APPID` / `TAPTAP_MINI_SECRET`（两项同时配置才注册端点），账号按 `taptap-mini + MiniApp ID:openid` 唯一识别。
 - **防沉迷**：TapTap 小游戏体系没有开发者侧防沉迷 API（全文档无此接口）；平台统一实名认证系统在登录链路执行——未实名禁止登录，未成年人时段/时长限制由平台强制。接入方式即走 `tap.login` 登录链路，登录失败按稳定错误码（`TAPTAP_LOGIN_FAILED` 等）翻译提示。
-- **充值**：TapTap H5 隐藏「我的」页打赏购买面板（`purchaseEntryVisible`，与 App 壳同策略），兑换码保留在设置页。
+- **会员**：TapTap H5 隐藏购买和兑换入口。设置页可用邮件验证码绑定邮箱，有效的付费权益沿用原账号的订单和到期时间。网页与 Android App 保留购买和兑换入口。
+- **房间分享**：H5 构建设置 `VITE_TAPTAP_SHARE_TEMPLATE_ID`（当前 H5 草稿审核通过的分享模板编号）。平台容器支持 `tap.showShareboard` 时显示 TapTap 分享按钮，`sceneParam` 传房间类型和邀请令牌，冷启动与回到前台均进入现有邀请页。普通网页链接继续可复制。微信渠道显示及冷、热启动行为待手机实测。
+- **广告奖励**：H5 尚缺能验证观看结果并关联单次用户奖励的服务端回调。广告可用前保留现行开房规则。微信小程序可独立配置 `WECHAT_AD_UNIT_ID`、`WECHAT_AD_CALLBACK_SECRET`，待真机确认回调收到 `out_return_no` 后开启 `WECHAT_AD_ROOMS=true` 并关闭内测畅玩。开启后微信平台的非会员开房消耗独立的广告次数。
 
 厂商稷策游戏 `529328` 下已创建 H5 草稿 `1059905`，名称「超好玩海龟汤」、分类解谜、开发者身份、非关卡游戏。创建后实际读回 `declared_package_types=["h5"]` 与 `is_level=false`。新小游戏标识为 `tapmcowiubozfhhvw5`。
 
