@@ -156,6 +156,25 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
     [session],
   );
 
+  /** 只在服务端明确拒绝凭证时续签，同一题目版本和本地记录继续沿用。 */
+  const withSoloToken = async <T,>(current: SoloSessionRow, request: (token: string) => Promise<T>): Promise<T> => {
+    try {
+      return await request(current.token);
+    } catch (err) {
+      if (!(err instanceof ApiError) || err.code !== 'VALIDATION_FAILED'
+        || (err.params?.reason !== 'SOLO_TOKEN_INVALID' && err.message !== '单人凭证无效或已过期，请重新开局')) throw err;
+    }
+
+    const { token, configVersion } = await api<{ token: string; configVersion: string }>('/solo/sessions', {
+      method: 'POST',
+      body: { puzzleId: current.puzzleId, language: current.language, versionId: current.versionId },
+      credentials: 'omit',
+    });
+    await soloStore.updateSession(current.localSessionId, { token, configVersion });
+    setSession((prev) => prev?.localSessionId === current.localSessionId ? { ...prev, token, configVersion } : prev);
+    return request(token);
+  };
+
   const submit = async () => {
     if (!session || !text.trim() || sending || changingPuzzle) return;
     setStorageWarning(false);
@@ -168,20 +187,19 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
     setTurns((prev) => [...prev, optimistic]);
     const submittedText = text.trim();
     setText('');
-    await soloStore.saveDraft(session.localSessionId, inputMode, '');
     await soloStore.bumpProgress(session.puzzleId, { questionDelta: 1 });
 
     try {
       // 2. 请求模型（单人并发限制在服务端；繁忙时本地保留输入）
       //    带上最近几轮已判定的问答，供判题解析代词指代
       const recentQas = turns.filter(isJudgedAsk).slice(-RECENT_QA_LIMIT).map((t) => ({ question: t.text, verdict: t.result }));
-      const result =
-        inputMode === 'ask'
-          ? await api<{ result: string; confidence: number }>('/solo/judge', { method: 'POST', body: { token: session.token, question: submittedText, ...(recentQas.length ? { recentQas } : {}) }, credentials: 'omit' })
-          : await api<{ result: string; confidence: number; answer?: string }>('/solo/solve', { method: 'POST', body: { token: session.token, solution: submittedText, useLargeModel }, credentials: 'omit' });
+      const result = await withSoloToken(session, (token) => inputMode === 'ask'
+        ? api<{ result: string; confidence: number; answer?: string }>('/solo/judge', { method: 'POST', body: { token, question: submittedText, ...(recentQas.length ? { recentQas } : {}) }, credentials: 'omit' })
+        : api<{ result: string; confidence: number; answer?: string }>('/solo/solve', { method: 'POST', body: { token, solution: submittedText, useLargeModel }, credentials: 'omit' }));
 
       // 3. 回写结果
       await soloStore.finishTurn(localTurnId, { status: 'succeeded', result: result.result, confidence: result.confidence });
+      await soloStore.saveDraft(session.localSessionId, inputMode, '');
       setTurns((prev) => prev.map((t) => (t.localTurnId === localTurnId ? { ...t, status: 'succeeded', result: result.result, confidence: result.confidence } : t)));
 
       if (inputMode === 'solve' && result.result === 'solved') {
@@ -200,12 +218,9 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
       setTurns((prev) => prev.map((t) => (t.localTurnId === localTurnId ? { ...t, status: 'failed' } : t)));
       // 失败后本地保留问题：重试按当前输入模式重新提交
       setText(submittedText);
+      await soloStore.saveDraft(session.localSessionId, inputMode, submittedText);
       if (err instanceof ApiError && err.code === 'JEV_BUSY') setError(copy.jevBusy);
       else setError(note);
-      if (err instanceof ApiError && err.code === 'VALIDATION_FAILED') {
-        // 凭证过期：重新开局获取
-        setError(copy.sessionExpired);
-      }
     } finally {
       setSending(false);
     }
@@ -215,14 +230,14 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
     if (!session || hintBusy || changingPuzzle || session.hintsUnlocked.includes(index)) return;
     setHintBusy(true);
     try {
-      const { text: hint } = await api<{ text: string }>('/solo/hints', {
+      const { text: hint } = await withSoloToken(session, (token) => api<{ text: string }>('/solo/hints', {
         method: 'POST',
-        body: { token: session.token, index },
+        body: { token, index },
         credentials: 'omit',
-      });
+      }));
       const unlocked = [...session.hintsUnlocked, index];
       await soloStore.updateSession(session.localSessionId, { hintsUnlocked: unlocked });
-      setSession({ ...session, hintsUnlocked: unlocked });
+      setSession((prev) => prev?.localSessionId === session.localSessionId ? { ...prev, hintsUnlocked: unlocked } : prev);
       // 提示以本地记录展示
       await soloStore.addTurn({ localSessionId: session.localSessionId, kind: 'ask', text: hint }).then(async (id) => {
         await soloStore.finishTurn(id, { status: 'succeeded', result: 'hint' });
@@ -239,13 +254,13 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
     if (!session || session.revealedAnswer || revealing || changingPuzzle) return;
     setRevealing(true);
     try {
-      const { answer } = await api<{ answer: string }>('/solo/reveal', {
+      const { answer } = await withSoloToken(session, (token) => api<{ answer: string }>('/solo/reveal', {
         method: 'POST',
-        body: { token: session.token, confirmed: true },
+        body: { token, confirmed: true },
         credentials: 'omit',
-      });
+      }));
       await soloStore.updateSession(session.localSessionId, { status: 'revealed', revealedAnswer: answer });
-      setSession({ ...session, status: 'revealed', revealedAnswer: answer });
+      setSession((prev) => prev?.localSessionId === session.localSessionId ? { ...prev, status: 'revealed', revealedAnswer: answer } : prev);
       await soloStore.bumpProgress(session.puzzleId, { revealed: true });
     } catch {
       setError(copy.revealFail);
@@ -367,7 +382,7 @@ export function SoloPage({ session: authSession }: { session: Session | null }) 
           {session.revealedAnswer && (
             <section className="panel answer-panel">
               <h3>{copy.answer}</h3>
-              <p>{session.revealedAnswer}</p>
+              <p className="puzzle-answer">{session.revealedAnswer}</p>
             </section>
           )}
         </div>

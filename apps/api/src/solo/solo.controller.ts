@@ -136,7 +136,7 @@ export class SoloController {
       }
       return payload;
     } catch {
-      throw new DomainError('VALIDATION_FAILED', '单人凭证无效或已过期，请重新开局');
+      throw new DomainError('VALIDATION_FAILED', '单人凭证无效或已过期，请重新开局', { reason: 'SOLO_TOKEN_INVALID' });
     }
   }
 
